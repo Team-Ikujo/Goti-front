@@ -22,9 +22,10 @@
       "noUnusedParameters": true,
 
       "baseUrl": ".",
+      "types": ["node"],
       "paths": {
          "@/*": ["./*"]
       }
    },
-   "include": ["src"]
+   "include": ["src", "components", "lib", "rsbuild.config.ts"]
 }
