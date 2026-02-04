@@ -13,9 +13,14 @@ const KakaoLoginButton = () => {
     <Button
       type="button"
       onClick={handleClick}
-      className="h-13 max-w-95 inline-flex w-screen items-center justify-center gap-2 rounded-xl bg-yellow-300 px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-amber-600"
+      className="h-13 inline-flex w-full max-w-95 items-center justify-center gap-2 rounded-xl bg-[#FFDE00] px-5 py-3.5 text-[16px] font-semibold text-black hover:bg-[#FECB00] active:bg-[#FECF00]"
     >
-      <img src="/Kakao.svg" alt="" className="h-4 w-4" aria-hidden="true" />
+      <img
+        src="/Kakao.svg"
+        alt="kakao icon"
+        className="h-5 w-5"
+        aria-hidden="true"
+      />
       카카오로 로그인
     </Button>
   );
