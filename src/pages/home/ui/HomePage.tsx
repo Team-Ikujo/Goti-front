@@ -12,12 +12,12 @@ const HomePage = () => {
             로그인 라우팅 예시 페이지
           </h1>
           <p className="mt-3 max-w-2xl text-base text-slate-300">
-            React Router를 사용해 `/login` 페이지로 이동하는 단순한 예시입니다.
+            React Router를 사용해 `/auth/login` 페이지로 이동하는 단순한 예시입니다.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
-            to="/login"
+            to="/auth/login"
             className="rounded-full border border-emerald-300 px-6 py-3 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-300 hover:text-slate-950"
           >
             로그인 페이지로 이동
