@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { handleKakaoCallback } from "@/features/auth/kakao";
-import { handleGoogleCallback } from "@/features/auth/google";
-import { handleNaverCallback } from "@/features/auth/naver";
+import { useSubmitAuthCode } from "@/features/auth/model/useSubmitAuthCode";
+import type { SocialProvider } from "@/features/auth/api/submitAuthCode";
 
 const AuthCallbackPage = () => {
   const { provider } = useParams<{ provider: string }>();
@@ -10,29 +9,40 @@ const AuthCallbackPage = () => {
   const [authCode, setAuthCode] = useState<string | null>(null); //OAuth 확인용 TODO: 확인 후 지울 것
 
   const normalizedProvider = useMemo(() => provider?.toLowerCase(), [provider]);
+  const submitAuthCodeMutation = useSubmitAuthCode();
+  const didRunRef = useRef(false);
+
+  const isSocialProvider = (value?: string): value is SocialProvider => {
+    return value === "kakao" || value === "naver" || value === "google";
+  };
 
   useEffect(() => {
+    if (didRunRef.current) {
+      return;
+    }
+    didRunRef.current = true;
+
     const run = async () => {
       try {
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
         setAuthCode(code);
 
-        switch (normalizedProvider) {
-          case "kakao":
-            await handleKakaoCallback(window.location.search);
-            break;
-          case "google":
-            await handleGoogleCallback(window.location.search);
-            break;
-          case "naver":
-            await handleNaverCallback(window.location.search);
-            break;
-          default:
-            throw new Error(
-              `Unsupported provider: ${normalizedProvider ?? "none"}`,
-            );
+        if (!code) {
+          throw new Error("Missing authorization code.");
         }
+
+        if (!isSocialProvider(normalizedProvider)) {
+          throw new Error(
+            `Unsupported provider: ${normalizedProvider ?? "none"}`,
+          );
+        }
+
+        await submitAuthCodeMutation.mutateAsync({
+          provider: normalizedProvider,
+          code,
+          state: params.get("state") ?? undefined,
+        });
 
         setMessage("로그인 완료!");
       } catch (error) {
@@ -42,7 +52,7 @@ const AuthCallbackPage = () => {
     };
 
     run();
-  }, [normalizedProvider]);
+  }, [normalizedProvider, submitAuthCodeMutation]);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
