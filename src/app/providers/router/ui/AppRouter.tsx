@@ -14,6 +14,7 @@ const AppRouter = () => {
           <Route path=":provider/callback" element={<AuthCallbackPage />} />
         </Route>
         <Route path="/login" element={<Navigate to="/auth/login" replace />} />
+        <Route path="/signup" element={<SignUpPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
