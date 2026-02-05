@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { handleKakaoCallback } from "@/features/auth/kakao";
 import { handleGoogleCallback } from "@/features/auth/google";
 import { handleNaverCallback } from "@/features/auth/naver";
 
 const AuthCallbackPage = () => {
-  const navigate = useNavigate();
   const { provider } = useParams<{ provider: string }>();
   const [message, setMessage] = useState("로그인 중...");
   const [authCode, setAuthCode] = useState<string | null>(null); //OAuth 확인용 TODO: 확인 후 지울 것
@@ -35,8 +34,7 @@ const AuthCallbackPage = () => {
             );
         }
 
-        setMessage("로그인 완료! 이동 중...");
-        //TODO: 성공시 이동할 페이지
+        setMessage("로그인 완료!");
       } catch (error) {
         setMessage("로그인에 실패했어요. 다시 시도해 주세요.");
         console.error(error);
@@ -44,7 +42,7 @@ const AuthCallbackPage = () => {
     };
 
     run();
-  }, [navigate, normalizedProvider]);
+  }, [normalizedProvider]);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">

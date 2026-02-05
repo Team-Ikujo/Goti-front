@@ -1,4 +1,5 @@
 import { Button } from "@/shared/ui/button";
+import { openOAuthPopup } from "@/shared/lib/openOAuthPopup";
 import { buildKakaoAuthUrl } from "../lib/buildKakaoAuthUrl";
 import { createOAuthState } from "../model/createOAuthState";
 
@@ -6,7 +7,7 @@ const KakaoLoginButton = () => {
   const handleClick = () => {
     const state = createOAuthState();
     const authUrl = buildKakaoAuthUrl(state);
-    window.location.assign(authUrl);
+    openOAuthPopup(authUrl);
   };
 
   return (

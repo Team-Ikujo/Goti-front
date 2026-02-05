@@ -1,4 +1,4 @@
-import { submitAuthCode } from "../api/submitAuthCode";
+import { submitAuthCode } from "@/features/auth/api/submitAuthCode";
 
 export const handleGoogleCallback = async (search: string) => {
   const params = new URLSearchParams(search);
@@ -9,5 +9,5 @@ export const handleGoogleCallback = async (search: string) => {
     throw new Error("Missing Google authorization code.");
   }
 
-  return submitAuthCode({ code, state });
+  return submitAuthCode({ provider: "google", code, state });
 };

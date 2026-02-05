@@ -1,12 +1,13 @@
 import { buildGoogleAuthUrl } from "../lib/buildGoogleAuthUrl";
 import { createOAuthState } from "../../kakao/model/createOAuthState";
+import { openOAuthPopup } from "@/shared/lib/openOAuthPopup";
 import { Button } from "@/shared/ui/button";
 
 const GoogleLoginButton = () => {
   const handleClick = () => {
     const state = createOAuthState();
     const authUrl = buildGoogleAuthUrl(state);
-    window.location.assign(authUrl);
+    openOAuthPopup(authUrl);
   };
 
   return (

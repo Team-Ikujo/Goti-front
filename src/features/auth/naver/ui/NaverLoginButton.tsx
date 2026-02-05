@@ -1,12 +1,13 @@
 import { buildNaverAuthUrl } from "../lib/buildNaverAuthUrl";
 import { createOAuthState } from "../../kakao/model/createOAuthState";
+import { openOAuthPopup } from "@/shared/lib/openOAuthPopup";
 import { Button } from "@/shared/ui/button";
 
 const NaverLoginButton = () => {
   const handleClick = () => {
     const state: string = createOAuthState();
     const authUrl: string = buildNaverAuthUrl(state);
-    window.location.assign(authUrl);
+    openOAuthPopup(authUrl);
   };
 
   return (

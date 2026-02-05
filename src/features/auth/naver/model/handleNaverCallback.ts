@@ -1,4 +1,4 @@
-import { submitAuthCode } from "../api/submitAuthCode";
+import { submitAuthCode } from "@/features/auth/api/submitAuthCode";
 
 export const handleNaverCallback = async (search: string) => {
   const params = new URLSearchParams(search);
@@ -9,5 +9,5 @@ export const handleNaverCallback = async (search: string) => {
     throw new Error("Missing Naver authorization code.");
   }
 
-  return submitAuthCode({ code, state });
+  return submitAuthCode({ provider: "naver", code, state });
 };
