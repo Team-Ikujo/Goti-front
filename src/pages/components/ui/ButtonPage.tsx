@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button';
 import { ArrowRightIcon, PlusIcon, SearchIcon, DownloadIcon } from 'lucide-react';
 
 const ButtonPage = () => {
