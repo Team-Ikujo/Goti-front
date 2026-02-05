@@ -3,6 +3,7 @@ import AuthLayout from "@/widgets/layout/auth";
 import HomePage from "@/pages/home";
 import AuthCallbackPage from "@/pages/auth/callback";
 import LoginPage from "@/pages/auth/login";
+import SignUpPage from "@/pages/signup";
 
 const AppRouter = () => {
   return (
