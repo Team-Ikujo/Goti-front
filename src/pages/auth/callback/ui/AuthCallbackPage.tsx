@@ -5,6 +5,7 @@ import type {
   SocialProvider,
   SubmitAuthCodeResponse,
 } from "@/features/auth/api/submitAuthCode";
+import { useAuthStore } from "@/entities/auth/model/authStore";
 
 const AuthCallbackPage = () => {
   const { provider } = useParams<{ provider: string }>();
@@ -15,6 +16,7 @@ const AuthCallbackPage = () => {
 
   const normalizedProvider = useMemo(() => provider?.toLowerCase(), [provider]);
   const submitAuthCodeMutation = useSubmitAuthCode();
+  const setAuthTokens = useAuthStore((state) => state.setAuthTokens);
   const didRunRef = useRef(false);
 
   const isSocialProvider = (value?: string): value is SocialProvider => {
@@ -50,6 +52,11 @@ const AuthCallbackPage = () => {
         });
 
         setAuthResponse(response);
+        setAuthTokens({
+          accessToken: response.accessToken,
+          tempToken: response.tempToken,
+          isLinked: response.isLinked,
+        });
         setMessage("로그인 완료!");
       } catch (error) {
         setMessage("로그인에 실패했어요. 다시 시도해 주세요.");
