@@ -21,7 +21,7 @@ const KakaoLoginButton = () => {
         className="h-5 w-5"
         aria-hidden="true"
       />
-      카카오로 로그인
+      카카오로 시작하기
     </Button>
   );
 };

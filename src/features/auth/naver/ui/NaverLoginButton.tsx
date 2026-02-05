@@ -21,7 +21,7 @@ const NaverLoginButton = () => {
         className="h-5 w-5"
         aria-hidden="true"
       />
-      네이버로 로그인
+      네이버로 시작하기
     </Button>
   );
 };
