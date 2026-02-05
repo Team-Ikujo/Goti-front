@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useSubmitAuthCode } from "@/features/auth/model/useSubmitAuthCode";
-import type { SocialProvider } from "@/features/auth/api/submitAuthCode";
+import type {
+  SocialProvider,
+  SubmitAuthCodeResponse,
+} from "@/features/auth/api/submitAuthCode";
 
 const AuthCallbackPage = () => {
   const { provider } = useParams<{ provider: string }>();
   const [message, setMessage] = useState("로그인 중...");
   const [authCode, setAuthCode] = useState<string | null>(null); //OAuth 확인용 TODO: 확인 후 지울 것
+  const [authResponse, setAuthResponse] =
+    useState<SubmitAuthCodeResponse | null>(null); //OAuth 확인용 TODO: 확인 후 지울 것
 
   const normalizedProvider = useMemo(() => provider?.toLowerCase(), [provider]);
   const submitAuthCodeMutation = useSubmitAuthCode();
@@ -38,12 +43,13 @@ const AuthCallbackPage = () => {
           );
         }
 
-        await submitAuthCodeMutation.mutateAsync({
+        const response = await submitAuthCodeMutation.mutateAsync({
           provider: normalizedProvider,
           code,
           state: params.get("state") ?? undefined,
         });
 
+        setAuthResponse(response);
         setMessage("로그인 완료!");
       } catch (error) {
         setMessage("로그인에 실패했어요. 다시 시도해 주세요.");
@@ -64,6 +70,14 @@ const AuthCallbackPage = () => {
         {authCode ? (
           <div className="w-full break-all rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-200">
             code: {authCode}
+          </div>
+        ) : null}
+        {authResponse ? (
+          <div className="w-full rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-left text-xs text-slate-200">
+            response:
+            <pre className="mt-2 whitespace-pre-wrap break-all text-xs text-slate-200">
+              {JSON.stringify(authResponse, null, 2)}
+            </pre>
           </div>
         ) : null}
       </div>

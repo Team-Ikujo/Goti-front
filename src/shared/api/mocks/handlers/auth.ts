@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 
-export const handlers = [
+export const authHandlers = [
   http.post("/api/v1/auth/:provider/login", async ({ params, request }) => {
     const { provider } = params;
     const body = (await request.json()) as { code?: string };
