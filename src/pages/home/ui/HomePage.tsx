@@ -13,7 +13,7 @@ const HomePage = () => {
             </div>
             <div className="flex flex-wrap gap-3">
                <Link
-                  to="/login"
+                  to="/auth/login"
                   className="rounded-full border border-emerald-300 px-6 py-3 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-300 hover:text-slate-950"
                >
                   로그인 페이지로 이동
