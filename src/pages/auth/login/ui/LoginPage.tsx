@@ -1,5 +1,6 @@
 import { KakaoLoginButton } from "@/features/auth/kakao";
 import { NaverLoginButton } from "@/features/auth/naver";
+import { GoogleLoginButton } from "@/features/auth/google";
 
 const LoginPage = () => {
   //TODO: 구글, 네이버, 디자인 시스템 값이 설정완료되면 색상 변경
@@ -20,9 +21,7 @@ const LoginPage = () => {
         <section className="flex w-full flex-col justify-center items-center gap-3">
           <KakaoLoginButton />
           <NaverLoginButton />
-          <button className="h-13 inline-flex w-full max-w-95 items-center justify-center gap-2 rounded-xl border border-gray-200 px-5 py-3.5 text-[16px] font-bold text-gray-800">
-            구글
-          </button>
+          <GoogleLoginButton />
         </section>
       </div>
     </div>
