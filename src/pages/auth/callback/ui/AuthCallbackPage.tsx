@@ -6,6 +6,7 @@ import type {
   SubmitAuthCodeResponse,
 } from "@/features/auth/api/submitAuthCode";
 import { useAuthStore } from "@/entities/auth/model/authStore";
+import { ApiError } from "@/shared/api/client";
 
 const AuthCallbackPage = () => {
   const { provider } = useParams<{ provider: string }>();
@@ -13,6 +14,7 @@ const AuthCallbackPage = () => {
   const [authCode, setAuthCode] = useState<string | null>(null); //OAuth 확인용 TODO: 확인 후 지울 것
   const [authResponse, setAuthResponse] =
     useState<SubmitAuthCodeResponse | null>(null); //OAuth 확인용 TODO: 확인 후 지울 것
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const normalizedProvider = useMemo(() => provider?.toLowerCase(), [provider]);
   const submitAuthCodeMutation = useSubmitAuthCode();
@@ -60,6 +62,21 @@ const AuthCallbackPage = () => {
         setMessage("로그인 완료!");
       } catch (error) {
         setMessage("로그인에 실패했어요. 다시 시도해 주세요.");
+        if (error instanceof ApiError) {
+          const details =
+            typeof error.data === "string"
+              ? error.data
+              : JSON.stringify(error.data, null, 2);
+          setErrorMessage(
+            `[${error.status ?? "NO_STATUS"}] ${error.message}${
+              details ? `\n${details}` : ""
+            }`,
+          );
+        } else if (error instanceof Error) {
+          setErrorMessage(error.message);
+        } else {
+          setErrorMessage(String(error));
+        }
         console.error(error);
       }
     };
@@ -84,6 +101,14 @@ const AuthCallbackPage = () => {
             response:
             <pre className="mt-2 whitespace-pre-wrap break-all text-xs text-slate-200">
               {JSON.stringify(authResponse, null, 2)}
+            </pre>
+          </div>
+        ) : null}
+        {errorMessage ? (
+          <div className="w-full rounded-xl border border-red-400/60 bg-red-950/40 p-3 text-left text-xs text-red-200">
+            error:
+            <pre className="mt-2 whitespace-pre-wrap break-all text-xs text-red-200">
+              {errorMessage}
             </pre>
           </div>
         ) : null}

@@ -19,10 +19,11 @@ const providerToPath = (provider: SocialProvider) => provider.toUpperCase();
 export const submitAuthCode = async ({
   provider,
   code,
+  state,
 }: SubmitAuthCodeParams): Promise<SubmitAuthCodeResponse> => {
   const response = await apiClient.post<SubmitAuthCodeResponse>(
     `/api/v1/auth/${providerToPath(provider)}/login`,
-    { code },
+    { code, state },
   );
 
   return response.data;
