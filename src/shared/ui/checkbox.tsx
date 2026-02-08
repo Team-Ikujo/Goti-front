@@ -11,32 +11,35 @@ const checkboxVariants = cva(
       variants: {
          size: {
             lg: 'size-6',
-            md: 'size-5',
-            sm: 'size-4',
+            md: 'size-[18px]',
          },
       },
       defaultVariants: {
-         size: 'md',
+         size: 'lg',
       },
    },
 );
 
-const labelVariants = cva('cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:text-disabled-foreground', {
-   variants: {
-      typography: {
-         body1Medium: 'text-body-1-medium text-foreground',
-         body1Regular: 'text-body-1-regular text-muted-foreground',
+const labelVariants = cva(
+   'cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:text-disabled-foreground',
+   //disabled 시 폰트 색상 확인하고 수정할 예정
+   {
+      variants: {
+         typography: {
+            body1Medium: 'text-[14px] text-body-1-medium text-foreground',
+            body2Medium: 'text-[14px] text-body-2-medium text-foreground',
+            body2Regular: 'text-[14px] text-body-2-regular text-muted-foreground',
+         },
+      },
+      defaultVariants: {
+         typography: 'body1Medium',
       },
    },
-   defaultVariants: {
-      typography: 'body1Regular',
-   },
-});
+);
 
 const iconSizeMap = {
    lg: 'size-4',
    md: 'size-3.5',
-   sm: 'size-3',
 } as const;
 
 type CheckboxProps = React.ComponentProps<typeof CheckboxPrimitive.Root> &
@@ -53,7 +56,7 @@ function Checkbox({ className, size = 'md', typography, label, ...props }: Check
          data-slot="checkbox"
          className={cn(
             checkboxVariants({ size }),
-            'border-border border-[1.5px] bg-surface',
+            'border-border border-[1.5px] bg-base',
             'data-[state=checked]:bg-primary data-[state=checked]:border-primary',
             'data-[state=indeterminate]:bg-primary data-[state=indeterminate]:border-primary',
             'hover:border-primary',
