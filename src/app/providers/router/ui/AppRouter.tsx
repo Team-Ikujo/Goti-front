@@ -6,6 +6,7 @@ import LoginPage from '@/pages/auth/login';
 import SignUpPage from '@/pages/signup';
 import ButtonPage from '@/pages/components/ui/ButtonPage';
 import ControlPage from '@/pages/components/ui/ControlPage';
+import AlertPage from '@/pages/components/ui/AlertPage';
 
 const AppRouter = () => {
    return (
@@ -20,6 +21,7 @@ const AppRouter = () => {
             <Route path="/signup" element={<SignUpPage />} />
             <Route path="/button" element={<ButtonPage />} />
             <Route path="/control" element={<ControlPage />} />
+            <Route path="/alert" element={<AlertPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
          </Routes>
       </BrowserRouter>
