@@ -1,66 +1,38 @@
-import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
+import * as React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
 
-import { cn } from "@/shared/lib/utils";
+import { cn } from '@/shared/lib/utils';
 
-const alertVariants = cva(
-  "relative w-full rounded-lg border px-4 py-3 text-sm grid has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] grid-cols-[0_1fr] has-[>svg]:gap-x-3 gap-y-0.5 items-start [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current",
-  {
-    variants: {
+const alertVariants = cva('flex items-center gap-2 rounded-lg py-3 px-3.5 shadow-[0_6px_12px_0_rgba(0,0,0,0.16)]', {
+   variants: {
       variant: {
-        default: "bg-card text-card-foreground",
-        destructive:
-          "text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90",
+         default: 'bg-(--neutral-900)',
+         success: 'bg-(--neutral-900)',
+         fail: 'bg-(--neutral-900)',
       },
-    },
-    defaultVariants: {
-      variant: "default",
-    },
-  },
-);
+   },
+   defaultVariants: {
+      variant: 'default',
+   },
+});
 
-function Alert({
-  className,
-  variant,
-  ...props
-}: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) {
-  return (
-    <div
-      data-slot="alert"
-      role="alert"
-      className={cn(alertVariants({ variant }), className)}
-      {...props}
-    />
-  );
+const iconMap: Record<string, React.ReactNode> = {
+   default: null,
+   success: <img src="/success.svg" alt="success" className="size-4" />,
+   fail: <img src="/fail.svg" alt="fail" className="size-4" />,
+};
+
+type AlertProps = React.ComponentProps<'div'> & VariantProps<typeof alertVariants>;
+
+function Alert({ className, variant = 'default', children, ...props }: AlertProps) {
+   const icon = iconMap[variant ?? 'default'];
+
+   return (
+      <div data-slot="alert" role="alert" className={cn(alertVariants({ variant }), className)} {...props}>
+         {icon && <div className="flex size-5 shrink-0 items-center justify-center">{icon}</div>}
+         <span className="text-body-2-semibold text-white">{children}</span>
+      </div>
+   );
 }
 
-function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="alert-title"
-      className={cn(
-        "col-start-2 line-clamp-1 min-h-4 font-medium tracking-tight",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-function AlertDescription({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="alert-description"
-      className={cn(
-        "text-muted-foreground col-start-2 grid justify-items-start gap-1 text-sm [&_p]:leading-relaxed",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-export { Alert, AlertTitle, AlertDescription };
+export { Alert, alertVariants };
