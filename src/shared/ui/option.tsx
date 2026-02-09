@@ -32,8 +32,7 @@ const Option = React.forwardRef<HTMLButtonElement, OptionProps>(
    ({ className, variant, active, asChild = false, children, ...props }, ref) => {
       const Comp = asChild ? Slot : 'button';
 
-      // children이 단순 텍스트인 경우 레이아웃 흔들림 방지(Ghost Text) 적용
-      // 아이콘과 텍스트가 섞여 있다면 사용자가 직접 구조를 잡아야 할 수 있으므로, 텍스트일 때만 자동 처리
+      // 1. 단순 텍스트인지 확인 (레이아웃 흔들림 방지 로직 적용 대상)
       const isSimpleText = typeof children === 'string' || typeof children === 'number';
 
       return (
@@ -41,6 +40,7 @@ const Option = React.forwardRef<HTMLButtonElement, OptionProps>(
             ref={ref}
             data-slot="option"
             data-state={active ? 'active' : 'inactive'}
+            // CVA에서는 색상과 레이아웃만 처리하고, 폰트 사이즈/두께는 아래 span에서 처리
             className={cn(optionVariants({ variant, active, className }))}
             {...props}
          >
@@ -48,26 +48,29 @@ const Option = React.forwardRef<HTMLButtonElement, OptionProps>(
                children
             ) : isSimpleText ? (
                <span className="relative flex items-center justify-center">
-                  {/* 1. 공간 확보용 (보이지 않는 Bold 텍스트) */}
-                  {/* 이 녀석이 버튼의 너비를 항상 Bold 기준으로 잡아줍니다 */}
-                  <span className="invisible font-bold opacity-0" aria-hidden="true">
+                  {/* [Ghost Text] 
+                      항상 가장 넓은 너비인 'label-1-semibold'로 공간을 확보합니다. 
+                      화면에는 보이지 않지만 버튼의 너비를 고정하는 역할을 합니다. 
+                  */}
+                  <span className="invisible text-label-1-semibold opacity-0" aria-hidden="true">
                      {children}
                   </span>
 
-                  {/* 2. 실제 보여지는 텍스트 (absolute로 위 1번 영역 위에 겹침) */}
+                  {/* [Visible Text] 
+                      실제 사용자에게 보이는 텍스트입니다. absolute로 띄워서 Ghost Text 위에 겹칩니다.
+                      active 상태에 따라 medium / semibold 클래스를 스위칭합니다.
+                  */}
                   <span
                      className={cn(
                         'absolute inset-0 flex items-center justify-center',
-                        // 선택 시 Bold, 미선택 시 Medium 적용
-                        active ? 'font-bold' : 'font-medium',
+                        active ? 'text-label-1-semibold' : 'text-label-1-medium',
                      )}
                   >
                      {children}
                   </span>
                </span>
             ) : (
-               // 텍스트가 아닌 복잡한 노드(아이콘 등)가 들어올 경우 그대로 렌더링
-               // 이 경우 레이아웃 흔들림을 막으려면 버튼에 고정 width를 주어야 합니다.
+               // 텍스트가 아닌 컴포넌트나 아이콘이 들어올 경우 그대로 렌더링
                children
             )}
          </Comp>
