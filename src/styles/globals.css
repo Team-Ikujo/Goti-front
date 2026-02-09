@@ -204,11 +204,9 @@
 
    /* Border */
    --color-border: var(--border-normal);
-   --color-border-accent: var(--border-accent);
 
    /* Brand */
    --color-primary: var(--primary-normal);
-   --color-primary-light: var(--primary-light);
    --color-primary-strong: var(--primary-strong);
 
    /* Status */
@@ -219,9 +217,6 @@
    /* Static */
    --color-white: var(--static-white);
    --color-black: var(--static-black);
-
-   /* Font family */
-   --font-sans: var(--font-sans);
 }
 
 @layer utilities {
@@ -231,14 +226,12 @@
       font-weight: var(--weight-bold);
       line-height: var(--display-1-lineheight);
       letter-spacing: var(--display-1-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-display-1-medium {
       font-size: var(--display-1-size);
       font-weight: var(--weight-medium);
       line-height: var(--display-1-lineheight);
       letter-spacing: var(--display-1-letterspacing);
-      font-family: var(--font-sans);
    }
 
    /* --- Title --- */
@@ -247,7 +240,6 @@
       font-weight: var(--weight-bold);
       line-height: var(--title-1-lineheight);
       letter-spacing: var(--title-1-letterspacing);
-      font-family: var(--font-sans);
    }
 
    /* --- Heading --- */
@@ -256,14 +248,12 @@
       font-weight: var(--weight-bold);
       line-height: var(--heading-1-lineheight);
       letter-spacing: var(--heading-1-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-heading-1-medium {
       font-size: var(--heading-1-size);
       font-weight: var(--weight-medium);
       line-height: var(--heading-1-lineheight);
       letter-spacing: var(--heading-1-letterspacing);
-      font-family: var(--font-sans);
    }
 
    .text-heading-2-bold {
@@ -271,21 +261,18 @@
       font-weight: var(--weight-bold);
       line-height: var(--heading-2-lineheight);
       letter-spacing: var(--heading-2-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-heading-2-medium {
       font-size: var(--heading-2-size);
       font-weight: var(--weight-medium);
       line-height: var(--heading-2-lineheight);
       letter-spacing: var(--heading-2-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-heading-2-regular {
       font-size: var(--heading-2-size);
       font-weight: var(--weight-regular);
       line-height: var(--heading-2-lineheight);
       letter-spacing: var(--heading-2-letterspacing);
-      font-family: var(--font-sans);
    }
 
    .text-heading-3-bold {
@@ -293,28 +280,24 @@
       font-weight: var(--weight-bold);
       line-height: var(--heading-3-lineheight);
       letter-spacing: var(--heading-3-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-heading-3-semibold {
       font-size: var(--heading-3-size);
       font-weight: var(--weight-semibold);
       line-height: var(--heading-3-lineheight);
       letter-spacing: var(--heading-3-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-heading-3-medium {
       font-size: var(--heading-3-size);
       font-weight: var(--weight-medium);
       line-height: var(--heading-3-lineheight);
       letter-spacing: var(--heading-3-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-heading-3-regular {
       font-size: var(--heading-3-size);
       font-weight: var(--weight-regular);
       line-height: var(--heading-3-lineheight);
       letter-spacing: var(--heading-3-letterspacing);
-      font-family: var(--font-sans);
    }
 
    .text-heading-4-bold {
@@ -322,28 +305,24 @@
       font-weight: var(--weight-bold);
       line-height: var(--heading-4-lineheight);
       letter-spacing: var(--heading-4-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-heading-4-semibold {
       font-size: var(--heading-4-size);
       font-weight: var(--weight-semibold);
       line-height: var(--heading-4-lineheight);
       letter-spacing: var(--heading-4-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-heading-4-medium {
       font-size: var(--heading-4-size);
       font-weight: var(--weight-medium);
       line-height: var(--heading-4-lineheight);
       letter-spacing: var(--heading-4-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-heading-4-regular {
       font-size: var(--heading-4-size);
       font-weight: var(--weight-regular);
       line-height: var(--heading-4-lineheight);
       letter-spacing: var(--heading-4-letterspacing);
-      font-family: var(--font-sans);
    }
 
    /* --- Body --- */
@@ -352,28 +331,24 @@
       font-weight: var(--weight-bold);
       line-height: var(--body-1-lineheight);
       letter-spacing: var(--body-1-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-body-1-semibold {
       font-size: var(--body-1-size);
       font-weight: var(--weight-semibold);
       line-height: var(--body-1-lineheight);
       letter-spacing: var(--body-1-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-body-1-medium {
       font-size: var(--body-1-size);
       font-weight: var(--weight-medium);
       line-height: var(--body-1-lineheight);
       letter-spacing: var(--body-1-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-body-1-regular {
       font-size: var(--body-1-size);
       font-weight: var(--weight-regular);
       line-height: var(--body-1-lineheight);
       letter-spacing: var(--body-1-letterspacing);
-      font-family: var(--font-sans);
    }
 
    .text-body-2-bold {
@@ -381,28 +356,24 @@
       font-weight: var(--weight-bold);
       line-height: var(--body-2-lineheight);
       letter-spacing: var(--body-2-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-body-2-semibold {
       font-size: var(--body-2-size);
       font-weight: var(--weight-semibold);
       line-height: var(--body-2-lineheight);
       letter-spacing: var(--body-2-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-body-2-medium {
       font-size: var(--body-2-size);
       font-weight: var(--weight-medium);
       line-height: var(--body-2-lineheight);
       letter-spacing: var(--body-2-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-body-2-regular {
       font-size: var(--body-2-size);
       font-weight: var(--weight-regular);
       line-height: var(--body-2-lineheight);
       letter-spacing: var(--body-2-letterspacing);
-      font-family: var(--font-sans);
    }
 
    .text-body-3-bold {
@@ -410,28 +381,24 @@
       font-weight: var(--weight-bold);
       line-height: var(--body-3-lineheight);
       letter-spacing: var(--body-3-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-body-3-semibold {
       font-size: var(--body-3-size);
       font-weight: var(--weight-semibold);
       line-height: var(--body-3-lineheight);
       letter-spacing: var(--body-3-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-body-3-medium {
       font-size: var(--body-3-size);
       font-weight: var(--weight-medium);
       line-height: var(--body-3-lineheight);
       letter-spacing: var(--body-3-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-body-3-regular {
       font-size: var(--body-3-size);
       font-weight: var(--weight-regular);
       line-height: var(--body-3-lineheight);
       letter-spacing: var(--body-3-letterspacing);
-      font-family: var(--font-sans);
    }
 
    /* --- Label --- */
@@ -440,28 +407,24 @@
       font-weight: var(--weight-bold);
       line-height: var(--label-1-lineheight);
       letter-spacing: var(--label-1-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-label-1-semibold {
       font-size: var(--label-1-size);
       font-weight: var(--weight-semibold);
       line-height: var(--label-1-lineheight);
       letter-spacing: var(--label-1-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-label-1-medium {
       font-size: var(--label-1-size);
       font-weight: var(--weight-medium);
       line-height: var(--label-1-lineheight);
       letter-spacing: var(--label-1-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-label-1-regular {
       font-size: var(--label-1-size);
       font-weight: var(--weight-regular);
       line-height: var(--label-1-lineheight);
       letter-spacing: var(--label-1-letterspacing);
-      font-family: var(--font-sans);
    }
 
    .text-label-2-bold {
@@ -469,28 +432,24 @@
       font-weight: var(--weight-bold);
       line-height: var(--label-2-lineheight);
       letter-spacing: var(--label-2-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-label-2-semibold {
       font-size: var(--label-2-size);
       font-weight: var(--weight-semibold);
       line-height: var(--label-2-lineheight);
       letter-spacing: var(--label-2-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-label-2-medium {
       font-size: var(--label-2-size);
       font-weight: var(--weight-medium);
       line-height: var(--label-2-lineheight);
       letter-spacing: var(--label-2-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-label-2-regular {
       font-size: var(--label-2-size);
       font-weight: var(--weight-regular);
       line-height: var(--label-2-lineheight);
       letter-spacing: var(--label-2-letterspacing);
-      font-family: var(--font-sans);
    }
 
    .text-label-3-bold {
@@ -498,28 +457,24 @@
       font-weight: var(--weight-bold);
       line-height: var(--label-3-lineheight);
       letter-spacing: var(--label-3-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-label-3-semibold {
       font-size: var(--label-3-size);
       font-weight: var(--weight-semibold);
       line-height: var(--label-3-lineheight);
       letter-spacing: var(--label-3-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-label-3-medium {
       font-size: var(--label-3-size);
       font-weight: var(--weight-medium);
       line-height: var(--label-3-lineheight);
       letter-spacing: var(--label-3-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-label-3-regular {
       font-size: var(--label-3-size);
       font-weight: var(--weight-regular);
       line-height: var(--label-3-lineheight);
       letter-spacing: var(--label-3-letterspacing);
-      font-family: var(--font-sans);
    }
 
    /* --- Caption --- */
@@ -528,21 +483,18 @@
       font-weight: var(--weight-bold);
       line-height: var(--caption-1-lineheight);
       letter-spacing: var(--caption-1-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-caption-1-medium {
       font-size: var(--caption-1-size);
       font-weight: var(--weight-medium);
       line-height: var(--caption-1-lineheight);
       letter-spacing: var(--caption-1-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-caption-1-regular {
       font-size: var(--caption-1-size);
       font-weight: var(--weight-regular);
       line-height: var(--caption-1-lineheight);
       letter-spacing: var(--caption-1-letterspacing);
-      font-family: var(--font-sans);
    }
 
    .text-caption-2-bold {
@@ -550,21 +502,18 @@
       font-weight: var(--weight-bold);
       line-height: var(--caption-2-lineheight);
       letter-spacing: var(--caption-2-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-caption-2-medium {
       font-size: var(--caption-2-size);
       font-weight: var(--weight-medium);
       line-height: var(--caption-2-lineheight);
       letter-spacing: var(--caption-2-letterspacing);
-      font-family: var(--font-sans);
    }
    .text-caption-2-regular {
       font-size: var(--caption-2-size);
       font-weight: var(--weight-regular);
       line-height: var(--caption-2-lineheight);
       letter-spacing: var(--caption-2-letterspacing);
-      font-family: var(--font-sans);
    }
 }
 
@@ -577,8 +526,8 @@
       background: var(--color-background);
       color: var(--color-foreground);
       font-family: var(--font-sans);
-      font-size: var(--text-body-md-size);
-      line-height: var(--text-body-md-line);
-      font-weight: var(--text-body-md-weight);
+      font-size: var(--body-1-size);
+      line-height: var(--body-1-lineheight);
+      font-weight: var(--body-1-regular);
    }
 }
