@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useSubmitAuthCode } from "@/features/auth/model/useSubmitAuthCode";
 import type {
   SocialProvider,
@@ -20,6 +20,16 @@ const AuthCallbackPage = () => {
   const submitAuthCodeMutation = useSubmitAuthCode();
   const setAuthTokens = useAuthStore((state) => state.setAuthTokens);
   const didRunRef = useRef(false);
+  const navigate = useNavigate();
+
+  const redirectFromPopup = (path: string) => {
+    if (window.opener && !window.opener.closed) {
+      window.opener.location.assign(path);
+      window.close();
+      return true;
+    }
+    return false;
+  };
 
   const isSocialProvider = (value?: string): value is SocialProvider => {
     return value === "kakao" || value === "naver" || value === "google";
@@ -60,6 +70,17 @@ const AuthCallbackPage = () => {
           isLinked: response.isLinked,
         });
         setMessage("로그인 완료!");
+        // TODO: 테스트를 위한 임시 코드, 삭제 필요
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (response.isLinked) {
+          if (!redirectFromPopup("/")) {
+            navigate("/", { replace: true });
+          }
+        } else {
+          if (!redirectFromPopup("/signup")) {
+            navigate("/signup", { replace: true });
+          }
+        }
       } catch (error) {
         setMessage("로그인에 실패했어요. 다시 시도해 주세요.");
         if (error instanceof ApiError) {
@@ -82,7 +103,7 @@ const AuthCallbackPage = () => {
     };
 
     run();
-  }, [normalizedProvider, submitAuthCodeMutation]);
+  }, [navigate, normalizedProvider, submitAuthCodeMutation]);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
