@@ -5,6 +5,7 @@ import AuthCallbackPage from '@/pages/auth/callback';
 import LoginPage from '@/pages/auth/login';
 import SignUpPage from '@/pages/signup';
 import ButtonPage from '@/pages/components/ui/ButtonPage';
+import ControlPage from '@/pages/components/ui/ControlPage';
 
 const AppRouter = () => {
    return (
@@ -18,6 +19,7 @@ const AppRouter = () => {
             <Route path="/login" element={<Navigate to="/auth/login" replace />} />
             <Route path="/signup" element={<SignUpPage />} />
             <Route path="/button" element={<ButtonPage />} />
+            <Route path="/control" element={<ControlPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
          </Routes>
       </BrowserRouter>
