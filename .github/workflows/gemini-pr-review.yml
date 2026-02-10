@@ -54,11 +54,11 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install deps
+      - name: Install deps (axios only)
         if: steps.decide.outputs.run == 'true'
         run: npm i axios
 
-      - name: Run Gemini review (safety guards)
+      - name: Run Gemini review (safe)
         if: steps.decide.outputs.run == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -66,4 +66,4 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
-        run: node .github/scripts/gemini-pr-review.js
+        run: node .github/scripts/gemini-pr-review.cjs
