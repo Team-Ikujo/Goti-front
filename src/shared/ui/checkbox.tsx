@@ -20,22 +20,19 @@ const checkboxVariants = cva(
    },
 );
 
-const labelVariants = cva(
-   'cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:text-disabled-foreground',
-   //disabled 시 폰트 색상 확인하고 수정할 예정
-   {
-      variants: {
-         typography: {
-            body1Medium: 'text-[14px] text-body-1-medium text-foreground',
-            body2Medium: 'text-[14px] text-body-2-medium text-foreground',
-            body2Regular: 'text-[14px] text-body-2-regular text-muted-foreground',
-         },
-      },
-      defaultVariants: {
-         typography: 'body1Medium',
+const labelVariants = cva('cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:text-disabled-foreground', {
+   variants: {
+      typography: {
+         body1Medium: 'text-[14px] text-body-1-medium text-[var(--text-primary)]',
+         body2Regular: 'text-[14px] text-body-2-regular text-[var(--text-secondary)]',
+         body2Medium: 'text-[14px] text-body-2-medium text-[var(--text-primary)]',
+         body3Regular: 'text-[13px] text-body-3-regular text-[var(--text-secondary)]',
       },
    },
-);
+   defaultVariants: {
+      typography: 'body1Medium',
+   },
+});
 
 const iconSizeMap = {
    lg: 'size-4',
@@ -57,16 +54,16 @@ function Checkbox({ className, size = 'md', typography, label, ...props }: Check
          className={cn(
             checkboxVariants({ size }),
             'border-border border-[1.5px] bg-base',
-            'data-[state=checked]:bg-primary data-[state=checked]:border-primary',
-            'data-[state=indeterminate]:bg-primary data-[state=indeterminate]:border-primary',
+            'data-[state=checked]:bg-primary data-[state=checked]:border-0',
+            'data-[state=indeterminate]:bg-primary data-[state=indeterminate]:border-0',
             'hover:border-primary',
-            'focus-visible:ring-2 focus-visible:ring-(--primary-light)',
-            'disabled:bg-(--neutral-100) disabled:border-(--neutral-300) disabled:data-[state=checked]:bg-primary disabled:data-[state=indeterminate]:bg-primary',
+            'focus-visible:ring-2 focus-visible:ring-border',
+            'disabled:bg-(--fill-disabled) disabled:border-border',
             className,
          )}
          {...props}
       >
-         <CheckboxPrimitive.Indicator data-slot="checkbox-indicator" className="grid place-content-center text-white">
+         <CheckboxPrimitive.Indicator data-slot="checkbox-indicator" className="grid place-content-center text-white data-disabled:text-(--icon-disabled)">
             {props.checked === 'indeterminate' ? (
                <MinusIcon className={iconSize} strokeWidth={3} />
             ) : (

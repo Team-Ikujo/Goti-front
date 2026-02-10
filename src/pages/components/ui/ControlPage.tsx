@@ -22,6 +22,7 @@ const ControlPage = () => {
                   <Checkbox typography="body1Medium" label="Body 1 Medium" />
                   <Checkbox typography="body2Regular" label="Body 2 Regular (default)" />
                   <Checkbox typography="body2Medium" label="Body 2 Medium" />
+                  <Checkbox typography="body3Regular" label="Body 3 Regular" />
                </div>
             </section>
 
