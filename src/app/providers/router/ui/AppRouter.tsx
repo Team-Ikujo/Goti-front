@@ -7,6 +7,7 @@ import SignUpPage from '@/pages/signup';
 import ButtonPage from '@/pages/components/ui/ButtonPage';
 import ControlPage from '@/pages/components/ui/ControlPage';
 import AlertPage from '@/pages/components/ui/AlertPage';
+import OptionPage from '@/pages/components/ui/OptionPage';
 
 const AppRouter = () => {
    return (
@@ -22,6 +23,7 @@ const AppRouter = () => {
             <Route path="/button" element={<ButtonPage />} />
             <Route path="/control" element={<ControlPage />} />
             <Route path="/alert" element={<AlertPage />} />
+            <Route path="/option" element={<OptionPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
          </Routes>
       </BrowserRouter>
