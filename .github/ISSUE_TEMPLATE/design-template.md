@@ -1,5 +1,5 @@
 ---
-name: ✨ Design Request
+name: ⭐️ Design Request
 about: 새로운 기능이나 개선 사항을 제안합니다
 title: "[design] "
 labels: ["design"]
