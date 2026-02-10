@@ -66,4 +66,4 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
-        run: node .github/scripts/gemini_fe_pr_review_safe.js
+        run: node .github/scripts/gemini-pr-review.js
