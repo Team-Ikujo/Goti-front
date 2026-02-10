@@ -43,9 +43,18 @@
 
    --icon-primary: var(--neutral-900);
    --icon-secondary: var(--neutral-700);
+   --icon-disabled: var(--neutral-500);
 
    --border-normal: var(--neutral-300);
+   --border-light: var(--neutral-300);
+   --border-strong: var(--neutral-500);
+   --border-heavy: var(--neutral-800);
    --border-accent: var(--blue-200);
+
+   --fill-hover: var(--neutral-50);
+   --fill-hoveraccent: var(--blue-50);
+   --fill-disabled: var(--neutral-200);
+   --fill-inverse: var(--neutral-900);
 
    --static-white: var(--common-white);
    --static-black: var(--common-black);
@@ -53,6 +62,7 @@
    --primary-normal: var(--blue-500);
    --primary-light: var(--blue-50);
    --primary-strong: var(--blue-600);
+   --primary-disabled: var(--neutral-200);
 
    --status-warning: var(--yellow);
    --status-destructive: var(--red);

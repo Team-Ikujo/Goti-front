@@ -6,33 +6,40 @@ const ButtonPage = () => {
       <div className="flex flex-col gap-6 p-6 bg-white">
          {/* 기본 버튼 */}
          <div className="flex gap-4">
-            <Button variant="primary">Primary 버튼</Button>
+            <Button variant="primary">Label</Button>
             <Button variant="primary" disabled>
-               Primary 버튼
+               Label
             </Button>
-            <Button variant="outline">Outline 버튼</Button>
+            <Button variant="outline">Label</Button>
             <Button variant="outline" disabled>
-               Outline 버튼
+               Label
+            </Button>
+            <Button variant="primaryline">Label</Button>
+            <Button variant="primaryline" disabled>
+               Label
             </Button>
          </div>
 
          {/* 왼쪽 아이콘 버튼 */}
          <div className="flex gap-2">
             <Button variant="primary">
-               <PlusIcon /> 버튼
+               <PlusIcon /> Label
             </Button>
             <Button variant="outline">
-               <SearchIcon /> 버튼
+               <SearchIcon /> Label
             </Button>
          </div>
 
          {/* 오른쪽 아이콘 버튼 */}
          <div className="flex gap-2">
             <Button variant="primary">
-               버튼 <ArrowRightIcon />
+               Label <ArrowRightIcon />
             </Button>
             <Button variant="outline">
-               버튼 <DownloadIcon />
+               Label <DownloadIcon />
+            </Button>
+            <Button variant="primaryline">
+               Label <DownloadIcon />
             </Button>
          </div>
       </div>

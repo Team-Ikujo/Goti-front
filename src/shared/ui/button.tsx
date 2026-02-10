@@ -4,16 +4,19 @@ import { Slot } from 'radix-ui';
 import { cn } from '@/shared/lib/utils';
 
 const buttonVariants = cva(
-   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg transition-colors disabled:cursor-not-allowed',
+   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg transition-colors disabled:cursor-not-allowed [&_svg]:size-5 [&_svg]:shrink-0',
    {
       variants: {
          variant: {
-            primary: 'bg-[var(--primary-normal)] hover:bg-[var(--primary-strong)] disabled:bg-[var(--neutral-100)]',
-            outline: 'border border-[var(--border-normal)] bg-transparent hover:bg-[var(--neutral-50)]',
+            primary:
+               'bg-[var(--primary-normal)] hover:bg-[var(--primary-strong)] disabled:bg-[var(--primary-disabled)]',
+            primaryline:
+               'border border-[var(--primary-normal)] bg-transparent text-[var(--primary-normal)] hover:bg-[var(--primary-light)] disabled:border-[var(--border-normal)]',
+            outline:
+               'border border-[var(--border-normal)] bg-transparent hover:bg-[var(--fill-hover)] disabled:border-[var(--border-normal)]',
          },
          typography: {
             label1Bold: 'text-label-1-bold',
-            label1Medium: 'text-label-1-medium',
          },
          size: {
             md: 'px-6 py-3',
@@ -24,6 +27,11 @@ const buttonVariants = cva(
          {
             variant: 'primary',
             className: '[color:var(--static-white)] disabled:[color:var(--text-disabled)]',
+         },
+         {
+            variant: 'primaryline',
+            className:
+               '[color:var(--primary-normal)] disabled:[color:var(--text-disabled)] disabled:hover:bg-transparent',
          },
          {
             variant: 'outline',
