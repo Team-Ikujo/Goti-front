@@ -1,0 +1,69 @@
+name: Gemini FE PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  gemini_fe_review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check changed paths (skip docs/build outputs)
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            reviewable:
+              - '**'
+              - '!**/*.md'
+              - '!**/*.mdx'
+              - '!**/dist/**'
+              - '!**/build/**'
+              - '!**/.next/**'
+              - '!**/coverage/**'
+              - '!**/*.lock'
+              - '!**/pnpm-lock.yaml'
+              - '!**/yarn.lock'
+
+      - name: Decide to run
+        id: decide
+        run: |
+          echo "reviewable_changed=${{ steps.filter.outputs.reviewable }}" >> $GITHUB_OUTPUT
+          if [[ "${{ steps.filter.outputs.reviewable }}" != "true" ]]; then
+            echo "run=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "run=true" >> $GITHUB_OUTPUT
+
+      - name: Skip
+        if: steps.decide.outputs.run != 'true'
+        run: echo "Skip Gemini review (docs/build-only changes)."
+
+      - name: Checkout
+        if: steps.decide.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        if: steps.decide.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps (axios only)
+        if: steps.decide.outputs.run == 'true'
+        run: npm i axios
+
+      - name: Run Gemini review (safe)
+        if: steps.decide.outputs.run == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: node .github/scripts/gemini-pr-review.cjs
