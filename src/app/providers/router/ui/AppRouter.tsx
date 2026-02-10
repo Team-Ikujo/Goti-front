@@ -8,6 +8,7 @@ import ButtonPage from '@/pages/components/ui/ButtonPage';
 import ControlPage from '@/pages/components/ui/ControlPage';
 import AlertPage from '@/pages/components/ui/AlertPage';
 import OptionPage from '@/pages/components/ui/OptionPage';
+import TooltipPage from '@/pages/components/ui/TooltipPage';
 
 const AppRouter = () => {
    return (
@@ -24,6 +25,7 @@ const AppRouter = () => {
             <Route path="/control" element={<ControlPage />} />
             <Route path="/alert" element={<AlertPage />} />
             <Route path="/option" element={<OptionPage />} />
+            <Route path="/tooltip" element={<TooltipPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
          </Routes>
       </BrowserRouter>
