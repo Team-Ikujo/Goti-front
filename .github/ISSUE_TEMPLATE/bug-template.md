@@ -1,7 +1,7 @@
 ---
 name: 🐛 Bug
 about: 버그 수정 작업을 등록합니다
-title: "[BUG] "
+title: "[bug] "
 labels: ["bug"]
 assignees: ""
 ---

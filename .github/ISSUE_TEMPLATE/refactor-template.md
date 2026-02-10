@@ -1,7 +1,7 @@
 ---
 name: 🔧 Refactor
 about: 코드 구조 개선, 중복 제거, 가독성 향상 등을 위한 리팩토링 작업을 등록합니다
-title: "[REFACTOR] "
+title: "[refactor] "
 labels: ["refactor"]
 assignees: ""
 ---
