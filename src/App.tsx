@@ -1,11 +1,12 @@
-import "./App.css";
+import "./styles/globals.css";
+import { QueryProvider } from "@/app/providers/query";
+import { AppRouter } from "@/app/providers/router";
 
 const App = () => {
   return (
-    <div className="content">
-      <h1>Rsbuild with React</h1>
-      <p>Start building amazing things with Rsbuild.</p>
-    </div>
+    <QueryProvider>
+      <AppRouter />
+    </QueryProvider>
   );
 };
 
