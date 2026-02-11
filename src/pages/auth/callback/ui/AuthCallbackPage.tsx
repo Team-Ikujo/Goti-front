@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useSubmitAuthCode } from "@/features/auth/model/useSubmitAuthCode";
 import type {
   SocialProvider,
   SubmitAuthCodeResponse,
 } from "@/features/auth/api/submitAuthCode";
+import { useAuthStore } from "@/entities/auth/model/authStore";
+import { ApiError } from "@/shared/api/client";
 
 const AuthCallbackPage = () => {
   const { provider } = useParams<{ provider: string }>();
@@ -12,10 +14,25 @@ const AuthCallbackPage = () => {
   const [authCode, setAuthCode] = useState<string | null>(null); //OAuth 확인용 TODO: 확인 후 지울 것
   const [authResponse, setAuthResponse] =
     useState<SubmitAuthCodeResponse | null>(null); //OAuth 확인용 TODO: 확인 후 지울 것
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const normalizedProvider = useMemo(() => provider?.toLowerCase(), [provider]);
   const submitAuthCodeMutation = useSubmitAuthCode();
+  const setAuthTokens = useAuthStore((state) => state.setAuthTokens);
+  const setRecentLoginProvider = useAuthStore(
+    (state) => state.setRecentLoginProvider,
+  );
   const didRunRef = useRef(false);
+  const navigate = useNavigate();
+
+  const redirectFromPopup = (path: string) => {
+    if (window.opener && !window.opener.closed) {
+      window.opener.location.assign(path);
+      window.close();
+      return true;
+    }
+    return false;
+  };
 
   const isSocialProvider = (value?: string): value is SocialProvider => {
     return value === "kakao" || value === "naver" || value === "google";
@@ -50,15 +67,47 @@ const AuthCallbackPage = () => {
         });
 
         setAuthResponse(response);
+        setAuthTokens({
+          accessToken: response.accessToken,
+          tempToken: response.tempToken,
+          isLinked: response.isLinked,
+        });
+        setRecentLoginProvider(normalizedProvider);
         setMessage("로그인 완료!");
+        // TODO: 테스트를 위한 임시 코드, 삭제 필요
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (response.isLinked) {
+          if (!redirectFromPopup("/")) {
+            navigate("/", { replace: true });
+          }
+        } else {
+          if (!redirectFromPopup("/signup")) {
+            navigate("/signup", { replace: true });
+          }
+        }
       } catch (error) {
         setMessage("로그인에 실패했어요. 다시 시도해 주세요.");
+        if (error instanceof ApiError) {
+          const details =
+            typeof error.data === "string"
+              ? error.data
+              : JSON.stringify(error.data, null, 2);
+          setErrorMessage(
+            `[${error.status ?? "NO_STATUS"}] ${error.message}${
+              details ? `\n${details}` : ""
+            }`,
+          );
+        } else if (error instanceof Error) {
+          setErrorMessage(error.message);
+        } else {
+          setErrorMessage(String(error));
+        }
         console.error(error);
       }
     };
 
     run();
-  }, [normalizedProvider, submitAuthCodeMutation]);
+  }, [navigate, normalizedProvider, setRecentLoginProvider, submitAuthCodeMutation]);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
@@ -77,6 +126,14 @@ const AuthCallbackPage = () => {
             response:
             <pre className="mt-2 whitespace-pre-wrap break-all text-xs text-slate-200">
               {JSON.stringify(authResponse, null, 2)}
+            </pre>
+          </div>
+        ) : null}
+        {errorMessage ? (
+          <div className="w-full rounded-xl border border-red-400/60 bg-red-950/40 p-3 text-left text-xs text-red-200">
+            error:
+            <pre className="mt-2 whitespace-pre-wrap break-all text-xs text-red-200">
+              {errorMessage}
             </pre>
           </div>
         ) : null}

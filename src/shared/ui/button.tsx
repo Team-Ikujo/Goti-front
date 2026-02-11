@@ -10,6 +10,7 @@ const buttonVariants = cva(
          variant: {
             primary: 'bg-[var(--primary-normal)] hover:bg-[var(--primary-strong)] disabled:bg-[var(--neutral-100)]',
             outline: 'border border-[var(--border-normal)] bg-transparent hover:bg-[var(--neutral-50)]',
+            none: '',
          },
          typography: {
             label1Bold: 'text-label-1-bold',

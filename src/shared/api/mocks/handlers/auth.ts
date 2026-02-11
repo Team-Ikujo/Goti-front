@@ -13,7 +13,7 @@ export const authHandlers = [
     }
 
     return HttpResponse.json({
-      isLinked: true,
+      isLinked: false,
       tempToken: `temp-${provider}-token`,
       accessToken: `access-${provider}-token`,
     });

@@ -1,8 +1,29 @@
+import type { ReactNode } from "react";
 import { KakaoLoginButton } from "@/features/auth/kakao";
 import { NaverLoginButton } from "@/features/auth/naver";
 import { GoogleLoginButton } from "@/features/auth/google";
+import RecentLoginBadge from "@/features/auth/ui/RecentLoginBadge";
+import {
+  useAuthStore,
+  type SocialProvider,
+} from "@/entities/auth/model/authStore";
+
+type SocialLoginButtonItem = {
+  provider: SocialProvider;
+  button: ReactNode;
+};
+
+const socialLoginButtons: SocialLoginButtonItem[] = [
+  { provider: "kakao", button: <KakaoLoginButton /> },
+  { provider: "naver", button: <NaverLoginButton /> },
+  { provider: "google", button: <GoogleLoginButton /> },
+];
 
 const LoginPage = () => {
+  const recentLoginProvider = useAuthStore(
+    (state) => state.recentLoginProvider,
+  );
+
   return (
     <div className="flex w-full h-screen items-center justify-center min-h-screen bg-white text-text-primary">
       <div className="mx-auto flex w-full justify-center flex-col min-h-screen max-w-5xl items-center gap-10 px-5 py-12 box-border">
@@ -17,9 +38,12 @@ const LoginPage = () => {
           </p>
         </section>
         <section className="flex w-full flex-col justify-center items-center gap-3">
-          <KakaoLoginButton />
-          <NaverLoginButton />
-          <GoogleLoginButton />
+          {socialLoginButtons.map(({ provider, button }) => (
+            <div key={provider} className="relative w-full max-w-95">
+              {recentLoginProvider === provider ? <RecentLoginBadge /> : null}
+              {button}
+            </div>
+          ))}
         </section>
       </div>
     </div>
