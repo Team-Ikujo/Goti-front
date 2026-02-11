@@ -15,7 +15,7 @@ const NaverLoginButton = () => {
       variant="none"
       type="button"
       onClick={handleClick}
-      className="h-13 inline-flex w-full max-w-95 items-center justify-center gap-2 rounded-[8px] bg-[#00C73C] px-5 py-3.5 text-[16px] font-semibold text-white hover:bg-[#03B753] active:bg-[#00B14F]"
+      className="cursor-pointer h-13 inline-flex w-full max-w-95 items-center justify-center gap-2 rounded-[8px] bg-[#00C73C] px-5 py-3.5 text-[16px] font-semibold text-white hover:bg-[#03B753] active:bg-[#00B14F]"
     >
       <img
         src="/Naver.svg"
