@@ -12,6 +12,7 @@ const KakaoLoginButton = () => {
 
   return (
     <Button
+      variant="none"
       type="button"
       onClick={handleClick}
       className="h-13 inline-flex w-full max-w-95 items-center justify-center gap-2 rounded-[8px] bg-[#FFDE00] px-5 py-3.5 text-[16px] font-semibold text-black hover:bg-[#FECB00] active:bg-[#FECF00]"
