@@ -19,6 +19,9 @@ const AuthCallbackPage = () => {
   const normalizedProvider = useMemo(() => provider?.toLowerCase(), [provider]);
   const submitAuthCodeMutation = useSubmitAuthCode();
   const setAuthTokens = useAuthStore((state) => state.setAuthTokens);
+  const setRecentLoginProvider = useAuthStore(
+    (state) => state.setRecentLoginProvider,
+  );
   const didRunRef = useRef(false);
   const navigate = useNavigate();
 
@@ -69,6 +72,7 @@ const AuthCallbackPage = () => {
           tempToken: response.tempToken,
           isLinked: response.isLinked,
         });
+        setRecentLoginProvider(normalizedProvider);
         setMessage("로그인 완료!");
         // TODO: 테스트를 위한 임시 코드, 삭제 필요
         await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -103,7 +107,7 @@ const AuthCallbackPage = () => {
     };
 
     run();
-  }, [navigate, normalizedProvider, submitAuthCodeMutation]);
+  }, [navigate, normalizedProvider, setRecentLoginProvider, submitAuthCodeMutation]);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
