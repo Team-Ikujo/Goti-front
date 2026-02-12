@@ -2,6 +2,8 @@
 .DS_Store
 *.local
 *.log*
+.env
+.mcp.json
 
 # Dist
 node_modules

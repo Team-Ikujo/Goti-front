@@ -6,7 +6,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/shared/lib/utils';
 
 const checkboxVariants = cva(
-   'peer shrink-0 rounded border transition-colors outline-none disabled:cursor-not-allowed',
+   'peer flex items-center justify-center shrink-0 rounded border transition-colors outline-none disabled:cursor-not-allowed',
    {
       variants: {
          size: {
@@ -54,8 +54,8 @@ function Checkbox({ className, size = 'md', typography, label, ...props }: Check
          className={cn(
             checkboxVariants({ size }),
             'border-border border-[1.5px] bg-base',
-            'data-[state=checked]:bg-primary data-[state=checked]:border-0',
-            'data-[state=indeterminate]:bg-primary data-[state=indeterminate]:border-0',
+            'data-[state=checked]:bg-primary data-[state=checked]:border-primary',
+            'data-[state=indeterminate]:bg-primary data-[state=indeterminate]:border-primary',
             'hover:border-primary',
             'focus-visible:ring-2 focus-visible:ring-border',
             'disabled:bg-(--fill-disabled) disabled:border-border',
@@ -63,7 +63,10 @@ function Checkbox({ className, size = 'md', typography, label, ...props }: Check
          )}
          {...props}
       >
-         <CheckboxPrimitive.Indicator data-slot="checkbox-indicator" className="grid place-content-center text-white data-disabled:text-(--icon-disabled)">
+         <CheckboxPrimitive.Indicator
+            data-slot="checkbox-indicator"
+            className="grid place-content-center text-white data-disabled:text-(--icon-disabled)"
+         >
             {props.checked === 'indeterminate' ? (
                <MinusIcon className={iconSize} strokeWidth={3} />
             ) : (
