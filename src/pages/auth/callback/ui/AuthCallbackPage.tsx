@@ -81,8 +81,8 @@ const AuthCallbackPage = () => {
             navigate("/", { replace: true });
           }
         } else {
-          if (!redirectFromPopup("/signup")) {
-            navigate("/signup", { replace: true });
+          if (!redirectFromPopup("/auth/terms")) {
+            navigate("/auth/terms", { replace: true });
           }
         }
       } catch (error) {
