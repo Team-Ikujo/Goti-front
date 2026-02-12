@@ -30,6 +30,12 @@ const HomePage = () => {
                >
                   홈 유지
                </Link>
+               <Link
+                  to="/popup"
+                  className="rounded-full border border-blue-300 px-6 py-3 text-sm font-semibold text-blue-200 transition hover:bg-blue-300 hover:text-slate-950"
+               >
+                  팝업 테스트 페이지
+               </Link>
             </div>
          </div>
       </div>

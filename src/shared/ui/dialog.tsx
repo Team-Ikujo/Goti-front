@@ -5,6 +5,14 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 import { cn } from "@/shared/lib/utils"
 import { Button } from "@/shared/ui/button"
 
+type DialogTextAlign = "left" | "center" | "right"
+
+const dialogTextAlignClassMap: Record<DialogTextAlign, string> = {
+  left: "text-left",
+  center: "text-center",
+  right: "text-right",
+}
+
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -49,10 +57,29 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  maxWidth,
+  closeOnlyWithButton = false,
+  style,
+  onEscapeKeyDown,
+  onPointerDownOutside,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  /**
+   * 팝업 최대 너비를 지정합니다.
+   * - 숫자: px 단위로 처리됩니다. (예: 640)
+   * - 문자열: CSS 단위를 직접 사용합니다. (예: "80vw", "640px", "70%")
+   */
+  maxWidth?: number | string
+  /**
+   * `true`면 ESC, 오버레이/바깥 영역 클릭 등으로는 닫히지 않고
+   * `DialogClose` 버튼 액션으로만 닫을 수 있습니다.
+   */
+  closeOnlyWithButton?: boolean
 }) {
+  const resolvedMaxWidth = typeof maxWidth === "number" ? `${maxWidth}px` : maxWidth
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -62,6 +89,25 @@ function DialogContent({
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 outline-none sm:max-w-lg",
           className
         )}
+        style={{ ...style, maxWidth: resolvedMaxWidth }}
+        onEscapeKeyDown={(event) => {
+          if (closeOnlyWithButton) {
+            event.preventDefault()
+          }
+          onEscapeKeyDown?.(event)
+        }}
+        onPointerDownOutside={(event) => {
+          if (closeOnlyWithButton) {
+            event.preventDefault()
+          }
+          onPointerDownOutside?.(event)
+        }}
+        onInteractOutside={(event) => {
+          if (closeOnlyWithButton) {
+            event.preventDefault()
+          }
+          onInteractOutside?.(event)
+        }}
         {...props}
       >
         {children}
@@ -70,7 +116,7 @@ function DialogContent({
             data-slot="dialog-close"
             className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
-            <XIcon />
+            <XIcon className="size-6" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
@@ -83,7 +129,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+      className={cn("flex flex-col gap-2 text-left", className)}
       {...props}
     />
   )
@@ -92,10 +138,12 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
 function DialogFooter({
   className,
   showCloseButton = false,
+  closeButtonText = "Close",
   children,
   ...props
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean
+  closeButtonText?: React.ReactNode
 }) {
   return (
     <div
@@ -109,7 +157,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="primary">{closeButtonText}</Button>
         </DialogPrimitive.Close>
       )}
     </div>
@@ -118,12 +166,23 @@ function DialogFooter({
 
 function DialogTitle({
   className,
+  align = "left",
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+}: React.ComponentProps<typeof DialogPrimitive.Title> & {
+  /**
+   * 제목 텍스트 정렬을 지정합니다.
+   * 기본값은 `left`입니다.
+   */
+  align?: DialogTextAlign
+}) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-lg leading-none font-semibold", className)}
+      className={cn(
+        "text-lg leading-none font-semibold",
+        dialogTextAlignClassMap[align],
+        className
+      )}
       {...props}
     />
   )
@@ -131,12 +190,23 @@ function DialogTitle({
 
 function DialogDescription({
   className,
+  align = "left",
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+}: React.ComponentProps<typeof DialogPrimitive.Description> & {
+  /**
+   * 본문 텍스트 정렬을 지정합니다.
+   * 기본값은 `left`입니다.
+   */
+  align?: DialogTextAlign
+}) {
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-muted-foreground text-sm", className)}
+      className={cn(
+        "text-muted-foreground text-sm",
+        dialogTextAlignClassMap[align],
+        className
+      )}
       {...props}
     />
   )
