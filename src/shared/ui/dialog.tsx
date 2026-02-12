@@ -5,6 +5,14 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 import { cn } from "@/shared/lib/utils"
 import { Button } from "@/shared/ui/button"
 
+type DialogTextAlign = "left" | "center" | "right"
+
+const dialogTextAlignClassMap: Record<DialogTextAlign, string> = {
+  left: "text-left",
+  center: "text-center",
+  right: "text-right",
+}
+
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -158,12 +166,23 @@ function DialogFooter({
 
 function DialogTitle({
   className,
+  align = "left",
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+}: React.ComponentProps<typeof DialogPrimitive.Title> & {
+  /**
+   * 제목 텍스트 정렬을 지정합니다.
+   * 기본값은 `left`입니다.
+   */
+  align?: DialogTextAlign
+}) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-lg leading-none font-semibold", className)}
+      className={cn(
+        "text-lg leading-none font-semibold",
+        dialogTextAlignClassMap[align],
+        className
+      )}
       {...props}
     />
   )
@@ -171,12 +190,23 @@ function DialogTitle({
 
 function DialogDescription({
   className,
+  align = "left",
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+}: React.ComponentProps<typeof DialogPrimitive.Description> & {
+  /**
+   * 본문 텍스트 정렬을 지정합니다.
+   * 기본값은 `left`입니다.
+   */
+  align?: DialogTextAlign
+}) {
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-muted-foreground text-sm", className)}
+      className={cn(
+        "text-muted-foreground text-sm",
+        dialogTextAlignClassMap[align],
+        className
+      )}
       {...props}
     />
   )
