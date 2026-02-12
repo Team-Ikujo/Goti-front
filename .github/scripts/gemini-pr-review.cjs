@@ -1,0 +1,319 @@
+/**
+ * .github/scripts/gemini-pr-review.cjs
+ *
+ * - ESM 레포("type":"module")에서도 동작하도록 CommonJS(.cjs)로 작성
+ * - PR 변경 파일 중 "reviewable"만 diff로 구성 (md/dist/build/coverage/lock 등 제외)
+ * - 민감정보 마스킹
+ * - PR 코멘트 upsert(누적 방지)
+ * - Gemini 모델 하드코딩 제거: v1beta ListModels로 generateContent 지원 모델 자동 선택
+ */
+
+const axios = require("axios");
+
+const { GEMINI_API_KEY, GITHUB_TOKEN, PR_TITLE, PR_NUMBER, REPO } = process.env;
+
+if (!GEMINI_API_KEY) throw new Error("Missing GEMINI_API_KEY");
+if (!GITHUB_TOKEN) throw new Error("Missing GITHUB_TOKEN");
+if (!PR_TITLE || !PR_NUMBER || !REPO) throw new Error("Missing PR env");
+
+const [owner, repo] = REPO.split("/");
+
+const COMMENT_MARKER = "<!-- gemini-fe-review -->";
+
+/** --- helpers --- **/
+
+function maskSecrets(text) {
+    if (!text) return text;
+    let t = text;
+
+    const patterns = [
+        [
+            /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
+            "[REDACTED_PRIVATE_KEY]",
+        ],
+        [/\bAKIA[0-9A-Z]{16}\b/g, "[REDACTED_AWS_ACCESS_KEY]"],
+        [/(api[_-]?key\s*[:=]\s*)(['"]?)[^'"\s]+(\2)/gi, "$1[REDACTED]$3"],
+        [/(access[_-]?token\s*[:=]\s*)(['"]?)[^'"\s]+(\2)/gi, "$1[REDACTED]$3"],
+        [/(refresh[_-]?token\s*[:=]\s*)(['"]?)[^'"\s]+(\2)/gi, "$1[REDACTED]$3"],
+        [/(secret\s*[:=]\s*)(['"]?)[^'"\s]+(\2)/gi, "$1[REDACTED]$3"],
+        [/Authorization:\s*Bearer\s+[A-Za-z0-9\-\._~\+\/]+=*/gi, "Authorization: Bearer [REDACTED]"],
+    ];
+
+    for (const [re, repl] of patterns) t = t.replace(re, repl);
+    return t;
+}
+
+function chunkString(str, chunkSize) {
+    const chunks = [];
+    for (let i = 0; i < str.length; i += chunkSize) chunks.push(str.slice(i, i + chunkSize));
+    return chunks;
+}
+
+// 워크플로우 filters와 동일한 제외 기준
+function isExcludedFile(filename) {
+    const f = String(filename || "");
+
+    if (f.endsWith(".md") || f.endsWith(".mdx")) return true;
+
+    if (f.includes("/dist/") || f.startsWith("dist/")) return true;
+    if (f.includes("/build/") || f.startsWith("build/")) return true;
+    if (f.includes("/coverage/") || f.startsWith("coverage/")) return true;
+    if (f.includes("/.next/") || f.startsWith(".next/")) return true;
+
+    if (f.endsWith(".lock")) return true;
+    if (f === "pnpm-lock.yaml" || f.endsWith("/pnpm-lock.yaml")) return true;
+    if (f === "yarn.lock" || f.endsWith("/yarn.lock")) return true;
+
+    return false;
+}
+
+/** --- GitHub API --- **/
+
+async function getPRFiles() {
+    const url = `https://api.github.com/repos/${owner}/${repo}/pulls/${PR_NUMBER}/files?per_page=100`;
+    const res = await axios.get(url, {
+        headers: {
+            Authorization: `Bearer ${GITHUB_TOKEN}`,
+            Accept: "application/vnd.github+json",
+        },
+    });
+    return res.data || [];
+}
+
+async function listIssueComments() {
+    const url = `https://api.github.com/repos/${owner}/${repo}/issues/${PR_NUMBER}/comments?per_page=100`;
+    const res = await axios.get(url, {
+        headers: {
+            Authorization: `Bearer ${GITHUB_TOKEN}`,
+            Accept: "application/vnd.github+json",
+        },
+    });
+    return res.data || [];
+}
+
+async function createIssueComment(body) {
+    const url = `https://api.github.com/repos/${owner}/${repo}/issues/${PR_NUMBER}/comments`;
+    await axios.post(
+        url,
+        { body },
+        {
+            headers: {
+                Authorization: `Bearer ${GITHUB_TOKEN}`,
+                Accept: "application/vnd.github+json",
+            },
+        }
+    );
+}
+
+async function updateIssueComment(commentId, body) {
+    const url = `https://api.github.com/repos/${owner}/${repo}/issues/comments/${commentId}`;
+    await axios.patch(
+        url,
+        { body },
+        {
+            headers: {
+                Authorization: `Bearer ${GITHUB_TOKEN}`,
+                Accept: "application/vnd.github+json",
+            },
+        }
+    );
+}
+
+/** --- Diff build --- **/
+
+async function buildReviewableDiff(files) {
+    const reviewableFiles = (files || []).filter((f) => !isExcludedFile(f.filename));
+
+    const patches = reviewableFiles
+        .map((f) => (f.patch ? `FILE: ${f.filename}\n---\n${f.patch}\n` : null))
+        .filter(Boolean);
+
+    return patches.join("\n");
+}
+
+/** --- Prompt --- **/
+
+function buildPrompt() {
+    return `
+You are a senior frontend reviewer for the project.
+
+You are an expert in:
+- TypeScript, React, modern bundlers (e.g., Rsbuild/Vite)
+- Tailwind CSS, component libraries (shadcn/ui, Ant Design)
+- React Query, Zustand, React Hook Form, Zod, Axios
+- FSD-oriented architecture
+
+Folder structure (FSD):
+- app: app bootstrapping/composition
+- pages: route-level screens
+- widgets: large UI blocks
+- features: domain-specific logic + UI
+- entities: domain model management
+- shared: cross-cutting utilities/components
+
+When reviewing:
+- Focus ONLY on frontend code (ignore build outputs/docs/lockfiles).
+- Evaluate structure, readability, performance, and maintainability.
+- Point out violations of FSD structure.
+- Check consistency with existing patterns.
+- Identify potential bugs and edge cases.
+- Suggest concrete improvements.
+
+Important:
+- Write the entire review in Korean.
+- Be constructive and practical.
+- Do not repeat the diff verbatim.
+
+Output format (in Korean):
+1. 요약 (핵심 변경 사항 요약)
+2. 주요 개선 포인트 (중요도 높은 문제 위주)
+3. 구조/아키텍처 관점 피드백
+4. 코드 품질 및 성능 관련 제안
+5. 개선 제안 예시 (필요 시 코드 스니펫)
+6. 체크리스트 (머지 전 확인 사항)
+`;
+}
+
+/** --- Gemini API (model auto-pick) --- **/
+
+async function listGeminiModels() {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`;
+    const res = await axios.get(url, { headers: { Accept: "application/json" } });
+    return res.data?.models ?? [];
+}
+
+function pickModelForGenerateContent(models) {
+    const usable = (models || []).filter(
+        (m) =>
+            Array.isArray(m.supportedGenerationMethods) &&
+            m.supportedGenerationMethods.includes("generateContent") &&
+            typeof m.name === "string"
+    );
+
+    if (usable.length === 0) return null;
+
+    // 지원되는 것 중 선호 순위
+    const preferredBaseIds = [
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-pro",
+        "gemini-1.5-flash",
+    ];
+
+    for (const base of preferredBaseIds) {
+        const found = usable.find((m) => m.baseModelId === base);
+        if (found) return found.name; // e.g. "models/gemini-2.0-flash"
+    }
+
+    return usable[0].name;
+}
+
+async function callGemini(prompt, diffText) {
+    const models = await listGeminiModels();
+    const modelName = pickModelForGenerateContent(models);
+
+    if (!modelName) {
+        const debug = JSON.stringify(models?.slice?.(0, 3) ?? [], null, 2);
+        throw new Error(`No Gemini models support generateContent. models(sample)=${debug}`);
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+
+    const body = {
+        contents: [
+            {
+                role: "user",
+                parts: [{ text: `PR Title: ${PR_TITLE}\n\n${prompt}\n\nPR diff:\n${diffText}` }],
+            },
+        ],
+        generationConfig: { temperature: 0.2, topP: 0.9, maxOutputTokens: 6000 },
+    };
+
+    try {
+        const res = await axios.post(url, body, { headers: { "Content-Type": "application/json" } });
+        const text =
+            res.data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ||
+            "No response from Gemini.";
+        return text;
+    } catch (err) {
+        const status = err?.response?.status;
+        const data = err?.response?.data;
+        console.log(`Gemini call failed for ${modelName}:generateContent status=${status}`);
+        if (data) console.log("Gemini error body:", JSON.stringify(data).slice(0, 2000));
+        throw err;
+    }
+}
+
+/** --- Comment rendering --- **/
+
+function buildCommentBody(reviewMarkdown, meta) {
+    const { chunksUsed, truncated } = meta;
+
+    return [
+        COMMENT_MARKER,
+        "## 🤖 Gemini FE Automated Review",
+        `**PR Title:** ${PR_TITLE}`,
+        "",
+        reviewMarkdown,
+        "",
+        "---",
+        `**Notes:** chunks=${chunksUsed}${truncated ? ", truncated=true" : ""}`,
+        "<sub>Generated by GitHub Actions + Gemini</sub>",
+    ].join("\n");
+}
+
+/** --- main --- **/
+
+(async () => {
+    const files = await getPRFiles();
+    let diff = await buildReviewableDiff(files);
+
+    if (!diff.trim()) {
+        console.log("No reviewable patches found. Skip.");
+        return;
+    }
+
+    diff = maskSecrets(diff);
+
+    const prompt = buildPrompt();
+
+    // 너무 크게 보내면 실패/품질저하가 나서 분할
+    const MAX_CHARS_PER_CHUNK = 45000;
+    const chunks = chunkString(diff, MAX_CHARS_PER_CHUNK);
+
+    const MAX_CHUNKS = 4;
+    const usedChunks = chunks.slice(0, MAX_CHUNKS);
+    const truncated = chunks.length > MAX_CHUNKS;
+
+    const results = [];
+    for (let i = 0; i < usedChunks.length; i++) {
+        const header = usedChunks.length > 1 ? `\n\n[Chunk ${i + 1}/${usedChunks.length}]\n` : "\n";
+        const review = await callGemini(prompt, header + usedChunks[i]);
+        results.push(review);
+    }
+
+    const combinedReview =
+        results.length === 1
+            ? results[0]
+            : results.map((r, idx) => `### Part ${idx + 1}\n\n${r}`).join("\n\n");
+
+    const body = buildCommentBody(combinedReview, {
+        chunksUsed: usedChunks.length,
+        truncated,
+    });
+
+    const comments = await listIssueComments();
+    const existing = comments.find((c) => typeof c.body === "string" && c.body.includes(COMMENT_MARKER));
+
+    if (existing) {
+        await updateIssueComment(existing.id, body);
+        console.log("✅ Updated existing Gemini review comment.");
+    } else {
+        await createIssueComment(body);
+        console.log("✅ Created Gemini review comment.");
+    }
+})().catch((e) => {
+    console.error("❌ Gemini PR review action failed:", e?.message ?? e);
+    process.exit(1);
+});
