@@ -56,7 +56,7 @@ export const TermsSubItem = ({
 
 export const TermsCheckbox = ({ id = 'terms-checkbox', label, checked, onChange }: TermsCheckboxProps) => {
    return (
-      <FieldGroup className="bg-[#F7F8F9]  rounded-lg">
+      <FieldGroup className="bg-surface  rounded-lg">
          <Field orientation="horizontal" className="justify-between w-full">
             <div className="flex  flex-1 items-center gap-2 px-4 py-3">
                <Checkbox id={id} name={id} checked={checked} onCheckedChange={onChange} />

@@ -8,11 +8,11 @@ const optionVariants = cva(
    {
       variants: {
          variant: {
-            normal: 'bg-transparent border-border px-4 py-3 hover:bg-(--neutral-50)',
+            normal: 'border-border px-4 py-3 hover:bg-(--neutral-50)',
          },
          active: {
             true: 'bg-(--primary-light) border-(--border-accent) text-primary',
-            false: 'text-(--text-tertiary)',
+            false: 'bg-transparent text-(--text-tertiary)',
          },
       },
       defaultVariants: {
@@ -40,6 +40,7 @@ const Option = React.forwardRef<HTMLButtonElement, OptionProps>(
             ref={ref}
             data-slot="option"
             data-state={active ? 'active' : 'inactive'}
+            type="button" // 폼 제출 방지를 위해 type을 button으로 명시
             // CVA에서는 색상과 레이아웃만 처리하고, 폰트 사이즈/두께는 아래 span에서 처리
             className={cn(optionVariants({ variant, active, className }))}
             {...props}

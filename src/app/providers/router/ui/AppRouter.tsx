@@ -13,7 +13,6 @@ import PopupPage from '@/pages/components/ui/PopupPage';
 import TooltipPage from '@/pages/components/ui/TooltipPage';
 import InputPage from '@/pages/components/ui/InputPage';
 import ToSPage from '@/pages/components/ui/ToSPage';
-import AgreePage from '@/pages/signup/ui/AgreePage';
 
 const AppRouter = () => {
    return (
@@ -24,7 +23,6 @@ const AppRouter = () => {
                <Route path="login" element={<LoginPage />} />
                <Route path="terms" element={<VerificationFlowPage />} />
                <Route path="signup" element={<SignUpPage />} />
-               <Route path="agree" element={<AgreePage />} />
                <Route path=":provider/callback" element={<AuthCallbackPage />} />
             </Route>
             <Route path="/login" element={<Navigate to="/auth/login" replace />} />
