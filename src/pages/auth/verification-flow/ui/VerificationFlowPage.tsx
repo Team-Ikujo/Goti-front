@@ -4,15 +4,15 @@ import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { TermsCheckbox, TermsSubItem } from '@/shared/ui/terms-of-service';
 import { useTermDetailQuery, useTermsAgreementListQuery } from '@/entities/terms/model/useTermsQueries';
-import type { TermCode } from '@/entities/terms/model/types';
+import type { TermAgreementCode } from '@/entities/terms/model/types';
 
 const VerificationFlowPage = () => {
    const navigate = useNavigate();
-   const termsAgreementListQuery = useTermsAgreementListQuery();
+   const termsAgreementListQuery = useTermsAgreementListQuery('verification');
    const agreements = termsAgreementListQuery.data ?? [];
-   const [checkedByCode, setCheckedByCode] = useState<Partial<Record<TermCode, boolean>>>({});
+   const [checkedByCode, setCheckedByCode] = useState<Partial<Record<TermAgreementCode, boolean>>>({});
 
-   const [detailTargetCode, setDetailTargetCode] = useState<TermCode | null>(null);
+   const [detailTargetCode, setDetailTargetCode] = useState<TermAgreementCode | null>(null);
    const termDetailQuery = useTermDetailQuery(detailTargetCode);
    const [detailTriggerElement, setDetailTriggerElement] = useState<HTMLElement | null>(null);
 
@@ -30,7 +30,7 @@ const VerificationFlowPage = () => {
    }, [agreements, checkedByCode]);
 
    const handleAllCheckedChange = (checked: boolean) => {
-      const nextState: Partial<Record<TermCode, boolean>> = {};
+      const nextState: Partial<Record<TermAgreementCode, boolean>> = {};
       agreements.forEach(agreement => {
          nextState[agreement.code] = checked;
       });
@@ -53,7 +53,7 @@ const VerificationFlowPage = () => {
       }
    };
 
-   const handleOpenDetail = (code: TermCode, trigger?: HTMLElement) => {
+   const handleOpenDetail = (code: TermAgreementCode, trigger?: HTMLElement) => {
       if (trigger) setDetailTriggerElement(trigger);
       setDetailTargetCode(code);
    };

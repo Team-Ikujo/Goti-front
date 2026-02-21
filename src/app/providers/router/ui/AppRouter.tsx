@@ -26,7 +26,7 @@ const AppRouter = () => {
                <Route path=":provider/callback" element={<AuthCallbackPage />} />
             </Route>
             <Route path="/login" element={<Navigate to="/auth/login" replace />} />
-            <Route path="/signup" element={<Navigate to="/auth/signup" replace />} />
+            <Route path="/signup" element={<Navigate to="/auth/terms" replace />} />
             <Route path="/auth/verification-flow" element={<Navigate to="/auth/terms" replace />} />
             <Route path="/button" element={<ButtonPage />} />
             <Route path="/control" element={<ControlPage />} />

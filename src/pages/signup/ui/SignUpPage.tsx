@@ -1,4 +1,4 @@
-import type { TermCode } from '@/entities/terms/model/types';
+import type { TermSignUpCode } from '@/entities/terms/model/types';
 import { useTermDetailQuery, useTermsAgreementListQuery } from '@/entities/terms/model/useTermsQueries';
 import { Alert } from '@/shared/ui/alert';
 import { Button } from '@/shared/ui/button';
@@ -22,9 +22,9 @@ const telecomOptions = [
 
 const SignUpPage = () => {
    const navigate = useNavigate();
-   const termsAgreementListQuery = useTermsAgreementListQuery();
-   const agreements = termsAgreementListQuery.data ?? [];
-   const [checkedByCode, setCheckedByCode] = useState<Partial<Record<TermCode, boolean>>>({});
+   const termsSignuptListQuery = useTermsAgreementListQuery('signup');
+   const signups = termsSignuptListQuery.data ?? [];
+   const [checkedByCode, setCheckedByCode] = useState<Partial<Record<TermSignUpCode, boolean>>>({});
    const [selected, setSelected] = useState<string | null>(null);
 
    const [name, setName] = useState('');
@@ -39,27 +39,27 @@ const SignUpPage = () => {
    const [showAlert, setShowAlert] = useState(false);
    const [submitted, setSubmitted] = useState(false);
 
-   const [detailTargetCode, setDetailTargetCode] = useState<TermCode | null>(null);
+   const [detailTargetCode, setDetailTargetCode] = useState<TermSignUpCode | null>(null);
    const termDetailQuery = useTermDetailQuery(detailTargetCode);
    const [detailTriggerElement, setDetailTriggerElement] = useState<HTMLElement | null>(null);
 
    const areRequiredTermsChecked = useMemo(() => {
-      return agreements.every(agreement => {
-         if (!agreement.required) {
+      return signups.every(signup => {
+         if (!signup.required) {
             return true;
          }
-         return checkedByCode[agreement.code] === true;
+         return checkedByCode[signup.code] === true;
       });
-   }, [agreements, checkedByCode]);
+   }, [signups, checkedByCode]);
 
    const isAllChecked = useMemo(() => {
-      return agreements.length > 0 && agreements.every(agreement => checkedByCode[agreement.code] === true);
-   }, [agreements, checkedByCode]);
+      return signups.length > 0 && signups.every(signup => checkedByCode[signup.code] === true);
+   }, [signups, checkedByCode]);
 
    const handleAllCheckedChange = (checked: boolean) => {
-      const nextState: Partial<Record<TermCode, boolean>> = {};
-      agreements.forEach(agreement => {
-         nextState[agreement.code] = checked;
+      const nextState: Partial<Record<TermSignUpCode, boolean>> = {};
+      signups.forEach(signup => {
+         nextState[signup.code] = checked;
       });
       setCheckedByCode(nextState);
    };
@@ -113,7 +113,7 @@ const SignUpPage = () => {
       }
    };
 
-   const handleOpenDetail = (code: TermCode, trigger?: HTMLElement) => {
+   const handleOpenDetail = (code: TermSignUpCode, trigger?: HTMLElement) => {
       if (trigger) setDetailTriggerElement(trigger);
       setDetailTargetCode(code);
    };
@@ -256,20 +256,20 @@ const SignUpPage = () => {
                         onChange={handleAllCheckedChange}
                      />
                      <div>
-                        {agreements.map(agreement => (
+                        {signups.map(signup => (
                            <TermsSubItem
-                              key={agreement.code}
-                              id={`term-${agreement.code}`}
-                              label={agreement.label}
-                              checked={Boolean(checkedByCode[agreement.code])}
+                              key={signup.code}
+                              id={`term-${signup.code}`}
+                              label={signup.label}
+                              checked={Boolean(checkedByCode[signup.code])}
                               onChange={checked =>
                                  setCheckedByCode(prev => ({
                                     ...prev,
-                                    [agreement.code]: checked === true,
+                                    [signup.code]: checked === true,
                                  }))
                               }
-                              showTrigger={agreement.hasDetail}
-                              onTrigger={() => handleOpenDetail(agreement.code)}
+                              showTrigger={signup.hasDetail}
+                              onTrigger={() => handleOpenDetail(signup.code)}
                            />
                         ))}
                      </div>
