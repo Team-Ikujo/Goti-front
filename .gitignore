@@ -5,6 +5,10 @@
 .env
 .mcp.json
 
+# Claude Code
+CLAUDE.md
+.claude/
+
 # Dist
 node_modules
 dist/
