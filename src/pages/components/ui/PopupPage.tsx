@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/shared/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/shared/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/shared/ui/dialog';
 
 const PopupPage = () => {
    const [isControlledOpen, setIsControlledOpen] = useState(false);
@@ -50,7 +50,9 @@ const PopupPage = () => {
                      푸터 버튼으로만 닫히는지 확인할 수 있습니다.
                   </div>
                   <DialogFooter className="p-6 pt-4 shrink-0">
-                     <Button className="w-full">닫기</Button>
+                     <DialogClose asChild>
+                        <Button className="w-full">닫기</Button>
+                     </DialogClose>
                   </DialogFooter>
                </DialogContent>
             </Dialog>
