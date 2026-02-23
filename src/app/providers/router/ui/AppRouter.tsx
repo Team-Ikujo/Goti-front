@@ -9,13 +9,10 @@ import ButtonPage from '@/pages/components/ui/ButtonPage';
 import ControlPage from '@/pages/components/ui/ControlPage';
 import AlertPage from '@/pages/components/ui/AlertPage';
 import OptionPage from '@/pages/components/ui/OptionPage';
-<<<<<<< feature/compoenents/popup
 import PopupPage from '@/pages/components/ui/PopupPage';
-=======
 import TooltipPage from '@/pages/components/ui/TooltipPage';
 import InputPage from '@/pages/components/ui/InputPage';
 import ToSPage from '@/pages/components/ui/ToSPage';
->>>>>>> develop
 
 const AppRouter = () => {
    return (
@@ -29,19 +26,16 @@ const AppRouter = () => {
                <Route path=":provider/callback" element={<AuthCallbackPage />} />
             </Route>
             <Route path="/login" element={<Navigate to="/auth/login" replace />} />
-            <Route path="/signup" element={<Navigate to="/auth/signup" replace />} />
+            <Route path="/signup" element={<Navigate to="/auth/terms" replace />} />
             <Route path="/auth/verification-flow" element={<Navigate to="/auth/terms" replace />} />
             <Route path="/button" element={<ButtonPage />} />
             <Route path="/control" element={<ControlPage />} />
             <Route path="/alert" element={<AlertPage />} />
             <Route path="/option" element={<OptionPage />} />
-<<<<<<< feature/compoenents/popup
             <Route path="/popup" element={<PopupPage />} />
-=======
             <Route path="/tooltip" element={<TooltipPage />} />
             <Route path="/input" element={<InputPage />} />
             <Route path="/tos" element={<ToSPage />} />
->>>>>>> develop
             <Route path="*" element={<Navigate to="/" replace />} />
          </Routes>
       </BrowserRouter>

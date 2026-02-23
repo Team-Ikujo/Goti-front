@@ -1,5 +1,5 @@
 import apiClient from "@/shared/api/client";
-import type { TermCode, TermsAgreement, TermsDetail } from "../model/types";
+import type { AgreementType, TermCode, TermsAgreement, TermsDetail } from "../model/types";
 
 type TermsAgreementListResponse = {
   items: TermsAgreement[];
@@ -9,9 +9,10 @@ type TermDetailResponse = {
   item: TermsDetail | null;
 };
 
-export const fetchTermsAgreementList = async (): Promise<TermsAgreement[]> => {
+export const fetchTermsAgreementList = async (type: AgreementType = 'verification'): Promise<TermsAgreement[]> => {
   const { data } = await apiClient.get<TermsAgreementListResponse>(
     "/api/v1/terms",
+    { params: { type } },
   );
   return data.items;
 };

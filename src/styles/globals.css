@@ -30,8 +30,8 @@
    Semantic Tokens
 ===================================================== */
 :root {
-   --background-base: var(--neutral-50);
-   --background-surface: var(--common-white);
+   --background-base: var(--common-white);
+   --background-surface: var(--neutral-50);
    --background-elevated: var(--common-white);
    --background-scrim: rgba(0, 0, 0, 0.6);
 

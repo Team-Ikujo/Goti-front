@@ -12,7 +12,7 @@ function Input({ className, label, required, helpText, error, disabled, type, ..
    return (
       <div className={cn('flex flex-col gap-1', className)}>
          {label && (
-            <label className={cn('text-(--label-2-medium)', 'text-muted-foreground')}>
+            <label className={cn('text-label-2-medium', 'text-[14px]', 'text-muted-foreground')}>
                {label}
                {required && <span className="text-primary">*</span>}
             </label>
