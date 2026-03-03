@@ -1,5 +1,5 @@
 import { Button } from "@/shared/ui/button";
-import { ChevronDown, Globe, Heart, Search } from "lucide-react";
+import { Heart, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Header = () => {
