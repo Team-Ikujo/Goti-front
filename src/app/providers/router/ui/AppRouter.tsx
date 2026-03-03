@@ -15,6 +15,7 @@ import InputPage from "@/pages/components/ui/InputPage";
 import ToSPage from "@/pages/components/ui/ToSPage";
 import HomeLayout from "@/shared/widgets/layout/home";
 import Chip from "@/pages/components/ui/ChipPage";
+import MouseTrackingPage from "@/pages/components/ui/MouseTrackingPage";
 
 const AppRouter = () => {
   return (
@@ -43,6 +44,7 @@ const AppRouter = () => {
         <Route path="/tooltip" element={<TooltipPage />} />
         <Route path="/input" element={<InputPage />} />
         <Route path="/tos" element={<ToSPage />} />
+        <Route path="/mouse-tracking" element={<MouseTrackingPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
         <Route path="/chip" element={<Chip />} />
       </Routes>
