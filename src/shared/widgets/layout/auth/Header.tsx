@@ -1,92 +1,150 @@
-import { Button } from "@/shared/ui/button";
-import { Heart, Search } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useAuthStore } from '@/entities/auth/model/authStore';
+import { Button } from '@/shared/ui/button';
+import { Clock, Heart, Search } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+
+const SESSION_DURATION = 60 * 60; // 1시간 (초)
+
+const formatTime = (seconds: number) => {
+   const h = Math.floor(seconds / 3600);
+   const m = Math.floor((seconds % 3600) / 60);
+   const s = seconds % 60;
+   return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+};
 
 const Header = () => {
-  return (
-    <header className="flex flex-col w-full">
-      {/* 상단바: 트래픽 상태 / 검색 / 언어 */}
-      <div className="bg-background shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] w-full overflow-hidden px-30 py-2.5">
-        <div className="flex items-center justify-between w-full max-w-300 mx-auto">
-          <div className="flex items-center gap-1.5">
-            <div className="size-2 rounded-full bg-success" />
-            <span className="text-caption-2-medium text-(--text-tertiary)">
-              TRAFFIC:
-            </span>
-            <span className="text-caption-2-medium text-success">원활</span>
-          </div>
+   const { accessToken, setAccessToken, clearAuth } = useAuthStore();
+   const isLoggedIn = !!accessToken;
 
-          <div className="flex items-center gap-7.5">
-            <div className="flex items-center w-57.5 h-9 border border-border rounded-full bg-background">
-              <input
-                className="flex-1 px-3 text-body-2-regular text-(--text-tertiary) truncate"
-                placeholder="Search"
-              />
-              <div className="pr-3">
-                <Search className="size-4 text-(--text-tertiary)" />
-              </div>
+   const [remaining, setRemaining] = useState(SESSION_DURATION);
+   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+   useEffect(() => {
+      if (isLoggedIn) {
+         setRemaining(SESSION_DURATION);
+         intervalRef.current = setInterval(() => {
+            setRemaining(prev => {
+               if (prev <= 1) {
+                  clearInterval(intervalRef.current!);
+                  clearAuth();
+                  return 0;
+               }
+               return prev - 1;
+            });
+         }, 1000);
+      } else {
+         if (intervalRef.current) clearInterval(intervalRef.current);
+      }
+      return () => {
+         if (intervalRef.current) clearInterval(intervalRef.current);
+      };
+   }, [isLoggedIn, clearAuth]);
+
+   // TODO: 로그인 API 연동 후 제거 — 로컬 테스트용 토글
+   const handleLoginToggle = () => setAccessToken('mock-token');
+   const handleLogout = () => clearAuth();
+
+   return (
+      <header className="flex flex-col w-full">
+         {/* State bar: 트래픽 상태 + (로그인 시) 세션 타이머 */}
+         <div className="bg-background w-full overflow-hidden px-4 py-1">
+            <div className="flex items-center justify-between w-full max-w-300 mx-auto">
+               <div className="flex items-center gap-1.5">
+                  <div className="size-2 rounded-full bg-success" />
+                  <span className="text-caption-2-medium text-(--text-tertiary)">혼잡도:</span>
+                  <span className="text-caption-2-medium text-success">원활</span>
+               </div>
+
+               {isLoggedIn && (
+                  <div className="flex items-center gap-1.5 px-1.5">
+                     <Clock className="size-4 text-primary" />
+                     <span className="text-caption-2-medium text-primary">{formatTime(remaining)}</span>
+                  </div>
+               )}
             </div>
-          </div>
-        </div>
-      </div>
+         </div>
 
-      {/* 메인 네비게이션: 로고 / 메뉴 / 로그인 */}
-      <div className="bg-background shadow-[0px_1px_2px_0px_rgba(13,17,23,0.05)] w-full h-12.5 px-30">
-        <div className="flex items-center gap-7 h-full w-full max-w-300 mx-auto">
-          <Link
-            to="/"
-            className="shrink-0 text-[21px] font-bold tracking-[-0.5px] text-foreground"
-          >
-            GoTi
-          </Link>
+         {/* Nav bar: 로고 / 메뉴 / 검색 / 로그인 or 유저 */}
+         <div className="bg-background shadow-[0px_1px_2px_0px_rgba(13,17,23,0.05)] w-full px-4">
+            <div className="flex items-center gap-5 h-12.5 w-full max-w-400 mx-auto">
+               <Link to="/" className="shrink-0 text-[21px] font-bold tracking-[-0.5px] text-foreground">
+                  GoTi
+               </Link>
 
-          <div className="flex items-center gap-0.5 flex-1 h-full">
-            <button className="flex items-center justify-center h-full px-3 border-b-2 border-primary">
-              <span className="text-label-2-bold text-primary">티켓/리셀</span>
-            </button>
-            <button className="flex items-center justify-center h-full px-3">
-              <span className="text-label-2-bold text-(--text-tertiary)">
-                구단
-              </span>
-            </button>
-          </div>
+               <div className="flex items-center gap-5 flex-1 h-full min-w-0">
+                  <div className="flex items-center gap-0.5 h-full shrink-0">
+                     <button className="flex items-center justify-center h-full px-3 border-b-2 border-primary">
+                        <span className="text-label-2-bold text-primary">티켓/리셀</span>
+                     </button>
+                     <button className="flex items-center justify-center h-full px-3">
+                        <span className="text-label-2-bold text-(--text-tertiary)">구단</span>
+                     </button>
+                  </div>
 
-          <Button
-            variant={"primaryline"}
-            className="shrink-0 flex items-center justify-center h-9.5 px-4 border-[1.4px] border-primary rounded-lg text-primary text-body-1-medium"
-            asChild
-          >
-            <Link to="/auth/login">로그인/회원가입</Link>
-          </Button>
-        </div>
-      </div>
+                  <div className="flex items-center w-62.5 h-9 border border-border rounded-full bg-background shrink-0">
+                     <input
+                        className="flex-1 px-5 text-body-2-regular text-(--text-tertiary) bg-transparent outline-none truncate"
+                        placeholder="Search"
+                     />
+                     <div className="pr-3">
+                        <Search className="size-4 text-(--text-tertiary)" />
+                     </div>
+                  </div>
+               </div>
 
-      {/* 안내 배너 */}
-      <div className="bg-(--fill-hoveraccent) w-full px-30 py-1">
-        <div className="flex items-center justify-between h-8 w-full max-w-300 mx-auto">
-          <p className="text-label-3-regular text-primary">
-            GoTi는 국내 최대 티켓중개거래 플랫폼입니다. 구매자 수수료는 없으며,
-            티켓가격은 액면가보다 낮거나 높을 수 있습니다.
-          </p>
-
-          <div className="flex items-center gap-2.5 shrink-0">
-            <div className="flex items-center gap-2">
-              <Heart className="size-4 fill-primary text-primary" />
-              <span className="text-label-3-regular text-primary">
-                좋아하는 팀을 설정하고 경기 일정을 빠르게 확인하세요
-              </span>
+               {isLoggedIn ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                     <button className="flex items-center justify-center size-9.5 rounded-lg hover:bg-(--fill-hover) transition-colors">
+                        <img src="/Icon/Line/Bell.svg" alt="알림" className="size-4.5" />
+                     </button>
+                     {/* TODO: 로그인 API 연동 후 프로필 페이지로 이동하도록 변경 */}
+                     <button
+                        className="flex items-center justify-center size-9.5 rounded-lg hover:bg-(--fill-hover) transition-colors"
+                        onClick={handleLogout}
+                        title="로그아웃 (테스트용 — 클릭 시 로그아웃)"
+                     >
+                        <img src="/Icon/Line/Mypage.svg" alt="마이페이지" className="size-4.5" />
+                     </button>
+                  </div>
+               ) : (
+                  /* TODO: 로그인 API 연동 후 asChild + Link to="/auth/login" 으로 교체 */
+                  <Button
+                     variant="primaryline"
+                     className="shrink-0 h-9.5 px-3.5 text-body-2-medium rounded-lg"
+                     onClick={handleLoginToggle}
+                  >
+                     로그인/회원가입
+                  </Button>
+               )}
             </div>
-            <Button
-              variant={"outline"}
-              className="bg-background border border-(--border-light) rounded-lg px-3 py-1 text-label-2-medium text-muted-foreground"
-            >
-              팀 선택
-            </Button>
-          </div>
-        </div>
-      </div>
-    </header>
-  );
+         </div>
+
+         {/* Info bar: 안내 배너 */}
+         <div className="bg-(--fill-hoveraccent) w-full px-4 py-1">
+            <div className="flex items-center justify-between h-8 w-full max-w-300 mx-auto">
+               <p className="text-label-3-regular text-primary">
+                  KBO 공식 티켓 플랫폼 Go-Ti에서 안전한 예매와 리셀을 경험하세요.
+               </p>
+
+               <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2">
+                     <Heart className="size-4 fill-primary text-primary" />
+                     <span className="text-label-3-regular text-primary">
+                        좋아하는 팀을 설정하고 경기 일정을 빠르게 확인하세요
+                     </span>
+                  </div>
+                  <Button
+                     variant="outline"
+                     className="h-auto px-3 py-1 text-label-2-medium text-muted-foreground rounded-lg"
+                  >
+                     팀 선택
+                  </Button>
+               </div>
+            </div>
+         </div>
+      </header>
+   );
 };
 
 export default Header;
