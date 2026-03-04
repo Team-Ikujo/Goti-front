@@ -1,11 +1,11 @@
-import Header from "@/shared/widgets/layout/auth/Header";
-import { Link } from "react-router-dom";
+import { Link } from 'react-router-dom';
+import HeroBanner from './HeroBanner';
 
 const HomePage = () => {
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <Header />
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center gap-8 px-6 py-12">
+   return (
+      <div className="min-h-screen bg-slate-950 text-slate-100">
+         <HeroBanner />
+         {/* <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center gap-8 px-6 py-12">
         <div>
           <p className="text-sm uppercase tracking-[0.3em] text-emerald-300">
             BallX
@@ -43,9 +43,9 @@ const HomePage = () => {
             팝업 테스트 페이지
           </Link>
         </div>
+      </div> */}
       </div>
-    </div>
-  );
+   );
 };
 
 export default HomePage;

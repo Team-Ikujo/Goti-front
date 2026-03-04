@@ -21,3 +21,6 @@ dist/
 !.vscode/extensions.json
 .idea
 .env
+
+#figma
+.zshrc
