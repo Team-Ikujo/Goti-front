@@ -16,6 +16,7 @@ import ToSPage from "@/pages/components/ui/ToSPage";
 import HomeLayout from "@/shared/widgets/layout/home";
 import Chip from "@/pages/components/ui/ChipPage";
 import ListPage from "@/pages/components/ui/ListPage";
+import TeamsPage from "@/pages/teams";
 
 const AppRouter = () => {
   return (
@@ -35,7 +36,7 @@ const AppRouter = () => {
         />
         <Route path="/" element={<HomeLayout />}>
           <Route index element={<HomePage />} />
-          <Route path="teams" element={<HomePage />} />
+          <Route path="teams" element={<TeamsPage />} />
         </Route>
         <Route path="/button" element={<ButtonPage />} />
         <Route path="/control" element={<ControlPage />} />
