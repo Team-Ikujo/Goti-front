@@ -173,9 +173,10 @@ const SignUpPage = () => {
                   label="이름"
                   required
                   placeholder="30자 이내 입력"
+                  maxLength={30}
                   value={name}
                   onChange={e => {
-                     setName(e.target.value);
+                     setName(e.target.value.slice(0, 30));
                      setFieldErrors(prev => ({ ...prev, name: undefined }));
                   }}
                   error={submitted && Boolean(fieldErrors.name)}
