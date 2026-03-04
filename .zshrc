@@ -1,0 +1,1 @@
+FIGMA_ACCESS_TOKEN='figd_vO2fKWLwLRynd6mcPjdkKRJ0o07qNxs10GsZ'
