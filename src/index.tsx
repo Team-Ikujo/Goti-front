@@ -4,7 +4,7 @@ import './styles/tailwind.css';
 import App from './App';
 
 const startMocks = async () => {
-  if (import.meta.env.DEV) {
+  if (true) {
     const { worker } = await import('@/shared/api/mocks/browser');
     await worker.start({
       onUnhandledRequest: 'bypass',
