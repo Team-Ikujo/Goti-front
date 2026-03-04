@@ -32,7 +32,8 @@ const AppRouter = () => {
           element={<Navigate to="/auth/terms" replace />}
         />
         <Route path="/" element={<HomeLayout />}>
-          <Route path="/" element={<HomePage />} />
+          <Route index element={<HomePage />} />
+          <Route path="teams" element={<HomePage />} />
         </Route>
         <Route path="/button" element={<ButtonPage />} />
         <Route path="/control" element={<ControlPage />} />
