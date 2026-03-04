@@ -1,8 +1,14 @@
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Button } from '@/shared/ui/button';
+import { cn } from '@/shared/lib/utils';
 import { Clock, Heart, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
+
+const navTabs = [
+   { label: '티켓/리셀', to: '/' },
+   { label: '구단', to: '/teams' },
+] as const;
 
 const SESSION_DURATION = 60 * 60; // 1시간 (초)
 
@@ -14,7 +20,7 @@ const formatTime = (seconds: number) => {
 };
 
 const Header = () => {
-   const { accessToken, setAccessToken, clearAuth } = useAuthStore();
+   const { accessToken, clearAuth } = useAuthStore();
    const isLoggedIn = !!accessToken;
 
    const [remaining, setRemaining] = useState(SESSION_DURATION);
@@ -41,8 +47,6 @@ const Header = () => {
       };
    }, [isLoggedIn, clearAuth]);
 
-   // TODO: 로그인 API 연동 후 제거 — 로컬 테스트용 토글
-   const handleLoginToggle = () => setAccessToken('mock-token');
    const handleLogout = () => clearAuth();
 
    return (
@@ -66,20 +70,38 @@ const Header = () => {
          </div>
 
          {/* Nav bar: 로고 / 메뉴 / 검색 / 로그인 or 유저 */}
-         <div className="bg-background shadow-[0px_1px_2px_0px_rgba(13,17,23,0.05)] w-full px-4">
-            <div className="flex items-center gap-5 h-12.5 w-full max-w-400 mx-auto">
+         <div className="bg-background shadow-[0px_1px_2px_0px_rgba(13,17,23,0.05)] w-full px-4 flex justify-center">
+            <div className="flex items-center gap-5 h-12.5 w-full max-w-300">
                <Link to="/" className="shrink-0 text-[21px] font-bold tracking-[-0.5px] text-foreground">
                   GoTi
                </Link>
 
                <div className="flex items-center gap-5 flex-1 h-full min-w-0">
                   <div className="flex items-center gap-0.5 h-full shrink-0">
-                     <button className="flex items-center justify-center h-full px-3 border-b-2 border-primary">
-                        <span className="text-label-2-bold text-primary">티켓/리셀</span>
-                     </button>
-                     <button className="flex items-center justify-center h-full px-3">
-                        <span className="text-label-2-bold text-(--text-tertiary)">구단</span>
-                     </button>
+                     {navTabs.map(({ label, to }) => (
+                        <NavLink
+                           key={to}
+                           to={to}
+                           end
+                           className={({ isActive }) =>
+                              cn(
+                                 'flex items-center justify-center h-full px-3 transition-colors',
+                                 isActive ? 'border-b-2 border-primary' : '',
+                              )
+                           }
+                        >
+                           {({ isActive }) => (
+                              <span
+                                 className={cn(
+                                    'text-body-1-bold font-bold',
+                                    isActive ? 'text-primary' : 'text-(--text-tertiary)',
+                                 )}
+                              >
+                                 {label}
+                              </span>
+                           )}
+                        </NavLink>
+                     ))}
                   </div>
 
                   <div className="flex items-center w-62.5 h-9 border border-border rounded-full bg-background shrink-0">
@@ -108,39 +130,37 @@ const Header = () => {
                      </button>
                   </div>
                ) : (
-                  /* TODO: 로그인 API 연동 후 asChild + Link to="/auth/login" 으로 교체 */
                   <Button
+                     asChild
                      variant="primaryline"
-                     className="shrink-0 h-9.5 px-3.5 text-body-2-medium rounded-lg"
-                     onClick={handleLoginToggle}
+                     className="shrink-0 w-29.5 h-auto px-3.5 py-1.5 text-body-2-medium rounded-lg"
                   >
-                     로그인/회원가입
+                     <Link to="/auth/login">로그인/회원가입</Link>
                   </Button>
                )}
             </div>
          </div>
 
          {/* Info bar: 안내 배너 */}
-         <div className="bg-(--fill-hoveraccent) w-full px-4 py-1">
-            <div className="flex items-center justify-between h-8 w-full max-w-300 mx-auto">
-               <p className="text-label-3-regular text-primary">
-                  KBO 공식 티켓 플랫폼 Go-Ti에서 안전한 예매와 리셀을 경험하세요.
-               </p>
-
-               <div className="flex items-center gap-2 shrink-0">
-                  <div className="flex items-center gap-2">
+         <div className="bg-(--fill-hoveraccent) w-full px-4 py-1 flex justify-center">
+            <div className="flex items-center gap-2.5 h-8 w-full max-w-300">
+               <div className="flex flex-1 items-center justify-between min-w-0">
+                  <p className="text-label-3-regular text-primary whitespace-nowrap">
+                     KBO 공식 티켓 플랫폼 Go-Ti에서 안전한 예매와 리셀을 경험하세요.
+                  </p>
+                  <div className="flex items-center gap-2 shrink-0">
                      <Heart className="size-4 fill-primary text-primary" />
-                     <span className="text-label-3-regular text-primary">
+                     <span className="text-label-3-regular text-primary whitespace-nowrap">
                         좋아하는 팀을 설정하고 경기 일정을 빠르게 확인하세요
                      </span>
                   </div>
-                  <Button
-                     variant="outline"
-                     className="h-auto px-3 py-1 text-label-2-medium text-muted-foreground rounded-lg"
-                  >
-                     팀 선택
-                  </Button>
                </div>
+               <Button
+                  variant="outline"
+                  className="shrink-0 w-16 h-auto px-3 py-1 text-label-2-medium text-muted-foreground rounded-lg"
+               >
+                  팀 선택
+               </Button>
             </div>
          </div>
       </header>
