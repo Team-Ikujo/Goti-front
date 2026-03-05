@@ -26,17 +26,15 @@ const buttonVariants = cva(
       compoundVariants: [
          {
             variant: 'primary',
-            className: '[color:var(--static-white)] disabled:[color:var(--text-disabled)]',
+            className: 'text-white disabled:text-(--text-disabled)',
          },
          {
             variant: 'primaryline',
-            className:
-               '[color:var(--primary-normal)] disabled:[color:var(--text-disabled)] disabled:hover:bg-transparent',
+            className: 'text-(--primary-normal) disabled:text-(--text-disabled) disabled:hover:bg-transparent',
          },
          {
             variant: 'outline',
-            className:
-               '[color:var(--text-secondary)] disabled:[color:var(--text-disabled)] disabled:hover:bg-transparent',
+            className: 'text-(--text-secondary) disabled:text-(--text-disabled) disabled:hover:bg-transparent',
          },
       ],
       defaultVariants: {

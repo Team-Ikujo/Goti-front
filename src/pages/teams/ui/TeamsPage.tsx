@@ -1,6 +1,13 @@
+import { useNavigate } from "react-router-dom";
 import { teams } from "@/entities/team/model/teams";
 
 const TeamsPage = () => {
+  const navigate = useNavigate();
+
+  const handleTeamClick = (teamId: string) => {
+    navigate(`/teams/${teamId}`);
+  };
+
   return (
     <section className="bg-background">
       <div className="mx-auto flex w-full max-w-300 flex-col items-center px-4 pt-12.5 pb-30">
@@ -19,6 +26,7 @@ const TeamsPage = () => {
               <button
                 key={team.id}
                 type="button"
+                onClick={() => handleTeamClick(team.id)}
                 disabled={!team.isEnabled}
                 aria-label={`${team.name}${team.isEnabled ? " 상세 보기" : " 준비 중"}`}
                 className="relative flex h-51.5 w-full flex-col items-center justify-center overflow-hidden rounded-[10px] border-2 border-solid border-[#e5e7eb] bg-[#f9fafb] p-5 disabled:cursor-not-allowed lg:w-42.5"

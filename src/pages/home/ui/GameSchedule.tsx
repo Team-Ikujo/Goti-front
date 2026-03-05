@@ -1,296 +1,473 @@
-import { cn } from "@/shared/lib/utils";
-import { useState } from "react";
+import { useNavigate } from 'react-router-dom';
+import { cn } from '@/shared/lib/utils';
+import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
 
-// 팀 로고 이미지 (Figma asset)
 const teamLogos: Record<string, string> = {
-  LG: "https://www.figma.com/api/mcp/asset/582a2d54-fd43-40e6-93e1-3b9fce4ff60a",
-  한화: "https://www.figma.com/api/mcp/asset/47f5bd30-49d8-4c59-a27c-994dcd47e340",
-  SSG: "https://www.figma.com/api/mcp/asset/3b1b56ed-e5d1-45b0-8f0d-b20133972ae6",
-  삼성: "https://www.figma.com/api/mcp/asset/5d35f11e-ce38-4cf1-8e26-8d0d7c5fb1a1",
-  NC: "https://www.figma.com/api/mcp/asset/03b1926b-814c-445f-a610-a7b81503a39f",
-  KT: "https://www.figma.com/api/mcp/asset/1f8cb5ef-61b0-44b3-b257-e0e6e9e2dcbd",
-  롯데: "https://www.figma.com/api/mcp/asset/f0a9f5b3-51c2-449e-a810-d2dd37d504eb",
-  두산: "https://www.figma.com/api/mcp/asset/856b26eb-af24-4c17-bdbd-61a6eaba81d5",
-  키움: "https://www.figma.com/api/mcp/asset/b34ed677-0179-46d0-ac99-87d24fa0ad33",
-  KIA: "https://www.figma.com/api/mcp/asset/1c3d5fcc-c8b2-48f3-8848-0af218712eab",
+   KIA: 'https://www.figma.com/api/mcp/asset/fa8d05f9-44d4-4387-85e8-579f17a5b557',
+   LG: 'https://www.figma.com/api/mcp/asset/14a46d68-59b0-44c5-9699-00fa15b20f16',
+   롯데: 'https://www.figma.com/api/mcp/asset/31c006de-c028-4d8e-960a-c6c40246aa38',
+   KT: 'https://www.figma.com/api/mcp/asset/55c4544b-d5f9-434b-9e04-edfc59f8d499',
+   두산: 'https://www.figma.com/api/mcp/asset/04dc4340-5afe-43b4-a3d9-cac4b8f96dcb',
+   삼성: 'https://www.figma.com/api/mcp/asset/a5da3ee6-ae89-482d-8fec-89ab37f112db',
+   SSG: 'https://www.figma.com/api/mcp/asset/5887e3df-622b-42ee-8c3a-5fd077026191',
+   한화: 'https://www.figma.com/api/mcp/asset/3690cad7-a304-4708-bf19-52207dd74ad9',
+   키움: 'https://www.figma.com/api/mcp/asset/274d2c90-3a68-45c9-bc8e-2e1df76310ec',
+   NC: 'https://www.figma.com/api/mcp/asset/76518e98-759b-4e31-9013-e59d6e518643',
 };
 
-const teamOrder = ["LG", "한화", "SSG", "삼성", "NC", "KT", "롯데", "두산", "키움", "KIA"];
+const teamIds: Record<string, string> = {
+   LG: 'lg',
+   한화: 'hanwha',
+   SSG: 'ssg',
+   삼성: 'samsung',
+   NC: 'nc',
+   KT: 'kt',
+   롯데: 'lotte',
+   두산: 'doosan',
+   키움: 'kiwoom',
+   KIA: 'kia',
+};
 
-type GameStatus = "경기중" | "예정" | "종료";
-type TicketStatus = "예매하기" | "매진";
-type ReselStatus = "리셀예매" | "리셀매진";
+const teamOrder = ['LG', '한화', 'SSG', '삼성', 'NC', 'KT', '롯데', '두산', '키움', 'KIA'];
 
+type GameStatus = '경기중' | '예정' | '종료' | '취소';
 type GameRow = {
-  time: string;
-  venue: string;
-  away: string;
-  home: string;
-  score: string | null; // null이면 "VS"
-  status: GameStatus;
-  ticket: TicketStatus;
-  resell: ReselStatus;
+   time: string;
+   venue: string;
+   away: string;
+   home: string;
+   score: string | null;
+   status: GameStatus;
+   ticket: '매진' | '판매예정' | '예매하기';
+   resell: '리셀매진' | '리셀예매' | '리셀예정';
+   ticketInfo?: string;
+   reselInfo?: string;
 };
+type DaySchedule = { date: string; isToday?: boolean; games: GameRow[] };
 
-type DaySchedule = {
-  date: string;
-  games: GameRow[];
-};
-
-const scheduleData: DaySchedule[] = [
-  {
-    date: "7월 1일 (수)",
-    games: [
-      { time: "14:00", venue: "잠실", away: "KIA", home: "LG", score: "5:3", status: "경기중", ticket: "예매하기", resell: "리셀매진" },
-      { time: "14:00", venue: "수원", away: "롯데", home: "KT", score: "3:5", status: "경기중", ticket: "매진", resell: "리셀예매" },
-      { time: "16:00", venue: "대구", away: "두산", home: "삼성", score: null, status: "예정", ticket: "매진", resell: "리셀예매" },
-      { time: "16:00", venue: "대전", away: "SSG", home: "한화", score: null, status: "예정", ticket: "예매하기", resell: "리셀예매" },
-      { time: "14:00", venue: "창원", away: "키움", home: "NC", score: "3:5", status: "종료", ticket: "매진", resell: "리셀매진" },
-    ],
-  },
+// ── Mock Data ──
+const mockWeekly: DaySchedule[] = [
+   {
+      date: '7월 1일 (수)',
+      games: [
+         {
+            time: '18:30',
+            venue: '잠실',
+            away: 'KIA',
+            home: 'LG',
+            score: '5:3',
+            status: '종료',
+            ticket: '매진',
+            resell: '리셀매진',
+         },
+      ],
+   },
+   {
+      date: '7월 3일 (금)',
+      isToday: true,
+      games: [
+         {
+            time: '18:30',
+            venue: '잠실',
+            away: 'KIA',
+            home: 'LG',
+            score: '2:1',
+            status: '경기중',
+            ticket: '예매하기',
+            resell: '리셀매진',
+         },
+         {
+            time: '18:30',
+            venue: '대구',
+            away: '두산',
+            home: '삼성',
+            score: null,
+            status: '예정',
+            ticket: '예매하기',
+            resell: '리셀예매',
+         },
+      ],
+   },
+   {
+      date: '7월 5일 (일)',
+      games: [
+         {
+            time: '17:00',
+            venue: '잠실',
+            away: 'KIA',
+            home: 'LG',
+            score: null,
+            status: '예정',
+            ticket: '판매예정',
+            resell: '리셀예정',
+            ticketInfo: '6월 25일\n오전 11시 오픈',
+            reselInfo: '정식 예매 오픈\n2시간 후',
+         },
+      ],
+   },
 ];
 
 const statusColor: Record<GameStatus, string> = {
-  경기중: "text-[#38c976]",
-  예정: "text-primary",
-  종료: "text-[#ef4444]",
+   경기중: 'text-success',
+   예정: 'text-primary',
+   종료: 'text-destructive',
+   취소: 'text-disabled-foreground',
 };
 
-const tabs = ["오늘 일정", "주간 일정", "전체 일정"];
+// ── Sub-components ──
 
-// 종료 경기 스코어: 패한 팀 점수는 회색, 이긴 팀 점수는 빨강
 function ScoreDisplay({ game }: { game: GameRow }) {
-  const scoreStr = game.score ?? "VS";
-
-  if (game.status === "종료" && game.score) {
-    const [awayScore, homeScore] = game.score.split(":").map(Number);
-    const awayLost = awayScore < homeScore;
-    return (
-      <span className="text-[24px] font-bold text-center leading-[1.5] whitespace-nowrap text-[#ef4444]">
-        <span className={awayLost ? "text-[#acb4bb]" : ""}>{awayScore}:</span>
-        <span className={!awayLost ? "text-[#acb4bb]" : ""}>{homeScore}</span>
-      </span>
-    );
-  }
-
-  return (
-    <span className="text-[24px] font-bold text-(--text-primary) text-center leading-[1.5] whitespace-nowrap">
-      {scoreStr}
-    </span>
-  );
+   if (game.status === '종료' && game.score) {
+      const [awayScore, homeScore] = game.score.split(':').map(Number);
+      const awayLost = awayScore < homeScore;
+      return (
+         <span className="text-heading-1-bold text-center whitespace-nowrap text-destructive">
+            <span className={awayLost ? 'text-disabled-foreground' : ''}>{awayScore}:</span>
+            <span className={!awayLost ? 'text-disabled-foreground' : ''}>{homeScore}</span>
+         </span>
+      );
+   }
+   return (
+      <span className="text-heading-1-bold text-foreground text-center whitespace-nowrap">{game.score ?? 'VS'}</span>
+   );
 }
 
-const GameSchedule = () => {
-  const [activeTab, setActiveTab] = useState(0);
-  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+function DaySection({ day }: { day: DaySchedule }) {
+   return (
+      <div className="flex flex-col overflow-hidden rounded-[20px] border border-border">
+         {/* 날짜 헤더 */}
+         <div className="bg-[#f1f2f4] border-b border-border px-7.5 py-2.5 flex items-center gap-2">
+            <span className="text-heading-3-semibold text-foreground">{day.date}</span>
+            {day.isToday && <Badge variant="chipDestructive">오늘</Badge>}
+         </div>
 
-  return (
-    <section className="flex flex-col gap-5 w-full">
-      {/* 헤더 */}
-      <h2 className="text-[length:var(--typo---heading\/h3,24px)] font-bold text-(--text-primary) leading-[1.5]">
-        경기 일정
-      </h2>
+         {/* 경기 행 */}
+         <div className="flex flex-col divide-y divide-border">
+            {day.games.map((game, idx) => {
+               const isEnded = game.status === '종료' || game.status === '취소';
+               const textClass = isEnded ? 'text-disabled-foreground' : 'text-foreground';
+               const isPendingTicket = game.ticket === '판매예정';
+               const isPendingResell = game.resell === '리셀예정';
 
-      <div className="flex flex-col gap-5">
-        {/* 안내 문구 */}
-        <p className="text-[length:var(--typo---heading\/h5,16px)] font-medium text-(--text-secondary)">
-          각 구단을 선택하시면{" "}
-          <span className="text-red-500">구단별 경기일정</span>을 확인할 수 있습니다.
-        </p>
+               let awayResult = '';
+               let homeResult = '';
+               if (isEnded && game.score) {
+                  const [awayScore, homeScore] = game.score.split(':').map(Number);
+                  awayResult = awayScore < homeScore ? '패' : '승';
+                  homeResult = homeScore > awayScore ? '승' : '패';
+               }
 
-        {/* 팀 로고 필터 */}
-        <div className="flex items-center justify-between">
-          {teamOrder.map((team) => (
-            <button
-              key={team}
-              onClick={() => setSelectedTeam(selectedTeam === team ? null : team)}
-              className={cn(
-                "flex items-center justify-center size-[80px] p-[10px] rounded-xl transition-colors overflow-hidden",
-                selectedTeam === team && "bg-(--fill-hoveraccent) ring-2 ring-primary"
-              )}
-            >
-              <img
-                src={teamLogos[team]}
-                alt={team}
-                className="w-full h-full object-contain"
-              />
-            </button>
-          ))}
-        </div>
-
-        {/* 탭 네비게이션 */}
-        <div className="flex gap-5 border-b border-(--border-normal)">
-          {tabs.map((tab, i) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(i)}
-              className={cn(
-                "px-2.5 py-[10px] text-[length:var(--typo---heading\/h4,20px)] font-semibold leading-[1.5] transition-colors",
-                i === activeTab
-                  ? "text-(--text-primary) border-b-[3px] border-primary -mb-px"
-                  : "text-(--text-tertiary)"
-              )}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* 경기 일정 테이블 */}
-        <div className="flex flex-col">
-          {scheduleData.map((day) => (
-            <div key={day.date}>
-              {/* 날짜 헤더 */}
-              <div className="bg-[#f1f2f4] border border-(--border-normal) px-[30px] py-[10px] rounded-tl-[20px] rounded-tr-[20px]">
-                <span className="text-[length:var(--typo---heading\/h4,20px)] font-semibold text-(--text-primary) leading-[1.5]">
-                  {day.date}
-                </span>
-              </div>
-
-              {/* 경기 행 */}
-              {day.games.map((game, idx) => {
-                const isLast = idx === day.games.length - 1;
-                const isEnded = game.status === "종료";
-                const textDisabled = isLast ? "text-[#acb4bb]" : "text-(--text-primary)";
-
-                // 승/패 계산
-                let awayResult = "";
-                let homeResult = "";
-                if (isEnded && game.score) {
-                  const [awayScore, homeScore] = game.score.split(":").map(Number);
-                  awayResult = awayScore < homeScore ? "패" : "승";
-                  homeResult = homeScore > awayScore ? "승" : "패";
-                }
-
-                return (
+               return (
                   <div
-                    key={idx}
-                    className={cn(
-                      "border border-t-0 border-(--border-normal) px-[20px] py-[6px] flex items-center justify-between",
-                      isLast
-                        ? "bg-[#f7f8f9] rounded-bl-[20px] rounded-br-[20px]"
-                        : "bg-background"
-                    )}
+                     key={idx}
+                     className={cn(
+                        'px-5 py-1.5 flex items-center justify-between',
+                        isEnded ? 'bg-[#f7f8f9]' : 'bg-background',
+                     )}
                   >
-                    {/* 시간 + 장소 */}
-                    <div className="flex gap-[30px] items-center shrink-0">
-                      <div className="flex items-center justify-center w-[60px]">
-                        <span className={cn("text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap", textDisabled)}>
-                          {game.time}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-center w-[40px]">
-                        <span className={cn("text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap", textDisabled)}>
-                          {game.venue}
-                        </span>
-                      </div>
-                    </div>
+                     {/* 시간 & 장소 */}
+                     <div className="flex gap-7.5 items-center shrink-0 text-heading-3-semibold">
+                        <span className={cn('text-heading-3-semibold w-15 text-center', textClass)}>{game.time}</span>
+                        <span className={cn('text-heading-3-semibold w-10 text-center', textClass)}>{game.venue}</span>
+                     </div>
 
-                    {/* 경기 매치업 */}
-                    <div className="flex gap-[50px] items-center shrink-0">
-                      {/* 원정팀 (150px) */}
-                      <div className="flex items-center justify-center w-[150px]">
-                        {/* 이름 컬럼 (70px) */}
-                        <div className="flex h-[75px] items-center justify-end w-[70px] shrink-0">
-                          <div className="w-[30px] h-[75px] shrink-0" />
-                          <div className="flex flex-col h-full items-center justify-between shrink-0">
-                            <div className="h-[18px] w-full shrink-0" />
-                            <span className={cn("text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap", textDisabled)}>
-                              {game.away}
-                            </span>
-                            <div className="flex items-center justify-center w-full">
-                              {isEnded && (
-                                <span className="text-[12px] font-medium text-(--text-tertiary) leading-[1.5]">
-                                  {awayResult}
-                                </span>
+                     {/* 대진 */}
+                     <div className="flex items-center gap-12.5 shrink-0">
+                        {/* 원정팀: [left-spacer + name/result] + logo */}
+                        <div className="flex items-center w-37.5">
+                           <div className="flex h-18.75 items-center justify-end w-17.5 shrink-0">
+                              <div className="w-7.5 h-18.75 shrink-0" />
+                              <div className="flex flex-col h-full justify-between items-center shrink-0 text-heading-3-semibold">
+                                 <div className="h-4.5 shrink-0" />
+                                 <span
+                                    className={cn('text-heading-3-semibold text-center whitespace-nowrap', textClass)}
+                                 >
+                                    {game.away}
+                                 </span>
+                                 <span className="text-caption-1-medium text-muted-foreground h-4.5 flex items-center justify-center">
+                                    {awayResult}
+                                 </span>
+                              </div>
+                           </div>
+                           <div className="flex flex-col items-center justify-center overflow-hidden px-3.75 py-2.5 size-18.75 shrink-0">
+                              <img
+                                 src={teamLogos[game.away]}
+                                 alt={game.away}
+                                 className="w-full h-full object-contain"
+                              />
+                           </div>
+                        </div>
+
+                        {/* 스코어 */}
+                        <div className="flex flex-col items-center w-10 h-18.75 shrink-0">
+                           <div className="h-4.5 shrink-0" />
+                           <ScoreDisplay game={game} />
+                           <span className={cn('text-caption-1-medium text-center', statusColor[game.status])}>
+                              {game.status}
+                           </span>
+                        </div>
+
+                        {/* 홈팀: logo + [name/result + 홈 badge] */}
+                        <div className="flex items-center w-37.5">
+                           <div className="flex flex-col items-center justify-center overflow-hidden px-3.75 py-2.5 size-18.75 shrink-0">
+                              <img
+                                 src={teamLogos[game.home]}
+                                 alt={game.home}
+                                 className="w-full h-full object-contain"
+                              />
+                           </div>
+                           <div className="flex h-18.75 items-center w-17.5 shrink-0">
+                              <div className="flex flex-col h-full justify-between items-center shrink-0 text-heading-3-semibold">
+                                 <div className="h-4.5 shrink-0" />
+                                 <span className={cn('text-center whitespace-nowrap', textClass)}>{game.home}</span>
+                                 <span className="text-caption-1-medium text-muted-foreground h-4.5 flex items-center justify-center">
+                                    {homeResult}
+                                 </span>
+                              </div>
+                              <div className="flex h-18.75 items-center justify-end w-7.5 shrink-0">
+                                 <div className="bg-disabled-foreground flex flex-col items-center justify-center px-1 rounded-xs w-5.5">
+                                    <span className="text-white text-body-1-medium text-center">홈</span>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+
+                     {/* 액션 버튼 */}
+                     <div className={cn('flex gap-2.5 items-center shrink-0 h-16.5', isEnded && 'opacity-0')}>
+                        {isPendingTicket ? (
+                           <button className="flex flex-col items-center justify-center px-4 py-2 h-full rounded-md bg-disabled-foreground text-white">
+                              <span className="text-body-1-medium">판매예정</span>
+                              {game.ticketInfo && (
+                                 <span className="text-[11px] leading-tight text-center whitespace-pre-line">
+                                    {game.ticketInfo}
+                                 </span>
                               )}
-                            </div>
-                          </div>
-                        </div>
-                        {/* 로고 (75px) */}
-                        <div className="flex flex-col items-center justify-center overflow-hidden px-[15px] py-[10px] size-[75px] shrink-0">
-                          <img
-                            src={teamLogos[game.away]}
-                            alt={game.away}
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-                      </div>
-
-                      {/* 스코어 / VS (40px) */}
-                      <div className="flex flex-col items-center w-[40px] shrink-0">
-                        <div className="h-[18px] w-full shrink-0" />
-                        <ScoreDisplay game={game} />
-                        <span className={cn("text-[12px] font-medium text-center leading-[1.5]", statusColor[game.status])}>
-                          {game.status}
-                        </span>
-                      </div>
-
-                      {/* 홈팀 (150px) */}
-                      <div className="flex items-center justify-center w-[150px]">
-                        {/* 로고 (75px) */}
-                        <div className="flex flex-col items-center justify-center overflow-hidden px-[15px] py-[10px] size-[75px] shrink-0">
-                          <img
-                            src={teamLogos[game.home]}
-                            alt={game.home}
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-                        {/* 이름 컬럼 (70px) */}
-                        <div className="flex h-[75px] items-center w-[70px] shrink-0">
-                          <div className="flex flex-col h-full items-center justify-between shrink-0">
-                            <div className="h-[18px] w-full shrink-0" />
-                            <span className={cn("text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap", textDisabled)}>
-                              {game.home}
-                            </span>
-                            <div className="flex items-center justify-center w-full">
-                              {isEnded && (
-                                <span className="text-[12px] font-medium text-(--text-tertiary) leading-[1.5]">
-                                  {homeResult}
-                                </span>
+                           </button>
+                        ) : (
+                           <Button
+                              variant="primary"
+                              size="sm"
+                              disabled={game.ticket !== '예매하기'}
+                              className={cn(
+                                 'h-full rounded-md text-body-1-medium text-white',
+                                 game.ticket === '매진' && 'w-22 disabled:bg-disabled-foreground disabled:text-white',
                               )}
-                            </div>
-                          </div>
-                          {/* 홈 뱃지 컨테이너 (30px) */}
-                          <div className="flex h-[75px] items-center justify-end w-[30px] shrink-0">
-                            <div className="bg-[#acb4bb] flex flex-col items-center justify-center px-[4px] rounded-[2px] w-[22px]">
-                              <span className="text-white text-[16px] font-medium text-center leading-[1.5]">홈</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 액션 버튼 */}
-                    <div className={cn("flex gap-[10px] h-[66px] items-center shrink-0", isLast && "opacity-0")}>
-                      <button
-                        className={cn(
-                          "h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] text-white",
-                          game.ticket === "예매하기" ? "bg-primary" : "bg-[#acb4bb] w-[88px]"
+                           >
+                              {game.ticket}
+                           </Button>
                         )}
-                      >
-                        {game.ticket}
-                      </button>
-                      <button
-                        className={cn(
-                          "h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] border",
-                          game.resell === "리셀예매"
-                            ? "bg-background border-primary text-primary"
-                            : "bg-background border-[#acb4bb] text-[#acb4bb] w-[88px] whitespace-nowrap"
+                        {isPendingResell ? (
+                           <button className="flex flex-col items-center justify-center px-3 py-2 h-full rounded-md bg-background border border-disabled-foreground text-disabled-foreground">
+                              <span className="text-body-1-medium">리셀예정</span>
+                              {game.reselInfo && (
+                                 <span className="text-[11px] leading-tight text-center whitespace-pre-line">
+                                    {game.reselInfo}
+                                 </span>
+                              )}
+                           </button>
+                        ) : (
+                           <Button
+                              variant="primaryline"
+                              size="sm"
+                              disabled={game.resell !== '리셀예매'}
+                              className={cn(
+                                 'h-full rounded-md text-body-1-medium whitespace-nowrap text-primary',
+                                 game.resell !== '리셀예매' && 'w-22',
+                              )}
+                           >
+                              {game.resell}
+                           </Button>
                         )}
-                      >
-                        {game.resell}
-                      </button>
-                    </div>
+                     </div>
                   </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
+               );
+            })}
+         </div>
       </div>
-    </section>
-  );
+   );
+}
+
+// ── Main Component ──
+
+const GameSchedule = () => {
+   const navigate = useNavigate();
+   const [activeTab, setActiveTab] = useState(0);
+   const [weeklyMonth, setWeeklyMonth] = useState(7);
+   const [weeklyYear, setWeeklyYear] = useState(2025);
+   const [selectedWeek, setSelectedWeek] = useState(1);
+   const [fullYear, setFullYear] = useState(2025);
+   const [fullMonth, setFullMonth] = useState(7);
+
+   const tabs = ['오늘 일정', '주간 일정', '전체 일정'];
+   const WEEK_LABELS = ['1주차', '2주차', '3주차', '4주차', '5주차'];
+   const MONTH_TABS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2] as const;
+
+   const handleTeamClick = (teamName: string) => {
+      const teamId = teamIds[teamName];
+      if (teamId) navigate(`/teams/${teamId}`);
+   };
+
+   const visibleData = activeTab === 0 ? mockWeekly.filter(d => d.isToday) : mockWeekly;
+
+   return (
+      <section className="flex flex-col gap-5 w-full max-w-300 mx-auto px-4">
+         <h2 className="text-heading-1-bold text-foreground">경기 일정</h2>
+         <div className="flex flex-col gap-5">
+            <p className="text-body-1-medium text-muted-foreground">
+               각 구단을 선택하시면 <span className="text-destructive">구단별 경기일정</span>을 확인할 수 있습니다.
+            </p>
+
+            {/* 구단 로고 필터 */}
+            <div className="flex items-center justify-between pb-2">
+               {teamOrder.map(team => (
+                  <button
+                     key={team}
+                     onClick={() => handleTeamClick(team)}
+                     className="flex items-center justify-center size-20 p-2.5 rounded-xl transition-colors hover:bg-(--neutral-100)"
+                  >
+                     <img src={teamLogos[team]} alt={team} className="w-full h-full object-contain" />
+                  </button>
+               ))}
+            </div>
+
+            {/* 탭 네비게이션 */}
+            <div className="flex gap-5 border-b border-border text-heading-3-semibold">
+               {tabs.map((tab, i) => (
+                  <button
+                     key={tab}
+                     onClick={() => setActiveTab(i)}
+                     className={cn(
+                        'px-2.5 py-2.5 transition-colors relative',
+                        i === activeTab
+                           ? 'text-foreground after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.75 after:bg-primary'
+                           : 'text-muted-foreground',
+                     )}
+                  >
+                     {tab}
+                  </button>
+               ))}
+            </div>
+
+            {/* 주간 일정 네비게이터 */}
+            {activeTab === 1 && (
+               <div className="flex flex-col gap-3 items-center">
+                  <div className="flex items-center gap-3.5">
+                     <Badge variant="chipDestructive" asChild className="cursor-pointer">
+                        <button
+                           onClick={() => {
+                              setWeeklyMonth(7);
+                              setWeeklyYear(2025);
+                              setSelectedWeek(1);
+                           }}
+                        >
+                           최근
+                        </button>
+                     </Badge>
+                     <div className="flex items-center gap-2.5">
+                        <button onClick={() => setWeeklyMonth(m => (m === 1 ? 12 : m - 1))}>
+                           <ChevronLeft className="size-6 text-foreground" />
+                        </button>
+                        <span className="text-heading-1-bold text-foreground">
+                           {weeklyYear}-{String(weeklyMonth).padStart(2, '0')}
+                        </span>
+                        <button onClick={() => setWeeklyMonth(m => (m === 12 ? 1 : m + 1))}>
+                           <ChevronRight className="size-6 text-foreground" />
+                        </button>
+                     </div>
+                     <div className="w-13 shrink-0" />
+                  </div>
+                  <div className="flex gap-7.5">
+                     {WEEK_LABELS.map((label, i) => (
+                        <button
+                           key={label}
+                           onClick={() => setSelectedWeek(i + 1)}
+                           className={cn(
+                              'text-heading-3-semibold px-5.5 py-2.25 rounded-[10px] border transition-colors',
+                              selectedWeek === i + 1
+                                 ? 'border-primary text-primary'
+                                 : 'border-foreground text-foreground',
+                           )}
+                        >
+                           {label}
+                        </button>
+                     ))}
+                  </div>
+               </div>
+            )}
+
+            {/* 전체 일정 네비게이터 */}
+            {activeTab === 2 && (
+               <div className="flex flex-col gap-1 items-center">
+                  <div className="flex items-center gap-3.5 px-5.5 py-2.25">
+                     <Badge variant="chipDestructive" asChild className="cursor-pointer">
+                        <button
+                           onClick={() => {
+                              setFullMonth(7);
+                              setFullYear(2025);
+                           }}
+                        >
+                           최근
+                        </button>
+                     </Badge>
+                     <div className="flex items-center gap-2.5">
+                        <button onClick={() => setFullYear(y => y - 1)}>
+                           <ChevronLeft className="size-6 text-foreground" />
+                        </button>
+                        <span className="text-heading-1-bold text-foreground">{fullYear}</span>
+                        <button onClick={() => setFullYear(y => y + 1)}>
+                           <ChevronRight className="size-6 text-foreground" />
+                        </button>
+                     </div>
+                     <div className="w-13 shrink-0" />
+                  </div>
+                  <div className="flex w-full">
+                     {MONTH_TABS.map((m, idx) => {
+                        const isDisabled = m >= 10 || m <= 2;
+                        const isActive = fullMonth === m && !isDisabled;
+                        return (
+                           <button
+                              key={m}
+                              onClick={() => !isDisabled && setFullMonth(m)}
+                              disabled={isDisabled}
+                              className={cn(
+                                 'flex-1 h-12 flex items-end justify-center gap-0.5 pb-2 shrink-0',
+                                 'rounded-tl-[10px] rounded-tr-[10px]',
+                                 idx !== 0 && '-ml-px',
+                                 isActive
+                                    ? 'border-l border-r border-t border-primary text-primary'
+                                    : isDisabled
+                                      ? 'border border-disabled-foreground text-disabled-foreground'
+                                      : 'border border-foreground text-foreground',
+                              )}
+                           >
+                              <span className="text-heading-1-bold">{m}</span>
+                              <span className="text-body-2-medium">월</span>
+                           </button>
+                        );
+                     })}
+                     <button
+                        disabled
+                        className="w-30 h-12 flex items-end justify-center pb-2 shrink-0 rounded-tl-[10px] rounded-tr-[10px] -ml-px border border-disabled-foreground text-disabled-foreground text-heading-3-semibold"
+                     >
+                        포스트시즌
+                     </button>
+                  </div>
+               </div>
+            )}
+
+            {/* 경기 목록 */}
+            <div className="flex flex-col gap-3">
+               {visibleData.map(day => (
+                  <DaySection key={day.date} day={day} />
+               ))}
+            </div>
+         </div>
+      </section>
+   );
 };
 
 export default GameSchedule;
