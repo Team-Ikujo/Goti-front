@@ -20,12 +20,8 @@ const formatTime = (seconds: number) => {
 };
 
 const Header = () => {
-   const { accessToken, clearAuth, setAccessToken } = useAuthStore();
+   const { accessToken, clearAuth } = useAuthStore();
    const isLoggedIn = !!accessToken;
-
-   // TODO: 목업 전용 — 실제 로그인 연동 후 제거
-   const handleMockLogin = () => setAccessToken('mock-token');
-   const handleMockLogout = () => clearAuth();
 
    const [remaining, setRemaining] = useState(SESSION_DURATION);
    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -113,7 +109,7 @@ const Header = () => {
                   </div>
 
                   {/* 검색바 — 데스크톱 전용 */}
-                  <div className="desktop-only items-center w-[250px] h-9 border border-(--border-normal) rounded-full bg-background shrink-0">
+                  <div className="desktop-only items-center w-62.5 h-9 border border-border rounded-full bg-background shrink-0">
                      <input
                         className="flex-1 px-5 text-body-2-regular text-(--text-tertiary) bg-transparent outline-none truncate"
                         placeholder="Search"
