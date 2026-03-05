@@ -205,7 +205,7 @@ const Header = () => {
 
                <Button
                   variant="outline"
-                  className="shrink-0 h-auto px-3.25 py-1.25 text-label-2-medium text-secondary rounded-lg border-[#e9ebee] bg-white"
+                  className="shrink-0 px-3 py-1 text-label-2-medium text-secondary rounded-lg bg-base"
                >
                   팀 선택
                </Button>
