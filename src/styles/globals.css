@@ -1,6 +1,7 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+@import 'tailwindcss';
+@source "../**/*.{tsx,ts,jsx,js}";
+@import 'tw-animate-css';
 
 /* =====================================================
    Color Palette (Internal Only)
