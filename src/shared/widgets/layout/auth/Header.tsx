@@ -20,8 +20,12 @@ const formatTime = (seconds: number) => {
 };
 
 const Header = () => {
-   const { accessToken, clearAuth } = useAuthStore();
+   const { accessToken, clearAuth, setAccessToken } = useAuthStore();
    const isLoggedIn = !!accessToken;
+
+   // TODO: 목업 전용 — 실제 로그인 연동 후 제거
+   const handleMockLogin = () => setAccessToken('mock-token');
+   const handleMockLogout = () => clearAuth();
 
    const [remaining, setRemaining] = useState(SESSION_DURATION);
    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -109,7 +113,7 @@ const Header = () => {
                   </div>
 
                   {/* 검색바 — 데스크톱 전용 */}
-                  <div className="hidden lg:flex items-center w-62.5 h-9 border border-border rounded-full bg-background shrink-0">
+                  <div className="desktop-only items-center w-[250px] h-9 border border-(--border-normal) rounded-full bg-background shrink-0">
                      <input
                         className="flex-1 px-5 text-body-2-regular text-(--text-tertiary) bg-transparent outline-none truncate"
                         placeholder="Search"
@@ -164,28 +168,42 @@ const Header = () => {
          <div className="flex bg-(--fill-hoveraccent) w-full px-4 py-1 justify-center">
             <div className="flex items-center gap-2.5 h-8 w-full max-w-300">
                {/* 데스크톱: justify-between 레이아웃 */}
-               <div className="hidden lg:flex flex-1 items-center justify-between min-w-0">
-                  <p className="text-label-3-regular text-primary whitespace-nowrap">
-                     KBO 공식 티켓 플랫폼 Go-Ti에서 안전한 예매와 리셀을 경험하세요.
-                  </p>
-                  <div className="flex items-center gap-2 shrink-0">
-                     <Heart className="size-4 fill-primary text-primary" />
-                     <span className="text-label-3-regular text-primary whitespace-nowrap">
-                        좋아하는 팀을 설정하고 경기 일정을 빠르게 확인하세요
-                     </span>
+               <div className="desktop-only flex-1 min-w-0">
+                  <div className="flex items-center justify-between w-full">
+                     <p className="text-label-3-regular text-primary whitespace-nowrap shrink-0">
+                        KBO 공식 티켓 플랫폼 Go-Ti에서 안전한 예매와 리셀을 경험하세요.
+                     </p>
+                     <div className="flex items-center gap-2 shrink-0">
+                        <Heart className="size-4 text-primary" />
+                        <span className="text-label-3-regular text-primary whitespace-nowrap">
+                           좋아하는 팀을 설정하고 경기 일정을 빠르게 확인하세요
+                        </span>
+                     </div>
                   </div>
                </div>
 
-               {/* 모바일: 가로 스크롤 마퀴 */}
-               <div className="lg:hidden flex flex-1 items-center overflow-x-auto scrollbar-hide gap-12.5 min-w-0">
-                  <p className="text-label-3-regular text-primary whitespace-nowrap shrink-0">
-                     KBO 공식 티켓 플랫폼 Go-Ti에서 안전한 예매와 리셀을 경험하세요.
-                  </p>
-                  <div className="flex items-center gap-2 shrink-0">
-                     <Heart className="size-4 fill-primary text-primary" />
-                     <span className="text-label-3-regular text-primary whitespace-nowrap">
-                        응원팀을 설정하고 경기 일정을 빠르게 확인하세요
-                     </span>
+               {/* 모바일: 자동 흘러가는 마퀴 */}
+               <div className="lg:hidden flex-1 overflow-hidden min-w-0">
+                  <div className="flex animate-marquee items-center w-max gap-12.5">
+                     <p className="text-label-3-regular text-primary whitespace-nowrap shrink-0">
+                        KBO 공식 티켓 플랫폼 Go-Ti에서 안전한 예매와 리셀을 경험하세요.
+                     </p>
+                     <div className="flex items-center gap-2 shrink-0">
+                        <Heart className="size-4 text-primary" />
+                        <span className="text-label-3-regular text-primary whitespace-nowrap">
+                           응원팀을 설정하고 경기 일정을 빠르게 확인하세요
+                        </span>
+                     </div>
+                     {/* 루프를 위한 복제 */}
+                     <p className="text-label-3-regular text-primary whitespace-nowrap shrink-0">
+                        KBO 공식 티켓 플랫폼 Go-Ti에서 안전한 예매와 리셀을 경험하세요.
+                     </p>
+                     <div className="flex items-center gap-2 shrink-0">
+                        <Heart className="size-4 text-primary" />
+                        <span className="text-label-3-regular text-primary whitespace-nowrap">
+                           응원팀을 설정하고 경기 일정을 빠르게 확인하세요
+                        </span>
+                     </div>
                   </div>
                </div>
 

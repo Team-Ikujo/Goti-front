@@ -212,7 +212,14 @@
    --caption-2-regular: var(--weight-regular);
 }
 
+@keyframes marquee {
+   0% { transform: translateX(0%); }
+   100% { transform: translateX(-50%); }
+}
+
 @theme inline {
+   --animate-marquee: marquee 20s linear infinite;
+
    /* Background */
    --color-background: var(--background-base);
    --color-surface: var(--background-surface);
@@ -241,6 +248,16 @@
 }
 
 @layer utilities {
+   /* 데스크톱 전용 (lg 이상에서만 표시) */
+   .desktop-only {
+      display: none;
+   }
+   @media (min-width: 1024px) {
+      .desktop-only {
+         display: flex;
+      }
+   }
+
    .teams-grid {
       display: grid;
       width: 100%;
