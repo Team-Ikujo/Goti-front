@@ -1,4 +1,4 @@
-import { ListCard } from '@/shared/ui/list-card';
+import { Calendar, MapPin } from 'lucide-react';
 
 type GameCard = {
    rank: number;
@@ -62,23 +62,63 @@ const PopularGames = () => {
    return (
       <section className="flex flex-col gap-5 w-full">
          {/* 헤더 */}
-         <h2 className="text-heading-1-bold text-foreground">인기 경기</h2>
+         <div className="flex items-center justify-between">
+            <h2 className="text-[length:var(--typo---heading\/h3,24px)] font-bold text-(--text-primary) leading-[1.5]">
+               인기 경기
+            </h2>
+         </div>
 
          {/* 카드 리스트 (가로 스크롤) */}
-         <div className="flex gap-6 overflow-x-auto pb-1">
+         <div className="flex gap-6 overflow-x-auto pb-1 scrollbar-hide">
             {cards.map(card => (
-               <ListCard
+               <div
                   key={card.rank}
-                  className="shrink-0"
-                  rank={String(card.rank)}
-                  team1={card.away}
-                  team2={card.home}
-                  date={card.date}
-                  time={card.time}
-                  location={card.venue}
-                  imageSrc={card.image}
-                  imageAlt={`${card.away} vs ${card.home}`}
-               />
+                  className="flex-shrink-0 w-[300px] border border-(--border-normal) rounded-[14px] overflow-hidden bg-background"
+               >
+                  {/* 이미지 영역 */}
+                  <div className="relative h-[200px] border-b border-(--border-normal) overflow-hidden">
+                     <img
+                        src={card.image}
+                        alt={`${card.away} vs ${card.home}`}
+                        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                     />
+                     <div className="absolute inset-0 bg-black/20" />
+                     {/* 순위 번호 */}
+                     <span className="absolute left-[11px] bottom-0 text-[48px] font-bold leading-[1.33] tracking-[-0.05px] text-white">
+                        {card.rank}
+                     </span>
+                  </div>
+
+                  {/* 정보 영역 */}
+                  <div className="flex flex-col gap-4 p-6">
+                     {/* 팀 매치업 */}
+                     <div className="flex items-center justify-between h-7">
+                        <span className="w-[70px] text-[18px] font-bold leading-[1.55] text-(--text-primary)">
+                           {card.away}
+                        </span>
+                        <span className="text-[14px] font-bold text-(--text-tertiary)">vs</span>
+                        <span className="w-[70px] text-[18px] font-bold leading-[1.55] text-(--text-primary) text-right">
+                           {card.home}
+                        </span>
+                     </div>
+
+                     {/* 날짜/시간 + 장소 */}
+                     <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 h-5">
+                           <Calendar className="size-4 text-(--text-tertiary) shrink-0" />
+                           <div className="flex items-center gap-2.5 text-label-2-medium text-(--text-tertiary)">
+                              <span>{card.date}</span>
+                              <span className="w-px h-3 bg-(--border-normal)" />
+                              <span>{card.time}</span>
+                           </div>
+                        </div>
+                        <div className="flex items-center gap-2 h-5">
+                           <MapPin className="size-4 text-(--text-tertiary) shrink-0" />
+                           <span className="text-label-2-medium text-(--text-tertiary)">{card.venue}</span>
+                        </div>
+                     </div>
+                  </div>
+               </div>
             ))}
          </div>
       </section>

@@ -1,9 +1,25 @@
 import { cn } from '@/shared/lib/utils';
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, TicketX } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
+import { teams } from '@/entities/team/model/teams';
 
+const teamIds: Record<string, string> = {
+   LG: 'lg',
+   한화: 'hanwha',
+   SSG: 'ssg',
+   삼성: 'samsung',
+   NC: 'nc',
+   KT: 'kt',
+   롯데: 'lotte',
+   두산: 'doosan',
+   키움: 'kiwoom',
+   KIA: 'kia',
+};
+
+// 팀 로고 이미지 (Figma asset)
 const teamLogos: Record<string, string> = {
    LG: '/baseball/logos/lg.png',
    한화: '/baseball/logos/hanwha.png',
@@ -283,8 +299,8 @@ function YearMonthPicker({
 }
 
 const GameSchedule = () => {
+   const navigate = useNavigate();
    const [activeTab, setActiveTab] = useState(0);
-   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
 
    // 주간 일정 state
    const [weekYear, setWeekYear] = useState(CURRENT_YEAR);
@@ -311,10 +327,6 @@ const GameSchedule = () => {
          }
          return true;
       })
-      .map(day => ({
-         ...day,
-         games: selectedTeam ? day.games.filter(g => g.away === selectedTeam || g.home === selectedTeam) : day.games,
-      }))
       .filter(day => day.games.length > 0);
 
    const prevWeekMonth = () => {
@@ -350,20 +362,25 @@ const GameSchedule = () => {
                각 구단을 선택하시면 <span className="text-red-500">구단별 경기일정</span>을 확인할 수 있습니다.
             </p>
 
-            {/* 팀 로고 필터 */}
+            {/* 팀 로고 */}
             <div className="flex items-center justify-between">
-               {teamOrder.map(team => (
-                  <button
-                     key={team}
-                     onClick={() => setSelectedTeam(selectedTeam === team ? null : team)}
-                     className={cn(
-                        'flex items-center justify-center size-[80px] p-[10px] rounded-xl transition-colors overflow-hidden',
-                        selectedTeam === team && 'bg-(--fill-hoveraccent) ring-2 ring-primary',
-                     )}
-                  >
-                     <img src={teamLogos[team]} alt={team} className="w-full h-full object-contain" />
-                  </button>
-               ))}
+               {teamOrder.map(team => {
+                  const teamId = teamIds[team];
+                  const isEnabled = teams.find(t => t.id === teamId)?.isEnabled ?? false;
+                  return (
+                     <button
+                        key={team}
+                        onClick={() => isEnabled && navigate(`/teams/${teamId}`)}
+                        disabled={!isEnabled}
+                        className={cn(
+                           'flex items-center justify-center size-20 p-2.5 rounded-xl transition-colors overflow-hidden',
+                           isEnabled ? 'hover:bg-fill-hoveraccent cursor-pointer' : 'opacity-30 cursor-not-allowed',
+                        )}
+                     >
+                        <img src={teamLogos[team]} alt={team} className="w-full h-full object-contain" />
+                     </button>
+                  );
+               })}
             </div>
 
             {/* 탭 네비게이션 */}
