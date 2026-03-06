@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, TicketX } from 'luci
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { teams } from '@/entities/team/model/teams';
+import { MOCK_TODAY } from '@/entities/team/model/schedule';
 
 const teamIds: Record<string, string> = {
    LG: 'lg',
@@ -121,10 +122,12 @@ const statusColor: Record<GameStatus, string> = {
    취소: 'text-[#acb4bb]',
 };
 
-const TODAY = '7월 3일 (금)';
-const CURRENT_YEAR = 2025;
-const CURRENT_MONTH = 7;
+const _mockDate = new Date(MOCK_TODAY + 'T00:00:00');
+const CURRENT_YEAR = _mockDate.getFullYear();
+const CURRENT_MONTH = _mockDate.getMonth() + 1;
 const CURRENT_WEEK = 1;
+const _days = ['일', '월', '화', '수', '목', '금', '토'];
+const TODAY = `${CURRENT_MONTH}월 ${_mockDate.getDate()}일 (${_days[_mockDate.getDay()]})`;
 
 // 시즌 월 순서: 3월~12월, 1월, 2월
 const SEASON_MONTHS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2];

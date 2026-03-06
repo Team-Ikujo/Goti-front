@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { teams } from '@/entities/team/model/teams';
 import type { Team } from '@/entities/team/model/types';
+import { useTeamStore } from '@/entities/team/model/teamStore';
 
 const navTabs = [
    { label: '티켓/리셀', to: '/tickets' },
@@ -81,7 +82,7 @@ const Header = () => {
    const [remaining, setRemaining] = useState(SESSION_DURATION);
    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
    const [teamModalOpen, setTeamModalOpen] = useState(false);
-   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+   const { selectedTeam, setSelectedTeam } = useTeamStore();
 
    useEffect(() => {
       if (isLoggedIn) {
