@@ -1,3 +1,4 @@
+import "./styles/globals.css";
 import { QueryProvider } from "@/app/providers/query";
 import { AppRouter } from "@/app/providers/router";
 
