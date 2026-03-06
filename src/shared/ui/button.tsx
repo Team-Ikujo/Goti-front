@@ -30,8 +30,7 @@ const buttonVariants = cva(
          },
          {
             variant: 'primaryline',
-            className:
-               '[color:var(--primary-normal)] disabled:[color:var(--text-disabled)] disabled:hover:bg-transparent',
+            className: 'text-[var(--primary-normal)] disabled:text-(--text-disabled) disabled:hover:bg-transparent',
          },
          {
             variant: 'outline',

@@ -141,7 +141,7 @@ const Header = () => {
                   <Button
                      asChild
                      variant="primaryline"
-                     className="hidden lg:flex shrink-0 w-29.5 h-auto px-3.5 py-1.5 rounded-lg text-body-2-medium"
+                     className="hidden lg:flex shrink-0 w-29.5 h-auto px-3.5 py-1.5 rounded-lg text-body-2-medium text-primary"
                   >
                      <Link to="/auth/login">로그인/회원가입</Link>
                   </Button>
