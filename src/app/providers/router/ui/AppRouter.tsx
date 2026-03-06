@@ -65,7 +65,6 @@ const AppRouter = () => {
         <Route path="/" element={<HomeLayout />}>
           <Route index element={<HomePage />} />
           <Route path="teams" element={<TeamsPage />} />
-          <Route path="teams/:teamId" element={<div>Team Detail Page Placeholder</div>} />
         </Route>
         <Route path="/button" element={<ButtonPage />} />
         <Route path="/control" element={<ControlPage />} />
