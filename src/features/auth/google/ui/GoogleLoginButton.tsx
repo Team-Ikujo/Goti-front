@@ -18,7 +18,7 @@ const GoogleLoginButton = () => {
     >
       {/*TODO: 일부 색상 global css에 존재하지 않아 보류*/}
       <img
-        src="/Google.svg"
+        src="/Icon/Logo/Google.svg"
         alt="google icon"
         className="h-5 w-5"
         aria-hidden="true"
