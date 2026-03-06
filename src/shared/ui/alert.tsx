@@ -18,8 +18,8 @@ const alertVariants = cva('flex items-center gap-2 rounded-lg py-3 px-3.5 shadow
 
 const iconMap: Record<string, React.ReactNode> = {
    default: null,
-   success: <img src="/success.svg" alt="success" className="size-4" />,
-   fail: <img src="/fail.svg" alt="fail" className="size-4" />,
+   success: <img src="/Icon/Solid/success.svg" alt="success" className="size-4" />,
+   fail: <img src="/Icon/Solid/fail.svg" alt="fail" className="size-4" />,
 };
 
 type AlertProps = React.ComponentProps<'div'> & VariantProps<typeof alertVariants>;

@@ -22,6 +22,7 @@ import OAuthMessageListener from './OAuthMessageListener';
 const AppRouter = () => {
    return (
       <BrowserRouter>
+         <OAuthMessageListener />
          <Routes>
             <Route path="/auth" element={<AuthLayout />}>
                <Route path="login" element={<LoginPage />} />
