@@ -1,16 +1,9 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, TicketX } from "lucide-react";
 
-<<<<<<< HEAD
-import { cn } from '@/shared/lib/utils';
-import { Badge } from '@/shared/ui/badge';
-import { Button } from '@/shared/ui/button';
-import { teams } from '@/entities/team/model/teams';
-=======
 import { cn } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
->>>>>>> 093eae2 ([design] 팀명 세로 가운데 정렬 적용 #55)
 
 import {
   CURRENT_MONTH,
@@ -198,26 +191,6 @@ const GameSchedule = () => {
           있습니다.
         </p>
 
-<<<<<<< HEAD
-            <div className="flex items-center justify-between">
-               {teamOrder.map(team => {
-                  const teamId = teamIds[team];
-                  const isEnabled = teams.find(t => t.id === teamId)?.isEnabled ?? false;
-                  return (
-                     <button
-                        key={team}
-                        onClick={() => isEnabled && navigate(`/teams/${teamId}`)}
-                        disabled={!isEnabled}
-                        className={cn(
-                           'flex items-center justify-center size-20 p-2.5 rounded-xl transition-colors overflow-hidden',
-                           isEnabled ? 'hover:bg-fill-hoveraccent cursor-pointer' : 'opacity-30 cursor-not-allowed',
-                        )}
-                     >
-                        <img src={teamLogos[team]} alt={team} className="w-full h-full object-contain" />
-                     </button>
-                  );
-               })}
-=======
         <div className="flex items-center justify-between">
           {teamOrder.map((team) => (
             <button
@@ -311,7 +284,6 @@ const GameSchedule = () => {
                   onClose={() => setShowWeekPicker(false)}
                 />
               )}
->>>>>>> 093eae2 ([design] 팀명 세로 가운데 정렬 적용 #55)
             </div>
 
             <div className="flex gap-[30px] justify-center">
