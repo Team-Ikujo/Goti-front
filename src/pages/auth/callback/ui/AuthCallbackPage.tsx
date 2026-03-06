@@ -25,9 +25,15 @@ const AuthCallbackPage = () => {
   const didRunRef = useRef(false);
   const navigate = useNavigate();
 
-  const redirectFromPopup = (path: string) => {
+  const redirectFromPopup = (
+    path: string,
+    tokens: { accessToken: string | null; tempToken: string | null; isLinked: boolean | null },
+  ) => {
     if (window.opener && !window.opener.closed) {
-      window.opener.location.assign(path);
+      window.opener.postMessage(
+        { type: "__OAUTH_SUCCESS__", ...tokens, provider: normalizedProvider, redirectPath: path },
+        window.location.origin,
+      );
       window.close();
       return true;
     }
@@ -76,12 +82,17 @@ const AuthCallbackPage = () => {
         setMessage("로그인 완료!");
         // TODO: 테스트를 위한 임시 코드, 삭제 필요
         await new Promise((resolve) => setTimeout(resolve, 1000));
+        const tokens = {
+          accessToken: response.accessToken,
+          tempToken: response.tempToken,
+          isLinked: response.isLinked,
+        };
         if (response.isLinked) {
-          if (!redirectFromPopup("/")) {
+          if (!redirectFromPopup("/", tokens)) {
             navigate("/", { replace: true });
           }
         } else {
-          if (!redirectFromPopup("/auth/terms")) {
+          if (!redirectFromPopup("/auth/terms", tokens)) {
             navigate("/auth/terms", { replace: true });
           }
         }

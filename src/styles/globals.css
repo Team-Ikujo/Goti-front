@@ -182,7 +182,7 @@
    --label-1-regular: var(--weight-regular);
 
    --label-2-size: 14px;
-   --label-2-lineheight: 1.5;
+   --label-2-lineheight: 1.45;
    --label-2-letterspacing: 0;
    --label-2-bold: var(--weight-bold);
    --label-2-semibold: var(--weight-semibold);
@@ -213,7 +213,14 @@
    --caption-2-regular: var(--weight-regular);
 }
 
+@keyframes marquee {
+   0% { transform: translateX(0%); }
+   100% { transform: translateX(-50%); }
+}
+
 @theme inline {
+   --animate-marquee: marquee 20s linear infinite;
+
    /* Background */
    --color-background: var(--background-base);
    --color-surface: var(--background-surface);
@@ -242,6 +249,16 @@
 }
 
 @layer utilities {
+   /* 데스크톱 전용 (lg 이상에서만 표시) */
+   .desktop-only {
+      display: none;
+   }
+   @media (min-width: 1024px) {
+      .desktop-only {
+         display: flex;
+      }
+   }
+
    .teams-grid {
       display: grid;
       width: 100%;
