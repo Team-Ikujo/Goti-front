@@ -1,20 +1,19 @@
 import { buildNaverAuthUrl } from "../lib/buildNaverAuthUrl";
-import { createOAuthState } from "../../kakao/model/createOAuthState";
-import { openOAuthPopup } from "@/shared/lib/openOAuthPopup";
 import { Button } from "@/shared/ui/button";
+import { useSocialOAuthLogin } from "@/features/auth/model/useSocialOAuthLogin";
 
 const NaverLoginButton = () => {
-  const handleClick = () => {
-    const state: string = createOAuthState();
-    const authUrl: string = buildNaverAuthUrl(state);
-    openOAuthPopup(authUrl);
-  };
+  const handleClick = useSocialOAuthLogin({
+    provider: "naver",
+    requiresIssuedState: true,
+    buildAuthUrl: (state) => buildNaverAuthUrl(state ?? ""),
+  });
 
   return (
     <Button
       variant="none"
       type="button"
-      onClick={handleClick}
+      onClick={() => void handleClick()}
       className="cursor-pointer h-13 inline-flex w-full max-w-95 items-center justify-center gap-2 rounded-[8px] bg-[#00C73C] px-5 py-3.5 text-[16px] font-semibold text-white hover:bg-[#03B753] active:bg-[#00B14F]"
     >
       <img
