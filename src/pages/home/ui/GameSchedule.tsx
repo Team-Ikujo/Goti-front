@@ -1,39 +1,28 @@
-import { useNavigate } from 'react-router-dom';
 import { cn } from '@/shared/lib/utils';
+import { useState, useRef, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, TicketX } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
 
 const teamLogos: Record<string, string> = {
-   KIA: 'https://www.figma.com/api/mcp/asset/fa8d05f9-44d4-4387-85e8-579f17a5b557',
-   LG: 'https://www.figma.com/api/mcp/asset/14a46d68-59b0-44c5-9699-00fa15b20f16',
-   롯데: 'https://www.figma.com/api/mcp/asset/31c006de-c028-4d8e-960a-c6c40246aa38',
-   KT: 'https://www.figma.com/api/mcp/asset/55c4544b-d5f9-434b-9e04-edfc59f8d499',
-   두산: 'https://www.figma.com/api/mcp/asset/04dc4340-5afe-43b4-a3d9-cac4b8f96dcb',
-   삼성: 'https://www.figma.com/api/mcp/asset/a5da3ee6-ae89-482d-8fec-89ab37f112db',
-   SSG: 'https://www.figma.com/api/mcp/asset/5887e3df-622b-42ee-8c3a-5fd077026191',
-   한화: 'https://www.figma.com/api/mcp/asset/3690cad7-a304-4708-bf19-52207dd74ad9',
-   키움: 'https://www.figma.com/api/mcp/asset/274d2c90-3a68-45c9-bc8e-2e1df76310ec',
-   NC: 'https://www.figma.com/api/mcp/asset/76518e98-759b-4e31-9013-e59d6e518643',
-};
-
-const teamIds: Record<string, string> = {
-   LG: 'lg',
-   한화: 'hanwha',
-   SSG: 'ssg',
-   삼성: 'samsung',
-   NC: 'nc',
-   KT: 'kt',
-   롯데: 'lotte',
-   두산: 'doosan',
-   키움: 'kiwoom',
-   KIA: 'kia',
+   LG: '/baseball/logos/lg.png',
+   한화: '/baseball/logos/hanwha.png',
+   SSG: '/baseball/logos/ssg.png',
+   삼성: '/baseball/logos/samsung.png',
+   NC: '/baseball/logos/nc.png',
+   KT: '/baseball/logos/kt.png',
+   롯데: '/baseball/logos/lotte.png',
+   두산: '/baseball/logos/doosan.png',
+   키움: '/baseball/logos/kiwoom.png',
+   KIA: '/baseball/logos/kia.png',
 };
 
 const teamOrder = ['LG', '한화', 'SSG', '삼성', 'NC', 'KT', '롯데', '두산', '키움', 'KIA'];
 
 type GameStatus = '경기중' | '예정' | '종료' | '취소';
+type TicketStatus = '예매하기' | '매진' | '판매예정';
+type ReselStatus = '리셀예매' | '리셀매진' | '리셀예정';
+
 type GameRow = {
    time: string;
    venue: string;
@@ -41,15 +30,14 @@ type GameRow = {
    home: string;
    score: string | null;
    status: GameStatus;
-   ticket: '매진' | '판매예정' | '예매하기';
-   resell: '리셀매진' | '리셀예매' | '리셀예정';
+   ticket: TicketStatus;
+   resell: ReselStatus;
    ticketInfo?: string;
    reselInfo?: string;
 };
 type DaySchedule = { date: string; isToday?: boolean; games: GameRow[] };
 
-// ── Mock Data ──
-const mockWeekly: DaySchedule[] = [
+const scheduleData: DaySchedule[] = [
    {
       date: '7월 1일 (수)',
       games: [
@@ -111,223 +99,267 @@ const mockWeekly: DaySchedule[] = [
 ];
 
 const statusColor: Record<GameStatus, string> = {
-   경기중: 'text-success',
+   경기중: 'text-[#38c976]',
    예정: 'text-primary',
-   종료: 'text-destructive',
-   취소: 'text-disabled-foreground',
+   종료: 'text-[#ef4444]',
+   취소: 'text-[#acb4bb]',
 };
 
-// ── Sub-components ──
+const TODAY = '7월 3일 (금)';
+const CURRENT_YEAR = 2025;
+const CURRENT_MONTH = 7;
+const CURRENT_WEEK = 1;
+
+// 시즌 월 순서: 3월~12월, 1월, 2월
+const SEASON_MONTHS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2];
+const DISABLED_MONTHS = [10, 11, 12, 1, 2];
+const AVAILABLE_YEARS = [2021, 2022, 2023, 2024, 2025, 2026];
+
+const tabs = ['오늘 일정', '주간 일정', '전체 일정'];
+
+function parseDate(dateStr: string): { month: number; day: number } {
+   const match = dateStr.match(/(\d+)월 (\d+)일/);
+   if (!match) return { month: 0, day: 0 };
+   return { month: parseInt(match[1]), day: parseInt(match[2]) };
+}
+
+function getWeekOfMonth(day: number): number {
+   return Math.ceil(day / 7);
+}
 
 function ScoreDisplay({ game }: { game: GameRow }) {
+   const scoreStr = game.score ?? 'VS';
+
    if (game.status === '종료' && game.score) {
       const [awayScore, homeScore] = game.score.split(':').map(Number);
       const awayLost = awayScore < homeScore;
       return (
-         <span className="text-heading-1-bold text-center whitespace-nowrap text-destructive">
-            <span className={awayLost ? 'text-disabled-foreground' : ''}>{awayScore}:</span>
-            <span className={!awayLost ? 'text-disabled-foreground' : ''}>{homeScore}</span>
+         <span className="text-[24px] font-bold text-center leading-[1.5] whitespace-nowrap text-[#ef4444]">
+            <span className={awayLost ? 'text-[#acb4bb]' : ''}>{awayScore}:</span>
+            <span className={!awayLost ? 'text-[#acb4bb]' : ''}>{homeScore}</span>
          </span>
       );
    }
+
    return (
-      <span className="text-heading-1-bold text-foreground text-center whitespace-nowrap">{game.score ?? 'VS'}</span>
+      <span className="text-[24px] font-bold text-(--text-primary) text-center leading-[1.5] whitespace-nowrap">
+         {scoreStr}
+      </span>
    );
 }
 
-function DaySection({ day }: { day: DaySchedule }) {
+function EmptyState() {
    return (
-      <div className="flex flex-col overflow-hidden rounded-[20px] border border-border">
-         {/* 날짜 헤더 */}
-         <div className="bg-[#f1f2f4] border-b border-border px-7.5 py-2.5 flex items-center gap-2">
-            <span className="text-heading-3-semibold text-foreground">{day.date}</span>
-            {day.isToday && <Badge variant="chipDestructive">오늘</Badge>}
-         </div>
-
-         {/* 경기 행 */}
-         <div className="flex flex-col divide-y divide-border">
-            {day.games.map((game, idx) => {
-               const isEnded = game.status === '종료' || game.status === '취소';
-               const textClass = isEnded ? 'text-disabled-foreground' : 'text-foreground';
-               const isPendingTicket = game.ticket === '판매예정';
-               const isPendingResell = game.resell === '리셀예정';
-
-               let awayResult = '';
-               let homeResult = '';
-               if (isEnded && game.score) {
-                  const [awayScore, homeScore] = game.score.split(':').map(Number);
-                  awayResult = awayScore < homeScore ? '패' : '승';
-                  homeResult = homeScore > awayScore ? '승' : '패';
-               }
-
-               return (
-                  <div
-                     key={idx}
-                     className={cn(
-                        'px-5 py-1.5 flex items-center justify-between',
-                        isEnded ? 'bg-[#f7f8f9]' : 'bg-background',
-                     )}
-                  >
-                     {/* 시간 & 장소 */}
-                     <div className="flex gap-7.5 items-center shrink-0 text-heading-3-semibold">
-                        <span className={cn('text-heading-3-semibold w-15 text-center', textClass)}>{game.time}</span>
-                        <span className={cn('text-heading-3-semibold w-10 text-center', textClass)}>{game.venue}</span>
-                     </div>
-
-                     {/* 대진 */}
-                     <div className="flex items-center gap-12.5 shrink-0">
-                        {/* 원정팀: [left-spacer + name/result] + logo */}
-                        <div className="flex items-center w-37.5">
-                           <div className="flex h-18.75 items-center justify-end w-17.5 shrink-0">
-                              <div className="w-7.5 h-18.75 shrink-0" />
-                              <div className="flex flex-col h-full justify-between items-center shrink-0 text-heading-3-semibold">
-                                 <div className="h-4.5 shrink-0" />
-                                 <span
-                                    className={cn('text-heading-3-semibold text-center whitespace-nowrap', textClass)}
-                                 >
-                                    {game.away}
-                                 </span>
-                                 <span className="text-caption-1-medium text-muted-foreground h-4.5 flex items-center justify-center">
-                                    {awayResult}
-                                 </span>
-                              </div>
-                           </div>
-                           <div className="flex flex-col items-center justify-center overflow-hidden px-3.75 py-2.5 size-18.75 shrink-0">
-                              <img
-                                 src={teamLogos[game.away]}
-                                 alt={game.away}
-                                 className="w-full h-full object-contain"
-                              />
-                           </div>
-                        </div>
-
-                        {/* 스코어 */}
-                        <div className="flex flex-col items-center w-10 h-18.75 shrink-0">
-                           <div className="h-4.5 shrink-0" />
-                           <ScoreDisplay game={game} />
-                           <span className={cn('text-caption-1-medium text-center', statusColor[game.status])}>
-                              {game.status}
-                           </span>
-                        </div>
-
-                        {/* 홈팀: logo + [name/result + 홈 badge] */}
-                        <div className="flex items-center w-37.5">
-                           <div className="flex flex-col items-center justify-center overflow-hidden px-3.75 py-2.5 size-18.75 shrink-0">
-                              <img
-                                 src={teamLogos[game.home]}
-                                 alt={game.home}
-                                 className="w-full h-full object-contain"
-                              />
-                           </div>
-                           <div className="flex h-18.75 items-center w-17.5 shrink-0">
-                              <div className="flex flex-col h-full justify-between items-center shrink-0 text-heading-3-semibold">
-                                 <div className="h-4.5 shrink-0" />
-                                 <span className={cn('text-center whitespace-nowrap', textClass)}>{game.home}</span>
-                                 <span className="text-caption-1-medium text-muted-foreground h-4.5 flex items-center justify-center">
-                                    {homeResult}
-                                 </span>
-                              </div>
-                              <div className="flex h-18.75 items-center justify-end w-7.5 shrink-0">
-                                 <div className="bg-disabled-foreground flex flex-col items-center justify-center px-1 rounded-xs w-5.5">
-                                    <span className="text-white text-body-1-medium text-center">홈</span>
-                                 </div>
-                              </div>
-                           </div>
-                        </div>
-                     </div>
-
-                     {/* 액션 버튼 */}
-                     <div className={cn('flex gap-2.5 items-center shrink-0 h-16.5', isEnded && 'opacity-0')}>
-                        {isPendingTicket ? (
-                           <button className="flex flex-col items-center justify-center px-4 py-2 h-full rounded-md bg-disabled-foreground text-white">
-                              <span className="text-body-1-medium">판매예정</span>
-                              {game.ticketInfo && (
-                                 <span className="text-[11px] leading-tight text-center whitespace-pre-line">
-                                    {game.ticketInfo}
-                                 </span>
-                              )}
-                           </button>
-                        ) : (
-                           <Button
-                              variant="primary"
-                              size="sm"
-                              disabled={game.ticket !== '예매하기'}
-                              className={cn(
-                                 'h-full rounded-md text-body-1-medium text-white',
-                                 game.ticket === '매진' && 'w-22 disabled:bg-disabled-foreground disabled:text-white',
-                              )}
-                           >
-                              {game.ticket}
-                           </Button>
-                        )}
-                        {isPendingResell ? (
-                           <button className="flex flex-col items-center justify-center px-3 py-2 h-full rounded-md bg-background border border-disabled-foreground text-disabled-foreground">
-                              <span className="text-body-1-medium">리셀예정</span>
-                              {game.reselInfo && (
-                                 <span className="text-[11px] leading-tight text-center whitespace-pre-line">
-                                    {game.reselInfo}
-                                 </span>
-                              )}
-                           </button>
-                        ) : (
-                           <Button
-                              variant="primaryline"
-                              size="sm"
-                              disabled={game.resell !== '리셀예매'}
-                              className={cn(
-                                 'h-full rounded-md text-body-1-medium whitespace-nowrap text-primary',
-                                 game.resell !== '리셀예매' && 'w-22',
-                              )}
-                           >
-                              {game.resell}
-                           </Button>
-                        )}
-                     </div>
-                  </div>
-               );
-            })}
+      <div className="bg-[#f7f8f9] flex h-[400px] items-center justify-center overflow-hidden px-5 py-[100px] rounded-[10px] w-full">
+         <div className="flex flex-col gap-[10px] items-center justify-center">
+            <TicketX className="size-[75px] text-[#acb4bb]" strokeWidth={1.2} />
+            <p className="text-[22px] font-semibold text-[#646f7c] text-center leading-[1.55]">
+               현재 예매 가능한 경기가 없습니다.
+            </p>
          </div>
       </div>
    );
 }
 
-// ── Main Component ──
+// Year-Month 피커 드롭다운
+function YearMonthPicker({
+   year,
+   month,
+   onConfirm,
+   onClose,
+}: {
+   year: number;
+   month: number;
+   onConfirm: (year: number, month: number) => void;
+   onClose: () => void;
+}) {
+   const [localYear, setLocalYear] = useState(year);
+   const [localMonth, setLocalMonth] = useState(month);
+   const pickerRef = useRef<HTMLDivElement>(null);
 
-const GameSchedule = () => {
-   const navigate = useNavigate();
-   const [activeTab, setActiveTab] = useState(0);
-   const [weeklyMonth, setWeeklyMonth] = useState(7);
-   const [weeklyYear, setWeeklyYear] = useState(2025);
-   const [selectedWeek, setSelectedWeek] = useState(1);
-   const [fullYear, setFullYear] = useState(2025);
-   const [fullMonth, setFullMonth] = useState(7);
+   useEffect(() => {
+      function handleClickOutside(e: MouseEvent) {
+         if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+            onClose();
+         }
+      }
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+   }, [onClose]);
 
-   const tabs = ['오늘 일정', '주간 일정', '전체 일정'];
-   const WEEK_LABELS = ['1주차', '2주차', '3주차', '4주차', '5주차'];
-   const MONTH_TABS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2] as const;
-
-   const handleTeamClick = (teamName: string) => {
-      const teamId = teamIds[teamName];
-      if (teamId) navigate(`/teams/${teamId}`);
-   };
-
-   const visibleData = activeTab === 0 ? mockWeekly.filter(d => d.isToday) : mockWeekly;
+   const yearIdx = AVAILABLE_YEARS.indexOf(localYear);
+   const canPrevYear = yearIdx > 0;
+   const canNextYear = yearIdx < AVAILABLE_YEARS.length - 1;
 
    return (
-      <section className="flex flex-col gap-5 w-full max-w-300 mx-auto px-4">
-         <h2 className="text-heading-1-bold text-foreground">경기 일정</h2>
+      <div
+         ref={pickerRef}
+         className="absolute top-10 left-1/2 -translate-x-1/2 z-50 bg-white rounded-[12px] shadow-xl border border-(--border-normal) overflow-hidden"
+      >
+         <div className="flex">
+            {/* 연도 컬럼 */}
+            <div className="flex flex-col items-center w-[100px] border-r border-(--border-normal)">
+               <button
+                  onClick={() => canPrevYear && setLocalYear(AVAILABLE_YEARS[yearIdx - 1])}
+                  disabled={!canPrevYear}
+                  className="flex items-center justify-center w-full py-[10px] text-[#646f7c] hover:bg-gray-50 disabled:opacity-30"
+               >
+                  <ChevronUp className="size-5" />
+               </button>
+               <div className="flex flex-col items-center w-full py-[6px]">
+                  {AVAILABLE_YEARS.map(y => (
+                     <button
+                        key={y}
+                        onClick={() => setLocalYear(y)}
+                        className={cn(
+                           'w-full py-[8px] text-center text-[16px] leading-[1.5] transition-colors',
+                           y === localYear
+                              ? 'font-bold text-(--text-primary)'
+                              : 'font-medium text-[#acb4bb] hover:text-(--text-primary)',
+                        )}
+                     >
+                        {y}
+                     </button>
+                  ))}
+               </div>
+               <button
+                  onClick={() => canNextYear && setLocalYear(AVAILABLE_YEARS[yearIdx + 1])}
+                  disabled={!canNextYear}
+                  className="flex items-center justify-center w-full py-[10px] text-[#646f7c] hover:bg-gray-50 disabled:opacity-30"
+               >
+                  <ChevronDown className="size-5" />
+               </button>
+            </div>
+
+            {/* 월 컬럼 */}
+            <div className="flex flex-col items-center w-[80px]">
+               <button
+                  onClick={() => setLocalMonth(m => (m === 1 ? 12 : m - 1))}
+                  className="flex items-center justify-center w-full py-[10px] text-[#646f7c] hover:bg-gray-50"
+               >
+                  <ChevronUp className="size-5" />
+               </button>
+               <div className="flex flex-col items-center w-full py-[6px]">
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                     <button
+                        key={m}
+                        onClick={() => setLocalMonth(m)}
+                        className={cn(
+                           'w-full py-[8px] text-center text-[16px] leading-[1.5] transition-colors',
+                           m === localMonth
+                              ? 'font-bold text-(--text-primary)'
+                              : 'font-medium text-[#acb4bb] hover:text-(--text-primary)',
+                        )}
+                     >
+                        {String(m).padStart(2, '0')}
+                     </button>
+                  ))}
+               </div>
+               <button
+                  onClick={() => setLocalMonth(m => (m === 12 ? 1 : m + 1))}
+                  className="flex items-center justify-center w-full py-[10px] text-[#646f7c] hover:bg-gray-50"
+               >
+                  <ChevronDown className="size-5" />
+               </button>
+            </div>
+         </div>
+
+         <div className="flex border-t border-(--border-normal)">
+            <button
+               onClick={onClose}
+               className="flex-1 py-[12px] text-[14px] font-medium text-[#646f7c] hover:bg-gray-50"
+            >
+               취소
+            </button>
+            <button
+               onClick={() => onConfirm(localYear, localMonth)}
+               className="flex-1 py-[12px] text-[14px] font-semibold text-primary border-l border-(--border-normal) hover:bg-blue-50"
+            >
+               확인
+            </button>
+         </div>
+      </div>
+   );
+}
+
+const GameSchedule = () => {
+   const [activeTab, setActiveTab] = useState(0);
+   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+
+   // 주간 일정 state
+   const [weekYear, setWeekYear] = useState(CURRENT_YEAR);
+   const [weekMonth, setWeekMonth] = useState(CURRENT_MONTH);
+   const [selectedWeek, setSelectedWeek] = useState(CURRENT_WEEK);
+   const [showWeekPicker, setShowWeekPicker] = useState(false);
+
+   // 전체 일정 state
+   const [allYear, setAllYear] = useState(CURRENT_YEAR);
+   const [allMonth, setAllMonth] = useState(CURRENT_MONTH);
+   const [showAllPicker, setShowAllPicker] = useState(false);
+
+   const filteredData = scheduleData
+      .filter(day => {
+         if (activeTab === 0) return day.date === TODAY;
+         if (activeTab === 1) {
+            const { month, day: dayNum } = parseDate(day.date);
+            const week = getWeekOfMonth(dayNum);
+            return month === weekMonth && week === selectedWeek;
+         }
+         if (activeTab === 2) {
+            const { month } = parseDate(day.date);
+            return month === allMonth;
+         }
+         return true;
+      })
+      .map(day => ({
+         ...day,
+         games: selectedTeam ? day.games.filter(g => g.away === selectedTeam || g.home === selectedTeam) : day.games,
+      }))
+      .filter(day => day.games.length > 0);
+
+   const prevWeekMonth = () => {
+      if (weekMonth === 1) {
+         setWeekMonth(12);
+         setWeekYear(y => y - 1);
+      } else {
+         setWeekMonth(m => m - 1);
+      }
+      setSelectedWeek(1);
+   };
+
+   const nextWeekMonth = () => {
+      if (weekMonth === 12) {
+         setWeekMonth(1);
+         setWeekYear(y => y + 1);
+      } else {
+         setWeekMonth(m => m + 1);
+      }
+      setSelectedWeek(1);
+   };
+
+   return (
+      <section className="flex flex-col gap-5 w-full">
+         {/* 헤더 */}
+         <h2 className="text-[length:var(--typo---heading\/h3,24px)] font-bold text-(--text-primary) leading-[1.5]">
+            경기 일정
+         </h2>
+
          <div className="flex flex-col gap-5">
-            <p className="text-body-1-medium text-muted-foreground">
-               각 구단을 선택하시면 <span className="text-destructive">구단별 경기일정</span>을 확인할 수 있습니다.
+            {/* 안내 문구 */}
+            <p className="text-[length:var(--typo---heading\/h5,16px)] font-medium text-(--text-secondary)">
+               각 구단을 선택하시면 <span className="text-red-500">구단별 경기일정</span>을 확인할 수 있습니다.
             </p>
 
-            {/* 구단 로고 필터 */}
-            <div className="flex items-center justify-between pb-2">
+            {/* 팀 로고 필터 */}
+            <div className="flex items-center justify-between">
                {teamOrder.map(team => (
                   <button
                      key={team}
-                     onClick={() => handleTeamClick(team)}
-                     className="flex items-center justify-center size-20 p-2.5 rounded-xl transition-colors hover:bg-(--neutral-100)"
+                     onClick={() => setSelectedTeam(selectedTeam === team ? null : team)}
+                     className={cn(
+                        'flex items-center justify-center size-[80px] p-[10px] rounded-xl transition-colors overflow-hidden',
+                        selectedTeam === team && 'bg-(--fill-hoveraccent) ring-2 ring-primary',
+                     )}
                   >
                      <img src={teamLogos[team]} alt={team} className="w-full h-full object-contain" />
                   </button>
@@ -335,16 +367,16 @@ const GameSchedule = () => {
             </div>
 
             {/* 탭 네비게이션 */}
-            <div className="flex gap-5 border-b border-border text-heading-3-semibold">
+            <div className="flex gap-5 border-b border-(--border-normal)">
                {tabs.map((tab, i) => (
                   <button
                      key={tab}
                      onClick={() => setActiveTab(i)}
                      className={cn(
-                        'px-2.5 py-2.5 transition-colors relative',
+                        'px-2.5 py-[10px] text-[length:var(--typo---heading\/h4,20px)] font-semibold leading-[1.5] transition-colors',
                         i === activeTab
-                           ? 'text-foreground after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.75 after:bg-primary'
-                           : 'text-muted-foreground',
+                           ? 'text-(--text-primary) border-b-[3px] border-primary -mb-px'
+                           : 'text-(--text-tertiary)',
                      )}
                   >
                      {tab}
@@ -354,46 +386,79 @@ const GameSchedule = () => {
 
             {/* 주간 일정 네비게이터 */}
             {activeTab === 1 && (
-               <div className="flex flex-col gap-3 items-center">
-                  <div className="flex items-center gap-3.5">
-                     <Badge variant="chipDestructive" asChild className="cursor-pointer">
+               <div className="flex flex-col gap-3">
+                  <div className="relative flex items-center gap-3.5 justify-center">
+                     {/* 최근 버튼 */}
+                     <Badge asChild variant="chipDestructive" className="opacity-50">
                         <button
                            onClick={() => {
-                              setWeeklyMonth(7);
-                              setWeeklyYear(2025);
-                              setSelectedWeek(1);
+                              setWeekYear(CURRENT_YEAR);
+                              setWeekMonth(CURRENT_MONTH);
+                              setSelectedWeek(CURRENT_WEEK);
                            }}
                         >
                            최근
                         </button>
                      </Badge>
-                     <div className="flex items-center gap-2.5">
-                        <button onClick={() => setWeeklyMonth(m => (m === 1 ? 12 : m - 1))}>
-                           <ChevronLeft className="size-6 text-foreground" />
+
+                     {/* Year-Month 네비게이션 */}
+                     <div className="flex items-center gap-2">
+                        <button
+                           onClick={prevWeekMonth}
+                           className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
+                        >
+                           <ChevronLeft className="size-5" />
                         </button>
-                        <span className="text-heading-1-bold text-foreground">
-                           {weeklyYear}-{String(weeklyMonth).padStart(2, '0')}
-                        </span>
-                        <button onClick={() => setWeeklyMonth(m => (m === 12 ? 1 : m + 1))}>
-                           <ChevronRight className="size-6 text-foreground" />
+                        <button
+                           onClick={() => {
+                              setShowWeekPicker(true);
+                              setShowAllPicker(false);
+                           }}
+                           className="text-[18px] font-bold text-(--text-primary) leading-[1.5] min-w-[110px] text-center"
+                        >
+                           {weekYear}-{String(weekMonth).padStart(2, '0')}
+                        </button>
+                        <button
+                           onClick={nextWeekMonth}
+                           className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
+                        >
+                           <ChevronRight className="size-5" />
                         </button>
                      </div>
-                     <div className="w-13 shrink-0" />
+
+                     {/* 빈 공간 (최근 버튼 균형) */}
+                     <div className="w-[56px]" />
+
+                     {/* 피커 드롭다운 */}
+                     {showWeekPicker && (
+                        <YearMonthPicker
+                           year={weekYear}
+                           month={weekMonth}
+                           onConfirm={(y, m) => {
+                              setWeekYear(y);
+                              setWeekMonth(m);
+                              setSelectedWeek(1);
+                              setShowWeekPicker(false);
+                           }}
+                           onClose={() => setShowWeekPicker(false)}
+                        />
+                     )}
                   </div>
-                  <div className="flex gap-7.5">
-                     {WEEK_LABELS.map((label, i) => (
-                        <button
-                           key={label}
-                           onClick={() => setSelectedWeek(i + 1)}
+
+                  {/* 주차 선택 버튼 */}
+                  <div className="flex gap-[30px] justify-center">
+                     {[1, 2, 3, 4, 5].map(week => (
+                        <Button
+                           key={week}
+                           onClick={() => setSelectedWeek(week)}
+                           variant={week === selectedWeek ? 'primaryline' : 'outline'}
                            className={cn(
-                              'text-heading-3-semibold px-5.5 py-2.25 rounded-[10px] border transition-colors',
-                              selectedWeek === i + 1
-                                 ? 'border-primary text-primary'
-                                 : 'border-foreground text-foreground',
+                              'px-[22px] py-[9px] rounded-[10px] text-[length:var(--typo---heading\/h4,20px)] font-semibold leading-[1.5]',
+                              week !== selectedWeek && 'shadow-[inset_0_0_0_1px_#161d24] text-[#161d24]',
                            )}
                         >
-                           {label}
-                        </button>
+                           {week}주차
+                        </Button>
                      ))}
                   </div>
                </div>
@@ -401,70 +466,296 @@ const GameSchedule = () => {
 
             {/* 전체 일정 네비게이터 */}
             {activeTab === 2 && (
-               <div className="flex flex-col gap-1 items-center">
-                  <div className="flex items-center gap-3.5 px-5.5 py-2.25">
-                     <Badge variant="chipDestructive" asChild className="cursor-pointer">
+               <div className="flex flex-col gap-3">
+                  <div className="relative flex items-center gap-3.5 justify-center">
+                     {/* 최근 버튼 */}
+                     <Badge asChild variant="chipDestructive" className="opacity-50">
                         <button
                            onClick={() => {
-                              setFullMonth(7);
-                              setFullYear(2025);
+                              setAllYear(CURRENT_YEAR);
+                              setAllMonth(CURRENT_MONTH);
                            }}
                         >
                            최근
                         </button>
                      </Badge>
-                     <div className="flex items-center gap-2.5">
-                        <button onClick={() => setFullYear(y => y - 1)}>
-                           <ChevronLeft className="size-6 text-foreground" />
+
+                     {/* 연도 네비게이션 */}
+                     <div className="flex items-center gap-2">
+                        <button
+                           onClick={() => setAllYear(y => Math.max(y - 1, AVAILABLE_YEARS[0]))}
+                           className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
+                        >
+                           <ChevronLeft className="size-5" />
                         </button>
-                        <span className="text-heading-1-bold text-foreground">{fullYear}</span>
-                        <button onClick={() => setFullYear(y => y + 1)}>
-                           <ChevronRight className="size-6 text-foreground" />
+                        <button
+                           onClick={() => {
+                              setShowAllPicker(true);
+                              setShowWeekPicker(false);
+                           }}
+                           className="text-[18px] font-bold text-(--text-primary) leading-[1.5] min-w-[60px] text-center"
+                        >
+                           {allYear}
+                        </button>
+                        <button
+                           onClick={() => setAllYear(y => Math.min(y + 1, AVAILABLE_YEARS[AVAILABLE_YEARS.length - 1]))}
+                           className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
+                        >
+                           <ChevronRight className="size-5" />
                         </button>
                      </div>
-                     <div className="w-13 shrink-0" />
+
+                     {/* 빈 공간 */}
+                     <div className="w-[56px]" />
+
+                     {/* 피커 드롭다운 */}
+                     {showAllPicker && (
+                        <YearMonthPicker
+                           year={allYear}
+                           month={allMonth}
+                           onConfirm={(y, m) => {
+                              setAllYear(y);
+                              setAllMonth(m);
+                              setShowAllPicker(false);
+                           }}
+                           onClose={() => setShowAllPicker(false)}
+                        />
+                     )}
                   </div>
+
+                  {/* 월 탭 (시즌 순서: 3월~12월, 1월, 2월, 포스트시즌) */}
                   <div className="flex w-full">
-                     {MONTH_TABS.map((m, idx) => {
-                        const isDisabled = m >= 10 || m <= 2;
-                        const isActive = fullMonth === m && !isDisabled;
+                     {SEASON_MONTHS.map(m => {
+                        const isDisabled = DISABLED_MONTHS.includes(m);
+                        const isSelected = m === allMonth;
                         return (
-                           <button
+                           <Button
                               key={m}
-                              onClick={() => !isDisabled && setFullMonth(m)}
+                              onClick={() => !isDisabled && setAllMonth(m)}
                               disabled={isDisabled}
+                              variant={isSelected ? 'primaryline' : 'outline'}
                               className={cn(
-                                 'flex-1 h-12 flex items-end justify-center gap-0.5 pb-2 shrink-0',
-                                 'rounded-tl-[10px] rounded-tr-[10px]',
-                                 idx !== 0 && '-ml-px',
-                                 isActive
-                                    ? 'border-l border-r border-t border-primary text-primary'
-                                    : isDisabled
-                                      ? 'border border-disabled-foreground text-disabled-foreground'
-                                      : 'border border-foreground text-foreground',
+                                 'flex-1 h-[48px] px-[22px] py-[9px] rounded-tl-[10px] rounded-tr-[10px] rounded-bl-none rounded-br-none',
+                                 !isSelected && !isDisabled && 'shadow-[inset_0_0_0_1px_#161d24] text-[#161d24]',
+                                 isDisabled && 'shadow-[inset_0_0_0_1px_#acb4bb] text-[#acb4bb]',
                               )}
                            >
-                              <span className="text-heading-1-bold">{m}</span>
-                              <span className="text-body-2-medium">월</span>
-                           </button>
+                              <span className="flex items-end">
+                                 <span className="text-[length:var(--typo---heading\/h3,24px)] font-bold leading-[1.5]">
+                                    {m}
+                                 </span>
+                                 <span className="text-[length:var(--typo---paragraph\/p1,14px)] font-medium leading-[1.5]">
+                                    월
+                                 </span>
+                              </span>
+                           </Button>
                         );
                      })}
-                     <button
+                     <Button
                         disabled
-                        className="w-30 h-12 flex items-end justify-center pb-2 shrink-0 rounded-tl-[10px] rounded-tr-[10px] -ml-px border border-disabled-foreground text-disabled-foreground text-heading-3-semibold"
+                        variant="outline"
+                        className="h-[48px] px-[22px] py-[9px] rounded-tl-[10px] rounded-tr-[10px] rounded-bl-none rounded-br-none w-[120px] shrink-0 shadow-[inset_0_0_0_1px_#acb4bb] text-[#acb4bb] text-[length:var(--typo---heading\/h4,20px)] font-semibold leading-[1.5]"
                      >
-                        포스트시즌
-                     </button>
+                        포스트 시즌
+                     </Button>
                   </div>
                </div>
             )}
 
-            {/* 경기 목록 */}
-            <div className="flex flex-col gap-3">
-               {visibleData.map(day => (
-                  <DaySection key={day.date} day={day} />
-               ))}
-            </div>
+            {/* 경기 일정 테이블 또는 빈 상태 */}
+            {filteredData.length === 0 ? (
+               <EmptyState />
+            ) : (
+               <div className={cn('flex flex-col', activeTab !== 0 && 'gap-[25px]')}>
+                  {filteredData.map(day => {
+                     const isToday = day.isToday ?? day.date === TODAY;
+                     return (
+                        <div key={day.date}>
+                           {/* 날짜 헤더 */}
+                           <div className="bg-[#f1f2f4] border border-(--border-normal) px-[30px] py-[10px] rounded-tl-[20px] rounded-tr-[20px] flex items-center gap-2">
+                              <span className="text-[length:var(--typo---heading\/h4,20px)] font-semibold text-(--text-primary) leading-[1.5]">
+                                 {day.date}
+                              </span>
+                              {isToday && <Badge variant="chipDestructive">오늘</Badge>}
+                           </div>
+
+                           {/* 경기 행 */}
+                           {day.games.map((game, idx) => {
+                              const isLast = idx === day.games.length - 1;
+                              const isEnded = game.status === '종료';
+                              const textDisabled = isEnded ? 'text-[#acb4bb]' : 'text-(--text-primary)';
+
+                              let awayResult = '';
+                              let homeResult = '';
+                              if (isEnded && game.score) {
+                                 const [awayScore, homeScore] = game.score.split(':').map(Number);
+                                 awayResult = awayScore < homeScore ? '패' : '승';
+                                 homeResult = homeScore > awayScore ? '승' : '패';
+                              }
+
+                              return (
+                                 <div
+                                    key={idx}
+                                    className={cn(
+                                       'border border-t-0 border-(--border-normal) px-[20px] py-[6px] flex items-center justify-between',
+                                       isLast && 'rounded-bl-[20px] rounded-br-[20px]',
+                                       isEnded ? 'bg-[#f7f8f9]' : 'bg-background',
+                                    )}
+                                 >
+                                    {/* 시간 + 장소 */}
+                                    <div className="flex gap-[30px] items-center shrink-0">
+                                       <div className="flex items-center justify-center w-[60px]">
+                                          <span
+                                             className={cn(
+                                                'text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap',
+                                                textDisabled,
+                                             )}
+                                          >
+                                             {game.time}
+                                          </span>
+                                       </div>
+                                       <div className="flex items-center justify-center w-[40px]">
+                                          <span
+                                             className={cn(
+                                                'text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap',
+                                                textDisabled,
+                                             )}
+                                          >
+                                             {game.venue}
+                                          </span>
+                                       </div>
+                                    </div>
+
+                                    {/* 경기 매치업 */}
+                                    <div className="flex gap-[50px] items-center shrink-0">
+                                       {/* 원정팀 */}
+                                       <div className="flex items-center justify-center w-[150px]">
+                                          <div className="flex h-[75px] items-center justify-end w-[70px] shrink-0">
+                                             <div className="w-[30px] h-[75px] shrink-0" />
+                                             {isEnded ? (
+                                                <div className="flex flex-col items-center shrink-0">
+                                                   <span
+                                                      className={cn(
+                                                         'text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap',
+                                                         textDisabled,
+                                                      )}
+                                                   >
+                                                      {game.away}
+                                                   </span>
+                                                   <span className="text-[12px] font-medium text-(--text-tertiary) leading-[1.5]">
+                                                      {awayResult}
+                                                   </span>
+                                                </div>
+                                             ) : (
+                                                <div className="flex flex-col h-full items-center justify-between shrink-0">
+                                                   <div className="h-[18px] w-full shrink-0" />
+                                                   <span className="text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap text-(--text-primary)">
+                                                      {game.away}
+                                                   </span>
+                                                   <div />
+                                                </div>
+                                             )}
+                                          </div>
+                                          <div className="flex flex-col items-center justify-center overflow-hidden px-[15px] py-[10px] size-[75px] shrink-0">
+                                             <img
+                                                src={teamLogos[game.away]}
+                                                alt={game.away}
+                                                className="w-full h-full object-contain"
+                                             />
+                                          </div>
+                                       </div>
+
+                                       {/* 스코어 / VS */}
+                                       <div className="flex flex-col items-center justify-center w-[40px] shrink-0">
+                                          <ScoreDisplay game={game} />
+                                          <span
+                                             className={cn(
+                                                'text-[12px] font-medium text-center leading-[1.5]',
+                                                statusColor[game.status],
+                                             )}
+                                          >
+                                             {game.status}
+                                          </span>
+                                       </div>
+
+                                       {/* 홈팀 */}
+                                       <div className="flex items-center justify-center w-[150px]">
+                                          <div className="flex flex-col items-center justify-center overflow-hidden px-[15px] py-[10px] size-[75px] shrink-0">
+                                             <img
+                                                src={teamLogos[game.home]}
+                                                alt={game.home}
+                                                className="w-full h-full object-contain"
+                                             />
+                                          </div>
+                                          <div className="flex h-[75px] items-center justify-between w-[70px] shrink-0">
+                                             {isEnded ? (
+                                                <div className="flex flex-col items-center shrink-0">
+                                                   <span
+                                                      className={cn(
+                                                         'text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap',
+                                                         textDisabled,
+                                                      )}
+                                                   >
+                                                      {game.home}
+                                                   </span>
+                                                   <span className="text-[12px] font-medium text-(--text-tertiary) leading-[1.5]">
+                                                      {homeResult}
+                                                   </span>
+                                                </div>
+                                             ) : (
+                                                <div className="flex flex-col h-full items-center justify-between shrink-0">
+                                                   <div className="h-[18px] w-full shrink-0" />
+                                                   <span className="text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap text-(--text-primary)">
+                                                      {game.home}
+                                                   </span>
+                                                   <div />
+                                                </div>
+                                             )}
+                                             <div className="flex h-[75px] items-center justify-end w-[30px] shrink-0">
+                                                <div className="bg-[#acb4bb] flex flex-col items-center justify-center px-[4px] rounded-[2px] w-[22px]">
+                                                   <span className="text-white text-[16px] font-medium text-center leading-[1.5]">
+                                                      홈
+                                                   </span>
+                                                </div>
+                                             </div>
+                                          </div>
+                                       </div>
+                                    </div>
+
+                                    {/* 액션 버튼 */}
+                                    <div
+                                       className={cn(
+                                          'flex gap-[10px] h-[66px] items-center shrink-0',
+                                          isEnded && 'opacity-0',
+                                       )}
+                                    >
+                                       <button
+                                          className={cn(
+                                             'h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] text-white',
+                                             game.ticket === '예매하기' ? 'bg-primary' : 'bg-[#acb4bb] w-[88px]',
+                                          )}
+                                       >
+                                          {game.ticket}
+                                       </button>
+                                       <button
+                                          className={cn(
+                                             'h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] border',
+                                             game.resell === '리셀예매'
+                                                ? 'bg-background border-primary text-primary'
+                                                : 'bg-background border-[#acb4bb] text-[#acb4bb] w-[88px] whitespace-nowrap',
+                                          )}
+                                       >
+                                          {game.resell}
+                                       </button>
+                                    </div>
+                                 </div>
+                              );
+                           })}
+                        </div>
+                     );
+                  })}
+               </div>
+            )}
          </div>
       </section>
    );
