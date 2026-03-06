@@ -11,7 +11,6 @@ type FilterParams = {
    weekMonth: number;
    selectedWeek: number;
    allMonth: number;
-   selectedTeam: string | null;
 };
 
 function parseDate(dateStr: string): { month: number; day: number } {
@@ -49,16 +48,10 @@ function isDayInActiveTab(
 }
 
 export function filterScheduleData(data: DaySchedule[], params: FilterParams): DaySchedule[] {
-   const { activeTab, weekMonth, selectedWeek, allMonth, selectedTeam } = params;
+   const { activeTab, weekMonth, selectedWeek, allMonth } = params;
 
    return data
       .filter(day => isDayInActiveTab(day, activeTab, weekMonth, selectedWeek, allMonth))
-      .map(day => ({
-         ...day,
-         games: selectedTeam
-            ? day.games.filter(game => game.away === selectedTeam || game.home === selectedTeam)
-            : day.games,
-      }))
       .filter(day => day.games.length > 0);
 }
 

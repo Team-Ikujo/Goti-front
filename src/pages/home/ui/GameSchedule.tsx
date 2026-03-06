@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, TicketX } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { cn } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import { teams } from "@/entities/team/model/teams";
 
 import {
   CURRENT_MONTH,
@@ -26,6 +28,19 @@ import {
 import type { GameRow } from "./game-schedule/types";
 import { filterScheduleData, getGameResultTexts } from "./game-schedule/utils";
 import YearMonthPicker from "./game-schedule/YearMonthPicker";
+
+const teamIds: Record<string, string> = {
+  LG: "lg",
+  한화: "hanwha",
+  SSG: "ssg",
+  삼성: "samsung",
+  NC: "nc",
+  KT: "kt",
+  롯데: "lotte",
+  두산: "doosan",
+  키움: "kiwoom",
+  KIA: "kia",
+};
 
 // 종료 경기 스코어: 패한 팀 점수는 회색, 이긴 팀 점수는 빨강
 function ScoreDisplay({ game }: { game: GameRow }) {
@@ -132,8 +147,8 @@ function ActionButtons({ game, isEnded }: { game: GameRow; isEnded: boolean }) {
 }
 
 const GameSchedule = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(TAB_TODAY);
-  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
 
   // 주간 일정 state
   const [weekYear, setWeekYear] = useState(CURRENT_YEAR);
@@ -153,9 +168,8 @@ const GameSchedule = () => {
         weekMonth,
         selectedWeek,
         allMonth,
-        selectedTeam,
       }),
-    [activeTab, weekMonth, selectedWeek, allMonth, selectedTeam],
+    [activeTab, weekMonth, selectedWeek, allMonth],
   );
 
   const prevWeekMonth = () => {
@@ -192,25 +206,28 @@ const GameSchedule = () => {
         </p>
 
         <div className="flex items-center justify-between">
-          {teamOrder.map((team) => (
-            <button
-              key={team}
-              onClick={() =>
-                setSelectedTeam(selectedTeam === team ? null : team)
-              }
-              className={cn(
-                "flex items-center justify-center size-[80px] p-[10px] rounded-xl transition-colors overflow-hidden",
-                selectedTeam === team &&
-                  "bg-(--fill-hoveraccent) ring-2 ring-primary",
-              )}
-            >
-              <img
-                src={teamLogos[team]}
-                alt={team}
-                className="w-full h-full object-contain"
-              />
-            </button>
-          ))}
+          {teamOrder.map((team) => {
+            const teamId = teamIds[team];
+            const isEnabled = teams.find((candidate) => candidate.id === teamId)?.isEnabled ?? false;
+
+            return (
+              <button
+                key={team}
+                onClick={() => isEnabled && navigate(`/teams/${teamId}`)}
+                disabled={!isEnabled}
+                className={cn(
+                  "flex items-center justify-center size-[80px] p-[10px] rounded-xl transition-colors overflow-hidden",
+                  isEnabled ? "hover:bg-fill-hoveraccent cursor-pointer" : "opacity-30 cursor-not-allowed",
+                )}
+              >
+                <img
+                  src={teamLogos[team]}
+                  alt={team}
+                  className="w-full h-full object-contain"
+                />
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex gap-5 border-b border-(--border-normal)">
