@@ -17,6 +17,7 @@ import HomeLayout from '@/shared/widgets/layout/home';
 import Chip from '@/pages/components/ui/ChipPage';
 import ListPage from '@/pages/components/ui/ListPage';
 import TeamsPage from '@/pages/teams';
+import TicketsPage from '@/pages/tickets';
 import OAuthMessageListener from './OAuthMessageListener';
 
 const AppRouter = () => {
@@ -34,6 +35,7 @@ const AppRouter = () => {
             <Route path="/auth/verification-flow" element={<Navigate to="/auth/terms" replace />} />
             <Route path="/" element={<HomeLayout />}>
                <Route index element={<HomePage />} />
+               <Route path="tickets" element={<TicketsPage />} />
                <Route path="teams" element={<TeamsPage />} />
                <Route path="teams/:teamId" element={<div>Team Detail Page Placeholder</div>} />
             </Route>
