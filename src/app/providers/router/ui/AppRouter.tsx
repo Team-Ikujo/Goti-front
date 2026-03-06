@@ -17,8 +17,6 @@ import HomeLayout from '@/shared/widgets/layout/home';
 import Chip from '@/pages/components/ui/ChipPage';
 import ListPage from '@/pages/components/ui/ListPage';
 import TeamsPage from '@/pages/teams';
-import TeamDetailPage from '@/pages/teams/ui/TeamDetailPage';
-import OAuthMessageListener from './OAuthMessageListener';
 
 const AppRouter = () => {
    return (
