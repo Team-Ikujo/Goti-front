@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, TicketX } from 'luci
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 
+// 팀 로고 이미지 (Figma asset)
 const teamLogos: Record<string, string> = {
    LG: '/baseball/logos/lg.png',
    한화: '/baseball/logos/hanwha.png',
@@ -17,7 +18,9 @@ const teamLogos: Record<string, string> = {
    KIA: '/baseball/logos/kia.png',
 };
 
-const teamOrder = ['LG', '한화', 'SSG', '삼성', 'NC', 'KT', '롯데', '두산', '키움', 'KIA'];
+type GameStatus = "경기중" | "예정" | "종료";
+type TicketStatus = "예매하기" | "매진";
+type ReselStatus = "리셀예매" | "리셀매진";
 
 type GameStatus = '경기중' | '예정' | '종료' | '취소';
 type TicketStatus = '예매하기' | '매진' | '판매예정';
@@ -35,7 +38,6 @@ type GameRow = {
    ticketInfo?: string;
    reselInfo?: string;
 };
-type DaySchedule = { date: string; isToday?: boolean; games: GameRow[] };
 
 const scheduleData: DaySchedule[] = [
    {
@@ -127,6 +129,7 @@ function getWeekOfMonth(day: number): number {
    return Math.ceil(day / 7);
 }
 
+// 종료 경기 스코어: 패한 팀 점수는 회색, 이긴 팀 점수는 빨강
 function ScoreDisplay({ game }: { game: GameRow }) {
    const scoreStr = game.score ?? 'VS';
 
@@ -361,10 +364,19 @@ const GameSchedule = () => {
                         selectedTeam === team && 'bg-(--fill-hoveraccent) ring-2 ring-primary',
                      )}
                   >
-                     <img src={teamLogos[team]} alt={team} className="w-full h-full object-contain" />
-                  </button>
-               ))}
-            </div>
+                    {/* 시간 + 장소 */}
+                    <div className="flex gap-[30px] items-center shrink-0">
+                      <div className="flex items-center justify-center w-[60px]">
+                        <span className={cn("text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap", textDisabled)}>
+                          {game.time}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-center w-[40px]">
+                        <span className={cn("text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap", textDisabled)}>
+                          {game.venue}
+                        </span>
+                      </div>
+                    </div>
 
             {/* 탭 네비게이션 */}
             <div className="flex gap-5 border-b border-(--border-normal)">
