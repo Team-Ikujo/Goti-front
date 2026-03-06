@@ -1,4 +1,5 @@
 import axios, { AxiosError } from "axios";
+import { isMswEnabled } from "@/shared/config/runtime";
 
 export class ApiError extends Error {
   status?: number;
@@ -12,8 +13,11 @@ export class ApiError extends Error {
   }
 }
 
+const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? "").trim();
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.PUBLIC_API_BASE_URL ?? "",
+  // MSW가 켜진 환경에서는 상대 경로(/api) 요청을 사용해 worker가 가로채도록 한다.
+  baseURL: isMswEnabled ? "" : configuredApiBaseUrl,
   headers: {
     "Content-Type": "application/json",
   },

@@ -1,6 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
-import { useAuthStore } from "@/entities/auth/model/authStore";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AuthLayout from "@/shared/widgets/layout/auth";
 import HomePage from "@/pages/home";
 import AuthCallbackPage from "@/pages/auth/callback";
@@ -19,31 +17,7 @@ import HomeLayout from "@/shared/widgets/layout/home";
 import Chip from "@/pages/components/ui/ChipPage";
 import ListPage from "@/pages/components/ui/ListPage";
 import TeamsPage from "@/pages/teams";
-
-// 팝업 OAuth 로그인 완료 시 토큰을 받아 store에 저장하고 SPA 이동
-const OAuthMessageListener = () => {
-  const navigate = useNavigate();
-  const setAuthTokens = useAuthStore((s) => s.setAuthTokens);
-  const setRecentLoginProvider = useAuthStore((s) => s.setRecentLoginProvider);
-
-  useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type !== "__OAUTH_SUCCESS__") return;
-      setAuthTokens({
-        accessToken: event.data.accessToken,
-        tempToken: event.data.tempToken,
-        isLinked: event.data.isLinked,
-      });
-      if (event.data.provider) setRecentLoginProvider(event.data.provider);
-      navigate(event.data.redirectPath ?? "/", { replace: true });
-    };
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, [navigate, setAuthTokens, setRecentLoginProvider]);
-
-  return null;
-};
+import OAuthMessageListener from "./OAuthMessageListener";
 
 const AppRouter = () => {
   return (

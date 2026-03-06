@@ -1,4 +1,5 @@
-import { submitAuthCode } from "@/features/auth/api/submitAuthCode";
+import { GOOGLE_REDIRECT_URI } from "@/shared/config/oauth";
+import { submitAuthCode } from "@/features/auth/api/oauthApi";
 
 export const handleGoogleCallback = async (search: string) => {
   const params = new URLSearchParams(search);
@@ -9,5 +10,14 @@ export const handleGoogleCallback = async (search: string) => {
     throw new Error("Missing Google authorization code.");
   }
 
-  return submitAuthCode({ provider: "google", code, state });
+  if (!GOOGLE_REDIRECT_URI) {
+    throw new Error("Google OAuth redirect URI is not configured.");
+  }
+
+  return submitAuthCode({
+    provider: "google",
+    code,
+    state,
+    redirectUri: GOOGLE_REDIRECT_URI,
+  });
 };

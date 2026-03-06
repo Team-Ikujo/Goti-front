@@ -1,12 +1,8 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useSocialSignup } from '@/features/auth/model/useSubmitAuthCode';
+import { useAuthStore } from '@/entities/auth/model/authStore';
 import type { TermSignUpCode } from '@/entities/terms/model/types';
 import { useTermDetailQuery, useTermsAgreementListQuery } from '@/entities/terms/model/useTermsQueries';
-import { Alert } from '@/shared/ui/alert';
-import { Button } from '@/shared/ui/button';
-import { Input } from '@/shared/ui/input';
-import { Option } from '@/shared/ui/option';
-import { TermsCheckbox, TermsSubItem } from '@/shared/ui/terms-of-service';
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
    getFieldErrorsFromZod,
    normalizeBirthDateInput,
@@ -15,35 +11,62 @@ import {
    sendCodeSchema,
    signUpSchema,
    telecomOptions,
-   type SignUpFieldErrors,
+   type SignUpFormValues,
 } from '@/pages/signup/model/signUpValidation';
 import SignUpTermsDialog from '@/pages/signup/ui/SignUpTermsDialog';
 import VerificationCodeField from '@/pages/signup/ui/VerificationCodeField';
+import { ApiError } from '@/shared/api/client';
+import { Alert } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
+import { Option } from '@/shared/ui/option';
+import { TermsCheckbox, TermsSubItem } from '@/shared/ui/terms-of-service';
+import { useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 
 const SignUpPage = () => {
    const navigate = useNavigate();
+   const socialSignupMutation = useSocialSignup();
+   const socialVerifyToken = useAuthStore(state => state.socialVerifyToken);
+   const setAuthTokens = useAuthStore(state => state.setAuthTokens);
    const termsSignuptListQuery = useTermsAgreementListQuery('signup');
    const signups = termsSignuptListQuery.data ?? [];
 
    const [checkedByCode, setCheckedByCode] = useState<Partial<Record<TermSignUpCode, boolean>>>({});
-   const [selected, setSelected] = useState<string | null>(null);
-
-   const [name, setName] = useState('');
-   const [birthDate, setBirthDate] = useState('');
-   const [gender, setGender] = useState<string | null>(null);
-   const [telecom, setTelecom] = useState<string | null>(null);
-   const [phone, setPhone] = useState('');
-   const [verificationCode, setVerificationCode] = useState('');
    const [countdown, setCountdown] = useState(0);
-
    const [isCodeSent, setIsCodeSent] = useState(false);
    const [showAlert, setShowAlert] = useState(false);
-   const [submitted, setSubmitted] = useState(false);
-   const [fieldErrors, setFieldErrors] = useState<SignUpFieldErrors>({});
+   const [submitError, setSubmitError] = useState<string | null>(null);
 
    const [detailTargetCode, setDetailTargetCode] = useState<TermSignUpCode | null>(null);
    const termDetailQuery = useTermDetailQuery(detailTargetCode);
    const [detailTriggerElement, setDetailTriggerElement] = useState<HTMLElement | null>(null);
+
+   const {
+      setValue,
+      watch,
+      setError,
+      clearErrors,
+      getValues,
+      handleSubmit,
+      formState: { errors },
+   } = useForm<SignUpFormValues>({
+      resolver: zodResolver(signUpSchema),
+      defaultValues: {
+         name: '',
+         email: '',
+         nationality: '',
+         birthDate: '',
+         gender: '',
+         telecom: '',
+         phone: '',
+         verificationCode: '',
+         requiredTermsAgreed: false,
+      },
+   });
+
+   const values = watch();
 
    const areRequiredTermsChecked = useMemo(() => {
       return signups.every(signup => {
@@ -56,31 +79,42 @@ const SignUpPage = () => {
       return signups.length > 0 && signups.every(signup => checkedByCode[signup.code] === true);
    }, [signups, checkedByCode]);
 
+   useEffect(() => {
+      setValue('requiredTermsAgreed', areRequiredTermsChecked, { shouldValidate: false });
+   }, [areRequiredTermsChecked, setValue]);
+
    const handleAllCheckedChange = (checked: boolean) => {
       const nextState: Partial<Record<TermSignUpCode, boolean>> = {};
       signups.forEach(signup => {
          nextState[signup.code] = checked;
       });
       setCheckedByCode(nextState);
+      clearErrors('requiredTermsAgreed');
    };
 
    const handleSendCode = () => {
       const result = sendCodeSchema.safeParse({
-         name: name.trim(),
-         nationality: selected ?? '',
-         birthDate: birthDate.trim(),
-         telecom: telecom ?? '',
-         phone: phone.trim(),
+         name: getValues('name').trim(),
+         nationality: getValues('nationality') ?? '',
+         birthDate: getValues('birthDate').trim(),
+         telecom: getValues('telecom') ?? '',
+         phone: getValues('phone').trim(),
          requiredTermsAgreed: areRequiredTermsChecked,
       });
 
       if (!result.success) {
-         setSubmitted(true);
-         setFieldErrors(prev => ({ ...prev, ...getFieldErrorsFromZod(result.error) }));
+         const nextErrors = getFieldErrorsFromZod(result.error);
+         Object.entries(nextErrors).forEach(([field, message]) => {
+            if (!message) return;
+            setError(field as keyof SignUpFormValues, {
+               type: 'manual',
+               message,
+            });
+         });
          return;
       }
 
-      setFieldErrors(prev => ({ ...prev, phone: undefined, requiredTermsAgreed: undefined }));
+      clearErrors(['phone', 'requiredTermsAgreed']);
       setIsCodeSent(true);
       setShowAlert(true);
       setCountdown(180);
@@ -102,14 +136,14 @@ const SignUpPage = () => {
 
    const canSendCode = useMemo(() => {
       return sendCodeSchema.safeParse({
-         name: name.trim(),
-         nationality: selected ?? '',
-         birthDate: birthDate.trim(),
-         telecom: telecom ?? '',
-         phone: phone.trim(),
+         name: values.name.trim(),
+         nationality: values.nationality ?? '',
+         birthDate: values.birthDate.trim(),
+         telecom: values.telecom ?? '',
+         phone: values.phone.trim(),
          requiredTermsAgreed: areRequiredTermsChecked,
       }).success;
-   }, [name, selected, birthDate, telecom, phone, areRequiredTermsChecked]);
+   }, [areRequiredTermsChecked, values.birthDate, values.name, values.nationality, values.phone, values.telecom]);
 
    useEffect(() => {
       if (!showAlert) return;
@@ -117,27 +151,56 @@ const SignUpPage = () => {
       return () => clearTimeout(timer);
    }, [showAlert]);
 
-   const handleSubmit = () => {
-      setSubmitted(true);
+   const formatBirthDate = (value: string) => {
+      return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
+   };
 
-      const result = signUpSchema.safeParse({
-         name: name.trim(),
-         nationality: selected ?? '',
-         birthDate: birthDate.trim(),
-         gender: gender ?? '',
-         telecom: telecom ?? '',
-         phone: phone.trim(),
-         verificationCode: verificationCode.trim(),
-         requiredTermsAgreed: areRequiredTermsChecked,
-      });
+   const mapGender = (value: string) => {
+      switch (value) {
+         case 'male':
+            return 'MALE' as const;
+         case 'female':
+            return 'FEMALE' as const;
+         default:
+            throw new Error('성별 값이 올바르지 않습니다.');
+      }
+   };
 
-      if (!result.success) {
-         setFieldErrors(getFieldErrorsFromZod(result.error));
+   const onSubmit = async (data: SignUpFormValues) => {
+      setSubmitError(null);
+
+      if (!socialVerifyToken) {
+         setSubmitError('인증 토큰이 없습니다. 다시 로그인해 주세요.');
+         navigate('/auth/login', { replace: true });
          return;
       }
 
-      setFieldErrors({});
-      navigate('/');
+      try {
+         const response = await socialSignupMutation.mutateAsync({
+            socialVerifyToken,
+            name: data.name,
+            email: data.email,
+            gender: mapGender(data.gender),
+            mobile: data.phone,
+            birthDate: formatBirthDate(data.birthDate),
+         });
+
+         setAuthTokens({
+            accessToken: response.accessToken,
+            socialVerifyToken: null,
+         });
+         navigate('/', { replace: true });
+      } catch (error) {
+         if (error instanceof ApiError) {
+            setSubmitError(error.message);
+            return;
+         }
+         if (error instanceof Error) {
+            setSubmitError(error.message);
+            return;
+         }
+         setSubmitError('회원가입 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      }
    };
 
    const closeDetailDialog = () => {
@@ -174,80 +237,93 @@ const SignUpPage = () => {
                   required
                   placeholder="30자 이내 입력"
                   maxLength={30}
-                  value={name}
+                  value={values.name}
                   onChange={e => {
-                     setName(e.target.value.slice(0, 30));
-                     setFieldErrors(prev => ({ ...prev, name: undefined }));
+                     setValue('name', e.target.value.slice(0, 30), { shouldDirty: true });
+                     clearErrors('name');
                   }}
-                  error={submitted && Boolean(fieldErrors.name)}
-                  helpText={submitted ? fieldErrors.name : undefined}
+                  error={Boolean(errors.name)}
+                  helpText={errors.name?.message}
+               />
+
+               <Input
+                  label="이메일"
+                  required
+                  placeholder="example@ballx.com"
+                  value={values.email}
+                  onChange={e => {
+                     setValue('email', e.target.value, { shouldDirty: true });
+                     clearErrors('email');
+                  }}
+                  error={Boolean(errors.email)}
+                  helpText={errors.email?.message}
                />
 
                <div className="text-(--label-2-medium) text-[14px] flex flex-col gap-1">
                   국적
                   <div className="flex items-center gap-2">
                      <Option
-                        active={selected === 'local'}
+                        active={values.nationality === 'local'}
                         onClick={() => {
-                           setSelected('local');
-                           setFieldErrors(prev => ({ ...prev, nationality: undefined }));
+                           setValue('nationality', 'local', { shouldDirty: true });
+                           clearErrors('nationality');
                         }}
                         className="w-full"
                      >
                         내국인
                      </Option>
                      <Option
-                        active={selected === 'foreigner'}
+                        active={values.nationality === 'foreigner'}
                         onClick={() => {
-                           setSelected('foreigner');
-                           setFieldErrors(prev => ({ ...prev, nationality: undefined }));
+                           setValue('nationality', 'foreigner', { shouldDirty: true });
+                           clearErrors('nationality');
                         }}
                         className="w-full"
                      >
                         외국인
                      </Option>
                   </div>
-                  {submitted && fieldErrors.nationality && <p className="text-xs text-destructive antialiased">{fieldErrors.nationality}</p>}
+                  {errors.nationality && <p className="text-xs text-destructive antialiased">{errors.nationality.message}</p>}
                </div>
 
                <Input
                   label="생년월일"
                   required
                   placeholder="예: 19990101 (8자리)"
-                  value={birthDate}
+                  value={values.birthDate}
                   onChange={e => {
-                     setBirthDate(normalizeBirthDateInput(e.target.value));
-                     setFieldErrors(prev => ({ ...prev, birthDate: undefined }));
+                     setValue('birthDate', normalizeBirthDateInput(e.target.value), { shouldDirty: true });
+                     clearErrors('birthDate');
                   }}
-                  error={submitted && Boolean(fieldErrors.birthDate)}
-                  helpText={submitted ? fieldErrors.birthDate : undefined}
+                  error={Boolean(errors.birthDate)}
+                  helpText={errors.birthDate?.message}
                />
 
                <div className="text-(--label-2-medium) text-[14px] flex flex-col gap-1">
                   성별
                   <div className="flex items-center gap-2">
                      <Option
-                        active={gender === 'male'}
+                        active={values.gender === 'male'}
                         onClick={() => {
-                           setGender('male');
-                           setFieldErrors(prev => ({ ...prev, gender: undefined }));
+                           setValue('gender', 'male', { shouldDirty: true });
+                           clearErrors('gender');
                         }}
                         className="w-full"
                      >
                         남성
                      </Option>
                      <Option
-                        active={gender === 'female'}
+                        active={values.gender === 'female'}
                         onClick={() => {
-                           setGender('female');
-                           setFieldErrors(prev => ({ ...prev, gender: undefined }));
+                           setValue('gender', 'female', { shouldDirty: true });
+                           clearErrors('gender');
                         }}
                         className="w-full"
                      >
                         여성
                      </Option>
                   </div>
-                  {submitted && fieldErrors.gender && <p className="text-xs text-destructive antialiased">{fieldErrors.gender}</p>}
+                  {errors.gender && <p className="text-xs text-destructive antialiased">{errors.gender.message}</p>}
                </div>
 
                <div className="text-(--label-2-medium) text-[14px] flex flex-col gap-1">
@@ -256,10 +332,10 @@ const SignUpPage = () => {
                      {telecomOptions.map(option => (
                         <Option
                            key={option.id}
-                           active={telecom === option.id}
+                           active={values.telecom === option.id}
                            onClick={() => {
-                              setTelecom(option.id);
-                              setFieldErrors(prev => ({ ...prev, telecom: undefined }));
+                              setValue('telecom', option.id, { shouldDirty: true });
+                              clearErrors('telecom');
                            }}
                            className="w-full"
                         >
@@ -267,31 +343,31 @@ const SignUpPage = () => {
                         </Option>
                      ))}
                   </div>
-                  {submitted && fieldErrors.telecom && <p className="text-xs text-destructive antialiased">{fieldErrors.telecom}</p>}
+                  {errors.telecom && <p className="text-xs text-destructive antialiased">{errors.telecom.message}</p>}
                </div>
 
                <Input
                   label="휴대폰 번호"
                   required
                   placeholder="'-'를 제외한 숫자만 입력"
-                  value={phone}
+                  value={values.phone}
                   onChange={e => {
-                     setPhone(normalizePhoneInput(e.target.value));
-                     setFieldErrors(prev => ({ ...prev, phone: undefined }));
+                     setValue('phone', normalizePhoneInput(e.target.value), { shouldDirty: true });
+                     clearErrors('phone');
                   }}
-                  error={submitted && Boolean(fieldErrors.phone)}
-                  helpText={submitted ? fieldErrors.phone : undefined}
+                  error={Boolean(errors.phone)}
+                  helpText={errors.phone?.message}
                />
 
                {isCodeSent && (
                   <VerificationCodeField
-                     value={verificationCode}
+                     value={values.verificationCode}
                      onChange={value => {
-                        setVerificationCode(normalizeVerificationCodeInput(value));
-                        setFieldErrors(prev => ({ ...prev, verificationCode: undefined }));
+                        setValue('verificationCode', normalizeVerificationCodeInput(value), { shouldDirty: true });
+                        clearErrors('verificationCode');
                      }}
-                     submitted={submitted}
-                     errorMessage={fieldErrors.verificationCode}
+                     submitted={true}
+                     errorMessage={errors.verificationCode?.message}
                      countdown={countdown}
                      formattedCountdown={formattedCountdown}
                      onResend={handleSendCode}
@@ -306,7 +382,7 @@ const SignUpPage = () => {
                         checked={isAllChecked}
                         onChange={checked => {
                            handleAllCheckedChange(checked);
-                           setFieldErrors(prev => ({ ...prev, requiredTermsAgreed: undefined }));
+                           clearErrors('requiredTermsAgreed');
                         }}
                      />
                      <div>
@@ -327,8 +403,8 @@ const SignUpPage = () => {
                            />
                         ))}
                      </div>
-                     {submitted && fieldErrors.requiredTermsAgreed && (
-                        <p className="text-xs text-destructive antialiased">{fieldErrors.requiredTermsAgreed}</p>
+                     {errors.requiredTermsAgreed && (
+                        <p className="text-xs text-destructive antialiased">{errors.requiredTermsAgreed.message}</p>
                      )}
                   </div>
                )}
@@ -344,10 +420,12 @@ const SignUpPage = () => {
                      인증 번호 전송
                   </Button>
                ) : (
-                  <Button type="button" variant="primary" className="w-full" onClick={handleSubmit}>
+                  <Button type="button" variant="primary" className="w-full" onClick={() => void handleSubmit(onSubmit)()}>
                      완료
                   </Button>
                )}
+
+               {submitError ? <p className="text-xs text-destructive antialiased">{submitError}</p> : null}
             </form>
 
             <SignUpTermsDialog
