@@ -1,6 +1,18 @@
 import type { DaySchedule, GameStatus } from './types';
 
 export const teamOrder = ['LG', '한화', 'SSG', '삼성', 'NC', 'KT', '롯데', '두산', '키움', 'KIA'];
+export const TEAM_IDS: Record<string, string> = {
+   LG: 'lg',
+   한화: 'hanwha',
+   SSG: 'ssg',
+   삼성: 'samsung',
+   NC: 'nc',
+   KT: 'kt',
+   롯데: 'lotte',
+   두산: 'doosan',
+   키움: 'kiwoom',
+   KIA: 'kia',
+};
 
 // 팀 로고 이미지 (Figma asset)
 export const teamLogos: Record<string, string> = {
