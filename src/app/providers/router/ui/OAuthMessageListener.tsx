@@ -1,0 +1,31 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/entities/auth/model/authStore";
+import { isOAuthSuccessMessage } from "@/shared/lib/oauthMessage";
+
+// 팝업 OAuth 로그인 완료 시 토큰을 받아 store에 저장하고 SPA 이동
+const OAuthMessageListener = () => {
+  const navigate = useNavigate();
+  const setAuthTokens = useAuthStore((s) => s.setAuthTokens);
+  const setRecentLoginProvider = useAuthStore((s) => s.setRecentLoginProvider);
+
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (!isOAuthSuccessMessage(event.data)) return;
+      setAuthTokens({
+        accessToken: event.data.accessToken,
+        socialVerifyToken: event.data.socialVerifyToken,
+      });
+      if (event.data.provider) setRecentLoginProvider(event.data.provider);
+      navigate(event.data.redirectPath ?? "/", { replace: true });
+    };
+
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [navigate, setAuthTokens, setRecentLoginProvider]);
+
+  return null;
+};
+
+export default OAuthMessageListener;

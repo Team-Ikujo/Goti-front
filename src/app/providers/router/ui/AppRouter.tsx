@@ -16,10 +16,13 @@ import ToSPage from "@/pages/components/ui/ToSPage";
 import HomeLayout from "@/shared/widgets/layout/home";
 import Chip from "@/pages/components/ui/ChipPage";
 import ListPage from "@/pages/components/ui/ListPage";
+import TeamsPage from "@/pages/teams";
+import OAuthMessageListener from "./OAuthMessageListener";
 
 const AppRouter = () => {
   return (
     <BrowserRouter>
+      <OAuthMessageListener />
       <Routes>
         <Route path="/auth" element={<AuthLayout />}>
           <Route path="login" element={<LoginPage />} />
@@ -34,7 +37,8 @@ const AppRouter = () => {
           element={<Navigate to="/auth/terms" replace />}
         />
         <Route path="/" element={<HomeLayout />}>
-          <Route path="/" element={<HomePage />} />
+          <Route index element={<HomePage />} />
+          <Route path="teams" element={<TeamsPage />} />
         </Route>
         <Route path="/button" element={<ButtonPage />} />
         <Route path="/control" element={<ControlPage />} />

@@ -54,9 +54,7 @@ const HeroBanner = () => {
       setDragOffset(0);
    };
 
-   const translateX =
-      -(current * 100) +
-      (dragOffset / (typeof window !== 'undefined' ? window.innerWidth : 1)) * 100;
+   const translateX = -(current * 100) + (dragOffset / (typeof window !== 'undefined' ? window.innerWidth : 1)) * 100;
 
    return (
       <div
@@ -115,8 +113,8 @@ const HeroBanner = () => {
                            ))}
                         </p>
                         <Button
-                           variant="outline"
-                           className="w-50 h-12 text-label-1-bold text-white bg-black/20 border-border hover:bg-black/30 rounded-lg"
+                           variant="primary"
+                           className="bg-black/20 w-50 hover:bg-black/30 shadow-[inset_0_0_0_1px_var(--border-normal)]"
                            onMouseDown={e => e.stopPropagation()}
                         >
                            {slide.buttonLabel}
