@@ -11,9 +11,9 @@ const buttonVariants = cva(
             primary:
                'bg-[var(--primary-normal)] hover:bg-[var(--primary-strong)] disabled:bg-[var(--primary-disabled)]',
             primaryline:
-               'border border-[var(--primary-normal)] bg-transparent text-[var(--primary-normal)] hover:bg-[var(--primary-light)] disabled:border-[var(--border-normal)]',
+               'shadow-[inset_0_0_0_1px_var(--primary-normal)] bg-transparent text-[var(--primary-normal)] hover:bg-[var(--primary-light)] disabled:shadow-[inset_0_0_0_1px_var(--border-normal)]',
             outline:
-               'border border-[var(--border-normal)] bg-transparent hover:bg-[var(--fill-hover)] disabled:border-[var(--border-normal)]',
+               'shadow-[inset_0_0_0_1px_var(--border-normal)] bg-transparent hover:bg-[var(--fill-hover)]',
          },
          typography: {
             label1Bold: 'text-label-1-bold',
@@ -26,7 +26,7 @@ const buttonVariants = cva(
       compoundVariants: [
          {
             variant: 'primary',
-            className: 'text-white disabled:text-(--text-disabled)',
+            className: '[color:var(--static-white)] disabled:[color:var(--text-disabled)]',
          },
          {
             variant: 'primaryline',
@@ -34,7 +34,8 @@ const buttonVariants = cva(
          },
          {
             variant: 'outline',
-            className: 'text-(--text-secondary) disabled:text-(--text-disabled) disabled:hover:bg-transparent',
+            className:
+               '[color:var(--text-secondary)] disabled:[color:var(--text-disabled)] disabled:hover:bg-transparent',
          },
       ],
       defaultVariants: {

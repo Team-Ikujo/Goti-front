@@ -1,4 +1,5 @@
-import { submitAuthCode } from "@/features/auth/api/submitAuthCode";
+import { KAKAO_REDIRECT_URI } from "@/shared/config/oauth";
+import { submitAuthCode } from "@/features/auth/api/oauthApi";
 
 export const handleKakaoCallback = async (search: string) => {
   const params = new URLSearchParams(search);
@@ -9,5 +10,14 @@ export const handleKakaoCallback = async (search: string) => {
     throw new Error("Missing Kakao authorization code.");
   }
 
-  return submitAuthCode({ provider: "kakao", code, state });
+  if (!KAKAO_REDIRECT_URI) {
+    throw new Error("Kakao OAuth redirect URI is not configured.");
+  }
+
+  return submitAuthCode({
+    provider: "kakao",
+    code,
+    state,
+    redirectUri: KAKAO_REDIRECT_URI,
+  });
 };

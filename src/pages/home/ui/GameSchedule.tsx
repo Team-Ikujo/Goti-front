@@ -18,6 +18,7 @@ const teamIds: Record<string, string> = {
    키움: 'kiwoom',
    KIA: 'kia',
 };
+const teamOrder = ['LG', '한화', 'SSG', '삼성', 'NC', 'KT', '롯데', '두산', '키움', 'KIA'];
 
 // 팀 로고 이미지 (Figma asset)
 const teamLogos: Record<string, string> = {
@@ -32,8 +33,6 @@ const teamLogos: Record<string, string> = {
    키움: '/baseball/logos/kiwoom.png',
    KIA: '/baseball/logos/kia.png',
 };
-
-const teamOrder = ['LG', '한화', 'SSG', '삼성', 'NC', 'KT', '롯데', '두산', '키움', 'KIA'];
 
 type GameStatus = '경기중' | '예정' | '종료' | '취소';
 type TicketStatus = '예매하기' | '매진' | '판매예정';
@@ -51,6 +50,7 @@ type GameRow = {
    ticketInfo?: string;
    reselInfo?: string;
 };
+
 type DaySchedule = { date: string; isToday?: boolean; games: GameRow[] };
 
 const scheduleData: DaySchedule[] = [
@@ -143,6 +143,7 @@ function getWeekOfMonth(day: number): number {
    return Math.ceil(day / 7);
 }
 
+// 종료 경기 스코어: 패한 팀 점수는 회색, 이긴 팀 점수는 빨강
 function ScoreDisplay({ game }: { game: GameRow }) {
    const scoreStr = game.score ?? 'VS';
 

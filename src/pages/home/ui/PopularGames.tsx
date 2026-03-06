@@ -16,8 +16,8 @@ const cards: GameCard[] = [
       image: 'https://www.figma.com/api/mcp/asset/1a6555e7-4bda-4f96-94cd-9c9c812bf65f',
       away: 'KIA',
       home: '삼성',
-      date: '2026.03.15',
-      time: '16:30',
+      date: '2026.03.15 16:30',
+      time: '18:30',
       venue: '잠실 야구장',
    },
    {

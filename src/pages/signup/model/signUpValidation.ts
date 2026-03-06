@@ -29,6 +29,7 @@ const isValidBirthDate = (value: string) => {
 };
 
 const nameSchema = z.string().trim().min(1, '이름을 입력해주세요').max(30, '이름은 30자 이내로 입력해주세요');
+const emailSchema = z.string().trim().email('이메일 형식이 올바르지 않습니다');
 
 const birthDateSchema = z
    .string()
@@ -53,6 +54,7 @@ export const sendCodeSchema = z.object({
 
 export const signUpSchema = z.object({
    name: nameSchema,
+   email: emailSchema,
    nationality: z.string().min(1, '국적을 선택해주세요'),
    birthDate: birthDateSchema,
    gender: z.string().min(1, '성별을 선택해주세요'),
