@@ -1,22 +1,149 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, TicketX } from 'lucide-react';
+import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
+import { teams } from '@/entities/team/model/teams';
+import { MOCK_TODAY } from '@/entities/team/model/schedule';
 
-import {
-  AVAILABLE_YEARS,
-  CURRENT_MONTH,
-  CURRENT_WEEK,
-  CURRENT_YEAR,
-  TAB_ALL,
-  TAB_TODAY,
-  TAB_WEEK,
-  scheduleData,
-  tabs,
-} from './game-schedule/constants';
-import TeamLogoNav from './game-schedule/TeamLogoNav';
-import WeekNavigator from './game-schedule/WeekNavigator';
-import AllNavigator from './game-schedule/AllNavigator';
-import ScheduleList from './game-schedule/ScheduleList';
-import { filterScheduleData } from './game-schedule/utils';
+const teamIds: Record<string, string> = {
+   LG: 'lg',
+   한화: 'hanwha',
+   SSG: 'ssg',
+   삼성: 'samsung',
+   NC: 'nc',
+   KT: 'kt',
+   롯데: 'lotte',
+   두산: 'doosan',
+   키움: 'kiwoom',
+   KIA: 'kia',
+};
+const teamOrder = ['LG', '한화', 'SSG', '삼성', 'NC', 'KT', '롯데', '두산', '키움', 'KIA'];
+
+// 팀 로고 이미지 (Figma asset)
+const teamLogos: Record<string, string> = {
+   LG: '/baseball/logos/lg.png',
+   한화: '/baseball/logos/hanwha.png',
+   SSG: '/baseball/logos/ssg.png',
+   삼성: '/baseball/logos/samsung.png',
+   NC: '/baseball/logos/nc.png',
+   KT: '/baseball/logos/kt.png',
+   롯데: '/baseball/logos/lotte.png',
+   두산: '/baseball/logos/doosan.png',
+   키움: '/baseball/logos/kiwoom.png',
+   KIA: '/baseball/logos/kia.png',
+};
+
+type GameStatus = '경기중' | '예정' | '종료' | '취소';
+type TicketStatus = '예매하기' | '매진' | '판매예정';
+type ReselStatus = '리셀예매' | '리셀매진' | '리셀예정';
+
+type GameRow = {
+   time: string;
+   venue: string;
+   away: string;
+   home: string;
+   score: string | null;
+   status: GameStatus;
+   ticket: TicketStatus;
+   resell: ReselStatus;
+   ticketInfo?: string;
+   reselInfo?: string;
+};
+
+type DaySchedule = { date: string; isToday?: boolean; games: GameRow[] };
+
+const scheduleData: DaySchedule[] = [
+   {
+      date: '7월 1일 (수)',
+      games: [
+         {
+            time: '18:30',
+            venue: '잠실',
+            away: 'KIA',
+            home: 'LG',
+            score: '5:3',
+            status: '종료',
+            ticket: '매진',
+            resell: '리셀매진',
+         },
+      ],
+   },
+   {
+      date: '7월 3일 (금)',
+      isToday: true,
+      games: [
+         {
+            time: '18:30',
+            venue: '잠실',
+            away: 'KIA',
+            home: 'LG',
+            score: '2:1',
+            status: '경기중',
+            ticket: '예매하기',
+            resell: '리셀매진',
+         },
+         {
+            time: '18:30',
+            venue: '대구',
+            away: '두산',
+            home: '삼성',
+            score: null,
+            status: '예정',
+            ticket: '예매하기',
+            resell: '리셀예매',
+         },
+      ],
+   },
+   {
+      date: '7월 5일 (일)',
+      games: [
+         {
+            time: '17:00',
+            venue: '잠실',
+            away: 'KIA',
+            home: 'LG',
+            score: null,
+            status: '예정',
+            ticket: '판매예정',
+            resell: '리셀예정',
+            ticketInfo: '6월 25일\n오전 11시 오픈',
+            reselInfo: '정식 예매 오픈\n2시간 후',
+         },
+      ],
+   },
+];
+
+const statusColor: Record<GameStatus, string> = {
+   경기중: 'text-[#38c976]',
+   예정: 'text-primary',
+   종료: 'text-[#ef4444]',
+   취소: 'text-[#acb4bb]',
+};
+
+const _mockDate = new Date(MOCK_TODAY + 'T00:00:00');
+const CURRENT_YEAR = _mockDate.getFullYear();
+const CURRENT_MONTH = _mockDate.getMonth() + 1;
+const CURRENT_WEEK = 1;
+const _days = ['일', '월', '화', '수', '목', '금', '토'];
+const TODAY = `${CURRENT_MONTH}월 ${_mockDate.getDate()}일 (${_days[_mockDate.getDay()]})`;
+
+// 시즌 월 순서: 3월~12월, 1월, 2월
+const SEASON_MONTHS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2];
+const DISABLED_MONTHS = [10, 11, 12, 1, 2];
+const AVAILABLE_YEARS = [2021, 2022, 2023, 2024, 2025, 2026];
+
+const tabs = ['오늘 일정', '주간 일정', '전체 일정'];
+
+function parseDate(dateStr: string): { month: number; day: number } {
+   const match = dateStr.match(/(\d+)월 (\d+)일/);
+   if (!match) return { month: 0, day: 0 };
+   return { month: parseInt(match[1]), day: parseInt(match[2]) };
+}
+
+function getWeekOfMonth(day: number): number {
+   return Math.ceil(day / 7);
+}
 
 const GameSchedule = () => {
   const navigate = useNavigate();
