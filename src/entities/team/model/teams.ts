@@ -2,6 +2,20 @@ import type { Team } from "./types";
 
 export const teams: Team[] = [
   {
+    id: "samsung",
+    name: "삼성 라이온즈",
+    logoSrc: "/baseball/logos/samsung.png",
+    logoAspectClassName: "aspect-[1280/962]",
+    isEnabled: true,
+  },
+  {
+    id: "kia",
+    name: "KIA 타이거즈",
+    logoSrc: "/baseball/logos/kia.png",
+    logoAspectClassName: "aspect-[1280/954]",
+    isEnabled: true,
+  },
+  {
     id: "lg",
     name: "LG 트윈스",
     logoSrc: "/baseball/logos/lg.png",
@@ -23,13 +37,6 @@ export const teams: Team[] = [
     isEnabled: false,
   },
   {
-    id: "samsung",
-    name: "삼성 라이온즈",
-    logoSrc: "/baseball/logos/samsung.png",
-    logoAspectClassName: "aspect-[1280/962]",
-    isEnabled: true,
-  },
-  {
     id: "nc",
     name: "NC 다이노스",
     logoSrc: "/baseball/logos/nc.png",
@@ -49,13 +56,6 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/lotte.png",
     logoAspectClassName: "aspect-[1280/961]",
     isEnabled: false,
-  },
-  {
-    id: "kia",
-    name: "KIA 타이거즈",
-    logoSrc: "/baseball/logos/kia.png",
-    logoAspectClassName: "aspect-[1280/954]",
-    isEnabled: true,
   },
   {
     id: "doosan",
