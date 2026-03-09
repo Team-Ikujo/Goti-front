@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { TicketX } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
@@ -316,6 +317,7 @@ type ScheduleListProps = {
 };
 
 function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
+  const navigate = useNavigate();
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isCaptchaOpen, setIsCaptchaOpen] = useState(false);
   const [captchaInput, setCaptchaInput] = useState('');
@@ -354,6 +356,7 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
     setIsCaptchaOpen(false);
     setCaptchaInput('');
     setCaptchaError('');
+    navigate('/books');
   };
 
   if (filteredData.length === 0) {

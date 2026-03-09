@@ -14,10 +14,12 @@ import TooltipPage from '@/pages/components/ui/TooltipPage';
 import InputPage from '@/pages/components/ui/InputPage';
 import ToSPage from '@/pages/components/ui/ToSPage';
 import HomeLayout from '@/shared/widgets/layout/home';
+import BooksLayout from '@/shared/widgets/layout/books';
 import Chip from '@/pages/components/ui/ChipPage';
 import ListPage from '@/pages/components/ui/ListPage';
 import TeamsPage from '@/pages/teams';
 import TicketsPage from '@/pages/tickets';
+import BooksPage from '@/pages/books';
 import OAuthMessageListener from './OAuthMessageListener';
 
 const AppRouter = () => {
@@ -39,6 +41,9 @@ const AppRouter = () => {
                <Route path="tickets" element={<TicketsPage />} />
                <Route path="teams" element={<TeamsPage />} />
                <Route path="teams/:teamId" element={<div>Team Detail Page Placeholder</div>} />
+            </Route>
+            <Route path="/books" element={<BooksLayout />}>
+               <Route index element={<BooksPage />} />
             </Route>
             <Route path="/button" element={<ButtonPage />} />
             <Route path="/control" element={<ControlPage />} />
