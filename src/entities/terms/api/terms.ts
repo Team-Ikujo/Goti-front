@@ -9,19 +9,25 @@ type TermDetailResponse = {
   item: TermsDetail | null;
 };
 
+type Envelope<T> = {
+  data: T;
+};
+
 export const fetchTermsAgreementList = async (type: AgreementType = 'verification'): Promise<TermsAgreement[]> => {
-  const { data } = await apiClient.get<TermsAgreementListResponse>(
+  const { data } = await apiClient.get<TermsAgreementListResponse | Envelope<TermsAgreementListResponse>>(
     "/api/v1/terms",
     { params: { type } },
   );
-  return data.items;
+  const payload = "data" in data ? data.data : data;
+  return payload.items ?? [];
 };
 
 export const fetchTermDetail = async (
   code: TermCode,
 ): Promise<TermsDetail | null> => {
-  const { data } = await apiClient.get<TermDetailResponse>(
+  const { data } = await apiClient.get<TermDetailResponse | Envelope<TermDetailResponse>>(
     `/api/v1/terms/${code}`,
   );
-  return data.item;
+  const payload = "data" in data ? data.data : data;
+  return payload.item ?? null;
 };
