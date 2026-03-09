@@ -14,7 +14,7 @@ const HomePage = () => {
          <div className="flex flex-col items-center px-4 pt-7.5 pb-30">
             <div className="w-full max-w-300 flex flex-col gap-7.5">
                {selectedTeam && (
-                  <div className="relative z-10 -mt-[52px]">
+                  <div className="-mt-13 relative z-10">
                      <FavoriteTeamMatchCard team={selectedTeam} />
                   </div>
                )}

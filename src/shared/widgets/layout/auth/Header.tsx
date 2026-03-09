@@ -268,9 +268,13 @@ const Header = () => {
                   <button
                      type="button"
                      className="shrink-0 flex items-center gap-1 px-[11px] py-[5px] bg-white border border-[#cbd9fa] rounded-full hover:border-primary transition-colors"
-                     onClick={() => isLoggedIn ? setTeamModalOpen(true) : navigate('/auth/login')}
+                     onClick={() => (isLoggedIn ? setTeamModalOpen(true) : navigate('/auth/login'))}
                   >
-                     <img src="/Icon/Line/Baseball.svg" alt="" className="size-4 [filter:invert(29%)_sepia(89%)_saturate(1651%)_hue-rotate(213deg)_brightness(97%)_contrast(96%)]" />
+                     <img
+                        src="/Icon/Line/Baseball.svg"
+                        alt=""
+                        className="size-4 [filter:invert(29%)_sepia(89%)_saturate(1651%)_hue-rotate(213deg)_brightness(97%)_contrast(96%)]"
+                     />
                      <span className="text-[14px] font-bold text-primary leading-[1.45] whitespace-nowrap">
                         {selectedTeam ? selectedTeam.name.split(' ')[0] : '팀 선택'}
                      </span>
