@@ -1,20 +1,11 @@
-import { useMemo, useState } from 'react';
 import { TicketX } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
 
-import BookingCaptchaDialog from './BookingCaptchaDialog';
-import BookingGuideDialog from './BookingGuideDialog';
 import { TAB_TODAY, TODAY, statusColor, teamLogos } from './constants';
 import type { DaySchedule, GameRow } from './types';
 import { getGameResultTexts } from './utils';
-
-const CAPTCHA_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-function createMockCaptcha(length = 6): string {
-  return Array.from({ length }, () => CAPTCHA_CHARS[Math.floor(Math.random() * CAPTCHA_CHARS.length)]).join('');
-}
 
 function ScoreDisplay({ game }: { game: GameRow }) {
   const scoreText = game.score ?? 'VS';
@@ -127,34 +118,20 @@ function MobileTeam({
   );
 }
 
-function ActionButtons({
-  game,
-  isEnded,
-  onOpenBookingFlow,
-}: {
-  game: GameRow;
-  isEnded: boolean;
-  onOpenBookingFlow: (game: GameRow) => void;
-}) {
-  const canBook = game.ticket === '예매하기';
-
+function ActionButtons({ game, isEnded }: { game: GameRow; isEnded: boolean }) {
   return (
     <>
       {!isEnded && (
         <div className="flex md:hidden gap-[8px] h-[38px] items-center w-full">
           <button
-            type="button"
-            disabled={!canBook}
-            onClick={() => onOpenBookingFlow(game)}
             className={cn(
               'h-full flex-1 px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium leading-[1.5] text-white',
-              canBook ? 'bg-primary' : 'bg-[#acb4bb]',
+              game.ticket === '예매하기' ? 'bg-primary' : 'bg-[#acb4bb]',
             )}
           >
             {game.ticket}
           </button>
           <button
-            type="button"
             className={cn(
               'h-full flex-1 px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium leading-[1.5] border',
               game.resell === '리셀예매'
@@ -169,18 +146,14 @@ function ActionButtons({
 
       <div className={cn('hidden md:flex gap-[10px] h-[66px] items-center shrink-0', isEnded && 'opacity-0')}>
         <button
-          type="button"
-          disabled={!canBook}
-          onClick={() => onOpenBookingFlow(game)}
           className={cn(
             'h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] text-white',
-            canBook ? 'bg-primary' : 'bg-[#acb4bb] w-[88px]',
+            game.ticket === '예매하기' ? 'bg-primary' : 'bg-[#acb4bb] w-[88px]',
           )}
         >
           {game.ticket}
         </button>
         <button
-          type="button"
           className={cn(
             'h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] border',
             game.resell === '리셀예매'
@@ -199,12 +172,10 @@ function MobileGameRow({
   day,
   game,
   index,
-  onOpenBookingFlow,
 }: {
   day: DaySchedule;
   game: GameRow;
   index: number;
-  onOpenBookingFlow: (game: GameRow) => void;
 }) {
   const isLast = index === day.games.length - 1;
   const isEnded = game.status === '종료';
@@ -236,7 +207,7 @@ function MobileGameRow({
         <MobileTeam name={game.home} isEnded={isEnded} result={resultText.home} isHome={true} />
       </div>
 
-      <ActionButtons game={game} isEnded={isEnded} onOpenBookingFlow={onOpenBookingFlow} />
+      <ActionButtons game={game} isEnded={isEnded} />
     </div>
   );
 }
@@ -245,12 +216,10 @@ function DesktopGameRow({
   day,
   game,
   index,
-  onOpenBookingFlow,
 }: {
   day: DaySchedule;
   game: GameRow;
   index: number;
-  onOpenBookingFlow: (game: GameRow) => void;
 }) {
   const isLast = index === day.games.length - 1;
   const isEnded = game.status === '종료';
@@ -305,7 +274,7 @@ function DesktopGameRow({
         </div>
       </div>
 
-      <ActionButtons game={game} isEnded={isEnded} onOpenBookingFlow={onOpenBookingFlow} />
+      <ActionButtons game={game} isEnded={isEnded} />
     </div>
   );
 }
@@ -316,46 +285,6 @@ type ScheduleListProps = {
 };
 
 function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
-  const [isGuideOpen, setIsGuideOpen] = useState(false);
-  const [isCaptchaOpen, setIsCaptchaOpen] = useState(false);
-  const [captchaInput, setCaptchaInput] = useState('');
-  const [captchaError, setCaptchaError] = useState('');
-  const [captchaSeed, setCaptchaSeed] = useState(0);
-
-  const captchaCode = useMemo(() => createMockCaptcha(), [captchaSeed]);
-
-  const openBookingFlow = (game: GameRow) => {
-    if (game.ticket !== '예매하기') {
-      return;
-    }
-
-    setIsGuideOpen(true);
-  };
-
-  const confirmGuideAndOpenCaptcha = () => {
-    setIsGuideOpen(false);
-    setCaptchaInput('');
-    setCaptchaError('');
-    setCaptchaSeed((prev) => prev + 1);
-    setIsCaptchaOpen(true);
-  };
-
-  const refreshCaptcha = () => {
-    setCaptchaSeed((prev) => prev + 1);
-    setCaptchaError('');
-  };
-
-  const submitCaptcha = () => {
-    if (captchaInput.trim().toUpperCase() !== captchaCode) {
-      setCaptchaError('보안 문자가 일치하지 않습니다. 다시 확인해 주세요.');
-      return;
-    }
-
-    setIsCaptchaOpen(false);
-    setCaptchaInput('');
-    setCaptchaError('');
-  };
-
   if (filteredData.length === 0) {
     return <EmptyState />;
   }
@@ -374,37 +303,13 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
 
             {day.games.map((game, index) => (
               <div key={`${day.date}-${game.time}-${game.away}-${game.home}-${index}`}>
-                <MobileGameRow day={day} game={game} index={index} onOpenBookingFlow={openBookingFlow} />
-                <DesktopGameRow day={day} game={game} index={index} onOpenBookingFlow={openBookingFlow} />
+                <MobileGameRow day={day} game={game} index={index} />
+                <DesktopGameRow day={day} game={game} index={index} />
               </div>
             ))}
           </div>
         );
       })}
-
-      <BookingGuideDialog open={isGuideOpen} onOpenChange={setIsGuideOpen} onConfirm={confirmGuideAndOpenCaptcha} />
-
-      <BookingCaptchaDialog
-        open={isCaptchaOpen}
-        captchaCode={captchaCode}
-        value={captchaInput}
-        error={captchaError}
-        onOpenChange={(open) => {
-          setIsCaptchaOpen(open);
-          if (!open) {
-            setCaptchaInput('');
-            setCaptchaError('');
-          }
-        }}
-        onChangeValue={(value) => {
-          setCaptchaInput(value);
-          if (captchaError) {
-            setCaptchaError('');
-          }
-        }}
-        onRefresh={refreshCaptcha}
-        onSubmit={submitCaptcha}
-      />
     </div>
   );
 }
