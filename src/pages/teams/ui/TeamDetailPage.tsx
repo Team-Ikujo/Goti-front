@@ -42,41 +42,28 @@ const TeamDetailPage = () => {
 
             <div className="flex flex-col gap-12.5 items-center w-full">
                {/* 탭 네비게이션 */}
-               <div className="flex h-13 md:h-15 items-end justify-center w-full">
+               <div className="flex items-center w-full">
                   {BOOKING_TABS.map((tab, index) => {
                      const isActive = index === activeBookingTab;
-                     const isLeft = index < activeBookingTab;
-                     const isRight = index > activeBookingTab;
                      return (
                         <button
                            key={tab}
                            onClick={() => setActiveBookingTab(index)}
                            className={cn(
-                              'flex-1 h-full rounded-tl-sm rounded-tr-sm bg-background border',
-                              // Selected: 좌우 border만, 상단은 내부 div가 담당
-                              isActive && 'border-l-2 border-r-2 border-t-0 border-b-0',
-                              // Default-Left (선택탭 왼쪽): 우측 border 없음
-                              isLeft && 'border-l-2 border-t-2 border-b-2 border-r-0',
-                              // Default-Right (선택탭 오른쪽): 좌측 border 없음
-                              isRight && 'border-r-2 border-t-2 border-b-2 border-l-0',
+                              'flex flex-1 flex-col items-center justify-center h-[60px] px-3 py-[7px] border-b-2',
+                              isActive
+                                 ? 'border-primary rounded-tl-[10px] rounded-tr-[10px]'
+                                 : 'border-border',
                            )}
                         >
-                           {/* 활성 탭 상단 4px 파란 선 */}
-                           <div
+                           <span
                               className={cn(
-                                 'flex h-full w-full items-center justify-center p-2.5',
-                                 isActive && 'border-t-4 border-t-primary rounded-[3px]',
+                                 'text-[18px] font-bold leading-[1.55] whitespace-nowrap',
+                                 isActive ? 'text-primary' : 'text-(--text-tertiary)',
                               )}
                            >
-                              <span
-                                 className={cn(
-                                    'text-[16px] md:text-[20px] font-semibold leading-normal whitespace-nowrap',
-                                    isActive ? 'text-foreground' : 'text-[#acb4bb]',
-                                 )}
-                              >
-                                 {tab}
-                              </span>
-                           </div>
+                              {tab}
+                           </span>
                         </button>
                      );
                   })}
