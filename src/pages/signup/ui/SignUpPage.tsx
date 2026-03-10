@@ -226,7 +226,7 @@ const SignUpPage = () => {
    return (
       <div className="min-h-screen bg-white text-(--color-foreground) flex items-center justify-center">
          <section className="w-full max-w-md p-8">
-            <div className="text-center">
+            <div className="text-center pb-10">
                <h2 className="text-2xl font-semibold">본인 확인을 위해 </h2>
                <h2 className="text-2xl font-semibold">인증을 진행해주세요</h2>
             </div>
@@ -269,7 +269,9 @@ const SignUpPage = () => {
                         외국인
                      </Option>
                   </div>
-                  {errors.nationality && <p className="text-xs text-destructive antialiased">{errors.nationality.message}</p>}
+                  {errors.nationality && (
+                     <p className="text-xs text-destructive antialiased">{errors.nationality.message}</p>
+                  )}
                </div>
 
                <Input
@@ -406,7 +408,12 @@ const SignUpPage = () => {
                      인증 번호 전송
                   </Button>
                ) : (
-                  <Button type="button" variant="primary" className="w-full" onClick={() => void handleSubmit(onSubmit)()}>
+                  <Button
+                     type="button"
+                     variant="primary"
+                     className="w-full"
+                     onClick={() => void handleSubmit(onSubmit)()}
+                  >
                      완료
                   </Button>
                )}
