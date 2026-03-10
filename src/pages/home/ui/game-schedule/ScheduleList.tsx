@@ -290,7 +290,7 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
   }
 
   return (
-    <div className={cn('flex flex-col', activeTab !== TAB_TODAY && 'gap-[25px]')}>
+    <div className={cn('flex flex-col w-full', activeTab !== TAB_TODAY && 'gap-[25px]')}>
       {filteredData.map((day) => {
         const isToday = day.isToday ?? day.date === TODAY;
 
