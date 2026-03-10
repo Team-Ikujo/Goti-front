@@ -1,5 +1,13 @@
 // src/pages/teams/ui/SeatMapTab.tsx
 import seatMapImg from '@/shared/ui/image/스크린샷 2026-02-10 오전 9.34.37 1.png';
+import {
+   Table,
+   TableBody,
+   TableCell,
+   TableHead,
+   TableHeader,
+   TableRow,
+} from '@/shared/ui/table';
 
 const LEGEND_ITEMS = [
    { color: '#d0514f', name: '챔피언석' },
@@ -111,54 +119,52 @@ export function SeatMapTab() {
          <div className="flex flex-col gap-[30px] items-start w-full">
             <p className="text-[24px] font-bold text-foreground leading-[1.5]">가격</p>
 
-            <div className="w-full overflow-x-auto">
-               <table className="w-full border-collapse min-w-[400px]">
-                  <thead>
-                     <tr>
-                        <th className="bg-[#f1f2f4] border border-[#d0d6db] p-[10px] text-[16px] font-semibold text-foreground text-center w-[100px]">
-                           구분
-                        </th>
-                        <th className="bg-[#f1f2f4] border border-[#d0d6db] p-[10px] text-[16px] font-semibold text-foreground text-center">
-                           좌석명
-                        </th>
-                        <th className="bg-[#f1f2f4] border border-[#d0d6db] p-[10px] text-[16px] font-semibold text-foreground text-center">
-                           주중 가격
-                        </th>
-                        <th className="bg-[#f1f2f4] border border-[#d0d6db] p-[10px] text-[16px] font-semibold text-foreground text-center">
-                           주말 가격
-                        </th>
-                     </tr>
-                  </thead>
-                  <tbody>
-                     {PRICE_TABLE.map(section =>
-                        section.rows.map((row, i) => (
-                           <tr
-                              key={`${section.category}-${row.seat}`}
-                              className={i % 2 === 1 ? 'bg-[#f4f7fe]' : 'bg-background'}
-                           >
-                              {i === 0 && (
-                                 <td
-                                    className="border border-[#d0d6db] p-[10px] text-[16px] font-semibold text-foreground text-center align-middle"
-                                    rowSpan={section.rows.length}
-                                 >
-                                    {section.category}
-                                 </td>
-                              )}
-                              <td className="border border-[#d0d6db] p-[10px] text-[16px] font-semibold text-foreground text-center">
-                                 {row.seat}
-                              </td>
-                              <td className="border border-[#d0d6db] p-[10px] text-[16px] font-medium text-foreground text-center">
-                                 {row.weekday}
-                              </td>
-                              <td className="border border-[#d0d6db] p-[10px] text-[16px] font-medium text-foreground text-center">
-                                 {row.weekend}
-                              </td>
-                           </tr>
-                        )),
-                     )}
-                  </tbody>
-               </table>
-            </div>
+            <Table className="min-w-[400px] border-collapse">
+               <TableHeader>
+                  <TableRow className="border-[#d0d6db] hover:bg-transparent">
+                     <TableHead className="bg-[#f1f2f4] border border-[#d0d6db] p-[10px] text-[16px] font-semibold text-foreground text-center w-[100px]">
+                        구분
+                     </TableHead>
+                     <TableHead className="bg-[#f1f2f4] border border-[#d0d6db] p-[10px] text-[16px] font-semibold text-foreground text-center">
+                        좌석명
+                     </TableHead>
+                     <TableHead className="bg-[#f1f2f4] border border-[#d0d6db] p-[10px] text-[16px] font-semibold text-foreground text-center">
+                        주중 가격
+                     </TableHead>
+                     <TableHead className="bg-[#f1f2f4] border border-[#d0d6db] p-[10px] text-[16px] font-semibold text-foreground text-center">
+                        주말 가격
+                     </TableHead>
+                  </TableRow>
+               </TableHeader>
+               <TableBody>
+                  {PRICE_TABLE.map(section =>
+                     section.rows.map((row, i) => (
+                        <TableRow
+                           key={`${section.category}-${row.seat}`}
+                           className={`border-0 ${i % 2 === 1 ? 'bg-[#f4f7fe]' : 'bg-background'}`}
+                        >
+                           {i === 0 && (
+                              <TableCell
+                                 className="border border-[#d0d6db] p-[10px] text-[16px] font-semibold text-foreground text-center align-middle"
+                                 rowSpan={section.rows.length}
+                              >
+                                 {section.category}
+                              </TableCell>
+                           )}
+                           <TableCell className="border border-[#d0d6db] p-[10px] text-[16px] font-semibold text-foreground text-center">
+                              {row.seat}
+                           </TableCell>
+                           <TableCell className="border border-[#d0d6db] p-[10px] text-[16px] font-medium text-foreground text-center">
+                              {row.weekday}
+                           </TableCell>
+                           <TableCell className="border border-[#d0d6db] p-[10px] text-[16px] font-medium text-foreground text-center">
+                              {row.weekend}
+                           </TableCell>
+                        </TableRow>
+                     )),
+                  )}
+               </TableBody>
+            </Table>
          </div>
       </div>
    );
