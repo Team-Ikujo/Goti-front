@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useSocialSignup } from '@/features/auth/model/useSubmitAuthCode';
+import { useSendSignupSmsCode, useSocialSignup } from '@/features/auth/model/useSubmitAuthCode';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import type { TermSignUpCode } from '@/entities/terms/model/types';
 import { useTermDetailQuery, useTermsAgreementListQuery } from '@/entities/terms/model/useTermsQueries';
@@ -29,6 +29,7 @@ import { useNavigate } from 'react-router-dom';
 const SignUpPage = () => {
    const navigate = useNavigate();
    const socialSignupMutation = useSocialSignup();
+   const sendSignupSmsCodeMutation = useSendSignupSmsCode();
    const socialVerifyToken = useAuthStore(state => state.socialVerifyToken);
    const setAuthTokens = useAuthStore(state => state.setAuthTokens);
    const termsSignuptListQuery = useTermsAgreementListQuery('signup');
@@ -93,7 +94,7 @@ const SignUpPage = () => {
       clearErrors('requiredTermsAgreed');
    };
 
-   const handleSendCode = () => {
+   const handleSendCode = async () => {
       const result = sendCodeSchema.safeParse({
          name: getValues('name').trim(),
          nationality: getValues('nationality') ?? '',
@@ -115,10 +116,33 @@ const SignUpPage = () => {
          return;
       }
 
+      if (!socialVerifyToken) {
+         setShowLoginRetryDialog(true);
+         return;
+      }
+
       clearErrors(['phone', 'requiredTermsAgreed']);
-      setIsCodeSent(true);
-      setShowAlert(true);
-      setCountdown(180);
+
+      try {
+         await sendSignupSmsCodeMutation.mutateAsync({
+            socialVerifyToken,
+            mobile: getValues('phone').trim(),
+         });
+
+         setIsCodeSent(true);
+         setShowAlert(true);
+         setCountdown(180);
+      } catch (error) {
+         if (error instanceof ApiError) {
+            setSubmitError(error.message);
+            return;
+         }
+         if (error instanceof Error) {
+            setSubmitError(error.message);
+            return;
+         }
+         setSubmitError('인증번호 발송 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      }
    };
 
    useEffect(() => {
@@ -182,6 +206,7 @@ const SignUpPage = () => {
             gender: mapGender(data.gender),
             mobile: data.phone,
             birthDate: formatBirthDate(data.birthDate),
+            authCode: data.verificationCode,
          });
 
          setAuthTokens({
@@ -408,8 +433,8 @@ const SignUpPage = () => {
                      type="button"
                      variant="primary"
                      className="w-full"
-                     disabled={!canSendCode}
-                     onClick={handleSendCode}
+                     disabled={!canSendCode || sendSignupSmsCodeMutation.isPending}
+                     onClick={() => void handleSendCode()}
                   >
                      인증 번호 전송
                   </Button>

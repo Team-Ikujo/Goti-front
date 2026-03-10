@@ -13,11 +13,11 @@ export const authHandlers = [
   }),
   http.post("/api/v1/auth/:provider/social/verify", async ({ request }) => {
     const body = (await request.json()) as {
-      code?: string;
-      redirectUri?: string;
+      authCode?: string;
+      state?: string;
     };
 
-    if (!body?.code || !body?.redirectUri) {
+    if (!body?.authCode) {
       return HttpResponse.json(
         { message: "Missing social verify fields." },
         { status: 400 },
@@ -29,7 +29,7 @@ export const authHandlers = [
       message: "ok",
       data: {
         isRegistered: false,
-        socialVerifyToken: `svt-${body.code}`,
+        socialVerifyToken: `svt-${body.authCode}`,
       },
     });
   }),
@@ -58,6 +58,7 @@ export const authHandlers = [
       gender?: string;
       mobile?: string;
       birthDate?: string;
+      authCode?: string;
     };
 
     if (
@@ -65,7 +66,8 @@ export const authHandlers = [
       !body?.name ||
       !body?.gender ||
       !body?.mobile ||
-      !body?.birthDate
+      !body?.birthDate ||
+      !body?.authCode
     ) {
       return HttpResponse.json(
         { message: "Missing signup fields." },
@@ -79,6 +81,25 @@ export const authHandlers = [
       data: {
         accessToken: "access-token-from-signup",
       },
+    });
+  }),
+  http.post("/api/v1/auth/signup/sms/send", async ({ request }) => {
+    const body = (await request.json()) as {
+      socialVerifyToken?: string;
+      mobile?: string;
+    };
+
+    if (!body?.socialVerifyToken || !body?.mobile) {
+      return HttpResponse.json(
+        { message: "Missing sms send fields." },
+        { status: 400 },
+      );
+    }
+
+    return HttpResponse.json({
+      code: "SUCCESS",
+      message: "ok",
+      data: "SMS sent",
     });
   }),
 ];

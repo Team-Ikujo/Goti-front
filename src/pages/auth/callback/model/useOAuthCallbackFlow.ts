@@ -8,7 +8,6 @@ import type {
   SocialProvider,
   SubmitAuthCodeParams,
 } from "@/features/auth/api/oauthApi";
-import { getOAuthRedirectUri } from "@/features/auth/api/oauthApi";
 import { useAuthStore } from "@/entities/auth/model/authStore";
 import { ApiError } from "@/shared/api/client";
 import {
@@ -108,10 +107,35 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
 
         const verifyPayload: SubmitAuthCodeParams = {
           provider: normalizedProvider,
-          code,
-          redirectUri: getOAuthRedirectUri(normalizedProvider),
+          authCode: code,
           state: params.get("state"),
         };
+
+        const testOAuthPayload = {
+          provider: normalizedProvider,
+          authCode: code,
+          state: params.get("state"),
+          verifyPayload,
+        };
+
+        // 테스트용 로그: OAuth 콜백에서 받은 실제 code/state와 verify 요청 payload를 콘솔과 sessionStorage에 남긴다.
+        console.log("[TEST] OAuth callback params", testOAuthPayload);
+        sessionStorage.setItem(
+          "test-oauth-callback-payload",
+          JSON.stringify(testOAuthPayload),
+        );
+
+        if (window.opener && !window.opener.closed) {
+          window.opener.console.log(
+            "[TEST] OAuth callback params",
+            testOAuthPayload,
+          );
+          window.opener.sessionStorage.setItem(
+            "test-oauth-callback-payload",
+            JSON.stringify(testOAuthPayload),
+          );
+        }
+
         const response = await submitAuthCodeMutation.mutateAsync(verifyPayload);
 
         setRecentLoginProvider(normalizedProvider);

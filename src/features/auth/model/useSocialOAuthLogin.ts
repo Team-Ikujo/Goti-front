@@ -7,15 +7,22 @@ type UseSocialOAuthLoginParams = {
   provider: SocialProvider;
   requiresIssuedState: boolean;
   buildAuthUrl: (state?: string) => string;
+  createState?: () => string;
 };
 
 export const useSocialOAuthLogin = ({
   provider,
   requiresIssuedState,
   buildAuthUrl,
+  createState,
 }: UseSocialOAuthLoginParams) => {
   return useCallback(async () => {
     try {
+      if (createState) {
+        openOAuthPopup(buildAuthUrl(createState()));
+        return;
+      }
+
       if (requiresIssuedState) {
         const { state } = await issueSocialState(provider);
         openOAuthPopup(buildAuthUrl(state));
@@ -26,5 +33,5 @@ export const useSocialOAuthLogin = ({
     } catch (error) {
       console.error(error);
     }
-  }, [buildAuthUrl, provider, requiresIssuedState]);
+  }, [buildAuthUrl, createState, provider, requiresIssuedState]);
 };

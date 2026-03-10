@@ -14,8 +14,7 @@ export type SocialStateResponse = {
 
 export type SubmitAuthCodeParams = {
   provider: SocialProvider;
-  code: string;
-  redirectUri: string;
+  authCode: string;
   state?: string | null;
 };
 
@@ -69,15 +68,14 @@ export const issueSocialState = async (
 
 export const submitAuthCode = async ({
   provider,
-  code,
-  redirectUri,
+  authCode,
   state,
 }: SubmitAuthCodeParams): Promise<SubmitAuthCodeResponse> => {
   const response = await apiClient.post<
     ApiEnvelope<SubmitAuthCodeResponse> | SubmitAuthCodeResponse
   >(
     `/api/v1/auth/${providerToPath(provider)}/social/verify`,
-    { code, redirectUri, state: state ?? null },
+    { authCode, state: state ?? null },
   );
 
   const payload =

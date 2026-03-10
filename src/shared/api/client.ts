@@ -14,10 +14,12 @@ export class ApiError extends Error {
 }
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? "").trim();
+const shouldUseRelativeApiBase = isMswEnabled || import.meta.env.DEV;
 
 const apiClient = axios.create({
-  // MSW가 켜진 환경에서는 상대 경로(/api) 요청을 사용해 worker가 가로채도록 한다.
-  baseURL: isMswEnabled ? "" : configuredApiBaseUrl,
+  // 개발 환경에서는 dev server proxy를 통해 CORS 없이 백엔드에 붙는다.
+  // MSW 사용 시에도 상대 경로(/api) 요청을 유지해 worker가 가로챌 수 있게 한다.
+  baseURL: shouldUseRelativeApiBase ? "" : configuredApiBaseUrl,
   headers: {
     "Content-Type": "application/json",
   },
