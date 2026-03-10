@@ -13,6 +13,7 @@ import {
    telecomOptions,
    type SignUpFormValues,
 } from '@/pages/signup/model/signUpValidation';
+import LoginRetryDialog from '@/pages/signup/ui/LoginRetryDialog';
 import SignUpTermsDialog from '@/pages/signup/ui/SignUpTermsDialog';
 import VerificationCodeField from '@/pages/signup/ui/VerificationCodeField';
 import { ApiError } from '@/shared/api/client';
@@ -37,6 +38,7 @@ const SignUpPage = () => {
    const [countdown, setCountdown] = useState(0);
    const [isCodeSent, setIsCodeSent] = useState(false);
    const [showAlert, setShowAlert] = useState(false);
+   const [showLoginRetryDialog, setShowLoginRetryDialog] = useState(false);
    const [submitError, setSubmitError] = useState<string | null>(null);
 
    const [detailTargetCode, setDetailTargetCode] = useState<TermSignUpCode | null>(null);
@@ -55,7 +57,6 @@ const SignUpPage = () => {
       resolver: zodResolver(signUpSchema),
       defaultValues: {
          name: '',
-         email: '',
          nationality: '',
          birthDate: '',
          gender: '',
@@ -170,8 +171,7 @@ const SignUpPage = () => {
       setSubmitError(null);
 
       if (!socialVerifyToken) {
-         setSubmitError('인증 토큰이 없습니다. 다시 로그인해 주세요.');
-         navigate('/auth/login', { replace: true });
+         setShowLoginRetryDialog(true);
          return;
       }
 
@@ -179,7 +179,6 @@ const SignUpPage = () => {
          const response = await socialSignupMutation.mutateAsync({
             socialVerifyToken,
             name: data.name,
-            email: data.email,
             gender: mapGender(data.gender),
             mobile: data.phone,
             birthDate: formatBirthDate(data.birthDate),
@@ -244,19 +243,6 @@ const SignUpPage = () => {
                   }}
                   error={Boolean(errors.name)}
                   helpText={errors.name?.message}
-               />
-
-               <Input
-                  label="이메일"
-                  required
-                  placeholder="example@ballx.com"
-                  value={values.email}
-                  onChange={e => {
-                     setValue('email', e.target.value, { shouldDirty: true });
-                     clearErrors('email');
-                  }}
-                  error={Boolean(errors.email)}
-                  helpText={errors.email?.message}
                />
 
                <div className="text-(--label-2-medium) text-[14px] flex flex-col gap-1">
@@ -444,6 +430,15 @@ const SignUpPage = () => {
                <Alert variant="success">인증번호가 전송되었어요</Alert>
             </div>
          )}
+
+         <LoginRetryDialog
+            open={showLoginRetryDialog}
+            onOpenChange={setShowLoginRetryDialog}
+            onConfirm={() => {
+               setShowLoginRetryDialog(false);
+               navigate('/auth/login', { replace: true });
+            }}
+         />
       </div>
    );
 };
