@@ -1,8 +1,6 @@
 export type ZoneHotspot = {
    x: number;
    y: number;
-   w: number;
-   h: number;
 };
 
 export type ZoneItem = {
@@ -11,6 +9,6 @@ export type ZoneItem = {
    price: number;
    remaining: number;
    color: string;
-   hotspot: ZoneHotspot;
+   hotspot: ZoneHotspot[];
    sectionCode: string;
 };
