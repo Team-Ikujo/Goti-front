@@ -1,8 +1,14 @@
-import { HelpCircle, User } from 'lucide-react';
+import { ChevronLeft, HelpCircle, User } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const steps = ['구역 선택', '좌석 선택', '배송/주문자 확인', '결제'];
 
 const BooksHeader = () => {
+   const navigate = useNavigate();
+   const { pathname } = useLocation();
+   const currentStepIndex = pathname.includes('/books/seats/') ? 1 : 0;
+   const isSeatPage = currentStepIndex === 1;
+
    return (
       <header className="border-b border-border-light bg-background">
          <div className="flex h-16 items-center justify-between px-4 lg:h-[68px] lg:px-8">
@@ -28,6 +34,16 @@ const BooksHeader = () => {
 
          <div className="flex flex-col gap-4 border-t border-border-light px-4 py-4 lg:h-[72px] lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-8 lg:py-0">
             <div className="flex flex-wrap items-center gap-2 text-body-1-medium text-muted-foreground">
+               {isSeatPage ? (
+                  <button
+                     type="button"
+                     aria-label="구역 선택 화면으로 이동"
+                     onClick={() => navigate('/books')}
+                     className="inline-flex h-8 w-8 items-center justify-center rounded-md text-icon-secondary transition-colors hover:bg-fill-hover"
+                  >
+                     <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                  </button>
+               ) : null}
                <h1 className="mr-2 text-heading-2-bold text-foreground">기아 vs LG</h1>
                <span>기아 챔피언스필드</span>
                <span aria-hidden="true">·</span>
@@ -35,7 +51,7 @@ const BooksHeader = () => {
             </div>
             <ol className="flex flex-wrap items-center gap-1 lg:gap-2" aria-label="예매 진행 단계">
                {steps.map((step, index) => {
-                  const isCurrent = index === 1;
+                  const isCurrent = index === currentStepIndex;
 
                   return (
                      <li key={step} className="flex items-center gap-1 lg:gap-2">

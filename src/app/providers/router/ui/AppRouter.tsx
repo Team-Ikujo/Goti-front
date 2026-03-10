@@ -20,6 +20,7 @@ import ListPage from '@/pages/components/ui/ListPage';
 import TeamsPage from '@/pages/teams';
 import TicketsPage from '@/pages/tickets';
 import BooksPage from '@/pages/books';
+import SeatsPage from '@/pages/books/ui/SeatsPage';
 import OAuthMessageListener from './OAuthMessageListener';
 
 const AppRouter = () => {
@@ -44,6 +45,7 @@ const AppRouter = () => {
             </Route>
             <Route path="/books" element={<BooksLayout />}>
                <Route index element={<BooksPage />} />
+               <Route path="seats/:zoneId" element={<SeatsPage />} />
             </Route>
             <Route path="/button" element={<ButtonPage />} />
             <Route path="/control" element={<ControlPage />} />

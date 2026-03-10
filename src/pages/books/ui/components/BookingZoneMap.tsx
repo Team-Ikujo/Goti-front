@@ -102,6 +102,11 @@ function BookingZoneMap({ zones, selectedZoneId, onSelectZone }: BookingZoneMapP
 
                   {zones.map((zone) => {
                      const isSelected = zone.id === selectedZone.id;
+                     const hotspot = zone.hotspot[0];
+
+                     if (!hotspot) {
+                        return null;
+                     }
 
                      return (
                         <button
@@ -115,13 +120,12 @@ function BookingZoneMap({ zones, selectedZoneId, onSelectZone }: BookingZoneMapP
                                  : 'text-foreground hover:-translate-y-0.5',
                            ].join(' ')}
                            style={{
-                              left: `${zone.hotspot.x}%`,
-                              top: `${zone.hotspot.y}%`,
-                              width: `${zone.hotspot.w}%`,
-                              height: `${zone.hotspot.h}%`,
+                              left: `${hotspot.x}%`,
+                              top: `${hotspot.y}%`,
+                              minWidth: '42px',
+                              minHeight: '28px',
                               borderColor: zone.color,
                               backgroundColor: isSelected ? `${zone.color}CC` : `${zone.color}66`,
-                              cursor: scale > 1 ? 'pointer' : 'default',
                            }}
                            aria-label={`${zone.name} 구역 선택`}
                            aria-pressed={isSelected}
