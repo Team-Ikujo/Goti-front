@@ -73,8 +73,8 @@ export function StadiumGuideTab() {
 
             <div className="flex flex-col md:flex-row gap-[20px] md:gap-[50px] items-start w-full">
                {/* 구장 사진 */}
-               <div className="bg-background flex flex-1 items-center justify-center max-w-full md:max-w-[700px] overflow-hidden self-stretch w-full">
-                  <div className="aspect-[1090/700] flex-1 relative w-full max-w-[700px] rounded-[14px] overflow-hidden">
+               <div className="bg-background flex flex-1 items-center justify-center max-w-full md:max-w-[700px] overflow-hidden w-full">
+                  <div className="aspect-[1090/700] flex-1 relative w-full max-w-[700px] overflow-hidden rounded-[14px]">
                      <img
                         src={stadiumImg}
                         alt="광주 기아 챔피언스 필드"
@@ -95,7 +95,7 @@ export function StadiumGuideTab() {
                            <span className="text-[16px] font-medium text-foreground leading-[1.5] w-[50px] shrink-0">
                               {label}
                            </span>
-                           <div className="w-px h-[14px] bg-[#d0d6db] shrink-0" />
+                           <div className="w-[1.5px] h-[14px] bg-black shrink-0" />
                            <span className="text-[16px] font-medium text-foreground leading-[1.5]">{value}</span>
                         </div>
                      ))}
