@@ -11,7 +11,7 @@ const DEFAULT_BLOCKS: SeatBlock[] = [
       rows: 20,
       cols: 14,
       offsetX: 86,
-      offsetY: 86,
+      offsetY: 200,
       activeSeats: [
          ...seatsOf(2, range(0, 13)),
          ...seatsOf(3, range(0, 13)),
@@ -26,7 +26,7 @@ const DEFAULT_BLOCKS: SeatBlock[] = [
       rows: 20,
       cols: 14,
       offsetX: 372,
-      offsetY: 86,
+      offsetY: 200,
       activeSeats: [
          ...seatsOf(0, [6, 7]),
          ...seatsOf(1, [3]),
@@ -49,7 +49,7 @@ const DEFAULT_BLOCKS: SeatBlock[] = [
       rows: 20,
       cols: 14,
       offsetX: 658,
-      offsetY: 86,
+      offsetY: 200,
       activeSeats: [
          ...seatsOf(2, range(0, 13)),
          ...seatsOf(3, range(0, 13)),
@@ -64,7 +64,7 @@ const DEFAULT_BLOCKS: SeatBlock[] = [
       rows: 20,
       cols: 4,
       offsetX: 944,
-      offsetY: 86,
+      offsetY: 200,
       activeSeats: [...seatsOf(2, range(0, 3)), ...seatsOf(3, range(0, 3)), ...seatsOf(4, range(0, 3))],
    },
 ];

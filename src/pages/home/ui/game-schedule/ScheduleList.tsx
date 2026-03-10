@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { TicketX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { useAuthStore } from '@/entities/auth/model/authStore';
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
 
@@ -132,12 +133,15 @@ function ActionButtons({
   game,
   isEnded,
   onOpenBookingFlow,
+  onOpenResellFlow,
 }: {
   game: GameRow;
   isEnded: boolean;
   onOpenBookingFlow: (game: GameRow) => void;
+  onOpenResellFlow: (game: GameRow) => void;
 }) {
   const canBook = game.ticket === '예매하기';
+  const canResellBook = game.resell === '리셀예매';
 
   return (
     <>
@@ -156,9 +160,11 @@ function ActionButtons({
           </button>
           <button
             type="button"
+            disabled={!canResellBook}
+            onClick={() => onOpenResellFlow(game)}
             className={cn(
               'h-full flex-1 px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium leading-[1.5] border',
-              game.resell === '리셀예매'
+              canResellBook
                 ? 'bg-background border-primary text-primary'
                 : 'bg-background border-[#acb4bb] text-[#acb4bb]',
             )}
@@ -182,9 +188,11 @@ function ActionButtons({
         </button>
         <button
           type="button"
+          disabled={!canResellBook}
+          onClick={() => onOpenResellFlow(game)}
           className={cn(
             'h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] border',
-            game.resell === '리셀예매'
+            canResellBook
               ? 'bg-background border-primary text-primary'
               : 'bg-background border-[#acb4bb] text-[#acb4bb] w-[88px] whitespace-nowrap',
           )}
@@ -201,11 +209,13 @@ function MobileGameRow({
   game,
   index,
   onOpenBookingFlow,
+  onOpenResellFlow,
 }: {
   day: DaySchedule;
   game: GameRow;
   index: number;
   onOpenBookingFlow: (game: GameRow) => void;
+  onOpenResellFlow: (game: GameRow) => void;
 }) {
   const isLast = index === day.games.length - 1;
   const isEnded = game.status === '종료';
@@ -237,7 +247,12 @@ function MobileGameRow({
         <MobileTeam name={game.home} isEnded={isEnded} result={resultText.home} isHome={true} />
       </div>
 
-      <ActionButtons game={game} isEnded={isEnded} onOpenBookingFlow={onOpenBookingFlow} />
+      <ActionButtons
+        game={game}
+        isEnded={isEnded}
+        onOpenBookingFlow={onOpenBookingFlow}
+        onOpenResellFlow={onOpenResellFlow}
+      />
     </div>
   );
 }
@@ -247,11 +262,13 @@ function DesktopGameRow({
   game,
   index,
   onOpenBookingFlow,
+  onOpenResellFlow,
 }: {
   day: DaySchedule;
   game: GameRow;
   index: number;
   onOpenBookingFlow: (game: GameRow) => void;
+  onOpenResellFlow: (game: GameRow) => void;
 }) {
   const isLast = index === day.games.length - 1;
   const isEnded = game.status === '종료';
@@ -306,7 +323,12 @@ function DesktopGameRow({
         </div>
       </div>
 
-      <ActionButtons game={game} isEnded={isEnded} onOpenBookingFlow={onOpenBookingFlow} />
+      <ActionButtons
+        game={game}
+        isEnded={isEnded}
+        onOpenBookingFlow={onOpenBookingFlow}
+        onOpenResellFlow={onOpenResellFlow}
+      />
     </div>
   );
 }
@@ -318,6 +340,7 @@ type ScheduleListProps = {
 
 function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
   const navigate = useNavigate();
+  const accessToken = useAuthStore((state) => state.accessToken);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isCaptchaOpen, setIsCaptchaOpen] = useState(false);
   const [captchaInput, setCaptchaInput] = useState('');
@@ -331,7 +354,23 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
       return;
     }
 
+    if (!accessToken) {
+      navigate('/auth/login');
+      return;
+    }
+
     setIsGuideOpen(true);
+  };
+
+  const openResellFlow = (game: GameRow) => {
+    if (game.resell !== '리셀예매') {
+      return;
+    }
+
+    if (!accessToken) {
+      navigate('/auth/login');
+      return;
+    }
   };
 
   const confirmGuideAndOpenCaptcha = () => {
@@ -377,8 +416,20 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
 
             {day.games.map((game, index) => (
               <div key={`${day.date}-${game.time}-${game.away}-${game.home}-${index}`}>
-                <MobileGameRow day={day} game={game} index={index} onOpenBookingFlow={openBookingFlow} />
-                <DesktopGameRow day={day} game={game} index={index} onOpenBookingFlow={openBookingFlow} />
+                <MobileGameRow
+                  day={day}
+                  game={game}
+                  index={index}
+                  onOpenBookingFlow={openBookingFlow}
+                  onOpenResellFlow={openResellFlow}
+                />
+                <DesktopGameRow
+                  day={day}
+                  game={game}
+                  index={index}
+                  onOpenBookingFlow={openBookingFlow}
+                  onOpenResellFlow={openResellFlow}
+                />
               </div>
             ))}
           </div>
