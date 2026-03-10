@@ -16,7 +16,7 @@ const SCALE_STEP = 0.2;
 const OVERVIEW_MIN_SCALE = 0.8;
 const OVERVIEW_MAX_SCALE = 2;
 const OVERVIEW_SCALE_STEP = 0.2;
-const STAGE_WIDTH = 1080;
+const STAGE_WIDTH = 1240;
 const STAGE_HEIGHT = 620;
 const BLOCK_SEAT_SIZE = 18;
 const BLOCK_SEAT_GAP = 2;
@@ -348,10 +348,11 @@ function SeatsPage() {
                               경기장 방향
                            </div>
 
-                           {seatBlocks.map((block) => (
+                           {seatBlocks.map((block, index) => (
                               <SeatBlockGrid
                                  key={block.id}
                                  block={block}
+                                 blockIndex={index}
                                  seats={seats.filter((seat) => seat.block === block.id)}
                                  selectedSeatIds={selectedSeatIds}
                                  onToggleSeat={toggleSeat}

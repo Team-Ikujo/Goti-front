@@ -2,6 +2,8 @@ import { create } from 'zustand';
 
 import type { SeatItem, SeatStatus } from './types';
 
+const MAX_SELECTED_SEATS = 4;
+
 type ZoneSeatState = {
    lastSyncedAt: number | null;
    seatMap: Record<string, SeatItem>;
@@ -59,7 +61,17 @@ export const useSeatSelectionStore = create<SeatSelectionStore>((set) => ({
             return state;
          }
 
-         const selectedSeatIds = zone.selectedSeatIds.includes(seatId)
+         const isAlreadySelected = zone.selectedSeatIds.includes(seatId);
+         const totalSelectedSeats = Object.values(state.zones).reduce(
+            (count, currentZone) => count + currentZone.selectedSeatIds.length,
+            0,
+         );
+
+         if (!isAlreadySelected && totalSelectedSeats >= MAX_SELECTED_SEATS) {
+            return state;
+         }
+
+         const selectedSeatIds = isAlreadySelected
             ? zone.selectedSeatIds.filter((id) => id !== seatId)
             : [...zone.selectedSeatIds, seatId];
 
