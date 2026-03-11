@@ -7,23 +7,23 @@ import { cn } from '@/shared/lib/utils';
 import type { GameItem, TabType } from './types';
 
 function StatusBadge({ status }: { status: string }) {
-   if (status === '예매 가능') {
+   if (status === '예매 가능' || status === '리셀 가능') {
       return (
-         <span className="bg-[#dcfce7] text-success text-caption-1-bold px-2 py-1 rounded-full whitespace-nowrap shrink-0">
+         <span className="bg-[#dcfce7] text-success text-caption-1-bold px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
             {status}
          </span>
       );
    }
-   if (status === '오픈 예정' || status === '리셀 예정') {
+   if (status === '판매 예정' || status === '리셀 예정') {
       return (
-         <span className="bg-fill-hoveraccent text-primary text-caption-1-bold px-2 py-1 rounded-full whitespace-nowrap shrink-0">
+         <span className="bg-fill-hoveraccent text-primary text-caption-1-bold px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
             {status}
          </span>
       );
    }
    // 매진
    return (
-      <span className="bg-fill-disabled text-muted-foreground text-caption-1-bold px-2 py-1 rounded-full whitespace-nowrap shrink-0">
+      <span className="bg-fill-disabled text-muted-foreground text-caption-1-bold px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
          {status}
       </span>
    );
@@ -34,19 +34,31 @@ interface GameCardProps {
    activeTab: TabType;
 }
 
+/** 탭과 현재 상태에 따라 버튼 텍스트와 활성 여부 결정 */
+function getButtonConfig(status: string, activeTab: TabType): { label: string; isActive: boolean } {
+   if (activeTab === '예매') {
+      if (status === '예매 가능') return { label: '예매하기', isActive: true };
+      if (status === '판매 예정') return { label: '판매예정', isActive: false };
+      return { label: '매진', isActive: false };
+   } else {
+      if (status === '리셀 가능') return { label: '리셀하기', isActive: true };
+      if (status === '리셀 예정') return { label: '리셀예정', isActive: false };
+      return { label: '리셀매진', isActive: false };
+   }
+}
+
 export function GameCard({ game, activeTab }: GameCardProps) {
    const status = activeTab === '예매' ? game.bookingStatus : game.resellStatus;
-   const isActive = status === '예매 가능';
-   const buttonLabel = activeTab === '예매' ? '예매하기' : '리셀예매';
+   const { label: buttonLabel, isActive } = getButtonConfig(status, activeTab);
    const showPrice = game.minPrice > 0;
 
    const formatPrice = (price: number) => price.toLocaleString('ko-KR') + '원';
 
    return (
-      <div className="bg-background border border-border rounded-[14px] p-[25px] flex items-center justify-between w-full">
-         {/* Left: game info */}
-         <div className="flex flex-col justify-between h-[104px]">
-            {/* Team matchup + status badge */}
+      <div className="bg-background border border-border rounded-[14px] px-[25px] py-[17px] flex flex-col w-full md:flex-row md:items-center md:justify-between md:py-[25px]">
+         {/* 경기 정보 */}
+         <div className="flex flex-col gap-3 md:justify-between md:h-[104px]">
+            {/* 팀 매치업 + 상태 뱃지 */}
             <div className="flex items-center gap-3 h-7">
                <div className="flex items-center gap-1 text-heading-3-bold text-foreground whitespace-nowrap">
                   <span>{game.awayTeam}</span>
@@ -56,13 +68,11 @@ export function GameCard({ game, activeTab }: GameCardProps) {
                <StatusBadge status={status} />
             </div>
 
-            {/* Date & Venue */}
-            <div className="flex items-center gap-5">
-               <div className="flex items-center gap-2 h-5 w-[200px]">
+            {/* 날짜 & 구장 */}
+            <div className="flex items-center gap-4 flex-wrap">
+               <div className="flex items-center gap-2 h-5">
                   <CalendarDays className="size-4 text-muted-foreground shrink-0" />
-                  <span className="text-body-2-regular text-muted-foreground whitespace-nowrap">
-                     {game.dateTime}
-                  </span>
+                  <span className="text-body-2-regular text-muted-foreground whitespace-nowrap">{game.dateTime}</span>
                </div>
                <div className="flex items-center gap-2 h-5">
                   <MapPin className="size-4 text-muted-foreground shrink-0" />
@@ -70,7 +80,7 @@ export function GameCard({ game, activeTab }: GameCardProps) {
                </div>
             </div>
 
-            {/* Remaining seats */}
+            {/* 잔여 좌석 */}
             <div className="flex items-center gap-2 h-5">
                <Ticket className="size-5 text-primary shrink-0" />
                <span className="text-body-2-bold text-primary whitespace-nowrap">
@@ -79,13 +89,12 @@ export function GameCard({ game, activeTab }: GameCardProps) {
             </div>
          </div>
 
-         {/* Right: price + button */}
-         <div className="flex flex-col items-end justify-between h-[104px]">
-            {/* Price */}
+         {/* 가격 + 버튼 — 모바일: border-t 구분선 + 가로 배치, 데스크톱: 세로 배치 */}
+         <div className="border-t border-border mt-4 pt-[7px] flex items-center justify-between md:border-0 md:mt-0 md:pt-0 md:flex-col md:items-end md:justify-between md:h-[104px]">
             {showPrice ? (
-               <div className="flex flex-col items-end">
+               <div className="flex flex-col md:items-end">
                   <div className="flex items-center gap-2 text-destructive whitespace-nowrap">
-                     {activeTab === '리셀' && <span className="text-body-2-regular">최저가</span>}
+                     <span className="text-body-2-regular">최저가</span>
                      <span className="text-heading-1-bold">{formatPrice(game.minPrice)}</span>
                   </div>
                   <span className="text-body-1-medium text-muted-foreground whitespace-nowrap">
@@ -93,10 +102,10 @@ export function GameCard({ game, activeTab }: GameCardProps) {
                   </span>
                </div>
             ) : (
-               <div />
+               <div className="hidden md:block" />
             )}
 
-            {/* Action button */}
+            {/* 액션 버튼 */}
             <button
                disabled={!isActive}
                className={cn(

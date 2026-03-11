@@ -1,60 +1,349 @@
 // src/shared/ui/date-picker.tsx
 
-import { useRef } from 'react';
-import { CalendarDays } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 
 interface DatePickerProps {
-   value: string;
+   value: string; // 'YYYY-MM-DD' or ''
    onChange: (value: string) => void;
    placeholder?: string;
    className?: string;
 }
 
-export function DatePicker({
-   value,
-   onChange,
-   placeholder = '경기 일시 선택',
-   className,
-}: DatePickerProps) {
-   const inputRef = useRef<HTMLInputElement>(null);
+const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+const MONTH_LABELS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
 
-   const displayValue = value
-      ? new Date(value).toLocaleDateString('ko-KR', {
-           year: 'numeric',
-           month: '2-digit',
-           day: '2-digit',
-        })
-      : placeholder;
+const BASE_YEAR = new Date().getFullYear();
+/** 연도 목록 — 최신 순(내림차순) */
+const YEAR_LIST = Array.from({ length: 8 }, (_, i) => BASE_YEAR - i);
+/** 월 목록 — 최신 순(내림차순) */
+const MONTH_LIST = [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+
+const VISIBLE_COUNT = 4;
+
+/** 'YYYY-MM-DD' → '2026.07.03 (금)' */
+function formatDisplay(dateStr: string): string {
+   const d = new Date(dateStr + 'T00:00:00');
+   const dayLabel = DAY_LABELS[d.getDay()];
+   const yyyy = d.getFullYear();
+   const mm = String(d.getMonth() + 1).padStart(2, '0');
+   const dd = String(d.getDate()).padStart(2, '0');
+   return `${yyyy}.${mm}.${dd} (${dayLabel})`;
+}
+
+/** 달력 행 배열 — 각 행은 7칸 (빈 칸은 null) */
+function buildCalendarRows(year: number, month: number): (number | null)[][] {
+   const firstWeekday = new Date(year, month - 1, 1).getDay();
+   const daysInMonth = new Date(year, month, 0).getDate();
+
+   const flat: (number | null)[] = Array(firstWeekday).fill(null);
+   for (let d = 1; d <= daysInMonth; d++) flat.push(d);
+   while (flat.length % 7 !== 0) flat.push(null);
+
+   const rows: (number | null)[][] = [];
+   for (let i = 0; i < flat.length; i += 7) rows.push(flat.slice(i, i + 7));
+   return rows;
+}
+
+/** 'YYYY-MM-DD' 생성 */
+function toDateStr(year: number, month: number, day: number): string {
+   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// ── 화살표 버튼으로 탐색하는 드롭다운 ────────────────────────────
+interface NavDropdownProps {
+   items: number[]; // 내림차순 정렬된 목록
+   selected: number;
+   onSelect: (v: number) => void;
+   labelOf: (v: number) => string;
+   className?: string;
+}
+
+function NavDropdown({ items, selected, onSelect, labelOf, className }: NavDropdownProps) {
+   const selectedIdx = items.indexOf(selected);
+   const initOffset = Math.max(0, Math.min(selectedIdx < 0 ? 0 : selectedIdx, items.length - VISIBLE_COUNT));
+   const [offset, setOffset] = useState(initOffset);
+
+   const visible = items.slice(offset, offset + VISIBLE_COUNT);
+   /** 더 위로 올라갈 수 있는지 (목록 상단 = 가장 최신) */
+   const canUp = offset > 0;
+   /** 더 아래로 내려갈 수 있는지 (목록 하단 = 가장 오래된) */
+   const canDown = offset + VISIBLE_COUNT < items.length;
 
    return (
       <div
+         role="listbox"
          className={cn(
-            'bg-surface border border-border-light rounded-lg px-3 py-2',
-            'flex items-center justify-between cursor-pointer w-full relative',
+            'bg-white border border-[#e5e5e5] rounded-lg shadow-[0px_4px_6px_rgba(0,0,0,0.1),0px_2px_4px_rgba(0,0,0,0.1)] p-1',
             className,
          )}
-         onClick={() => inputRef.current?.showPicker?.()}
       >
-         <span
-            className={cn(
-               'text-body-2-medium',
-               value ? 'text-foreground' : 'text-muted-foreground',
-            )}
-         >
-            {displayValue}
-         </span>
-         <CalendarDays className="size-4 text-muted-foreground shrink-0" />
+         {/* 위 화살표 — offset === 0(최신)이면 미표시 */}
+         {canUp && (
+            <button
+               type="button"
+               onClick={() => setOffset(o => o - 1)}
+               className="w-full flex items-center justify-center py-0.5 rounded hover:bg-surface transition-colors"
+               aria-label="이전 항목"
+            >
+               <ChevronUp className="size-3 text-[#646f7c]" />
+            </button>
+         )}
 
-         {/* 네이티브 date input — 보이지 않지만 picker를 열기 위해 사용 */}
-         <input
-            ref={inputRef}
-            type="date"
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            className="absolute inset-0 opacity-0 w-full cursor-pointer"
-            tabIndex={-1}
-         />
+         {/* 보여지는 항목 */}
+         {visible.map(item => (
+            <button
+               key={item}
+               type="button"
+               role="option"
+               aria-selected={item === selected}
+               onClick={() => onSelect(item)}
+               className={cn(
+                  'w-full flex items-center justify-between px-1 py-1.5 rounded-sm text-[14px] leading-normal transition-colors',
+                  item === selected ? 'bg-[#f7f8f9] text-[#374553] font-medium' : 'text-[#646f7c] hover:bg-[#f7f8f9]',
+               )}
+            >
+               <span>{labelOf(item)}</span>
+               {item === selected && <Check className="size-2.5 shrink-0 text-[#374553]" />}
+            </button>
+         ))}
+
+         {/* 아래 화살표 */}
+         {canDown && (
+            <button
+               type="button"
+               onClick={() => setOffset(o => o + 1)}
+               className="w-full flex items-center justify-center py-0.5 rounded hover:bg-surface transition-colors"
+               aria-label="다음 항목"
+            >
+               <ChevronDown className="size-3 text-[#646f7c]" />
+            </button>
+         )}
+      </div>
+   );
+}
+
+// ── DatePicker 본체 ───────────────────────────────────────────────
+export function DatePicker({ value, onChange, placeholder = '경기 일시 선택', className }: DatePickerProps) {
+   const [isOpen, setIsOpen] = useState(false);
+   const [showYearDrop, setShowYearDrop] = useState(false);
+   const [showMonthDrop, setShowMonthDrop] = useState(false);
+
+   const initDate = value ? new Date(value + 'T00:00:00') : new Date();
+   const [viewYear, setViewYear] = useState(initDate.getFullYear());
+   const [viewMonth, setViewMonth] = useState(initDate.getMonth() + 1);
+
+   const containerRef = useRef<HTMLDivElement>(null);
+
+   /** 외부 클릭 시 닫기 */
+   useEffect(() => {
+      if (!isOpen) return;
+      const handler = (e: MouseEvent) => {
+         if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+            setIsOpen(false);
+            setShowYearDrop(false);
+            setShowMonthDrop(false);
+         }
+      };
+      document.addEventListener('mousedown', handler);
+      return () => document.removeEventListener('mousedown', handler);
+   }, [isOpen]);
+
+   const calendarRows = buildCalendarRows(viewYear, viewMonth);
+
+   const prevMonth = () => {
+      if (viewMonth === 1) {
+         setViewYear(y => y - 1);
+         setViewMonth(12);
+      } else setViewMonth(m => m - 1);
+   };
+   const nextMonth = () => {
+      if (viewMonth === 12) {
+         setViewYear(y => y + 1);
+         setViewMonth(1);
+      } else setViewMonth(m => m + 1);
+   };
+
+   const handleDayClick = (day: number) => {
+      onChange(toDateStr(viewYear, viewMonth, day));
+      setIsOpen(false);
+      setShowYearDrop(false);
+      setShowMonthDrop(false);
+   };
+
+   const toggleYearDrop = () => {
+      setShowYearDrop(v => !v);
+      setShowMonthDrop(false);
+   };
+   const toggleMonthDrop = () => {
+      setShowMonthDrop(v => !v);
+      setShowYearDrop(false);
+   };
+
+   const selectedParts = value
+      ? { year: Number(value.slice(0, 4)), month: Number(value.slice(5, 7)), day: Number(value.slice(8, 10)) }
+      : null;
+
+   return (
+      <div ref={containerRef} className={cn('relative w-full', className)}>
+         {/* 트리거 */}
+         <button
+            type="button"
+            onClick={() => setIsOpen(v => !v)}
+            className="bg-surface border border-border-light rounded-lg px-3 h-9 flex items-center justify-between w-full"
+            aria-haspopup="dialog"
+            aria-expanded={isOpen}
+         >
+            <span className={cn('text-body-2-medium', value ? 'text-foreground' : 'text-neutral-600')}>
+               {value ? formatDisplay(value) : placeholder}
+            </span>
+            <CalendarDays className="size-4 text-neutral-600 shrink-0" />
+         </button>
+
+         {/* 달력 팝업 */}
+         {isOpen && (
+            <div
+               role="dialog"
+               aria-label="날짜 선택"
+               className="absolute z-50 top-[calc(100%+4px)] left-0 right-0 bg-white border border-[#d0d6db] rounded-[10px] p-3 shadow-[0px_1px_3px_rgba(0,0,0,0.1)] flex flex-col gap-4"
+            >
+               {/* ── 헤더 ── */}
+               <div className="flex items-center justify-between">
+                  {/* 이전 달 */}
+                  <button
+                     type="button"
+                     onClick={prevMonth}
+                     className="flex items-center justify-center size-8 rounded-md hover:bg-surface transition-colors"
+                     aria-label="이전 달"
+                  >
+                     <ChevronLeft className="size-4 text-foreground" />
+                  </button>
+
+                  {/* 연도 / 월 드롭다운 트리거 */}
+                  <div className="flex items-center gap-1.5">
+                     {/* 연도 드롭다운 */}
+                     <div className="relative">
+                        <button
+                           type="button"
+                           onClick={toggleYearDrop}
+                           className="bg-white border border-[#e5e5e5] h-8 rounded-lg shadow-[0px_1px_2px_rgba(0,0,0,0.1)] flex items-center gap-1 pl-2 pr-1"
+                        >
+                           <span className="text-[14px] font-medium text-foreground leading-5">{viewYear}</span>
+                           <ChevronDown className="size-3 text-foreground" />
+                        </button>
+
+                        {showYearDrop && (
+                           // 연도 버튼 아래에서 달력 위로 오버레이
+                           <NavDropdown
+                              items={YEAR_LIST}
+                              selected={viewYear}
+                              onSelect={y => {
+                                 setViewYear(y);
+                                 setShowYearDrop(false);
+                              }}
+                              labelOf={y => `${y}`}
+                              className="absolute z-20 -top-1 mt-0.5 left-0 w-[66px]"
+                           />
+                        )}
+                     </div>
+
+                     {/* 월 드롭다운 */}
+                     <div className="relative">
+                        <button
+                           type="button"
+                           onClick={toggleMonthDrop}
+                           className="bg-white border border-[#e5e5e5] h-8 rounded-lg shadow-[0px_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-between gap-1 pl-2 pr-1 w-[53px]"
+                        >
+                           <span className="text-[14px] font-medium text-foreground leading-5">
+                              {String(viewMonth).padStart(2, '0')}
+                           </span>
+                           <ChevronDown className="size-3 text-foreground" />
+                        </button>
+
+                        {showMonthDrop && (
+                           // 월 버튼 아래, 버튼 기준 중앙 정렬, 달력 위로 오버레이
+                           <NavDropdown
+                              items={MONTH_LIST}
+                              selected={viewMonth}
+                              onSelect={m => {
+                                 setViewMonth(m);
+                                 setShowMonthDrop(false);
+                              }}
+                              labelOf={m => MONTH_LABELS[m - 1]}
+                              className="absolute z-20 -top-[55px] mt-0.5 left-1/2 -translate-x-1/2 w-14"
+                           />
+                        )}
+                     </div>
+                  </div>
+
+                  {/* 다음 달 */}
+                  <button
+                     type="button"
+                     onClick={nextMonth}
+                     className="flex items-center justify-center size-8 rounded-md hover:bg-surface transition-colors"
+                     aria-label="다음 달"
+                  >
+                     <ChevronRight className="size-4 text-foreground" />
+                  </button>
+               </div>
+
+               {/* ── 달력 그리드 ── */}
+               <div>
+                  {/* 요일 헤더 */}
+                  <div className="flex items-center">
+                     {DAY_LABELS.map(d => (
+                        <div key={d} className="flex flex-1 h-[21px] items-center justify-center">
+                           <span className="text-[12px] leading-4 text-muted-foreground">{d}</span>
+                        </div>
+                     ))}
+                  </div>
+
+                  {/* 날짜 행 */}
+                  {calendarRows.map((row, rowIdx) => (
+                     <div key={rowIdx} className="flex items-start pt-2">
+                        {row.map((day, colIdx) => {
+                           if (day === null) return <div key={`e-${colIdx}`} className="flex-1 h-8" />;
+
+                           const isSelected =
+                              selectedParts !== null &&
+                              selectedParts.year === viewYear &&
+                              selectedParts.month === viewMonth &&
+                              selectedParts.day === day;
+
+                           return (
+                              <button
+                                 key={day}
+                                 type="button"
+                                 onClick={() => handleDayClick(day)}
+                                 className={cn(
+                                    'flex flex-1 items-center justify-center h-8 rounded-lg text-[14px] leading-5 transition-colors',
+                                    isSelected ? 'bg-primary text-white' : 'text-foreground hover:bg-surface',
+                                 )}
+                              >
+                                 {day}
+                              </button>
+                           );
+                        })}
+                     </div>
+                  ))}
+               </div>
+
+               {/* 선택 해제 */}
+               {value && (
+                  <button
+                     type="button"
+                     onClick={() => {
+                        onChange('');
+                        setIsOpen(false);
+                     }}
+                     className="w-full text-[12px] text-muted-foreground hover:text-foreground transition-colors py-1 border-t border-border"
+                  >
+                     선택 해제
+                  </button>
+               )}
+            </div>
+         )}
       </div>
    );
 }

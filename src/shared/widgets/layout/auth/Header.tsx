@@ -202,7 +202,7 @@ const Header = () => {
                   {!isLoggedIn && (
                      <Button
                         asChild
-                        variant="primaryline"
+                        variant="secondary"
                         className="hidden lg:flex shrink-0 w-29.5 h-auto px-3.5 py-1.5 rounded-lg text-body-2-medium text-primary"
                      >
                         <Link to="/auth/login">로그인/회원가입</Link>
@@ -213,7 +213,7 @@ const Header = () => {
                   {!isLoggedIn && (
                      <Button
                         asChild
-                        variant="primaryline"
+                        variant="secondary"
                         className="lg:hidden shrink-0 h-auto px-3.5 py-1.5 rounded-lg text-body-2-medium"
                      >
                         <Link to="/auth/login">로그인/회원가입</Link>

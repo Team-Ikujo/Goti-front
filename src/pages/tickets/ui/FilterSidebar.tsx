@@ -1,7 +1,7 @@
 // src/pages/tickets/ui/FilterSidebar.tsx
 
-import { useState } from 'react';
-import { MapPin, Search, RotateCcw, SlidersHorizontal, Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MapPin, Search, Calendar } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
 import { Checkbox } from '@/shared/ui/checkbox';
@@ -9,14 +9,22 @@ import { Button } from '@/shared/ui/button';
 import { RangeSlider } from '@/shared/ui/slider';
 import { DatePicker } from '@/shared/ui/date-picker';
 import { Select } from '@/shared/ui/select';
+import moneyIcon from '@/shared/ui/icon/money.svg';
+import redoIcon from '@/shared/ui/icon/Redo.svg';
+import eyeIcon from '@/shared/ui/icon/Eye.svg';
+
+import { TabToggle } from './TabToggle';
 
 import { MAX_PRICE, VENUES } from './constants';
 import type { FilterState, TabType } from './types';
 
 interface FilterSidebarProps {
+   /** 마지막으로 적용된 탭 (초기값 및 초기화 기준) */
    activeTab: TabType;
-   onTabChange: (tab: TabType) => void;
    onApply: (filters: FilterState) => void;
+   className?: string;
+   /** 바텀시트 모드: 내부 너비 full + 버튼 우측 정렬 */
+   sheetMode?: boolean;
 }
 
 const formatPrice = (price: number) => price.toLocaleString('ko-KR') + '원';
@@ -24,9 +32,16 @@ const formatPrice = (price: number) => price.toLocaleString('ko-KR') + '원';
 const venueOptions = VENUES.map(v => ({ value: v, label: v }));
 
 const inputBase =
-   'bg-surface border border-border-light rounded-lg px-3 py-2 text-body-2-medium text-muted-foreground outline-none w-full';
+   'bg-surface border border-border-light rounded-lg px-3 py-2 text-body-2-medium text-neutral-600 placeholder:text-neutral-600 outline-none w-full';
 
-export function FilterSidebar({ activeTab, onTabChange, onApply }: FilterSidebarProps) {
+export function FilterSidebar({ activeTab, onApply, className, sheetMode = false }: FilterSidebarProps) {
+   // 로컬 탭 상태 — 조회하기 클릭 시에만 부모에 전파
+   const [localTab, setLocalTab] = useState<TabType>(activeTab);
+
+   // 외부에서 탭이 변경되면 (모바일 탭 클릭 등) 로컬 탭도 sync
+   useEffect(() => {
+      setLocalTab(activeTab);
+   }, [activeTab]);
    const [showUpcoming, setShowUpcoming] = useState(true);
    const [showSoldOut, setShowSoldOut] = useState(true);
    const [dateTime, setDateTime] = useState('');
@@ -36,6 +51,7 @@ export function FilterSidebar({ activeTab, onTabChange, onApply }: FilterSidebar
    const [searchQuery, setSearchQuery] = useState('');
 
    const handleReset = () => {
+      setLocalTab(activeTab); // 마지막 적용 탭으로 복원
       setShowUpcoming(true);
       setShowSoldOut(true);
       setDateTime('');
@@ -46,49 +62,37 @@ export function FilterSidebar({ activeTab, onTabChange, onApply }: FilterSidebar
    };
 
    const handleApply = () => {
-      onApply({ showUpcoming, showSoldOut, dateTime, minPrice, maxPrice, venue, searchQuery });
+      onApply({ tab: localTab, showUpcoming, showSoldOut, dateTime, minPrice, maxPrice, venue, searchQuery });
    };
 
    return (
-      <aside className="bg-background border border-border rounded-[14px] p-6 shrink-0 self-start">
-         <div className="flex flex-col gap-6 w-67.5">
-            {/* 예매/리셀 선택 */}
+      <aside className={cn('bg-background border border-border rounded-[14px] p-6 shrink-0 self-start', className)}>
+         <div className={cn('flex flex-col gap-6', sheetMode ? 'w-full' : 'w-67.5')}>
+            {/* 예매/리셀 선택 토글 */}
             <section className="flex flex-col gap-3">
                <p className="text-body-1-semibold text-foreground">예매/리셀 선택</p>
-               <div className="flex gap-2">
-                  {(['예매', '리셀'] as TabType[]).map(tab => (
-                     <button
-                        key={tab}
-                        onClick={() => onTabChange(tab)}
-                        className={cn(
-                           'flex-1 py-1.5 px-4 rounded-lg text-body-2-semibold transition-colors border',
-                           activeTab === tab
-                              ? 'bg-primary-light border-border-accent text-primary'
-                              : 'bg-background border-border text-muted-foreground font-medium',
-                        )}
-                     >
-                        {tab}
-                     </button>
-                  ))}
-               </div>
+               <TabToggle value={localTab} onChange={setLocalTab} />
             </section>
 
             <hr className="border-border" />
 
             {/* 보기 옵션 */}
             <section className="flex flex-col gap-2">
-               <p className="text-body-2-semibold text-foreground">보기 옵션</p>
+               <div className="flex items-center gap-2">
+                  <img src={eyeIcon} className="size-4 shrink-0" alt="" />
+                  <p className="text-body-2-semibold text-foreground">보기 옵션</p>
+               </div>
                <Checkbox
                   size="md"
                   typography="body3Regular"
-                  label="오픈 예정 티켓 보기"
+                  label={localTab === '예매' ? '판매 예정 티켓 포함' : '리셀 예정 티켓 포함'}
                   checked={showUpcoming}
                   onCheckedChange={v => setShowUpcoming(v === true)}
                />
                <Checkbox
                   size="md"
                   typography="body3Regular"
-                  label="매진 티켓 보기"
+                  label="매진 티켓 포함"
                   checked={showSoldOut}
                   onCheckedChange={v => setShowSoldOut(v === true)}
                />
@@ -100,24 +104,20 @@ export function FilterSidebar({ activeTab, onTabChange, onApply }: FilterSidebar
                   <Calendar className="size-4 text-foreground shrink-0" />
                   <p className="text-body-2-semibold text-foreground">경기 일시</p>
                </div>
-               <DatePicker
-                  value={dateTime}
-                  onChange={setDateTime}
-                  placeholder="경기 일시 선택"
-               />
+               <DatePicker value={dateTime} onChange={setDateTime} placeholder="경기 일시 선택" />
             </section>
 
             {/* 가격 설정 */}
             <section className="flex flex-col gap-2">
                <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="size-4 text-foreground shrink-0" />
+                  <img src={moneyIcon} className="size-4 shrink-0" />
                   <p className="text-body-2-semibold text-foreground">가격 설정</p>
                </div>
                <div className="flex flex-col gap-1">
                   <RangeSlider
                      min={0}
                      max={MAX_PRICE}
-                     step={10_000}
+                     step={1_000}
                      minValue={minPrice}
                      maxValue={maxPrice}
                      onChange={(min, max) => {
@@ -139,12 +139,7 @@ export function FilterSidebar({ activeTab, onTabChange, onApply }: FilterSidebar
                   <MapPin className="size-4 text-foreground shrink-0" />
                   <p className="text-body-2-semibold text-foreground">위치 (구장)</p>
                </div>
-               <Select
-                  value={venue}
-                  onChange={setVenue}
-                  options={venueOptions}
-                  placeholder="구장 선택"
-               />
+               <Select value={venue} onChange={setVenue} options={venueOptions} placeholder="구장 선택" />
             </section>
 
             {/* 검색어 */}
@@ -166,8 +161,8 @@ export function FilterSidebar({ activeTab, onTabChange, onApply }: FilterSidebar
 
             {/* 버튼 */}
             <div className="flex flex-col gap-2">
-               <Button variant="outline" size="sm" onClick={handleReset} className="w-full gap-2">
-                  <RotateCcw className="size-4" />
+               <Button variant="tertiary" size="sm" onClick={handleReset} className="w-full gap-2">
+                  <img src={redoIcon} className="size-5 shrink-0" />
                   초기화
                </Button>
                <Button variant="primary" size="sm" onClick={handleApply} className="w-full">

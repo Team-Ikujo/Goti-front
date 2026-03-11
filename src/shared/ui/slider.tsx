@@ -8,7 +8,7 @@ const thumbStyle =
    'pointer-events-none ' +
    '[&::-webkit-slider-thumb]:pointer-events-auto ' +
    '[&::-webkit-slider-thumb]:appearance-none ' +
-   '[&::-webkit-slider-thumb]:size-3.5 ' +          // 14px
+   '[&::-webkit-slider-thumb]:size-3.5 ' + // 14px
    '[&::-webkit-slider-thumb]:rounded-full ' +
    '[&::-webkit-slider-thumb]:bg-white ' +
    '[&::-webkit-slider-thumb]:border ' +
@@ -59,9 +59,7 @@ export function RangeSlider({
 
    return (
       <div className={cn('relative h-4 flex items-center', className)}>
-         {/* Track — 전체 회색 */}
-         <div className="absolute inset-x-0 h-[5px] rounded-full bg-[#d4d4d4]">
-            {/* 선택 구간 — foreground(dark) */}
+         <div className="absolute inset-x-0 h-1.5 rounded-full bg-[#d4d4d4]">
             <div
                className="absolute h-full bg-foreground rounded-full"
                style={{ left: `${leftPct}%`, right: `${rightPct}%` }}
@@ -76,11 +74,7 @@ export function RangeSlider({
             step={step}
             value={minValue}
             onChange={handleMinChange}
-            className={cn(
-               'absolute inset-0 w-full appearance-none bg-transparent',
-               minZ,
-               thumbStyle,
-            )}
+            className={cn('absolute inset-0 w-full appearance-none bg-transparent', minZ, thumbStyle)}
          />
 
          {/* Max 핸들 */}
@@ -91,11 +85,7 @@ export function RangeSlider({
             step={step}
             value={maxValue}
             onChange={handleMaxChange}
-            className={cn(
-               'absolute inset-0 w-full appearance-none bg-transparent',
-               maxZ,
-               thumbStyle,
-            )}
+            className={cn('absolute inset-0 w-full appearance-none bg-transparent', maxZ, thumbStyle)}
          />
       </div>
    );
@@ -120,11 +110,8 @@ export function Slider({ min = 0, max = 100, step = 1, value, onChange, classNam
    return (
       <div className={cn('relative h-4 flex items-center', className)}>
          {/* Track */}
-         <div className="absolute inset-x-0 h-[5px] rounded-full bg-[#d4d4d4]">
-            <div
-               className="absolute h-full bg-foreground rounded-full"
-               style={{ left: '0%', right: `${rightPct}%` }}
-            />
+         <div className="absolute inset-x-0 h-1.5 rounded-full bg-[#d4d4d4]">
+            <div className="absolute h-full bg-foreground rounded-full" style={{ left: '0%', right: `${rightPct}%` }} />
          </div>
 
          <input
