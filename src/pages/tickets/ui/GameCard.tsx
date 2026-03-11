@@ -102,14 +102,14 @@ export function GameCard({ game, activeTab }: GameCardProps) {
                   </span>
                </div>
             ) : (
-               <div className="hidden md:block" />
+               <div />
             )}
 
             {/* 액션 버튼 */}
             <button
                disabled={!isActive}
                className={cn(
-                  'px-[14px] py-[6px] rounded-[8px] text-body-2-medium whitespace-nowrap transition-colors',
+                  'px-[14px] py-[6px] rounded-[8px] text-body-2-medium whitespace-nowrap transition-colors w-[77px]',
                   isActive
                      ? 'bg-primary text-white hover:bg-primary-strong'
                      : 'bg-primary-disabled text-disabled-foreground cursor-not-allowed',

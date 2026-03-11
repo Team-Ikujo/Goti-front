@@ -60,22 +60,34 @@ interface NavDropdownProps {
    className?: string;
 }
 
+/** 항목 1개의 렌더링 높이: py-1.5(12px) + body-2 line-height(21px) */
+const ITEM_HEIGHT = 33;
+/** 컨테이너 p-1 상단 패딩 */
+const CONTAINER_PADDING_TOP = 4;
+
 function NavDropdown({ items, selected, onSelect, labelOf, className }: NavDropdownProps) {
    const selectedIdx = items.indexOf(selected);
    const initOffset = Math.max(0, Math.min(selectedIdx < 0 ? 0 : selectedIdx, items.length - VISIBLE_COUNT));
    const [offset, setOffset] = useState(initOffset);
 
    const visible = items.slice(offset, offset + VISIBLE_COUNT);
-   /** 더 위로 올라갈 수 있는지 (목록 상단 = 가장 최신) */
    const canUp = offset > 0;
-   /** 더 아래로 내려갈 수 있는지 (목록 하단 = 가장 오래된) */
    const canDown = offset + VISIBLE_COUNT < items.length;
+
+   /** visible 배열 내 선택 항목 index */
+   const selectedVisibleIdx = visible.indexOf(selected);
+   /**
+    * 선택된 항목이 트리거 버튼 위에 겹쳐 보이도록 top을 동적 계산.
+    * className에 top 클래스가 없어야 인라인 스타일이 우선 적용됨.
+    */
+   const dynamicTop = selectedVisibleIdx >= 0 ? -(selectedVisibleIdx * ITEM_HEIGHT + CONTAINER_PADDING_TOP) : 0;
 
    return (
       <div
          role="listbox"
+         style={{ top: dynamicTop }}
          className={cn(
-            'bg-white border border-[#e5e5e5] rounded-lg shadow-[0px_4px_6px_rgba(0,0,0,0.1),0px_2px_4px_rgba(0,0,0,0.1)] p-1',
+            'bg-background border border-[var(--neutral-200)] rounded-lg shadow-[0px_4px_6px_rgba(0,0,0,0.1),0px_2px_4px_rgba(0,0,0,0.1)] p-1',
             className,
          )}
       >
@@ -87,7 +99,7 @@ function NavDropdown({ items, selected, onSelect, labelOf, className }: NavDropd
                className="w-full flex items-center justify-center py-0.5 rounded hover:bg-surface transition-colors"
                aria-label="이전 항목"
             >
-               <ChevronUp className="size-3 text-[#646f7c]" />
+               <ChevronUp className="size-3 text-[var(--neutral-600)]" />
             </button>
          )}
 
@@ -100,12 +112,14 @@ function NavDropdown({ items, selected, onSelect, labelOf, className }: NavDropd
                aria-selected={item === selected}
                onClick={() => onSelect(item)}
                className={cn(
-                  'w-full flex items-center justify-between px-1 py-1.5 rounded-sm text-[14px] leading-normal transition-colors',
-                  item === selected ? 'bg-[#f7f8f9] text-[#374553] font-medium' : 'text-[#646f7c] hover:bg-[#f7f8f9]',
+                  'w-full flex items-center justify-between px-1 py-1.5 rounded-sm text-body-2-regular transition-colors',
+                  item === selected
+                     ? 'bg-surface text-muted-foreground font-medium'
+                     : 'text-[var(--neutral-600)] hover:bg-surface',
                )}
             >
                <span>{labelOf(item)}</span>
-               {item === selected && <Check className="size-2.5 shrink-0 text-[#374553]" />}
+               {item === selected && <Check className="size-2.5 shrink-0 text-muted-foreground" />}
             </button>
          ))}
 
@@ -117,7 +131,7 @@ function NavDropdown({ items, selected, onSelect, labelOf, className }: NavDropd
                className="w-full flex items-center justify-center py-0.5 rounded hover:bg-surface transition-colors"
                aria-label="다음 항목"
             >
-               <ChevronDown className="size-3 text-[#646f7c]" />
+               <ChevronDown className="size-3 text-[var(--neutral-600)]" />
             </button>
          )}
       </div>
@@ -195,10 +209,10 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
             aria-haspopup="dialog"
             aria-expanded={isOpen}
          >
-            <span className={cn('text-body-2-medium', value ? 'text-foreground' : 'text-neutral-600')}>
+            <span className={cn('text-body-2-medium', value ? 'text-foreground' : 'text-[var(--neutral-600)]')}>
                {value ? formatDisplay(value) : placeholder}
             </span>
-            <CalendarDays className="size-4 text-neutral-600 shrink-0" />
+            <CalendarDays className="size-4 text-[var(--neutral-600)] shrink-0" />
          </button>
 
          {/* 달력 팝업 */}
@@ -206,7 +220,7 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
             <div
                role="dialog"
                aria-label="날짜 선택"
-               className="absolute z-50 top-[calc(100%+4px)] left-0 right-0 bg-white border border-[#d0d6db] rounded-[10px] p-3 shadow-[0px_1px_3px_rgba(0,0,0,0.1)] flex flex-col gap-4"
+               className="absolute z-50 top-[calc(100%+4px)] left-0 right-0 bg-background border border-border rounded-[10px] p-3 shadow-[0px_1px_3px_rgba(0,0,0,0.1)] flex flex-col gap-4"
             >
                {/* ── 헤더 ── */}
                <div className="flex items-center justify-between">
@@ -227,14 +241,13 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
                         <button
                            type="button"
                            onClick={toggleYearDrop}
-                           className="bg-white border border-[#e5e5e5] h-8 rounded-lg shadow-[0px_1px_2px_rgba(0,0,0,0.1)] flex items-center gap-1 pl-2 pr-1"
+                           className="bg-background border border-[var(--neutral-200)] h-8 rounded-lg shadow-[0px_1px_2px_rgba(0,0,0,0.1)] flex items-center gap-1 pl-2 pr-1"
                         >
-                           <span className="text-[14px] font-medium text-foreground leading-5">{viewYear}</span>
+                           <span className="text-body-2-medium text-foreground">{viewYear}</span>
                            <ChevronDown className="size-3 text-foreground" />
                         </button>
 
                         {showYearDrop && (
-                           // 연도 버튼 아래에서 달력 위로 오버레이
                            <NavDropdown
                               items={YEAR_LIST}
                               selected={viewYear}
@@ -243,7 +256,7 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
                                  setShowYearDrop(false);
                               }}
                               labelOf={y => `${y}`}
-                              className="absolute z-20 -top-1 mt-0.5 left-0 w-[66px]"
+                              className="absolute z-20 left-0 w-[66px]"
                            />
                         )}
                      </div>
@@ -253,16 +266,15 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
                         <button
                            type="button"
                            onClick={toggleMonthDrop}
-                           className="bg-white border border-[#e5e5e5] h-8 rounded-lg shadow-[0px_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-between gap-1 pl-2 pr-1 w-[53px]"
+                           className="bg-background border border-(--neutral-200) h-8 rounded-lg shadow-[0px_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-between gap-1 pl-2 pr-1 w-[53px]"
                         >
-                           <span className="text-[14px] font-medium text-foreground leading-5">
+                           <span className="text-body-2-medium text-foreground">
                               {String(viewMonth).padStart(2, '0')}
                            </span>
                            <ChevronDown className="size-3 text-foreground" />
                         </button>
 
                         {showMonthDrop && (
-                           // 월 버튼 아래, 버튼 기준 중앙 정렬, 달력 위로 오버레이
                            <NavDropdown
                               items={MONTH_LIST}
                               selected={viewMonth}
@@ -271,7 +283,7 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
                                  setShowMonthDrop(false);
                               }}
                               labelOf={m => MONTH_LABELS[m - 1]}
-                              className="absolute z-20 -top-[55px] mt-0.5 left-1/2 -translate-x-1/2 w-14"
+                              className="absolute z-20 left-1/2 -translate-x-1/2 w-14"
                            />
                         )}
                      </div>
@@ -294,7 +306,7 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
                   <div className="flex items-center">
                      {DAY_LABELS.map(d => (
                         <div key={d} className="flex flex-1 h-[21px] items-center justify-center">
-                           <span className="text-[12px] leading-4 text-muted-foreground">{d}</span>
+                           <span className="text-caption-1-regular text-muted-foreground">{d}</span>
                         </div>
                      ))}
                   </div>
@@ -317,7 +329,7 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
                                  type="button"
                                  onClick={() => handleDayClick(day)}
                                  className={cn(
-                                    'flex flex-1 items-center justify-center h-8 rounded-lg text-[14px] leading-5 transition-colors',
+                                    'flex flex-1 items-center justify-center h-8 rounded-lg text-body-2-regular transition-colors',
                                     isSelected ? 'bg-primary text-white' : 'text-foreground hover:bg-surface',
                                  )}
                               >
@@ -337,7 +349,7 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
                         onChange('');
                         setIsOpen(false);
                      }}
-                     className="w-full text-[12px] text-muted-foreground hover:text-foreground transition-colors py-1 border-t border-border"
+                     className="w-full text-caption-1-regular text-muted-foreground hover:text-foreground transition-colors py-1 border-t border-border"
                   >
                      선택 해제
                   </button>

@@ -1,7 +1,7 @@
 // src/pages/tickets/ui/FilterSidebar.tsx
 
 import { useState, useEffect } from 'react';
-import { MapPin, Search, Calendar } from 'lucide-react';
+import { MapPin, Search, Calendar, Eye, Banknote, RotateCcw } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
 import { Checkbox } from '@/shared/ui/checkbox';
@@ -9,9 +9,6 @@ import { Button } from '@/shared/ui/button';
 import { RangeSlider } from '@/shared/ui/slider';
 import { DatePicker } from '@/shared/ui/date-picker';
 import { Select } from '@/shared/ui/select';
-import moneyIcon from '@/shared/ui/icon/money.svg';
-import redoIcon from '@/shared/ui/icon/Redo.svg';
-import eyeIcon from '@/shared/ui/icon/Eye.svg';
 
 import { TabToggle } from './TabToggle';
 
@@ -32,7 +29,7 @@ const formatPrice = (price: number) => price.toLocaleString('ko-KR') + '원';
 const venueOptions = VENUES.map(v => ({ value: v, label: v }));
 
 const inputBase =
-   'bg-surface border border-border-light rounded-lg px-3 py-2 text-body-2-medium text-neutral-600 placeholder:text-neutral-600 outline-none w-full';
+   'bg-surface border border-border-light rounded-lg px-3 py-2 text-body-2-medium text-neutral-600 outline-none w-full';
 
 export function FilterSidebar({ activeTab, onApply, className, sheetMode = false }: FilterSidebarProps) {
    // 로컬 탭 상태 — 조회하기 클릭 시에만 부모에 전파
@@ -42,8 +39,8 @@ export function FilterSidebar({ activeTab, onApply, className, sheetMode = false
    useEffect(() => {
       setLocalTab(activeTab);
    }, [activeTab]);
-   const [showUpcoming, setShowUpcoming] = useState(true);
-   const [showSoldOut, setShowSoldOut] = useState(true);
+   const [showUpcoming, setShowUpcoming] = useState(false);
+   const [showSoldOut, setShowSoldOut] = useState(false);
    const [dateTime, setDateTime] = useState('');
    const [minPrice, setMinPrice] = useState(0);
    const [maxPrice, setMaxPrice] = useState(MAX_PRICE);
@@ -52,8 +49,8 @@ export function FilterSidebar({ activeTab, onApply, className, sheetMode = false
 
    const handleReset = () => {
       setLocalTab(activeTab); // 마지막 적용 탭으로 복원
-      setShowUpcoming(true);
-      setShowSoldOut(true);
+      setShowUpcoming(false);
+      setShowSoldOut(false);
       setDateTime('');
       setMinPrice(0);
       setMaxPrice(MAX_PRICE);
@@ -79,7 +76,7 @@ export function FilterSidebar({ activeTab, onApply, className, sheetMode = false
             {/* 보기 옵션 */}
             <section className="flex flex-col gap-2">
                <div className="flex items-center gap-2">
-                  <img src={eyeIcon} className="size-4 shrink-0" alt="" />
+                  <Eye className="size-4 text-foreground shrink-0" />
                   <p className="text-body-2-semibold text-foreground">보기 옵션</p>
                </div>
                <Checkbox
@@ -110,14 +107,14 @@ export function FilterSidebar({ activeTab, onApply, className, sheetMode = false
             {/* 가격 설정 */}
             <section className="flex flex-col gap-2">
                <div className="flex items-center gap-2">
-                  <img src={moneyIcon} className="size-4 shrink-0" />
+                  <Banknote className="size-4 text-foreground shrink-0" />
                   <p className="text-body-2-semibold text-foreground">가격 설정</p>
                </div>
                <div className="flex flex-col gap-1">
                   <RangeSlider
                      min={0}
                      max={MAX_PRICE}
-                     step={1_000}
+                     step={10_000}
                      minValue={minPrice}
                      maxValue={maxPrice}
                      onChange={(min, max) => {
@@ -162,7 +159,7 @@ export function FilterSidebar({ activeTab, onApply, className, sheetMode = false
             {/* 버튼 */}
             <div className="flex flex-col gap-2">
                <Button variant="tertiary" size="sm" onClick={handleReset} className="w-full gap-2">
-                  <img src={redoIcon} className="size-5 shrink-0" />
+                  <RotateCcw className="size-4 shrink-0" />
                   초기화
                </Button>
                <Button variant="primary" size="sm" onClick={handleApply} className="w-full">

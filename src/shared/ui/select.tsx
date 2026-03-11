@@ -46,15 +46,15 @@ export function Select({ value, onChange, options, placeholder = '선택', class
          <button
             type="button"
             onClick={() => setIsOpen(prev => !prev)}
-            className="bg-surface border border-border-light rounded-lg px-[13px] h-9 flex items-center justify-between w-full"
+            className="bg-surface border border-border-light rounded-lg px-3 h-9 flex items-center justify-between w-full"
             aria-haspopup="listbox"
             aria-expanded={isOpen}
          >
-            <span className={cn('text-body-2-medium', value ? 'text-foreground' : 'text-neutral-600')}>
+            <span className={cn('text-body-2-medium', value ? 'text-foreground' : 'text-[var(--neutral-600)]')}>
                {selectedLabel ?? placeholder}
             </span>
             <ChevronDown
-               className={cn('size-4 text-neutral-500 shrink-0 transition-transform', isOpen && 'rotate-180')}
+               className={cn('size-4 text-[var(--neutral-600)] shrink-0 transition-transform', isOpen && 'rotate-180')}
             />
          </button>
 
@@ -62,7 +62,7 @@ export function Select({ value, onChange, options, placeholder = '선택', class
          {isOpen && (
             <div
                role="listbox"
-               className="absolute z-50 top-[calc(100%+4px)] left-0 right-0 bg-white border border-[#e9ebee] rounded-[8px] p-[5px] shadow-[0px_4px_12px_rgba(0,0,0,0.08)]"
+               className="absolute z-50 top-[calc(100%+4px)] left-0 right-0 bg-background border border-[var(--neutral-200)] rounded-lg p-1 shadow-[0px_4px_12px_rgba(0,0,0,0.08)]"
             >
                {/* 선택 해제 옵션 */}
                <button
@@ -71,14 +71,14 @@ export function Select({ value, onChange, options, placeholder = '선택', class
                   aria-selected={value === ''}
                   onClick={() => handleSelect('')}
                   className={cn(
-                     'w-full flex items-center justify-between rounded-[6px] px-3 py-[6px] text-body-2-regular transition-colors',
+                     'w-full flex items-center justify-between rounded-md px-3 py-1.5 text-body-2-regular transition-colors',
                      value === ''
-                        ? 'bg-surface text-foreground font-medium'
-                        : 'text-[#646f7c] hover:bg-surface',
+                        ? 'bg-surface text-muted-foreground font-medium'
+                        : 'text-[var(--neutral-600)] hover:bg-surface',
                   )}
                >
                   <span>{placeholder}</span>
-                  {value === '' && <ChevronRight className="size-4 text-foreground shrink-0" />}
+                  {value === '' && <ChevronRight className="size-4 text-muted-foreground shrink-0" />}
                </button>
 
                {options.map(opt => (
@@ -89,14 +89,14 @@ export function Select({ value, onChange, options, placeholder = '선택', class
                      aria-selected={value === opt.value}
                      onClick={() => handleSelect(opt.value)}
                      className={cn(
-                        'w-full flex items-center justify-between rounded-[6px] px-3 py-[6px] text-body-2-regular transition-colors',
+                        'w-full flex items-center justify-between rounded-md px-3 py-1.5 text-body-2-regular transition-colors',
                         value === opt.value
-                           ? 'bg-surface text-foreground font-medium'
-                           : 'text-[#646f7c] hover:bg-surface',
+                           ? 'bg-surface text-muted-foreground font-medium'
+                           : 'text-[var(--neutral-600)] hover:bg-surface',
                      )}
                   >
                      <span>{opt.label}</span>
-                     {value === opt.value && <ChevronRight className="size-4 text-foreground shrink-0" />}
+                     {value === opt.value && <ChevronRight className="size-4 text-muted-foreground shrink-0" />}
                   </button>
                ))}
             </div>
