@@ -1,6 +1,14 @@
 /// <reference types="@rsbuild/core/types" />
 
 /**
+ * Imports the SVG file as a URL string.
+ */
+declare module '*.svg' {
+  const src: string;
+  export default src;
+}
+
+/**
  * Imports the SVG file as a React component.
  * @requires [@rsbuild/plugin-svgr](https://npmjs.com/package/@rsbuild/plugin-svgr)
  */

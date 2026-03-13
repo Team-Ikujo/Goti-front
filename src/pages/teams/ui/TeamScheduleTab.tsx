@@ -113,7 +113,7 @@ export function TeamScheduleTab({ teamName }: Props) {
                   <Button
                      key={week}
                      onClick={() => setSelectedWeek(week)}
-                     variant={week === selectedWeek ? 'primaryline' : 'outline'}
+                     variant={week === selectedWeek ? 'secondary' : 'tertiary'}
                      className={cn(
                         'px-4 md:px-5.5 py-2.25 rounded-[10px] text-[16px] md:text-[20px] font-semibold leading-normal',
                         week !== selectedWeek && 'shadow-[inset_0_0_0_1px_#161d24] text-[#161d24]',
