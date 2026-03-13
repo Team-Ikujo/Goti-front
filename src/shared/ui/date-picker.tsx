@@ -1,7 +1,7 @@
 // src/shared/ui/date-picker.tsx
 
 import { useState, useRef, useEffect } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 
 interface DatePickerProps {
@@ -215,15 +215,46 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
             <CalendarDays className="size-4 text-[var(--neutral-600)] shrink-0" />
          </button>
 
-         {/* 달력 팝업 */}
+         {/* 달력 팝업 — 모바일: 바텀시트 / 데스크톱: 드롭다운 */}
          {isOpen && (
-            <div
-               role="dialog"
-               aria-label="날짜 선택"
-               className="absolute z-50 top-[calc(100%+4px)] left-0 right-0 bg-background border border-border rounded-[10px] p-3 shadow-[0px_1px_3px_rgba(0,0,0,0.1)] flex flex-col gap-4"
-            >
+            <>
+               {/* 모바일 오버레이 */}
+               <div
+                  className="md:hidden fixed inset-0 z-40 bg-black/40"
+                  onClick={() => {
+                     setIsOpen(false);
+                     setShowYearDrop(false);
+                     setShowMonthDrop(false);
+                  }}
+                  aria-hidden="true"
+               />
+
+               <div
+                  role="dialog"
+                  aria-label="날짜 선택"
+                  className={cn(
+                     'bg-background flex flex-col gap-4',
+                     // 모바일: 바텀시트
+                     'fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl p-4 pb-safe shadow-[0px_-4px_16px_rgba(0,0,0,0.12)] md:pb-4',
+                     // 데스크톱: 드롭다운
+                     'md:absolute md:bottom-auto md:top-[calc(100%+4px)] md:left-0 md:right-0 md:rounded-[10px] md:border md:border-border md:p-3 md:shadow-[0px_1px_3px_rgba(0,0,0,0.1)]',
+                  )}
+               >
                {/* ── 헤더 ── */}
                <div className="flex items-center justify-between">
+                  {/* 모바일 전용 닫기 버튼 — 헤더 왼쪽 */}
+                  <button
+                     type="button"
+                     onClick={() => {
+                        setIsOpen(false);
+                        setShowYearDrop(false);
+                        setShowMonthDrop(false);
+                     }}
+                     className="md:hidden flex items-center justify-center size-8 rounded-md hover:bg-surface transition-colors"
+                     aria-label="닫기"
+                  >
+                     <X className="size-5 text-foreground" />
+                  </button>
                   {/* 이전 달 */}
                   <button
                      type="button"
@@ -340,21 +371,8 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
                      </div>
                   ))}
                </div>
-
-               {/* 선택 해제 */}
-               {value && (
-                  <button
-                     type="button"
-                     onClick={() => {
-                        onChange('');
-                        setIsOpen(false);
-                     }}
-                     className="w-full text-caption-1-regular text-muted-foreground hover:text-foreground transition-colors py-1 border-t border-border"
-                  >
-                     선택 해제
-                  </button>
-               )}
-            </div>
+               </div>
+            </>
          )}
       </div>
    );

@@ -84,6 +84,9 @@ const Header = () => {
    const [teamModalOpen, setTeamModalOpen] = useState(false);
    const { selectedTeam, setSelectedTeam } = useTeamStore();
 
+   // TODO: 실제 알림 상태로 교체 (예: useNotificationStore, react-query 등)
+   const hasNotification = false;
+
    useEffect(() => {
       if (isLoggedIn) {
          setRemaining(SESSION_DURATION);
@@ -186,7 +189,8 @@ const Header = () => {
                   {isLoggedIn && (
                      <div className="hidden lg:flex items-center gap-1.5 shrink-0">
                         <button className="flex items-center justify-center size-9.5 rounded-lg hover:bg-(--fill-hover) transition-colors">
-                           <img src="/Icon/Line/Bell.svg" alt="알림" className="size-4.5" />
+                           {/* TODO: hasNotification은 실제 알림 상태로 교체 */}
+                           <img src={hasNotification ? '/Icon/Line/alert.svg' : '/Icon/Line/Bell.svg'} alt="알림" className="size-4.5" />
                         </button>
                         <button
                            className="flex items-center justify-center size-9.5 rounded-lg hover:bg-(--fill-hover) transition-colors"
