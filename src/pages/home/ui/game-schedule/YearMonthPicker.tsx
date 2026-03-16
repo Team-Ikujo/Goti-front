@@ -5,12 +5,25 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import { AVAILABLE_YEARS } from './constants';
 
-const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+type YearMonthPickerProps = {
+   year: number;
+   month: number;
+   // 트리거 버튼을 포함하는 컨테이너 ref — 외부 클릭 감지 기준
+   containerRef: React.RefObject<HTMLDivElement | null>;
+   onConfirm: (year: number, month: number) => void;
+   onClose: () => void;
+};
 
-// containerRef 기준으로 외부 클릭 감지 → 피커 닫기
-function useClickOutside(containerRef: React.RefObject<HTMLDivElement | null>, onClose: () => void) {
+const MONTHS = Array.from({ length: 12 }, (_, index) => index + 1);
+
+function YearMonthPicker({ year, month, containerRef, onConfirm, onClose }: YearMonthPickerProps) {
+   const [localYear, setLocalYear] = useState(year);
+   const [localMonth, setLocalMonth] = useState(month);
+
+   // containerRef 기준 외부 클릭 → 닫힘
+   // (트리거 버튼도 containerRef 안에 있으므로 버튼 클릭 시 닫힘 없음)
    useEffect(() => {
-      function handleMouseDown(e: MouseEvent) {
+      function handleClickOutside(e: MouseEvent) {
          if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
             onClose();
          }
@@ -20,13 +33,9 @@ function useClickOutside(containerRef: React.RefObject<HTMLDivElement | null>, o
    }, [containerRef, onClose]);
 }
 
-// ─── 연도 피커 ─────────────────────────────────────────────
-export type YearPickerProps = {
-   year: number;
-   containerRef: React.RefObject<HTMLDivElement | null>;
-   onSelect: (year: number) => void;
-   onClose: () => void;
-};
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+   }, [onClose, containerRef]);
 
 export function YearPicker({ year, containerRef, onSelect, onClose }: YearPickerProps) {
    useClickOutside(containerRef, onClose);
@@ -36,15 +45,76 @@ export function YearPicker({ year, containerRef, onSelect, onClose }: YearPicker
    const yearIdx = AVAILABLE_YEARS.indexOf(localYear);
 
    return (
-      <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 bg-white rounded-lg shadow-[0px_4px_6px_0px_rgba(0,0,0,0.1),0px_2px_4px_0px_rgba(0,0,0,0.1)] border border-border p-1.5 flex flex-col items-start w-20">
-         <button
-            onClick={() => yearIdx > 0 && setLocalYear(AVAILABLE_YEARS[yearIdx - 1])}
-            disabled={yearIdx === 0}
-            className="flex items-center justify-center w-full py-1 hover:bg-gray-50 disabled:opacity-30 rounded-sm"
-         >
-            <ChevronUp className="size-5 text-icon-primary" />
-         </button>
-         {AVAILABLE_YEARS.map(y => (
+      <div
+         className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 bg-white rounded-[12px] shadow-xl border border-(--border-normal) overflow-hidden"
+      >
+         <div className="flex">
+            <div className="flex flex-col items-center w-[100px] border-r border-(--border-normal)">
+               <button
+                  onClick={() => canPrevYear && setLocalYear(AVAILABLE_YEARS[yearIdx - 1])}
+                  disabled={!canPrevYear}
+                  className="flex items-center justify-center w-full py-[10px] text-[#646f7c] hover:bg-gray-50 disabled:opacity-30"
+               >
+                  <ChevronUp className="size-5" />
+               </button>
+               <div className="flex flex-col items-center w-full py-[6px]">
+                  {AVAILABLE_YEARS.map(candidateYear => (
+                     <button
+                        key={candidateYear}
+                        onClick={() => setLocalYear(candidateYear)}
+                        className={cn(
+                           'w-full py-[8px] text-center text-[16px] leading-[1.5] transition-colors',
+                           candidateYear === localYear
+                              ? 'font-bold text-(--text-primary)'
+                              : 'font-medium text-[#acb4bb] hover:text-(--text-primary)',
+                        )}
+                     >
+                        {candidateYear}
+                     </button>
+                  ))}
+               </div>
+               <button
+                  onClick={() => canNextYear && setLocalYear(AVAILABLE_YEARS[yearIdx + 1])}
+                  disabled={!canNextYear}
+                  className="flex items-center justify-center w-full py-[10px] text-[#646f7c] hover:bg-gray-50 disabled:opacity-30"
+               >
+                  <ChevronDown className="size-5" />
+               </button>
+            </div>
+
+            <div className="flex flex-col items-center w-[80px]">
+               <button
+                  onClick={() => setLocalMonth(currentMonth => (currentMonth === 1 ? 12 : currentMonth - 1))}
+                  className="flex items-center justify-center w-full py-[10px] text-[#646f7c] hover:bg-gray-50"
+               >
+                  <ChevronUp className="size-5" />
+               </button>
+               <div className="flex flex-col items-center w-full py-[6px]">
+                  {MONTHS.map(candidateMonth => (
+                     <button
+                        key={candidateMonth}
+                        onClick={() => setLocalMonth(candidateMonth)}
+                        className={cn(
+                           'w-full py-[8px] text-center text-[16px] leading-[1.5] transition-colors',
+                           candidateMonth === localMonth
+                              ? 'font-bold text-(--text-primary)'
+                              : 'font-medium text-[#acb4bb] hover:text-(--text-primary)',
+                        )}
+                     >
+                        {String(candidateMonth).padStart(2, '0')}
+                     </button>
+                  ))}
+               </div>
+               <button
+                  onClick={() => setLocalMonth(currentMonth => (currentMonth === 12 ? 1 : currentMonth + 1))}
+                  className="flex items-center justify-center w-full py-[10px] text-[#646f7c] hover:bg-gray-50"
+               >
+                  <ChevronDown className="size-5" />
+               </button>
+            </div>
+         </div>
+
+         <div className="flex border-t border-(--border-normal)">
             <button
                key={y}
                onClick={() => {

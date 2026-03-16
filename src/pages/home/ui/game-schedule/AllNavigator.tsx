@@ -1,6 +1,6 @@
 // src/pages/home/ui/game-schedule/AllNavigator.tsx
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
@@ -28,52 +28,52 @@ function AllNavigator({
    onSelectYear,
    onSelectMonth,
 }: AllNavigatorProps) {
-   const [showYearPicker, setShowYearPicker] = useState(false);
-   const yearContainerRef = useRef<HTMLDivElement>(null);
+  const pickerContainerRef = useRef<HTMLDivElement>(null);
 
-   return (
-      <div className="flex flex-col gap-3">
-         <div className="flex items-center gap-3.5 justify-center">
-            <Badge asChild variant="chipDestructive">
-               <button onClick={onReset}>최근</button>
-            </Badge>
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3.5 justify-center">
+        <Badge asChild variant="chipDestructive" className="opacity-50">
+          <button onClick={onReset}>최근</button>
+        </Badge>
 
-            <div className="flex items-center gap-2">
-               <button
-                  onClick={onPrevYear}
-                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
-               >
-                  <ChevronLeft className="size-5 text-icon-primary" />
-               </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onPrevYear}
+            className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
+          >
+            <ChevronLeft className="size-5" />
+          </button>
 
-               {/* 연도 버튼 */}
-               <div ref={yearContainerRef} className="relative">
-                  <button
-                     onClick={() => setShowYearPicker(v => !v)}
-                     className="text-heading-1-semibold text-foreground leading-normal min-w-15 text-center hover:text-primary transition-colors"
-                  >
-                     {allYear}
-                  </button>
-                  {showYearPicker && (
-                     <YearPicker
-                        year={allYear}
-                        containerRef={yearContainerRef}
-                        onSelect={onSelectYear}
-                        onClose={() => setShowYearPicker(false)}
-                     />
-                  )}
-               </div>
+          {/* 트리거 버튼 + picker를 같은 relative 컨테이너로 묶어 정확한 위치 기준 설정 */}
+          <div ref={pickerContainerRef} className="relative">
+            <button
+              onClick={onOpenPicker}
+              className="text-[18px] font-bold text-(--text-primary) leading-[1.5] min-w-[60px] text-center"
+            >
+              {allYear}
+            </button>
+            {showAllPicker && (
+              <YearMonthPicker
+                year={allYear}
+                month={allMonth}
+                containerRef={pickerContainerRef}
+                onConfirm={onConfirmPicker}
+                onClose={onClosePicker}
+              />
+            )}
+          </div>
 
-               <button
-                  onClick={onNextYear}
-                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
-               >
-                  <ChevronRight className="size-5 text-icon-primary" />
-               </button>
-            </div>
+          <button
+            onClick={onNextYear}
+            className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
+          >
+            <ChevronRight className="size-5" />
+          </button>
+        </div>
 
-            <div className="w-14" />
-         </div>
+        <div className="w-[56px]" />
+      </div>
 
          <div className="flex w-full">
             {SEASON_MONTHS.map((month, index) => {

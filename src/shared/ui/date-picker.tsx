@@ -15,12 +15,12 @@ const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const MONTH_LABELS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
 
 const BASE_YEAR = new Date().getFullYear();
-/** 연도 목록 — 최신 순(내림차순) */
-const YEAR_LIST = Array.from({ length: 8 }, (_, i) => BASE_YEAR - i);
-/** 월 목록 — 최신 순(내림차순) */
-const MONTH_LIST = [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+/** 연도 목록 — 현재~5년 전, 최신 순(내림차순) */
+const YEAR_LIST = Array.from({ length: 6 }, (_, i) => BASE_YEAR - i);
+/** 월 목록 — 최신 순(올림차순) */
+const MONTH_LIST = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-const VISIBLE_COUNT = 4;
+const VISIBLE_COUNT = 6;
 
 /** 'YYYY-MM-DD' → '2026.07.03 (금)' */
 function formatDisplay(dateStr: string): string {
@@ -60,13 +60,10 @@ interface NavDropdownProps {
    className?: string;
 }
 
-/** 항목 1개의 렌더링 높이: py-1.5(12px) + body-2 line-height(21px) */
-const ITEM_HEIGHT = 33;
-/** 컨테이너 p-1 상단 패딩 */
-const CONTAINER_PADDING_TOP = 4;
 
 function NavDropdown({ items, selected, onSelect, labelOf, className }: NavDropdownProps) {
    const selectedIdx = items.indexOf(selected);
+   // 선택 항목이 창 안에 들어오도록 초기 offset 설정 (스크롤 가능한 목록에서만 유효)
    const initOffset = Math.max(0, Math.min(selectedIdx < 0 ? 0 : selectedIdx, items.length - VISIBLE_COUNT));
    const [offset, setOffset] = useState(initOffset);
 
@@ -74,18 +71,9 @@ function NavDropdown({ items, selected, onSelect, labelOf, className }: NavDropd
    const canUp = offset > 0;
    const canDown = offset + VISIBLE_COUNT < items.length;
 
-   /** visible 배열 내 선택 항목 index */
-   const selectedVisibleIdx = visible.indexOf(selected);
-   /**
-    * 선택된 항목이 트리거 버튼 위에 겹쳐 보이도록 top을 동적 계산.
-    * className에 top 클래스가 없어야 인라인 스타일이 우선 적용됨.
-    */
-   const dynamicTop = selectedVisibleIdx >= 0 ? -(selectedVisibleIdx * ITEM_HEIGHT + CONTAINER_PADDING_TOP) : 0;
-
    return (
       <div
          role="listbox"
-         style={{ top: dynamicTop }}
          className={cn(
             'bg-background border border-[var(--neutral-200)] rounded-lg shadow-[0px_4px_6px_rgba(0,0,0,0.1),0px_2px_4px_rgba(0,0,0,0.1)] p-1',
             className,
@@ -240,137 +228,137 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
                      'md:absolute md:bottom-auto md:top-[calc(100%+4px)] md:left-0 md:right-0 md:rounded-[10px] md:border md:border-border md:p-3 md:shadow-[0px_1px_3px_rgba(0,0,0,0.1)]',
                   )}
                >
-               {/* ── 헤더 ── */}
-               <div className="flex items-center justify-between">
-                  {/* 모바일 전용 닫기 버튼 — 헤더 왼쪽 */}
-                  <button
-                     type="button"
-                     onClick={() => {
-                        setIsOpen(false);
-                        setShowYearDrop(false);
-                        setShowMonthDrop(false);
-                     }}
-                     className="md:hidden flex items-center justify-center size-8 rounded-md hover:bg-surface transition-colors"
-                     aria-label="닫기"
-                  >
-                     <X className="size-5 text-foreground" />
-                  </button>
-                  {/* 이전 달 */}
-                  <button
-                     type="button"
-                     onClick={prevMonth}
-                     className="flex items-center justify-center size-8 rounded-md hover:bg-surface transition-colors"
-                     aria-label="이전 달"
-                  >
-                     <ChevronLeft className="size-4 text-foreground" />
-                  </button>
+                  {/* ── 헤더 ── */}
+                  <div className="flex items-center justify-between">
+                     {/* 모바일 전용 닫기 버튼 — 헤더 왼쪽 */}
+                     <button
+                        type="button"
+                        onClick={() => {
+                           setIsOpen(false);
+                           setShowYearDrop(false);
+                           setShowMonthDrop(false);
+                        }}
+                        className="md:hidden flex items-center justify-center size-8 rounded-md hover:bg-surface transition-colors"
+                        aria-label="닫기"
+                     >
+                        <X className="size-5 text-foreground" />
+                     </button>
+                     {/* 이전 달 */}
+                     <button
+                        type="button"
+                        onClick={prevMonth}
+                        className="flex items-center justify-center size-8 rounded-md hover:bg-surface transition-colors"
+                        aria-label="이전 달"
+                     >
+                        <ChevronLeft className="size-4 text-foreground" />
+                     </button>
 
-                  {/* 연도 / 월 드롭다운 트리거 */}
-                  <div className="flex items-center gap-1.5">
-                     {/* 연도 드롭다운 */}
-                     <div className="relative">
-                        <button
-                           type="button"
-                           onClick={toggleYearDrop}
-                           className="bg-background border border-[var(--neutral-200)] h-8 rounded-lg shadow-[0px_1px_2px_rgba(0,0,0,0.1)] flex items-center gap-1 pl-2 pr-1"
-                        >
-                           <span className="text-body-2-medium text-foreground">{viewYear}</span>
-                           <ChevronDown className="size-3 text-foreground" />
-                        </button>
+                     {/* 연도 / 월 드롭다운 트리거 */}
+                     <div className="flex items-center gap-1.5">
+                        {/* 연도 드롭다운 */}
+                        <div className="relative">
+                           <button
+                              type="button"
+                              onClick={toggleYearDrop}
+                              className="bg-background border border-(--neutral-200) h-8 rounded-lg shadow-[0px_1px_2px_rgba(0,0,0,0.1)] flex items-center gap-1 pl-2 pr-1"
+                           >
+                              <span className="text-body-2-medium text-foreground">{viewYear}</span>
+                              <ChevronDown className="size-3 text-foreground" />
+                           </button>
 
-                        {showYearDrop && (
-                           <NavDropdown
-                              items={YEAR_LIST}
-                              selected={viewYear}
-                              onSelect={y => {
-                                 setViewYear(y);
-                                 setShowYearDrop(false);
-                              }}
-                              labelOf={y => `${y}`}
-                              className="absolute z-20 left-0 w-[66px]"
-                           />
-                        )}
+                           {showYearDrop && (
+                              <NavDropdown
+                                 items={YEAR_LIST}
+                                 selected={viewYear}
+                                 onSelect={y => {
+                                    setViewYear(y);
+                                    setShowYearDrop(false);
+                                 }}
+                                 labelOf={y => `${y}`}
+                                 className="absolute z-20 left-0 top-0 w-16.5"
+                              />
+                           )}
+                        </div>
+
+                        {/* 월 드롭다운 */}
+                        <div className="relative">
+                           <button
+                              type="button"
+                              onClick={toggleMonthDrop}
+                              className="bg-background border border-(--neutral-200) h-8 rounded-lg shadow-[0px_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-between gap-1 pl-2 pr-1 w-13.25"
+                           >
+                              <span className="text-body-2-medium text-foreground">
+                                 {String(viewMonth).padStart(2, '0')}
+                              </span>
+                              <ChevronDown className="size-3 text-foreground" />
+                           </button>
+
+                           {showMonthDrop && (
+                              <NavDropdown
+                                 items={MONTH_LIST}
+                                 selected={viewMonth}
+                                 onSelect={m => {
+                                    setViewMonth(m);
+                                    setShowMonthDrop(false);
+                                 }}
+                                 labelOf={m => MONTH_LABELS[m - 1]}
+                                 className="absolute z-20 left-0 top-0 w-14"
+                              />
+                           )}
+                        </div>
                      </div>
 
-                     {/* 월 드롭다운 */}
-                     <div className="relative">
-                        <button
-                           type="button"
-                           onClick={toggleMonthDrop}
-                           className="bg-background border border-(--neutral-200) h-8 rounded-lg shadow-[0px_1px_2px_rgba(0,0,0,0.1)] flex items-center justify-between gap-1 pl-2 pr-1 w-[53px]"
-                        >
-                           <span className="text-body-2-medium text-foreground">
-                              {String(viewMonth).padStart(2, '0')}
-                           </span>
-                           <ChevronDown className="size-3 text-foreground" />
-                        </button>
-
-                        {showMonthDrop && (
-                           <NavDropdown
-                              items={MONTH_LIST}
-                              selected={viewMonth}
-                              onSelect={m => {
-                                 setViewMonth(m);
-                                 setShowMonthDrop(false);
-                              }}
-                              labelOf={m => MONTH_LABELS[m - 1]}
-                              className="absolute z-20 left-1/2 -translate-x-1/2 w-14"
-                           />
-                        )}
-                     </div>
+                     {/* 다음 달 */}
+                     <button
+                        type="button"
+                        onClick={nextMonth}
+                        className="flex items-center justify-center size-8 rounded-md hover:bg-surface transition-colors"
+                        aria-label="다음 달"
+                     >
+                        <ChevronRight className="size-4 text-foreground" />
+                     </button>
                   </div>
 
-                  {/* 다음 달 */}
-                  <button
-                     type="button"
-                     onClick={nextMonth}
-                     className="flex items-center justify-center size-8 rounded-md hover:bg-surface transition-colors"
-                     aria-label="다음 달"
-                  >
-                     <ChevronRight className="size-4 text-foreground" />
-                  </button>
-               </div>
+                  {/* ── 달력 그리드 ── */}
+                  <div>
+                     {/* 요일 헤더 */}
+                     <div className="flex items-center">
+                        {DAY_LABELS.map(d => (
+                           <div key={d} className="flex flex-1 h-[21px] items-center justify-center">
+                              <span className="text-caption-1-regular text-muted-foreground">{d}</span>
+                           </div>
+                        ))}
+                     </div>
 
-               {/* ── 달력 그리드 ── */}
-               <div>
-                  {/* 요일 헤더 */}
-                  <div className="flex items-center">
-                     {DAY_LABELS.map(d => (
-                        <div key={d} className="flex flex-1 h-[21px] items-center justify-center">
-                           <span className="text-caption-1-regular text-muted-foreground">{d}</span>
+                     {/* 날짜 행 */}
+                     {calendarRows.map((row, rowIdx) => (
+                        <div key={rowIdx} className="flex items-start pt-2">
+                           {row.map((day, colIdx) => {
+                              if (day === null) return <div key={`e-${colIdx}`} className="flex-1 h-8" />;
+
+                              const isSelected =
+                                 selectedParts !== null &&
+                                 selectedParts.year === viewYear &&
+                                 selectedParts.month === viewMonth &&
+                                 selectedParts.day === day;
+
+                              return (
+                                 <button
+                                    key={day}
+                                    type="button"
+                                    onClick={() => handleDayClick(day)}
+                                    className={cn(
+                                       'flex flex-1 items-center justify-center h-8 rounded-lg text-body-2-regular transition-colors',
+                                       isSelected ? 'bg-primary text-white' : 'text-foreground hover:bg-surface',
+                                    )}
+                                 >
+                                    {day}
+                                 </button>
+                              );
+                           })}
                         </div>
                      ))}
                   </div>
-
-                  {/* 날짜 행 */}
-                  {calendarRows.map((row, rowIdx) => (
-                     <div key={rowIdx} className="flex items-start pt-2">
-                        {row.map((day, colIdx) => {
-                           if (day === null) return <div key={`e-${colIdx}`} className="flex-1 h-8" />;
-
-                           const isSelected =
-                              selectedParts !== null &&
-                              selectedParts.year === viewYear &&
-                              selectedParts.month === viewMonth &&
-                              selectedParts.day === day;
-
-                           return (
-                              <button
-                                 key={day}
-                                 type="button"
-                                 onClick={() => handleDayClick(day)}
-                                 className={cn(
-                                    'flex flex-1 items-center justify-center h-8 rounded-lg text-body-2-regular transition-colors',
-                                    isSelected ? 'bg-primary text-white' : 'text-foreground hover:bg-surface',
-                                 )}
-                              >
-                                 {day}
-                              </button>
-                           );
-                        })}
-                     </div>
-                  ))}
-               </div>
                </div>
             </>
          )}
