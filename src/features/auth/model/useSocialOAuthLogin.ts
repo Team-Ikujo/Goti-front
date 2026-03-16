@@ -6,15 +6,29 @@ import { openOAuthPopup } from "@/shared/lib/openOAuthPopup";
 
 type UseSocialOAuthLoginParams = {
   provider: SocialProvider;
-  buildAuthUrl: (state: string) => string;
+  requiresIssuedState: boolean;
+  buildAuthUrl: (state?: string) => string;
 };
 
 export const useSocialOAuthLogin = ({
   provider,
+  requiresIssuedState,
   buildAuthUrl,
 }: UseSocialOAuthLoginParams) => {
   return useCallback(async () => {
     try {
+      if (!requiresIssuedState) {
+        const authUrl = buildAuthUrl();
+
+        console.log("[OAuth] Requesting provider authorization code.", {
+          provider,
+          authUrl,
+        });
+
+        openOAuthPopup(authUrl);
+        return;
+      }
+
       const { state } = await issueSocialState(provider);
       const authUrl = buildAuthUrl(state);
 
@@ -29,5 +43,5 @@ export const useSocialOAuthLogin = ({
     } catch (error) {
       console.error(error);
     }
-  }, [buildAuthUrl, provider]);
+  }, [buildAuthUrl, provider, requiresIssuedState]);
 };

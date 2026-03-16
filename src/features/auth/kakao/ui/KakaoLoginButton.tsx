@@ -5,6 +5,7 @@ import { useSocialOAuthLogin } from "@/features/auth/model/useSocialOAuthLogin";
 const KakaoLoginButton = () => {
   const handleClick = useSocialOAuthLogin({
     provider: "kakao",
+    requiresIssuedState: false,
     buildAuthUrl: buildKakaoAuthUrl,
   });
 
