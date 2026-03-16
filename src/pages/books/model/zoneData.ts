@@ -15,7 +15,6 @@ export const BOOKING_ZONES: ZoneItem[] = [
 ];
 
 export const DEFAULT_BOOKING_ZONE_ID = BOOKING_ZONES[0]?.id ?? 'skybox';
-
 const DEFAULT_ZONE_OVERVIEW_IMAGE = '/baseball/seat/kia.png';
 
 // 선택 구역별 하이라이트 이미지 매핑. 추후 애셋이 추가되면 여기만 확장하면 된다.

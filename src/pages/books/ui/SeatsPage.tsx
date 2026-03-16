@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 import { createSeatsForZone, getSeatBlocks } from '@/pages/books/model/seatData';
@@ -31,7 +31,6 @@ type SelectedSeatSummaryItem = {
 };
 
 function SeatsPage() {
-   const navigate = useNavigate();
    const { zoneId = '' } = useParams();
 
    const zone = useMemo(

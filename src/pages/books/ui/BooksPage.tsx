@@ -21,7 +21,6 @@ function createMockCaptcha(length = 6): string {
       () => CAPTCHA_CHARS[Math.floor(Math.random() * CAPTCHA_CHARS.length)],
    ).join('');
 }
-
 const BooksPage = () => {
    const navigate = useNavigate();
    const location = useLocation();
@@ -105,7 +104,6 @@ const BooksPage = () => {
             onRefresh={refreshCaptcha}
             onSubmit={submitCaptcha}
          />
-
          <main className="flex min-h-[calc(100vh-140px)] flex-col lg:grid lg:h-[calc(100vh-140px)] lg:grid-cols-[minmax(0,1fr)_420px]">
             <BookingZoneMap zones={zones} selectedZoneId={selectedZoneId} onSelectZone={handleSelectZone} />
             <BookingZoneList zones={zones} selectedZoneId={selectedZoneId} onSelectZone={handleSelectZone} />
