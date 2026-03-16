@@ -2,9 +2,16 @@ import { Calendar, MapPin } from 'lucide-react';
 import { getPopularMatches } from '@/entities/team/model/schedule';
 
 const teamDisplayName: Record<string, string> = {
-   kia: 'KIA', samsung: '삼성', lg: 'LG', lotte: '롯데',
-   doosan: '두산', hanwha: '한화', nc: 'NC', kt: 'KT',
-   kiwoom: '키움', ssg: 'SSG',
+   kia: 'KIA',
+   samsung: '삼성',
+   lg: 'LG',
+   lotte: '롯데',
+   doosan: '두산',
+   hanwha: '한화',
+   nc: 'NC',
+   kt: 'KT',
+   kiwoom: '키움',
+   ssg: 'SSG',
 };
 
 const teamLogoPath: Record<string, string> = {
@@ -27,9 +34,7 @@ const PopularGames = () => {
       <section className="flex flex-col gap-5 w-full">
          {/* 헤더 */}
          <div className="flex items-center justify-between">
-            <h2 className="text-[length:var(--typo---heading\/h3,24px)] font-bold text-(--text-primary) leading-[1.5]">
-               인기 경기
-            </h2>
+            <h2 className="text-heading-1-bold text-foreground leading-normal">인기 경기</h2>
          </div>
 
          {/* 카드 리스트 (가로 스크롤) */}
@@ -37,25 +42,21 @@ const PopularGames = () => {
             {matches.map((match, i) => (
                <div
                   key={match.id}
-                  className="flex-shrink-0 w-[300px] border border-(--border-normal) rounded-[14px] overflow-hidden bg-background"
+                  className="shrink-0 w-75 border border-border rounded-[14px] overflow-hidden bg-background"
                >
                   {/* 이미지 영역 */}
-                  <div className="relative h-[200px] border-b border-(--border-normal) overflow-hidden bg-[#f1f2f4]">
-                     <div className="absolute inset-0 flex items-center justify-center gap-6 px-6">
-                        <img
-                           src={teamLogoPath[match.awayTeamId]}
-                           alt={teamDisplayName[match.awayTeamId]}
-                           className="w-[80px] h-[80px] object-contain"
-                        />
-                        <span className="text-[20px] font-bold text-(--text-tertiary)">vs</span>
-                        <img
-                           src={teamLogoPath[match.homeTeamId]}
-                           alt={teamDisplayName[match.homeTeamId]}
-                           className="w-[80px] h-[80px] object-contain"
-                        />
-                     </div>
+                  <div className="relative h-50 border-b border-border overflow-hidden bg-white">
+                     {/* 경기 배경 이미지 */}
+                     <img
+                        src={`/images/${i + 1}번 인기경기.png`}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover"
+                        draggable={false}
+                     />
+                     {/* 이미지 오버레이 */}
+                     <div className="absolute inset-0 bg-[#000000]/20" />
                      {/* 순위 번호 */}
-                     <span className="absolute left-[11px] bottom-0 text-[48px] font-bold leading-[1.33] tracking-[-0.05px] text-(--text-primary) opacity-15">
+                     <span className="absolute left-2.75 bottom-0 text-display-1-bold leading-[1.33] tracking-[-0.05px] text-white">
                         {i + 1}
                      </span>
                   </div>
@@ -64,11 +65,11 @@ const PopularGames = () => {
                   <div className="flex flex-col gap-4 p-6">
                      {/* 팀 매치업 */}
                      <div className="flex items-center justify-between h-7">
-                        <span className="w-[70px] text-[18px] font-bold leading-[1.55] text-(--text-primary)">
+                        <span className="w-17.5 text-[18px] font-bold leading-[1.55] text-foreground">
                            {teamDisplayName[match.awayTeamId]}
                         </span>
                         <span className="text-[14px] font-bold text-(--text-tertiary)">vs</span>
-                        <span className="w-[70px] text-[18px] font-bold leading-[1.55] text-(--text-primary) text-right">
+                        <span className="w-17.5 text-[18px] font-bold leading-[1.55] text-foreground text-right">
                            {teamDisplayName[match.homeTeamId]}
                         </span>
                      </div>
@@ -79,7 +80,7 @@ const PopularGames = () => {
                            <Calendar className="size-4 text-(--text-tertiary) shrink-0" />
                            <div className="flex items-center gap-2.5 text-label-2-medium text-(--text-tertiary)">
                               <span>{match.date.replace(/-/g, '.')}</span>
-                              <span className="w-px h-3 bg-(--border-normal)" />
+                              <span className="w-px h-3 bg-border" />
                               <span>{match.time}</span>
                            </div>
                         </div>

@@ -14,10 +14,18 @@ import TooltipPage from '@/pages/components/ui/TooltipPage';
 import InputPage from '@/pages/components/ui/InputPage';
 import ToSPage from '@/pages/components/ui/ToSPage';
 import HomeLayout from '@/shared/widgets/layout/home';
+import BooksLayout from '@/shared/widgets/layout/books';
 import Chip from '@/pages/components/ui/ChipPage';
 import ListPage from '@/pages/components/ui/ListPage';
 import TeamsPage from '@/pages/teams';
+import TeamDetailPage from '@/pages/teams/ui/TeamDetailPage';
 import TicketsPage from '@/pages/tickets';
+import TicketPaymentPage from '@/pages/tickets/ui/payment/TicketPaymentPage';
+import ResellPaymentPage from '@/pages/tickets/ui/payment/ResellPaymentPage';
+import PaymentProcessingPage from '@/pages/tickets/ui/payment/PaymentProcessingPage';
+import PaymentCompletePage from '@/pages/tickets/ui/payment/PaymentCompletePage';
+import BooksPage from '@/pages/books';
+import SeatsPage from '@/pages/books/ui/SeatsPage';
 import OAuthMessageListener from './OAuthMessageListener';
 
 const AppRouter = () => {
@@ -38,7 +46,16 @@ const AppRouter = () => {
                <Route index element={<HomePage />} />
                <Route path="tickets" element={<TicketsPage />} />
                <Route path="teams" element={<TeamsPage />} />
-               <Route path="teams/:teamId" element={<div>Team Detail Page Placeholder</div>} />
+               <Route path="teams/:teamId" element={<TeamDetailPage />} />
+            </Route>
+            <Route path="/tickets/payment" element={<TicketPaymentPage />} />
+            <Route path="/tickets/resell-payment" element={<ResellPaymentPage />} />
+            <Route path="/tickets/payment/processing" element={<PaymentProcessingPage />} />
+            {/* ?delivery=mobile|onsite|delivery */}
+            <Route path="/tickets/payment/complete" element={<PaymentCompletePage />} />
+            <Route path="/books" element={<BooksLayout />}>
+               <Route index element={<BooksPage />} />
+               <Route path="seats/:zoneId" element={<SeatsPage />} />
             </Route>
             <Route path="/button" element={<ButtonPage />} />
             <Route path="/control" element={<ControlPage />} />

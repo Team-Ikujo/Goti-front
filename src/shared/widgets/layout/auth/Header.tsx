@@ -192,6 +192,7 @@ const Header = () => {
                            className="flex items-center justify-center size-9.5 rounded-lg hover:bg-(--fill-hover) transition-colors"
                            onClick={handleLogout}
                            title="로그아웃"
+                           
                         >
                            <img src="/Icon/Line/Mypage.svg" alt="마이페이지" className="size-4.5" />
                         </button>
@@ -202,7 +203,7 @@ const Header = () => {
                   {!isLoggedIn && (
                      <Button
                         asChild
-                        variant="primaryline"
+                        variant="secondary"
                         className="hidden lg:flex shrink-0 w-29.5 h-auto px-3.5 py-1.5 rounded-lg text-body-2-medium text-primary"
                      >
                         <Link to="/auth/login">로그인/회원가입</Link>
@@ -213,7 +214,7 @@ const Header = () => {
                   {!isLoggedIn && (
                      <Button
                         asChild
-                        variant="primaryline"
+                        variant="secondary"
                         className="lg:hidden shrink-0 h-auto px-3.5 py-1.5 rounded-lg text-body-2-medium"
                      >
                         <Link to="/auth/login">로그인/회원가입</Link>
@@ -268,9 +269,13 @@ const Header = () => {
                   <button
                      type="button"
                      className="shrink-0 flex items-center gap-1 px-[11px] py-[5px] bg-white border border-[#cbd9fa] rounded-full hover:border-primary transition-colors"
-                     onClick={() => isLoggedIn ? setTeamModalOpen(true) : navigate('/auth/login')}
+                     onClick={() => (isLoggedIn ? setTeamModalOpen(true) : navigate('/auth/login'))}
                   >
-                     <img src="/Icon/Line/Baseball.svg" alt="" className="size-4 [filter:invert(29%)_sepia(89%)_saturate(1651%)_hue-rotate(213deg)_brightness(97%)_contrast(96%)]" />
+                     <img
+                        src="/Icon/Line/Baseball.svg"
+                        alt=""
+                        className="size-4 [filter:invert(29%)_sepia(89%)_saturate(1651%)_hue-rotate(213deg)_brightness(97%)_contrast(96%)]"
+                     />
                      <span className="text-[14px] font-bold text-primary leading-[1.45] whitespace-nowrap">
                         {selectedTeam ? selectedTeam.name.split(' ')[0] : '팀 선택'}
                      </span>

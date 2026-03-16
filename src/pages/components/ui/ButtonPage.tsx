@@ -10,12 +10,12 @@ const ButtonPage = () => {
             <Button variant="primary" disabled>
                Label
             </Button>
-            <Button variant="outline">Label</Button>
-            <Button variant="outline" disabled>
+            <Button variant="tertiary">Label</Button>
+            <Button variant="tertiary" disabled>
                Label
             </Button>
-            <Button variant="primaryline">Label</Button>
-            <Button variant="primaryline" disabled>
+            <Button variant="secondary">Label</Button>
+            <Button variant="secondary" disabled>
                Label
             </Button>
          </div>
@@ -25,7 +25,7 @@ const ButtonPage = () => {
             <Button variant="primary">
                <PlusIcon /> Label
             </Button>
-            <Button variant="outline">
+            <Button variant="tertiary">
                <SearchIcon /> Label
             </Button>
          </div>
@@ -35,10 +35,10 @@ const ButtonPage = () => {
             <Button variant="primary">
                Label <ArrowRightIcon />
             </Button>
-            <Button variant="outline">
+            <Button variant="tertiary">
                Label <DownloadIcon />
             </Button>
-            <Button variant="primaryline">
+            <Button variant="secondary">
                Label <DownloadIcon />
             </Button>
          </div>

@@ -13,6 +13,7 @@ import {
    telecomOptions,
    type SignUpFormValues,
 } from '@/pages/signup/model/signUpValidation';
+import LoginRetryDialog from '@/pages/signup/ui/LoginRetryDialog';
 import SignUpTermsDialog from '@/pages/signup/ui/SignUpTermsDialog';
 import VerificationCodeField from '@/pages/signup/ui/VerificationCodeField';
 import { ApiError } from '@/shared/api/client';
@@ -37,6 +38,7 @@ const SignUpPage = () => {
    const [countdown, setCountdown] = useState(0);
    const [isCodeSent, setIsCodeSent] = useState(false);
    const [showAlert, setShowAlert] = useState(false);
+   const [showLoginRetryDialog, setShowLoginRetryDialog] = useState(false);
    const [submitError, setSubmitError] = useState<string | null>(null);
 
    const [detailTargetCode, setDetailTargetCode] = useState<TermSignUpCode | null>(null);
@@ -55,7 +57,6 @@ const SignUpPage = () => {
       resolver: zodResolver(signUpSchema),
       defaultValues: {
          name: '',
-         email: '',
          nationality: '',
          birthDate: '',
          gender: '',
@@ -170,8 +171,7 @@ const SignUpPage = () => {
       setSubmitError(null);
 
       if (!socialVerifyToken) {
-         setSubmitError('인증 토큰이 없습니다. 다시 로그인해 주세요.');
-         navigate('/auth/login', { replace: true });
+         setShowLoginRetryDialog(true);
          return;
       }
 
@@ -179,7 +179,6 @@ const SignUpPage = () => {
          const response = await socialSignupMutation.mutateAsync({
             socialVerifyToken,
             name: data.name,
-            email: data.email,
             gender: mapGender(data.gender),
             mobile: data.phone,
             birthDate: formatBirthDate(data.birthDate),
@@ -227,7 +226,7 @@ const SignUpPage = () => {
    return (
       <div className="min-h-screen bg-white text-(--color-foreground) flex items-center justify-center">
          <section className="w-full max-w-md p-8">
-            <div className="text-center">
+            <div className="text-center pb-10">
                <h2 className="text-2xl font-semibold">본인 확인을 위해 </h2>
                <h2 className="text-2xl font-semibold">인증을 진행해주세요</h2>
             </div>
@@ -246,21 +245,10 @@ const SignUpPage = () => {
                   helpText={errors.name?.message}
                />
 
-               <Input
-                  label="이메일"
-                  required
-                  placeholder="example@ballx.com"
-                  value={values.email}
-                  onChange={e => {
-                     setValue('email', e.target.value, { shouldDirty: true });
-                     clearErrors('email');
-                  }}
-                  error={Boolean(errors.email)}
-                  helpText={errors.email?.message}
-               />
-
                <div className="text-(--label-2-medium) text-[14px] flex flex-col gap-1">
-                  국적
+                  <div className="flex">
+                     국적 <div className="text-primary">*</div>
+                  </div>
                   <div className="flex items-center gap-2">
                      <Option
                         active={values.nationality === 'local'}
@@ -283,7 +271,9 @@ const SignUpPage = () => {
                         외국인
                      </Option>
                   </div>
-                  {errors.nationality && <p className="text-xs text-destructive antialiased">{errors.nationality.message}</p>}
+                  {errors.nationality && (
+                     <p className="text-xs text-destructive antialiased">{errors.nationality.message}</p>
+                  )}
                </div>
 
                <Input
@@ -300,7 +290,9 @@ const SignUpPage = () => {
                />
 
                <div className="text-(--label-2-medium) text-[14px] flex flex-col gap-1">
-                  성별
+                  <div className="flex">
+                     성별 <div className="text-primary">*</div>
+                  </div>
                   <div className="flex items-center gap-2">
                      <Option
                         active={values.gender === 'male'}
@@ -327,7 +319,9 @@ const SignUpPage = () => {
                </div>
 
                <div className="text-(--label-2-medium) text-[14px] flex flex-col gap-1">
-                  통신사
+                  <div className="flex">
+                     통신사 <div className="text-primary">*</div>
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                      {telecomOptions.map(option => (
                         <Option
@@ -420,7 +414,12 @@ const SignUpPage = () => {
                      인증 번호 전송
                   </Button>
                ) : (
-                  <Button type="button" variant="primary" className="w-full" onClick={() => void handleSubmit(onSubmit)()}>
+                  <Button
+                     type="button"
+                     variant="primary"
+                     className="w-full"
+                     onClick={() => void handleSubmit(onSubmit)()}
+                  >
                      완료
                   </Button>
                )}
@@ -444,6 +443,15 @@ const SignUpPage = () => {
                <Alert variant="success">인증번호가 전송되었어요</Alert>
             </div>
          )}
+
+         <LoginRetryDialog
+            open={showLoginRetryDialog}
+            onOpenChange={setShowLoginRetryDialog}
+            onConfirm={() => {
+               setShowLoginRetryDialog(false);
+               navigate('/auth/login', { replace: true });
+            }}
+         />
       </div>
    );
 };

@@ -26,13 +26,13 @@ const VerificationFlowPage = () => {
    }, [agreements, checkedByCode]);
 
    const isAllChecked = useMemo(() => {
-      return agreements.length > 0 && agreements.every(agreement => checkedByCode[agreement.code] === true);
-   }, [agreements, checkedByCode]);
+      return areRequiredTermsChecked;
+   }, [areRequiredTermsChecked]);
 
    const handleAllCheckedChange = (checked: boolean) => {
       const nextState: Partial<Record<TermAgreementCode, boolean>> = {};
       agreements.forEach(agreement => {
-         nextState[agreement.code] = checked;
+         nextState[agreement.code] = checked && agreement.required;
       });
       setCheckedByCode(nextState);
    };

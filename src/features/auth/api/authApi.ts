@@ -10,7 +10,6 @@ export type SignupGender = "MALE" | "FEMALE";
 export type SocialSignupParams = {
   socialVerifyToken: string;
   name: string;
-  email: string;
   gender: SignupGender;
   mobile: string;
   birthDate: string;

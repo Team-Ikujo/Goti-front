@@ -1,33 +1,86 @@
+import { useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
+
 import { teams } from '@/entities/team/model/teams';
+import { cn } from '@/shared/lib/utils';
+import { TEAM_IDS } from '@/pages/home/ui/game-schedule/constants';
+import { TeamScheduleTab } from './TeamScheduleTab';
+import { SeatMapTab } from './SeatMapTab';
+import { StadiumGuideTab } from './StadiumGuideTab';
+
+const TEAM_NAME_BY_ID: Record<string, string> = Object.fromEntries(
+   Object.entries(TEAM_IDS).map(([name, id]) => [id, name]),
+);
+
+const BOOKING_TABS = ['예매하기', '좌석도', '구장안내'];
 
 const TeamDetailPage = () => {
-  const { teamId } = useParams<{ teamId: string }>();
-  const team = teams.find(t => t.id === teamId);
+   const { teamId } = useParams<{ teamId: string }>();
+   const team = teams.find(t => t.id === teamId);
 
-  if (!team) {
-    return <Navigate to="/teams" replace />;
-  }
+   const [activeBookingTab, setActiveBookingTab] = useState(0);
 
-  return (
-    <section className="bg-background">
-      <div className="mx-auto flex w-full max-w-300 flex-col items-center px-4 pt-12.5 pb-30">
-        <div className="flex w-full max-w-250 flex-col items-start gap-10">
-          <header className="flex w-full items-center gap-6">
-            <div className="relative flex size-24 shrink-0 items-center justify-center overflow-hidden">
-              <img src={team.logoSrc} alt={team.name} className="size-full object-contain" />
+   const teamName = teamId ? TEAM_NAME_BY_ID[teamId] : undefined;
+
+   if (!team) {
+      return <Navigate to="/teams" replace />;
+   }
+
+   return (
+      <section className="bg-background w-full">
+         <div className="mx-auto flex w-full max-w-300 flex-col items-center gap-12.5 md:gap-30 px-4 pt-12.5 pb-30">
+            {/* 팀 로고 */}
+            <div className="flex max-w-300 items-center justify-center w-full overflow-hidden px-px">
+               <div className="flex flex-col items-center justify-center overflow-hidden px-3.75 py-2.5 size-35 md:size-50">
+                  <img
+                     src={team.logoSrc}
+                     alt={team.name}
+                     className={cn('w-full h-full object-contain', team.logoAspectClassName)}
+                  />
+               </div>
             </div>
-            <h1 className="text-heading-3-bold text-foreground">{team.name}</h1>
-          </header>
 
-          {/* 추후 구단별 경기 일정 등 콘텐츠 */}
-          <div className="flex h-[400px] w-full items-center justify-center rounded-[10px] bg-[#f7f8f9]">
-            <p className="text-body-1-medium text-[#646f7c]">구단 상세 정보 준비 중입니다.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+            <div className="flex flex-col gap-12.5 items-center w-full">
+               {/* 탭 네비게이션 */}
+               <div className="flex items-center w-full">
+                  {BOOKING_TABS.map((tab, index) => {
+                     const isActive = index === activeBookingTab;
+                     return (
+                        <button
+                           key={tab}
+                           onClick={() => setActiveBookingTab(index)}
+                           className={cn(
+                              'flex flex-1 flex-col items-center justify-center h-[60px] px-3 py-[7px] border-b-2',
+                              isActive
+                                 ? 'border-primary rounded-tl-[10px] rounded-tr-[10px]'
+                                 : 'border-border',
+                           )}
+                        >
+                           <span
+                              className={cn(
+                                 'text-[18px] font-bold leading-[1.55] whitespace-nowrap',
+                                 isActive ? 'text-primary' : 'text-(--text-tertiary)',
+                              )}
+                           >
+                              {tab}
+                           </span>
+                        </button>
+                     );
+                  })}
+               </div>
+
+               {/* 탭 컨텐츠 */}
+               <div className="flex flex-col gap-6.25 items-start w-full">
+                  {activeBookingTab === 0 && <TeamScheduleTab teamName={teamName} />}
+
+                  {activeBookingTab === 1 && <SeatMapTab />}
+
+                  {activeBookingTab === 2 && <StadiumGuideTab />}
+               </div>
+            </div>
+         </div>
+      </section>
+   );
 };
 
 export default TeamDetailPage;

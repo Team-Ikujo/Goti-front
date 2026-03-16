@@ -55,7 +55,6 @@ export const authHandlers = [
     const body = (await request.json()) as {
       socialVerifyToken?: string;
       name?: string;
-      email?: string;
       gender?: string;
       mobile?: string;
       birthDate?: string;
@@ -64,7 +63,6 @@ export const authHandlers = [
     if (
       !body?.socialVerifyToken ||
       !body?.name ||
-      !body?.email ||
       !body?.gender ||
       !body?.mobile ||
       !body?.birthDate
