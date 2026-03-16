@@ -1,33 +1,36 @@
 import { cn } from '@/shared/lib/utils';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { AVAILABLE_YEARS } from './constants';
 
 type YearMonthPickerProps = {
    year: number;
    month: number;
+   // 트리거 버튼을 포함하는 컨테이너 ref — 외부 클릭 감지 기준
+   containerRef: React.RefObject<HTMLDivElement | null>;
    onConfirm: (year: number, month: number) => void;
    onClose: () => void;
 };
 
 const MONTHS = Array.from({ length: 12 }, (_, index) => index + 1);
 
-function YearMonthPicker({ year, month, onConfirm, onClose }: YearMonthPickerProps) {
+function YearMonthPicker({ year, month, containerRef, onConfirm, onClose }: YearMonthPickerProps) {
    const [localYear, setLocalYear] = useState(year);
    const [localMonth, setLocalMonth] = useState(month);
-   const pickerRef = useRef<HTMLDivElement>(null);
 
+   // containerRef 기준 외부 클릭 → 닫힘
+   // (트리거 버튼도 containerRef 안에 있으므로 버튼 클릭 시 닫힘 없음)
    useEffect(() => {
       function handleClickOutside(e: MouseEvent) {
-         if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+         if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
             onClose();
          }
       }
 
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
-   }, [onClose]);
+   }, [onClose, containerRef]);
 
    const yearIdx = AVAILABLE_YEARS.indexOf(localYear);
    const canPrevYear = yearIdx > 0;
@@ -35,8 +38,7 @@ function YearMonthPicker({ year, month, onConfirm, onClose }: YearMonthPickerPro
 
    return (
       <div
-         ref={pickerRef}
-         className="absolute top-10 left-1/2 -translate-x-1/2 z-50 bg-white rounded-[12px] shadow-xl border border-(--border-normal) overflow-hidden"
+         className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 bg-white rounded-[12px] shadow-xl border border-(--border-normal) overflow-hidden"
       >
          <div className="flex">
             <div className="flex flex-col items-center w-[100px] border-r border-(--border-normal)">
