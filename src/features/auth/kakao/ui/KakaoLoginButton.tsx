@@ -1,6 +1,5 @@
 import { Button } from "@/shared/ui/button";
 import { buildKakaoAuthUrl } from "../lib/buildKakaoAuthUrl";
-import { createOAuthState } from "../model/createOAuthState";
 import { useSocialOAuthLogin } from "@/features/auth/model/useSocialOAuthLogin";
 
 const KakaoLoginButton = () => {
@@ -8,7 +7,6 @@ const KakaoLoginButton = () => {
     provider: "kakao",
     requiresIssuedState: false,
     buildAuthUrl: buildKakaoAuthUrl,
-    createState: createOAuthState,
   });
 
   return (

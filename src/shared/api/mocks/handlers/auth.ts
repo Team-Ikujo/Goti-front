@@ -11,13 +11,16 @@ export const authHandlers = [
       data: { state },
     });
   }),
-  http.post("/api/v1/auth/:provider/social/verify", async ({ request }) => {
+  http.post("/api/v1/auth/:provider/social/verify", async ({ params, request }) => {
+    const provider = params.provider;
     const body = (await request.json()) as {
       authCode?: string;
       state?: string;
     };
 
-    if (!body?.authCode) {
+    const requiresState = provider === "NAVER" || provider === "GOOGLE";
+
+    if (!body?.authCode || (requiresState && !body?.state)) {
       return HttpResponse.json(
         { message: "Missing social verify fields." },
         { status: 400 },

@@ -26,6 +26,18 @@ const isSocialProvider = (value?: string): value is SocialProvider => {
   }
 };
 
+const requiresState = (provider: SocialProvider) => {
+  switch (provider) {
+    case "google":
+    case "naver":
+      return true;
+    case "kakao":
+      return false;
+    default:
+      return false;
+  }
+};
+
 const formatErrorMessage = (error: unknown): string => {
   if (error instanceof ApiError) {
     const details =
@@ -96,6 +108,7 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
       try {
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
+        const state = params.get("state");
 
         if (!code) {
           throw new Error("Missing authorization code.");
@@ -105,36 +118,15 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
           throw new Error(`Unsupported provider: ${normalizedProvider ?? "none"}`);
         }
 
+        if (requiresState(normalizedProvider) && !state) {
+          throw new Error("Missing OAuth state.");
+        }
+
         const verifyPayload: SubmitAuthCodeParams = {
           provider: normalizedProvider,
           authCode: code,
-          state: params.get("state"),
+          state,
         };
-
-        const testOAuthPayload = {
-          provider: normalizedProvider,
-          authCode: code,
-          state: params.get("state"),
-          verifyPayload,
-        };
-
-        // 테스트용 로그: OAuth 콜백에서 받은 실제 code/state와 verify 요청 payload를 콘솔과 sessionStorage에 남긴다.
-        console.log("[TEST] OAuth callback params", testOAuthPayload);
-        sessionStorage.setItem(
-          "test-oauth-callback-payload",
-          JSON.stringify(testOAuthPayload),
-        );
-
-        if (window.opener && !window.opener.closed) {
-          window.opener.console.log(
-            "[TEST] OAuth callback params",
-            testOAuthPayload,
-          );
-          window.opener.sessionStorage.setItem(
-            "test-oauth-callback-payload",
-            JSON.stringify(testOAuthPayload),
-          );
-        }
 
         const response = await submitAuthCodeMutation.mutateAsync(verifyPayload);
 

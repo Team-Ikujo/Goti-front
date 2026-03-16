@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { TermsCheckbox, TermsSubItem } from '@/shared/ui/terms-of-service';
@@ -8,6 +10,8 @@ import type { TermAgreementCode } from '@/entities/terms/model/types';
 
 const VerificationFlowPage = () => {
    const navigate = useNavigate();
+   const accessToken = useAuthStore(state => state.accessToken);
+   const socialVerifyToken = useAuthStore(state => state.socialVerifyToken);
    const termsAgreementListQuery = useTermsAgreementListQuery('verification');
    const agreements = termsAgreementListQuery.data ?? [];
    const [checkedByCode, setCheckedByCode] = useState<Partial<Record<TermAgreementCode, boolean>>>({});
@@ -64,6 +68,17 @@ const VerificationFlowPage = () => {
       }
       closeDetailDialog();
    };
+
+   useEffect(() => {
+      if (accessToken) {
+         navigate('/', { replace: true });
+         return;
+      }
+
+      if (!socialVerifyToken) {
+         navigate('/auth/login', { replace: true });
+      }
+   }, [accessToken, navigate, socialVerifyToken]);
 
    return (
       <div className="bg-white text-(--color-foreground) flex flex-col justify-center items-center min-h-screen">
