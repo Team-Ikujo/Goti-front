@@ -14,6 +14,7 @@ import TooltipPage from '@/pages/components/ui/TooltipPage';
 import InputPage from '@/pages/components/ui/InputPage';
 import ToSPage from '@/pages/components/ui/ToSPage';
 import HomeLayout from '@/shared/widgets/layout/home';
+import BooksLayout from '@/shared/widgets/layout/books';
 import Chip from '@/pages/components/ui/ChipPage';
 import ListPage from '@/pages/components/ui/ListPage';
 import TeamsPage from '@/pages/teams';
@@ -23,6 +24,8 @@ import TicketPaymentPage from '@/pages/tickets/ui/payment/TicketPaymentPage';
 import ResellPaymentPage from '@/pages/tickets/ui/payment/ResellPaymentPage';
 import PaymentProcessingPage from '@/pages/tickets/ui/payment/PaymentProcessingPage';
 import PaymentCompletePage from '@/pages/tickets/ui/payment/PaymentCompletePage';
+import BooksPage from '@/pages/books';
+import SeatsPage from '@/pages/books/ui/SeatsPage';
 import OAuthMessageListener from './OAuthMessageListener';
 
 const AppRouter = () => {
@@ -50,6 +53,10 @@ const AppRouter = () => {
             <Route path="/tickets/payment/processing" element={<PaymentProcessingPage />} />
             {/* ?delivery=mobile|onsite|delivery */}
             <Route path="/tickets/payment/complete" element={<PaymentCompletePage />} />
+            <Route path="/books" element={<BooksLayout />}>
+               <Route index element={<BooksPage />} />
+               <Route path="seats/:zoneId" element={<SeatsPage />} />
+            </Route>
             <Route path="/button" element={<ButtonPage />} />
             <Route path="/control" element={<ControlPage />} />
             <Route path="/alert" element={<AlertPage />} />

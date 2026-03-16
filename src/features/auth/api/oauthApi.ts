@@ -51,11 +51,20 @@ export const getOAuthRedirectUri = (provider: SocialProvider): string => {
 export const issueSocialState = async (
   provider: SocialProvider,
 ): Promise<SocialStateResponse> => {
-  const response = await apiClient.get<ApiEnvelope<SocialStateResponse>>(
+  const response = await apiClient.get<
+    ApiEnvelope<SocialStateResponse> | SocialStateResponse
+  >(
     `/api/v1/auth/${providerToPath(provider)}/state`,
   );
 
-  return response.data.data;
+  const payload =
+    "data" in response.data ? response.data.data : response.data;
+
+  if (!payload?.state) {
+    throw new Error("Invalid social state response.");
+  }
+
+  return payload;
 };
 
 export const submitAuthCode = async ({
@@ -64,10 +73,19 @@ export const submitAuthCode = async ({
   redirectUri,
   state,
 }: SubmitAuthCodeParams): Promise<SubmitAuthCodeResponse> => {
-  const response = await apiClient.post<ApiEnvelope<SubmitAuthCodeResponse>>(
+  const response = await apiClient.post<
+    ApiEnvelope<SubmitAuthCodeResponse> | SubmitAuthCodeResponse
+  >(
     `/api/v1/auth/${providerToPath(provider)}/social/verify`,
     { code, redirectUri, state: state ?? null },
   );
 
-  return response.data.data;
+  const payload =
+    "data" in response.data ? response.data.data : response.data;
+
+  if (!payload?.socialVerifyToken) {
+    throw new Error("Invalid social verify response.");
+  }
+
+  return payload;
 };
