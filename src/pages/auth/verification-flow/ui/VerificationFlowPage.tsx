@@ -5,21 +5,19 @@ import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { TermsCheckbox, TermsSubItem } from '@/shared/ui/terms-of-service';
+import { useTermDetailQuery, useTermsAgreementListQuery } from '@/entities/terms/model/useTermsQueries';
 import type { TermAgreementCode } from '@/entities/terms/model/types';
-import {
-   verificationTermsAgreements,
-   verificationTermsDetailByCode,
-} from '@/pages/auth/verification-flow/model/verificationTerms';
 
 const VerificationFlowPage = () => {
    const navigate = useNavigate();
    const accessToken = useAuthStore(state => state.accessToken);
    const socialVerifyToken = useAuthStore(state => state.socialVerifyToken);
-   const agreements = verificationTermsAgreements;
+   const termsAgreementListQuery = useTermsAgreementListQuery('verification');
+   const agreements = termsAgreementListQuery.data ?? [];
    const [checkedByCode, setCheckedByCode] = useState<Partial<Record<TermAgreementCode, boolean>>>({});
 
    const [detailTargetCode, setDetailTargetCode] = useState<TermAgreementCode | null>(null);
-   const termDetail = detailTargetCode ? verificationTermsDetailByCode[detailTargetCode] : null;
+   const termDetailQuery = useTermDetailQuery(detailTargetCode);
    const [detailTriggerElement, setDetailTriggerElement] = useState<HTMLElement | null>(null);
 
    const areRequiredTermsChecked = useMemo(() => {
@@ -138,11 +136,15 @@ const VerificationFlowPage = () => {
             }}
          >
             <DialogContent className="flex flex-col overflow-hidden max-w-147 w-[calc(100%-40px)] gap-0 rounded-xl border-0 bg-elevated p-0 shadow-xl">
-               {termDetail ? (
+               {termDetailQuery.isLoading ? (
+                  <div className="p-10 text-center text-body-2-regular text-muted-foreground">
+                     약관 내용을 불러오는 중입니다.
+                  </div>
+               ) : termDetailQuery.data ? (
                   <>
                      <DialogHeader className="px-5 py-5 pb-2">
                         <DialogTitle align="center" className="text-heading-4-bold">
-                           {termDetail.title}
+                           {termDetailQuery.data.title}
                         </DialogTitle>
                      </DialogHeader>
 
@@ -150,10 +152,10 @@ const VerificationFlowPage = () => {
                      <div className="flex-1 overflow-y-auto px-5 pb-5">
                         <div className="rounded-lg border border-(--neutral-200) p-4">
                            <p className="text-body-2-regular leading-6 text-muted-foreground">
-                              {termDetail.summary}
+                              {termDetailQuery.data.summary}
                               <br />
                               <br />
-                              {termDetail.scopeTitle}
+                              {termDetailQuery.data.scopeTitle}
                            </p>
 
                            <div className="mt-4 border-t border-border">
@@ -162,7 +164,7 @@ const VerificationFlowPage = () => {
                                     수집·이용 목적
                                  </div>
                                  <div className="p-2 text-caption-1-regular text-muted-foreground">
-                                    {termDetail.purpose}
+                                    {termDetailQuery.data.purpose}
                                  </div>
                               </div>
                               <div className="grid grid-cols-[126px_1fr] border-b border-border">
@@ -170,7 +172,7 @@ const VerificationFlowPage = () => {
                                     수집하는 개인정보 항목
                                  </div>
                                  <div className="p-2 text-caption-1-regular text-muted-foreground">
-                                    {termDetail.fields}
+                                    {termDetailQuery.data.fields}
                                  </div>
                               </div>
                               <div className="grid grid-cols-[126px_1fr] border-b border-border">
@@ -178,7 +180,7 @@ const VerificationFlowPage = () => {
                                     보유·이용하는 기간
                                  </div>
                                  <div className="p-2 text-caption-1-regular text-muted-foreground">
-                                    {termDetail.retention}
+                                    {termDetailQuery.data.retention}
                                  </div>
                               </div>
                               <div className="grid grid-cols-[126px_1fr] border-b border-border">
@@ -186,13 +188,13 @@ const VerificationFlowPage = () => {
                                     수집·이용하는 자
                                  </div>
                                  <div className="p-2 text-caption-1-regular text-muted-foreground">
-                                    {termDetail.collector}
+                                    {termDetailQuery.data.collector}
                                  </div>
                               </div>
                            </div>
 
                            <p className="mt-4 text-body-2-regular leading-6 text-muted-foreground">
-                              {termDetail.footerNote}
+                              {termDetailQuery.data.footerNote}
                            </p>
                         </div>
                      </div>
