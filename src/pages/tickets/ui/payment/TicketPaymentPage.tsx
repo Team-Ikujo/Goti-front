@@ -1,21 +1,19 @@
 // src/pages/tickets/ui/payment/TicketPaymentPage.tsx
 
 import { useState } from 'react';
-import { AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import {
    CashReceiptCard,
    DiscountCard,
+   NotesCard,
    OrdererInfoCard,
    OrderSummaryCard,
    PAYMENT_LABELS,
    PaymentAmountCard,
-   PaymentGuideCard,
    PaymentHeader,
    PaymentMethodCard,
    PaymentCard,
    RadioOptionCard,
-   ResellInfoCard,
    ShippingAddressCard,
    TermsCard,
    type CashReceiptNumType,
@@ -85,6 +83,10 @@ export default function TicketPaymentPage() {
       paymentLabel: PAYMENT_LABELS[paymentMethod],
    };
 
+   // 수수료: 매당 1,000원
+   const fee = orderInfo.quantity * 1000;
+   const totalPayment = shippingFee + fee; // ticketPrice·할인 0원 (TODO: 실데이터 연결 후 업데이트)
+
    const handlePay = () => {
       // TODO: 결제 API 연결
    };
@@ -153,26 +155,8 @@ export default function TicketPaymentPage() {
                         {/* 할인 선택 */}
                         <DiscountCard />
 
-                        {/* 취소 수수료 안내 */}
-                        <div className="bg-fill-hover border border-border rounded-[14px] p-[25px]">
-                           <div className="flex gap-3 items-start">
-                              <AlertCircle className="size-5 text-foreground mt-0.75 shrink-0" />
-                              <div className="flex flex-col gap-2">
-                                 <span className="text-[18px] font-bold leading-[1.55] text-foreground">
-                                    취소 수수료 안내
-                                 </span>
-                                 <div className="flex flex-col gap-1 text-[16px] font-medium leading-normal text-foreground">
-                                    <p>• 경기 7일 전까지: 무료 취소</p>
-                                    <p>• 경기 6~3일 전: 티켓금액의 10%</p>
-                                    <p>• 경기 2~1일 전: 티켓금액의 20%</p>
-                                    <p className="text-destructive font-semibold">• 경기 당일: 취소 불가</p>
-                                 </div>
-                              </div>
-                           </div>
-                        </div>
-
-                        {/* 티켓 리셀 안내 */}
-                        <ResellInfoCard />
+                        {/* 결제 방법 */}
+                        <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
 
                         {/* 약관 동의 */}
                         <TermsCard
@@ -181,21 +165,18 @@ export default function TicketPaymentPage() {
                            onChangePrivacy={setAgreedPrivacy}
                            onChangePolicy={setAgreedPolicy}
                         />
+
+                        {/* 유의사항 */}
+                        <NotesCard />
                      </div>
                   </div>
 
-                  {/* 오른쪽: 결제 수단 */}
+                  {/* 오른쪽: 주문 정보 */}
                   <div className="flex-1 max-w-[400px] shrink-0 flex flex-col gap-[10px]">
-                     <h2 className="text-[24px] font-bold leading-[1.5] text-foreground h-[36px]">결제 수단 선택</h2>
+                     <h2 className="text-[24px] font-bold leading-[1.5] text-foreground h-[36px]">주문 정보 확인</h2>
 
-                     <div className="flex flex-col gap-7">
-                        <div className="flex flex-col gap-6">
-                           <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
-                           <PaymentGuideCard />
-                        </div>
-
-                        <div className="flex flex-col gap-6">
-                           <OrderSummaryCard orderInfo={orderInfo} />
+                     <div className="flex flex-col gap-6">
+                        <OrderSummaryCard orderInfo={orderInfo} />
 
                            {/* 현금영수증 (무통장 입금 선택 시에만 표시) */}
                            {paymentMethod === 'bank' && (
@@ -218,7 +199,7 @@ export default function TicketPaymentPage() {
                                  { label: '학생 할인 5%', amount: 0 },
                                  { label: '조기 예매 할인 10%', amount: 0 },
                               ]}
-                              fee={0}
+                              fee={fee}
                            />
                            <Button
                               variant="primary"
@@ -227,10 +208,9 @@ export default function TicketPaymentPage() {
                               disabled={!isFormValid}
                               onClick={handlePay}
                            >
-                              0원 결제하기
+                              {totalPayment.toLocaleString('ko-KR')}원 결제하기
                            </Button>
                         </div>
-                     </div>
                   </div>
                </div>
             </div>

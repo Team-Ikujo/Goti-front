@@ -3,7 +3,7 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Calendar, CheckCircle, MapPin } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
-import { PaymentHeader } from './_shared';
+import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
 
 type DeliveryMethod = 'mobile' | 'onsite' | 'delivery';
 
@@ -66,7 +66,7 @@ export default function PaymentCompletePage() {
 
    return (
       <div className="min-h-screen flex flex-col bg-background">
-         <PaymentHeader matchTitle={order.matchTitle} venue={order.venue} dateTime={order.dateTime} />
+         <BooksHeader />
 
          <main className="flex-1 bg-white flex justify-center px-4">
             <div className="w-full max-w-[1200px] py-12 flex flex-col gap-[26px] items-center">
