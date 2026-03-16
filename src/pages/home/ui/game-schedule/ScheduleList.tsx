@@ -3,6 +3,7 @@ import { TicketX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '@/entities/auth/model/authStore';
+import { DEFAULT_BOOKING_ZONE_ID } from '@/pages/books/model/zoneData';
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
 
@@ -400,7 +401,7 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
 
   const confirmGuideAndOpenCaptcha = () => {
     setIsGuideOpen(false);
-    navigate('/books', {
+    navigate(`/books/seats/${DEFAULT_BOOKING_ZONE_ID}`, {
       state: {
         requireCaptcha: true,
       },

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 import { createSeatsForZone, getSeatBlocks } from '@/pages/books/model/seatData';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { BOOKING_ZONES, formatPrice, getZoneOverviewImage } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
+import BookingCaptchaGate from './components/BookingCaptchaGate';
 import SeatBlockGrid from './components/SeatBlockGrid';
 
+const CAPTCHA_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
 const SCALE_STEP = 0.2;
@@ -30,8 +32,23 @@ type SelectedSeatSummaryItem = {
    price: number;
 };
 
+type BookingEntryState = {
+   requireCaptcha?: boolean;
+};
+
+function createMockCaptcha(length = 6): string {
+   return Array.from(
+      { length },
+      () => CAPTCHA_CHARS[Math.floor(Math.random() * CAPTCHA_CHARS.length)],
+   ).join('');
+}
+
 function SeatsPage() {
+   const navigate = useNavigate();
+   const location = useLocation();
    const { zoneId = '' } = useParams();
+   const bookingEntryState = location.state as BookingEntryState | null;
+   const requiresCaptcha = Boolean(bookingEntryState?.requireCaptcha);
 
    const zone = useMemo(
       () => BOOKING_ZONES.find((item) => item.id === zoneId) ?? BOOKING_ZONES[0],
@@ -53,10 +70,25 @@ function SeatsPage() {
    const dragStartRef = useRef<{ x: number; y: number } | null>(null);
    const mapViewportRef = useRef<HTMLDivElement | null>(null);
    const [mapViewportSize, setMapViewportSize] = useState({ width: 0, height: 0 });
+   const [isCaptchaOpen, setIsCaptchaOpen] = useState(requiresCaptcha);
+   const [captchaInput, setCaptchaInput] = useState('');
+   const [captchaError, setCaptchaError] = useState('');
+   const [captchaSeed, setCaptchaSeed] = useState(0);
+
+   const captchaCode = useMemo(() => createMockCaptcha(), [captchaSeed]);
 
    useEffect(() => {
       initializeZone(zone.id, initialSeats);
    }, [initialSeats, initializeZone, zone.id]);
+
+   useEffect(() => {
+      if (requiresCaptcha) {
+         setCaptchaInput('');
+         setCaptchaError('');
+         setCaptchaSeed((prev) => prev + 1);
+         setIsCaptchaOpen(true);
+      }
+   }, [requiresCaptcha]);
 
    useEffect(() => {
       const updateViewportSize = () => {
@@ -228,6 +260,23 @@ function SeatsPage() {
       toggleSelectedSeat(zone.id, seat.id);
    };
 
+   const refreshCaptcha = () => {
+      setCaptchaSeed((prev) => prev + 1);
+      setCaptchaError('');
+   };
+
+   const submitCaptcha = () => {
+      if (captchaInput.trim().toUpperCase() !== captchaCode) {
+         setCaptchaError('보안 문자가 일치하지 않습니다. 다시 확인해 주세요.');
+         return;
+      }
+
+      setIsCaptchaOpen(false);
+      setCaptchaInput('');
+      setCaptchaError('');
+      navigate(location.pathname, { replace: true });
+   };
+
    const handleMapPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
       if (seatMapScale <= 1) {
          return;
@@ -268,6 +317,34 @@ function SeatsPage() {
 
    return (
       <div className="w-full bg-background text-foreground">
+         <BookingCaptchaGate
+            open={isCaptchaOpen}
+            captchaCode={captchaCode}
+            value={captchaInput}
+            error={captchaError}
+            onOpenChange={(open) => {
+               if (!requiresCaptcha) {
+                  setIsCaptchaOpen(open);
+                  return;
+               }
+
+               if (!open) {
+                  navigate(-1);
+                  return;
+               }
+
+               setIsCaptchaOpen(true);
+            }}
+            onChangeValue={(value) => {
+               setCaptchaInput(value);
+               if (captchaError) {
+                  setCaptchaError('');
+               }
+            }}
+            onRefresh={refreshCaptcha}
+            onSubmit={submitCaptcha}
+         />
+
          <main className="flex min-h-[calc(100vh-140px)] flex-col xl:h-[calc(100vh-140px)] xl:flex-row">
             <section className="flex min-h-[680px] flex-1 flex-col overflow-hidden bg-[#f1f2f4]">
                <div className="flex items-center justify-between gap-4 px-5 py-3 lg:px-8">
