@@ -11,11 +11,10 @@ type BannerSlide = {
    buttonLabel: string;
 };
 
-// TODO: 배너 이미지 작업 후 실제 이미지로 교체
 const slides: BannerSlide[] = [
    {
       id: 1,
-      backgroundImage: 'https://www.figma.com/api/mcp/asset/a8aac6f7-9970-4d0a-bb92-d0464a081411',
+      backgroundImage: '/images/HeroStadium.png',
       title: ['2026', 'KBO 시즌권'],
       subtitle: ['2026.02.03(TUE) 18:00', '판매오픈'],
       buttonLabel: '일정보기',
@@ -82,8 +81,7 @@ const HeroBanner = () => {
                      <img
                         src={slide.backgroundImage}
                         alt=""
-                        className="absolute w-full opacity-60 pointer-events-none"
-                        style={{ height: '246.15%', top: '-73.08%' }}
+                        className="absolute inset-0 w-full h-full object-fill opacity-60 pointer-events-none"
                         draggable={false}
                      />
                   </div>
