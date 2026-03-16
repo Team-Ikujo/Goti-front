@@ -1,11 +1,22 @@
+import { useMemo, useState } from 'react';
 import { TicketX } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
+import { useAuthStore } from '@/entities/auth/model/authStore';
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
 
+import BookingCaptchaDialog from './BookingCaptchaDialog';
+import BookingGuideDialog from './BookingGuideDialog';
 import { TAB_TODAY, TODAY, statusColor, teamLogos } from './constants';
 import type { DaySchedule, GameRow } from './types';
 import { getGameResultTexts } from './utils';
+
+const CAPTCHA_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function createMockCaptcha(length = 6): string {
+  return Array.from({ length }, () => CAPTCHA_CHARS[Math.floor(Math.random() * CAPTCHA_CHARS.length)]).join('');
+}
 
 function ScoreDisplay({ game }: { game: GameRow }) {
    const scoreText = game.score ?? 'VS';
@@ -144,139 +155,166 @@ function MobileTeam({
    );
 }
 
-function ActionButtons({ game, isEnded }: { game: GameRow; isEnded: boolean }) {
-   return (
-      <>
-         {!isEnded && (
-            <div className="flex md:hidden gap-[8px] h-[38px] items-center w-full">
-               <button
-                  className={cn(
-                     'h-full flex-1 px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium leading-[1.5] text-white',
-                     game.ticket === '예매하기' ? 'bg-primary' : 'bg-[#acb4bb]',
-                  )}
-               >
-                  {game.ticket}
-               </button>
-               <button
-                  className={cn(
-                     'h-full flex-1 px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium leading-[1.5] border',
-                     game.resell === '리셀예매'
-                        ? 'bg-background border-primary text-primary'
-                        : 'bg-background border-[#acb4bb] text-[#acb4bb]',
-                  )}
-               >
-                  {game.resell}
-               </button>
-            </div>
-         )}
+function ActionButtons({
+  game,
+  isEnded,
+  onOpenBookingFlow,
+  onOpenResellFlow,
+}: {
+  game: GameRow;
+  isEnded: boolean;
+  onOpenBookingFlow: (game: GameRow) => void;
+  onOpenResellFlow: (game: GameRow) => void;
+}) {
+  const canBook = game.ticket === '예매하기';
+  const canResellBook = game.resell === '리셀예매';
 
-         <div className={cn('hidden md:flex gap-[10px] h-[66px] items-center shrink-0', isEnded && 'opacity-0')}>
-            <button
-               className={cn(
-                  'h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] text-white',
-                  game.ticket === '예매하기' ? 'bg-primary' : 'bg-[#acb4bb] w-[88px]',
-               )}
-            >
-               {game.ticket}
-            </button>
-            <button
-               className={cn(
-                  'h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] border',
-                  game.resell === '리셀예매'
-                     ? 'bg-background border-primary text-primary'
-                     : 'bg-background border-[#acb4bb] text-[#acb4bb] w-[88px] whitespace-nowrap',
-               )}
-            >
-               {game.resell}
-            </button>
-         </div>
-      </>
-   );
+  return (
+    <>
+      {!isEnded && (
+        <div className="flex md:hidden gap-[8px] h-[38px] items-center w-full">
+          <button
+            type="button"
+            disabled={!canBook}
+            onClick={() => onOpenBookingFlow(game)}
+            className={cn(
+              'h-full flex-1 px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium leading-[1.5] text-white',
+              canBook ? 'bg-primary' : 'bg-[#acb4bb]',
+            )}
+          >
+            {game.ticket}
+          </button>
+          <button
+            type="button"
+            disabled={!canResellBook}
+            onClick={() => onOpenResellFlow(game)}
+            className={cn(
+              'h-full flex-1 px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium leading-[1.5] border',
+              canResellBook
+                ? 'bg-background border-primary text-primary'
+                : 'bg-background border-[#acb4bb] text-[#acb4bb]',
+            )}
+          >
+            {game.resell}
+          </button>
+        </div>
+      )}
+
+      <div className={cn('hidden md:flex gap-[10px] h-[66px] items-center shrink-0', isEnded && 'opacity-0')}>
+        <button
+          type="button"
+          disabled={!canBook}
+          onClick={() => onOpenBookingFlow(game)}
+          className={cn(
+            'h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] text-white',
+            canBook ? 'bg-primary' : 'bg-[#acb4bb] w-[88px]',
+          )}
+        >
+          {game.ticket}
+        </button>
+        <button
+          type="button"
+          disabled={!canResellBook}
+          onClick={() => onOpenResellFlow(game)}
+          className={cn(
+            'h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] border',
+            canResellBook
+              ? 'bg-background border-primary text-primary'
+              : 'bg-background border-[#acb4bb] text-[#acb4bb] w-[88px] whitespace-nowrap',
+          )}
+        >
+          {game.resell}
+        </button>
+      </div>
+    </>
+  );
 }
 
-function MobileGameRow({ day, game, index }: { day: DaySchedule; game: GameRow; index: number }) {
-   const isLast = index === day.games.length - 1;
-   const isEnded = game.status === '종료';
-   const textDisabled = isEnded ? 'text-[#acb4bb]' : 'text-(--text-primary)';
-   const resultText = getGameResultTexts(game.score, isEnded);
+function MobileGameRow({
+  day,
+  game,
+  index,
+  onOpenBookingFlow,
+  onOpenResellFlow,
+}: {
+  day: DaySchedule;
+  game: GameRow;
+  index: number;
+  onOpenBookingFlow: (game: GameRow) => void;
+  onOpenResellFlow: (game: GameRow) => void;
+}) {
+  const isLast = index === day.games.length - 1;
+  const isEnded = game.status === '종료';
+  const textDisabled = isEnded ? 'text-[#acb4bb]' : 'text-(--text-primary)';
+  const resultText = getGameResultTexts(game.score, isEnded);
 
-   return (
-      <div
-         className={cn(
-            'md:hidden border border-t-0 border-(--border-normal) px-[17px] pt-[16px] pb-[16px] flex flex-col gap-[12px]',
-            isLast && 'rounded-bl-[16px] rounded-br-[16px]',
-            isEnded ? 'bg-[#f7f8f9]' : 'bg-background',
-         )}
-      >
-         <div className="flex items-center gap-[12px]">
-            <span className={cn('text-[14px] font-semibold leading-[1.5] whitespace-nowrap', textDisabled)}>
-               {game.time}
-            </span>
-            <span className="text-[14px] leading-[1.5] whitespace-nowrap text-[#acb4bb]">|</span>
-            <span className={cn('text-[14px] font-semibold leading-[1.5] whitespace-nowrap', textDisabled)}>
-               {game.venue}
-            </span>
-         </div>
+  return (
+    <div
+      className={cn(
+        'md:hidden border border-t-0 border-(--border-normal) px-[17px] pt-[16px] pb-[16px] flex flex-col gap-[12px]',
+        isLast && 'rounded-bl-[16px] rounded-br-[16px]',
+        isEnded ? 'bg-[#f7f8f9]' : 'bg-background',
+      )}
+    >
+      <div className="flex items-center gap-[12px]">
+        <span className={cn('text-[14px] font-semibold leading-[1.5] whitespace-nowrap', textDisabled)}>{game.time}</span>
+        <span className="text-[14px] leading-[1.5] whitespace-nowrap text-[#acb4bb]">|</span>
+        <span className={cn('text-[14px] font-semibold leading-[1.5] whitespace-nowrap', textDisabled)}>{game.venue}</span>
+      </div>
 
-         <div className="flex items-center justify-between">
-            <MobileTeam name={game.away} isEnded={isEnded} result={resultText.away} isHome={false} />
-
-            <div className="flex flex-col items-center justify-center shrink-0">
-               <MobileScoreDisplay game={game} />
-               <span className={cn('text-[12px] font-medium text-center leading-[1.5]', statusColor[game.status])}>
-                  {game.status}
-               </span>
-            </div>
+      <div className="flex items-center justify-between">
+        <MobileTeam name={game.away} isEnded={isEnded} result={resultText.away} isHome={false} />
 
             <MobileTeam name={game.home} isEnded={isEnded} result={resultText.home} isHome={true} />
          </div>
 
          <ActionButtons game={game} isEnded={isEnded} />
       </div>
-   );
+
+      <ActionButtons
+        game={game}
+        isEnded={isEnded}
+        onOpenBookingFlow={onOpenBookingFlow}
+        onOpenResellFlow={onOpenResellFlow}
+      />
+    </div>
+  );
 }
 
-function DesktopGameRow({ day, game, index }: { day: DaySchedule; game: GameRow; index: number }) {
-   const isLast = index === day.games.length - 1;
-   const isEnded = game.status === '종료';
-   const textDisabled = isEnded ? 'text-[#acb4bb]' : 'text-(--text-primary)';
-   const resultText = getGameResultTexts(game.score, isEnded);
+function DesktopGameRow({
+  day,
+  game,
+  index,
+  onOpenBookingFlow,
+  onOpenResellFlow,
+}: {
+  day: DaySchedule;
+  game: GameRow;
+  index: number;
+  onOpenBookingFlow: (game: GameRow) => void;
+  onOpenResellFlow: (game: GameRow) => void;
+}) {
+  const isLast = index === day.games.length - 1;
+  const isEnded = game.status === '종료';
+  const textDisabled = isEnded ? 'text-[#acb4bb]' : 'text-(--text-primary)';
+  const resultText = getGameResultTexts(game.score, isEnded);
 
-   return (
-      <div
-         className={cn(
-            'hidden md:flex border border-t-0 border-(--border-normal) px-[20px] py-[6px] items-center justify-between',
-            isLast && 'rounded-bl-[20px] rounded-br-[20px]',
-            isEnded ? 'bg-[#f7f8f9]' : 'bg-background',
-         )}
-      >
-         <div className="flex gap-[30px] items-center shrink-0">
-            <div className="flex items-center justify-center w-[60px]">
-               <span
-                  className={cn('text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap', textDisabled)}
-               >
-                  {game.time}
-               </span>
-            </div>
-            <div className="flex items-center justify-center w-[40px]">
-               <span
-                  className={cn('text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap', textDisabled)}
-               >
-                  {game.venue}
-               </span>
-            </div>
-         </div>
-
-         <div className="flex gap-[50px] items-center shrink-0">
-            <div className="flex items-center justify-center w-[150px]">
-               <div className="flex h-[75px] items-center justify-end w-[70px] shrink-0">
-                  <div className="w-[30px] h-[75px] shrink-0" />
-                  <TeamName name={game.away} isEnded={isEnded} result={resultText.away} textDisabled={textDisabled} />
-               </div>
-               <div className="flex flex-col items-center justify-center overflow-hidden px-[15px] py-[10px] size-[75px] shrink-0">
-                  <img src={teamLogos[game.away]} alt={game.away} className="w-full h-full object-contain" />
-               </div>
-            </div>
+  return (
+    <div
+      className={cn(
+        'hidden md:flex border border-t-0 border-(--border-normal) px-[20px] py-[6px] items-center justify-between',
+        isLast && 'rounded-bl-[20px] rounded-br-[20px]',
+        isEnded ? 'bg-[#f7f8f9]' : 'bg-background',
+      )}
+    >
+      <div className="flex gap-[30px] items-center shrink-0">
+        <div className="flex items-center justify-center w-[60px]">
+          <span className={cn('text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap', textDisabled)}>{game.time}</span>
+        </div>
+        <div className="flex items-center justify-center w-[40px]">
+          <span className={cn('text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap', textDisabled)}>{game.venue}</span>
+        </div>
+      </div>
 
             <div className="flex flex-col items-center justify-center w-[40px] shrink-0">
                <ScoreDisplay game={game} />
@@ -285,24 +323,14 @@ function DesktopGameRow({ day, game, index }: { day: DaySchedule; game: GameRow;
                </span>
             </div>
 
-            <div className="flex items-center justify-center w-[150px]">
-               <div className="flex flex-col items-center justify-center overflow-hidden px-[15px] py-[10px] size-[75px] shrink-0">
-                  <img src={teamLogos[game.home]} alt={game.home} className="w-full h-full object-contain" />
-               </div>
-               <div className="flex h-[75px] items-center justify-between w-[70px] shrink-0">
-                  <TeamName name={game.home} isEnded={isEnded} result={resultText.home} textDisabled={textDisabled} />
-                  <div className="flex h-[75px] items-center justify-end w-[30px] shrink-0">
-                     <div className="bg-[#acb4bb] flex flex-col items-center justify-center px-[4px] rounded-[2px] w-[22px]">
-                        <span className="text-white text-[16px] font-medium text-center leading-[1.5]">홈</span>
-                     </div>
-                  </div>
-               </div>
-            </div>
-         </div>
-
-         <ActionButtons game={game} isEnded={isEnded} />
-      </div>
-   );
+      <ActionButtons
+        game={game}
+        isEnded={isEnded}
+        onOpenBookingFlow={onOpenBookingFlow}
+        onOpenResellFlow={onOpenResellFlow}
+      />
+    </div>
+  );
 }
 
 type ScheduleListProps = {
@@ -311,35 +339,128 @@ type ScheduleListProps = {
 };
 
 function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
-   if (filteredData.length === 0) {
-      return <EmptyState />;
-   }
+  const navigate = useNavigate();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isCaptchaOpen, setIsCaptchaOpen] = useState(false);
+  const [captchaInput, setCaptchaInput] = useState('');
+  const [captchaError, setCaptchaError] = useState('');
+  const [captchaSeed, setCaptchaSeed] = useState(0);
 
-   return (
-      <div className={cn('flex flex-col w-full', activeTab !== TAB_TODAY && 'gap-[25px]')}>
-         {filteredData.map(day => {
-            const isToday = day.isToday ?? day.date === TODAY;
+  const captchaCode = useMemo(() => createMockCaptcha(), [captchaSeed]);
 
-            return (
-               <div key={day.date}>
-                  <div className="bg-[#f1f2f4] border border-(--border-normal) h-[46px] md:h-auto px-[25px] md:px-[30px] py-[10px] rounded-tl-[16px] rounded-tr-[16px] md:rounded-tl-[20px] md:rounded-tr-[20px] flex items-center justify-center md:justify-start gap-2">
-                     <span className="text-[16px] md:text-[length:var(--typo---heading\/h4,20px)] font-semibold text-(--text-primary) leading-[1.5]">
-                        {day.date}
-                     </span>
-                     {isToday && <Badge variant="chipDestructive">오늘</Badge>}
-                  </div>
+  const openBookingFlow = (game: GameRow) => {
+    if (game.ticket !== '예매하기') {
+      return;
+    }
 
-                  {day.games.map((game, index) => (
-                     <div key={`${day.date}-${game.time}-${game.away}-${game.home}-${index}`}>
-                        <MobileGameRow day={day} game={game} index={index} />
-                        <DesktopGameRow day={day} game={game} index={index} />
-                     </div>
-                  ))}
-               </div>
-            );
-         })}
-      </div>
-   );
+    if (!accessToken) {
+      navigate('/auth/login');
+      return;
+    }
+
+    setIsGuideOpen(true);
+  };
+
+  const openResellFlow = (game: GameRow) => {
+    if (game.resell !== '리셀예매') {
+      return;
+    }
+
+    if (!accessToken) {
+      navigate('/auth/login');
+      return;
+    }
+  };
+
+  const confirmGuideAndOpenCaptcha = () => {
+    setIsGuideOpen(false);
+    setCaptchaInput('');
+    setCaptchaError('');
+    setCaptchaSeed((prev) => prev + 1);
+    setIsCaptchaOpen(true);
+  };
+
+  const refreshCaptcha = () => {
+    setCaptchaSeed((prev) => prev + 1);
+    setCaptchaError('');
+  };
+
+  const submitCaptcha = () => {
+    if (captchaInput.trim().toUpperCase() !== captchaCode) {
+      setCaptchaError('보안 문자가 일치하지 않습니다. 다시 확인해 주세요.');
+      return;
+    }
+
+    setIsCaptchaOpen(false);
+    setCaptchaInput('');
+    setCaptchaError('');
+    navigate('/books');
+  };
+
+  if (filteredData.length === 0) {
+    return <EmptyState />;
+  }
+
+  return (
+    <div className={cn('flex flex-col', activeTab !== TAB_TODAY && 'gap-[25px]')}>
+      {filteredData.map((day) => {
+        const isToday = day.isToday ?? day.date === TODAY;
+
+        return (
+          <div key={day.date}>
+            <div className="bg-[#f1f2f4] border border-(--border-normal) h-[46px] md:h-auto px-[25px] md:px-[30px] py-[10px] rounded-tl-[16px] rounded-tr-[16px] md:rounded-tl-[20px] md:rounded-tr-[20px] flex items-center justify-center md:justify-start gap-2">
+              <span className="text-[16px] md:text-[length:var(--typo---heading\/h4,20px)] font-semibold text-(--text-primary) leading-[1.5]">{day.date}</span>
+              {isToday && <Badge variant="chipDestructive">오늘</Badge>}
+            </div>
+
+            {day.games.map((game, index) => (
+              <div key={`${day.date}-${game.time}-${game.away}-${game.home}-${index}`}>
+                <MobileGameRow
+                  day={day}
+                  game={game}
+                  index={index}
+                  onOpenBookingFlow={openBookingFlow}
+                  onOpenResellFlow={openResellFlow}
+                />
+                <DesktopGameRow
+                  day={day}
+                  game={game}
+                  index={index}
+                  onOpenBookingFlow={openBookingFlow}
+                  onOpenResellFlow={openResellFlow}
+                />
+              </div>
+            ))}
+          </div>
+        );
+      })}
+
+      <BookingGuideDialog open={isGuideOpen} onOpenChange={setIsGuideOpen} onConfirm={confirmGuideAndOpenCaptcha} />
+
+      <BookingCaptchaDialog
+        open={isCaptchaOpen}
+        captchaCode={captchaCode}
+        value={captchaInput}
+        error={captchaError}
+        onOpenChange={(open) => {
+          setIsCaptchaOpen(open);
+          if (!open) {
+            setCaptchaInput('');
+            setCaptchaError('');
+          }
+        }}
+        onChangeValue={(value) => {
+          setCaptchaInput(value);
+          if (captchaError) {
+            setCaptchaError('');
+          }
+        }}
+        onRefresh={refreshCaptcha}
+        onSubmit={submitCaptcha}
+      />
+    </div>
+  );
 }
 
 export default ScheduleList;
