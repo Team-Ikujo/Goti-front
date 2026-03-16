@@ -1,11 +1,11 @@
 // src/pages/teams/ui/TeamScheduleTab.tsx
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import ScheduleList from '@/pages/home/ui/game-schedule/ScheduleList';
-import YearMonthPicker from '@/pages/home/ui/game-schedule/YearMonthPicker';
+import { YearPicker, MonthPicker } from '@/pages/home/ui/game-schedule/YearMonthPicker';
 import {
    CURRENT_MONTH,
    CURRENT_WEEK,
@@ -25,7 +25,10 @@ export function TeamScheduleTab({ teamName }: Props) {
    const [weekYear, setWeekYear] = useState(CURRENT_YEAR);
    const [weekMonth, setWeekMonth] = useState(CURRENT_MONTH);
    const [selectedWeek, setSelectedWeek] = useState(CURRENT_WEEK);
-   const [showPicker, setShowPicker] = useState(false);
+   const [showYearPicker, setShowYearPicker] = useState(false);
+   const [showMonthPicker, setShowMonthPicker] = useState(false);
+   const yearContainerRef = useRef<HTMLDivElement>(null);
+   const monthContainerRef = useRef<HTMLDivElement>(null);
 
    const filteredData = useMemo(() => {
       const byWeek = filterScheduleData(scheduleData, {
@@ -78,12 +81,59 @@ export function TeamScheduleTab({ teamName }: Props) {
                   >
                      <ChevronLeft className="size-5 md:size-6" />
                   </button>
-                  <button
-                     onClick={() => setShowPicker(true)}
-                     className="text-[20px] md:text-[24px] font-bold text-foreground leading-normal min-w-27.5 text-center whitespace-nowrap"
-                  >
-                     {weekYear}-{String(weekMonth).padStart(2, '0')}
-                  </button>
+
+                  <div className="flex items-center text-[20px] md:text-[24px] font-bold text-foreground leading-normal">
+                     {/* 연도 버튼 */}
+                     <div ref={yearContainerRef} className="relative">
+                        <button
+                           onClick={() => {
+                              setShowYearPicker(v => !v);
+                              setShowMonthPicker(false);
+                           }}
+                           className="hover:text-primary transition-colors"
+                        >
+                           {weekYear}
+                        </button>
+                        {showYearPicker && (
+                           <YearPicker
+                              year={weekYear}
+                              containerRef={yearContainerRef}
+                              onSelect={year => {
+                                 setWeekYear(year);
+                                 setSelectedWeek(1);
+                              }}
+                              onClose={() => setShowYearPicker(false)}
+                           />
+                        )}
+                     </div>
+
+                     <span className="mx-0.5">-</span>
+
+                     {/* 월 버튼 */}
+                     <div ref={monthContainerRef} className="relative">
+                        <button
+                           onClick={() => {
+                              setShowMonthPicker(v => !v);
+                              setShowYearPicker(false);
+                           }}
+                           className="hover:text-primary transition-colors"
+                        >
+                           {String(weekMonth).padStart(2, '0')}
+                        </button>
+                        {showMonthPicker && (
+                           <MonthPicker
+                              month={weekMonth}
+                              containerRef={monthContainerRef}
+                              onSelect={month => {
+                                 setWeekMonth(month);
+                                 setSelectedWeek(1);
+                              }}
+                              onClose={() => setShowMonthPicker(false)}
+                           />
+                        )}
+                     </div>
+                  </div>
+
                   <button
                      onClick={nextMonth}
                      className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
@@ -91,20 +141,6 @@ export function TeamScheduleTab({ teamName }: Props) {
                      <ChevronRight className="size-5 md:size-6" />
                   </button>
                </div>
-
-               {showPicker && (
-                  <YearMonthPicker
-                     year={weekYear}
-                     month={weekMonth}
-                     onConfirm={(year, month) => {
-                        setWeekYear(year);
-                        setWeekMonth(month);
-                        setSelectedWeek(1);
-                        setShowPicker(false);
-                     }}
-                     onClose={() => setShowPicker(false)}
-                  />
-               )}
             </div>
 
             {/* 주차 선택 */}

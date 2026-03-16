@@ -1,3 +1,4 @@
+// src/pages/home/ui/GameSchedule.tsx
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,21 +26,21 @@ const GameSchedule = () => {
    const [weekYear, setWeekYear] = useState(CURRENT_YEAR);
    const [weekMonth, setWeekMonth] = useState(CURRENT_MONTH);
    const [selectedWeek, setSelectedWeek] = useState(CURRENT_WEEK);
-   const [showWeekPicker, setShowWeekPicker] = useState(false);
 
    const [allYear, setAllYear] = useState(CURRENT_YEAR);
    const [allMonth, setAllMonth] = useState(CURRENT_MONTH);
-   const [showAllPicker, setShowAllPicker] = useState(false);
 
    const filteredData = useMemo(
       () =>
          filterScheduleData(scheduleData, {
             activeTab,
+            weekYear,
             weekMonth,
             selectedWeek,
+            allYear,
             allMonth,
          }),
-      [activeTab, weekMonth, selectedWeek, allMonth],
+      [activeTab, weekYear, weekMonth, selectedWeek, allYear, allMonth],
    );
 
    const prevWeekMonth = () => {
@@ -96,7 +97,6 @@ const GameSchedule = () => {
                   weekYear={weekYear}
                   weekMonth={weekMonth}
                   selectedWeek={selectedWeek}
-                  showWeekPicker={showWeekPicker}
                   onReset={() => {
                      setWeekYear(CURRENT_YEAR);
                      setWeekMonth(CURRENT_MONTH);
@@ -104,16 +104,13 @@ const GameSchedule = () => {
                   }}
                   onPrevMonth={prevWeekMonth}
                   onNextMonth={nextWeekMonth}
-                  onOpenPicker={() => {
-                     setShowWeekPicker(true);
-                     setShowAllPicker(false);
-                  }}
-                  onClosePicker={() => setShowWeekPicker(false)}
-                  onConfirmPicker={(year, month) => {
+                  onSelectYear={year => {
                      setWeekYear(year);
+                     setSelectedWeek(1);
+                  }}
+                  onSelectMonth={month => {
                      setWeekMonth(month);
                      setSelectedWeek(1);
-                     setShowWeekPicker(false);
                   }}
                   onSelectWeek={setSelectedWeek}
                />
@@ -123,23 +120,13 @@ const GameSchedule = () => {
                <AllNavigator
                   allYear={allYear}
                   allMonth={allMonth}
-                  showAllPicker={showAllPicker}
                   onReset={() => {
                      setAllYear(CURRENT_YEAR);
                      setAllMonth(CURRENT_MONTH);
                   }}
                   onPrevYear={() => setAllYear(year => Math.max(year - 1, AVAILABLE_YEARS[0]))}
                   onNextYear={() => setAllYear(year => Math.min(year + 1, AVAILABLE_YEARS[AVAILABLE_YEARS.length - 1]))}
-                  onOpenPicker={() => {
-                     setShowAllPicker(true);
-                     setShowWeekPicker(false);
-                  }}
-                  onClosePicker={() => setShowAllPicker(false)}
-                  onConfirmPicker={(year, month) => {
-                     setAllYear(year);
-                     setAllMonth(month);
-                     setShowAllPicker(false);
-                  }}
+                  onSelectYear={setAllYear}
                   onSelectMonth={setAllMonth}
                />
             )}

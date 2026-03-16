@@ -16,6 +16,7 @@ export type GameRow = {
 };
 
 export type DaySchedule = {
+   year: number;
    date: string;
    isToday?: boolean;
    games: GameRow[];
