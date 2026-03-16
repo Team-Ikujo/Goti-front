@@ -5,19 +5,16 @@ import { KeyValueTable } from '@/shared/ui/table';
 
 type SignUpTermsDialogProps = {
    open: boolean;
-   isLoading: boolean;
    detail?: TermsDetail;
    onOpenChange: (open: boolean) => void;
    onAgreeAndClose: () => void;
 };
 
-const SignUpTermsDialog = ({ open, isLoading, detail, onOpenChange, onAgreeAndClose }: SignUpTermsDialogProps) => {
+const SignUpTermsDialog = ({ open, detail, onOpenChange, onAgreeAndClose }: SignUpTermsDialogProps) => {
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent className="flex flex-col overflow-hidden max-w-147 w-[calc(100%-40px)] gap-0 border-0 p-0">
-            {isLoading ? (
-               <div className="p-10 text-center text-body-2-regular text-muted-foreground">약관 내용을 불러오는 중입니다.</div>
-            ) : detail ? (
+            {detail ? (
                <>
                   <DialogHeader>
                      <DialogTitle align="center">{detail.title}</DialogTitle>

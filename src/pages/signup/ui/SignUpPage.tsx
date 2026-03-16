@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSendSignupSmsCode, useSocialSignup } from '@/features/auth/model/useSubmitAuthCode';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import type { TermSignUpCode } from '@/entities/terms/model/types';
-import { useTermDetailQuery, useTermsAgreementListQuery } from '@/entities/terms/model/useTermsQueries';
 import {
    getFieldErrorsFromZod,
    normalizeBirthDateInput,
@@ -13,6 +12,10 @@ import {
    telecomOptions,
    type SignUpFormValues,
 } from '@/pages/signup/model/signUpValidation';
+import {
+   signUpTermsAgreements,
+   signUpTermsDetailByCode,
+} from '@/pages/signup/model/signUpTerms';
 import LoginRetryDialog from '@/pages/signup/ui/LoginRetryDialog';
 import SignUpTermsDialog from '@/pages/signup/ui/SignUpTermsDialog';
 import VerificationCodeField from '@/pages/signup/ui/VerificationCodeField';
@@ -33,8 +36,7 @@ const SignUpPage = () => {
    const accessToken = useAuthStore(state => state.accessToken);
    const socialVerifyToken = useAuthStore(state => state.socialVerifyToken);
    const setAuthTokens = useAuthStore(state => state.setAuthTokens);
-   const termsSignuptListQuery = useTermsAgreementListQuery('signup');
-   const signups = termsSignuptListQuery.data ?? [];
+   const signups = signUpTermsAgreements;
 
    const [checkedByCode, setCheckedByCode] = useState<Partial<Record<TermSignUpCode, boolean>>>({});
    const [countdown, setCountdown] = useState(0);
@@ -44,7 +46,7 @@ const SignUpPage = () => {
    const [submitError, setSubmitError] = useState<string | null>(null);
 
    const [detailTargetCode, setDetailTargetCode] = useState<TermSignUpCode | null>(null);
-   const termDetailQuery = useTermDetailQuery(detailTargetCode);
+   const termDetail = detailTargetCode ? signUpTermsDetailByCode[detailTargetCode] : null;
    const [detailTriggerElement, setDetailTriggerElement] = useState<HTMLElement | null>(null);
 
    const {
@@ -466,8 +468,7 @@ const SignUpPage = () => {
 
             <SignUpTermsDialog
                open={Boolean(detailTargetCode)}
-               isLoading={termDetailQuery.isLoading}
-               detail={termDetailQuery.data ?? undefined}
+               detail={termDetail ?? undefined}
                onOpenChange={open => {
                   if (!open) closeDetailDialog();
                }}
