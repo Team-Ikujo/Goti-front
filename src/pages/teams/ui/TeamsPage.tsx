@@ -9,7 +9,7 @@ const TeamsPage = () => {
    };
 
    return (
-      <section className="bg-background">
+      <section className="flex-1 bg-background">
          <div className="mx-auto flex w-full max-w-300 flex-col items-center px-4 pt-12.5 pb-30">
             <div className="flex w-full max-w-250 flex-col items-center gap-10">
                <header className="flex w-full flex-col items-center gap-5">

@@ -246,7 +246,9 @@ const SignUpPage = () => {
                />
 
                <div className="text-(--label-2-medium) text-[14px] flex flex-col gap-1">
-                  국적
+                  <div className="flex">
+                     국적 <div className="text-primary">*</div>
+                  </div>
                   <div className="flex items-center gap-2">
                      <Option
                         active={values.nationality === 'local'}
@@ -288,7 +290,9 @@ const SignUpPage = () => {
                />
 
                <div className="text-(--label-2-medium) text-[14px] flex flex-col gap-1">
-                  성별
+                  <div className="flex">
+                     성별 <div className="text-primary">*</div>
+                  </div>
                   <div className="flex items-center gap-2">
                      <Option
                         active={values.gender === 'male'}
@@ -315,7 +319,9 @@ const SignUpPage = () => {
                </div>
 
                <div className="text-(--label-2-medium) text-[14px] flex flex-col gap-1">
-                  통신사
+                  <div className="flex">
+                     통신사 <div className="text-primary">*</div>
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                      {telecomOptions.map(option => (
                         <Option
