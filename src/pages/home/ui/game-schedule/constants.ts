@@ -30,6 +30,7 @@ export const teamLogos: Record<string, string> = {
 
 export const scheduleData: DaySchedule[] = [
    {
+      year: 2025,
       date: '7월 1일 (수)',
       games: [
          {
@@ -45,6 +46,7 @@ export const scheduleData: DaySchedule[] = [
       ],
    },
    {
+      year: 2025,
       date: '7월 3일 (금)',
       isToday: true,
       games: [
@@ -71,6 +73,7 @@ export const scheduleData: DaySchedule[] = [
       ],
    },
    {
+      year: 2025,
       date: '7월 5일 (일)',
       games: [
          {

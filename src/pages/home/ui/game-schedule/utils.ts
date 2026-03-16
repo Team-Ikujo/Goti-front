@@ -8,8 +8,10 @@ import type { DaySchedule } from './types';
 
 type FilterParams = {
    activeTab: number;
+   weekYear: number;
    weekMonth: number;
    selectedWeek: number;
+   allYear: number;
    allMonth: number;
 };
 
@@ -26,8 +28,10 @@ function getWeekOfMonth(day: number): number {
 function isDayInActiveTab(
    day: DaySchedule,
    activeTab: number,
+   weekYear: number,
    weekMonth: number,
    selectedWeek: number,
+   allYear: number,
    allMonth: number,
 ): boolean {
    switch (activeTab) {
@@ -36,11 +40,11 @@ function isDayInActiveTab(
       case TAB_WEEK: {
          const { month, day: dayNum } = parseDate(day.date);
          const week = getWeekOfMonth(dayNum);
-         return month === weekMonth && week === selectedWeek;
+         return day.year === weekYear && month === weekMonth && week === selectedWeek;
       }
       case TAB_ALL: {
          const { month } = parseDate(day.date);
-         return month === allMonth;
+         return day.year === allYear && month === allMonth;
       }
       default:
          return true;
@@ -48,10 +52,10 @@ function isDayInActiveTab(
 }
 
 export function filterScheduleData(data: DaySchedule[], params: FilterParams): DaySchedule[] {
-   const { activeTab, weekMonth, selectedWeek, allMonth } = params;
+   const { activeTab, weekYear, weekMonth, selectedWeek, allYear, allMonth } = params;
 
    return data
-      .filter(day => isDayInActiveTab(day, activeTab, weekMonth, selectedWeek, allMonth))
+      .filter(day => isDayInActiveTab(day, activeTab, weekYear, weekMonth, selectedWeek, allYear, allMonth))
       .filter(day => day.games.length > 0);
 }
 
