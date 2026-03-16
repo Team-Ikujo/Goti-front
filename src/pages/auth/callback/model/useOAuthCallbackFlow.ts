@@ -14,6 +14,10 @@ import {
   OAUTH_SUCCESS_MESSAGE_TYPE,
   type OAuthSuccessMessage,
 } from "@/shared/lib/oauthMessage";
+import {
+  clearIssuedSocialState,
+  getIssuedSocialState,
+} from "@/features/auth/lib/socialStateStorage";
 
 const isSocialProvider = (value?: string): value is SocialProvider => {
   switch (value) {
@@ -108,7 +112,6 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
       try {
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
-        const state = params.get("state");
 
         if (!code) {
           throw new Error("Missing authorization code.");
@@ -117,6 +120,15 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
         if (!isSocialProvider(normalizedProvider)) {
           throw new Error(`Unsupported provider: ${normalizedProvider ?? "none"}`);
         }
+
+        const callbackState = params.get("state");
+        const issuedState = getIssuedSocialState(normalizedProvider);
+
+        if (callbackState && issuedState && callbackState !== issuedState) {
+          throw new Error("OAuth state mismatch.");
+        }
+
+        const state = issuedState ?? callbackState;
 
         if (requiresState(normalizedProvider) && !state) {
           throw new Error("Missing OAuth state.");
@@ -129,6 +141,7 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
         };
 
         const response = await submitAuthCodeMutation.mutateAsync(verifyPayload);
+        clearIssuedSocialState(normalizedProvider);
 
         setRecentLoginProvider(normalizedProvider);
 
@@ -158,6 +171,9 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
           navigate("/auth/terms", { replace: true });
         }
       } catch (error) {
+        if (isSocialProvider(normalizedProvider)) {
+          clearIssuedSocialState(normalizedProvider);
+        }
         setMessage("로그인에 실패했어요. 다시 시도해 주세요.");
         setErrorMessage(formatErrorMessage(error));
         console.error(error);

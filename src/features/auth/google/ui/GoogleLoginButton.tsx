@@ -5,7 +5,6 @@ import { useSocialOAuthLogin } from "@/features/auth/model/useSocialOAuthLogin";
 const GoogleLoginButton = () => {
   const handleClick = useSocialOAuthLogin({
     provider: "google",
-    requiresIssuedState: true,
     buildAuthUrl: (state) => buildGoogleAuthUrl(state ?? ""),
   });
 
