@@ -13,6 +13,12 @@ export type SocialSignupParams = {
   gender: SignupGender;
   mobile: string;
   birthDate: string;
+  authCode: string;
+};
+
+export type SendSignupSmsParams = {
+  socialVerifyToken: string;
+  mobile: string;
 };
 
 export const loginWithSocialVerifyToken = async (payload: {
@@ -31,6 +37,17 @@ export const signupWithSocialVerifyToken = async (
 ): Promise<AuthTokenResponse> => {
   const response = await apiClient.post<ApiEnvelope<AuthTokenResponse>>(
     "/api/v1/auth/signup",
+    payload,
+  );
+
+  return response.data.data;
+};
+
+export const sendSignupSmsCode = async (
+  payload: SendSignupSmsParams,
+): Promise<string> => {
+  const response = await apiClient.post<ApiEnvelope<string>>(
+    "/api/v1/auth/signup/sms/send",
     payload,
   );
 

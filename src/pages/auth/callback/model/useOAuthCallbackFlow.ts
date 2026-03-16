@@ -8,7 +8,6 @@ import type {
   SocialProvider,
   SubmitAuthCodeParams,
 } from "@/features/auth/api/oauthApi";
-import { getOAuthRedirectUri } from "@/features/auth/api/oauthApi";
 import { useAuthStore } from "@/entities/auth/model/authStore";
 import { ApiError } from "@/shared/api/client";
 import {
@@ -22,6 +21,18 @@ const isSocialProvider = (value?: string): value is SocialProvider => {
     case "naver":
     case "google":
       return true;
+    default:
+      return false;
+  }
+};
+
+const requiresState = (provider: SocialProvider) => {
+  switch (provider) {
+    case "google":
+    case "naver":
+      return true;
+    case "kakao":
+      return false;
     default:
       return false;
   }
@@ -97,6 +108,7 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
       try {
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
+        const state = params.get("state");
 
         if (!code) {
           throw new Error("Missing authorization code.");
@@ -106,12 +118,16 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
           throw new Error(`Unsupported provider: ${normalizedProvider ?? "none"}`);
         }
 
+        if (requiresState(normalizedProvider) && !state) {
+          throw new Error("Missing OAuth state.");
+        }
+
         const verifyPayload: SubmitAuthCodeParams = {
           provider: normalizedProvider,
-          code,
-          redirectUri: getOAuthRedirectUri(normalizedProvider),
-          state: params.get("state"),
+          authCode: code,
+          state,
         };
+
         const response = await submitAuthCodeMutation.mutateAsync(verifyPayload);
 
         setRecentLoginProvider(normalizedProvider);
