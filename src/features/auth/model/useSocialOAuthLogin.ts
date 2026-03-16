@@ -16,8 +16,16 @@ export const useSocialOAuthLogin = ({
   return useCallback(async () => {
     try {
       const { state } = await issueSocialState(provider);
+      const authUrl = buildAuthUrl(state);
+
+      console.log("[OAuth] Requesting provider authorization code.", {
+        provider,
+        state,
+        authUrl,
+      });
+
       setIssuedSocialState(provider, state);
-      openOAuthPopup(buildAuthUrl(state));
+      openOAuthPopup(authUrl);
     } catch (error) {
       console.error(error);
     }
