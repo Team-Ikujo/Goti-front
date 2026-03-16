@@ -401,7 +401,7 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
 
   const confirmGuideAndOpenCaptcha = () => {
     setIsGuideOpen(false);
-    navigate(`/books/seats/${DEFAULT_BOOKING_ZONE_ID}`, {
+    navigate('/books', {
       state: {
         requireCaptcha: true,
       },
