@@ -1,0 +1,111 @@
+import type {
+  TermSignUpCode,
+  TermsSignUp,
+  TermsSignUpDetail,
+} from "@/entities/terms/model/types";
+
+export const signUpTermsAgreements: TermsSignUp[] = [
+  {
+    id: 1,
+    code: "personal_information",
+    label: "개인정보 취급 동의",
+    required: true,
+    sortOrder: 1,
+    hasDetail: true,
+  },
+  {
+    id: 2,
+    code: "unique_Identification",
+    label: "고유식별 정보처리 동의",
+    required: true,
+    sortOrder: 2,
+    hasDetail: true,
+  },
+  {
+    id: 3,
+    code: "Identification_service",
+    label: "본인확인 서비스 이용약관 동의",
+    required: true,
+    sortOrder: 3,
+    hasDetail: true,
+  },
+  {
+    id: 4,
+    code: "carrier_terms_conditions",
+    label: "통신사 이용약관 동의",
+    required: true,
+    sortOrder: 4,
+    hasDetail: true,
+  },
+  {
+    id: 5,
+    code: "order_14_years",
+    label: "만 14세 이상입니다.",
+    required: true,
+    sortOrder: 5,
+    hasDetail: false,
+  },
+];
+
+export const signUpTermsDetailByCode: Record<
+  TermSignUpCode,
+  TermsSignUpDetail
+> = {
+  personal_information: {
+    code: "personal_information",
+    title: "개인정보 취급 동의",
+    summary: "본인 인증을 위해 개인정보 취급에 동의해야 합니다.",
+    scopeTitle: "약관 적용 범위",
+    purpose: "본인 인증",
+    fields: "이름, 생년월일, 성별, 통신사, 휴대폰 번호",
+    retention: "인증 완료 시 즉시 파기",
+    collector: "인증 기관",
+    footerNote: "※ 위 사항을 이해했으며, 개인정보 취급에 동의합니다.",
+  },
+  unique_Identification: {
+    code: "unique_Identification",
+    title: "고유식별 정보처리 동의",
+    summary: "본인 인증을 위해 고유식별 정보 처리에 동의해야 합니다.",
+    scopeTitle: "약관 적용 범위",
+    purpose: "본인 식별",
+    fields: "주민등록번호 대체 수단",
+    retention: "인증 완료 시 즉시 파기",
+    collector: "인증 기관",
+    footerNote:
+      "※ 위 사항을 이해했으며, 고유식별 정보처리에 동의합니다.",
+  },
+  Identification_service: {
+    code: "Identification_service",
+    title: "본인확인 서비스 이용약관 동의",
+    summary: "본인확인 서비스 이용을 위해 약관에 동의해야 합니다.",
+    scopeTitle: "약관 적용 범위",
+    purpose: "본인확인 서비스 제공",
+    fields: "서비스 이용 기록",
+    retention: "서비스 해지 시까지",
+    collector: "본인확인 서비스 제공업체",
+    footerNote:
+      "※ 위 사항을 이해했으며, 본인확인 서비스 이용약관에 동의합니다.",
+  },
+  carrier_terms_conditions: {
+    code: "carrier_terms_conditions",
+    title: "통신사 이용약관 동의",
+    summary: "이용중인 통신사의 이용약관에 동의해야 합니다.",
+    scopeTitle: "약관 적용 범위",
+    purpose: "통신사를 통한 본인 확인",
+    fields: "통신사 정보",
+    retention: "인증 완료 시 즉시 파기",
+    collector: "각 통신사",
+    footerNote: "※ 위 사항을 이해했으며, 통신사 이용약관에 동의합니다.",
+  },
+  order_14_years: {
+    code: "order_14_years",
+    title: "만 14세 이상입니다.",
+    summary: "만 14세 이상입니다.",
+    scopeTitle: "약관 적용 범위",
+    purpose: "통신사를 통한 본인 확인",
+    fields: "통신사 정보",
+    retention: "인증 완료 시 즉시 파기",
+    collector: "각 통신사",
+    footerNote: "※ 위 사항을 이해했으며, 만 14세 이상 이용약관에 동의합니다.",
+  },
+};
