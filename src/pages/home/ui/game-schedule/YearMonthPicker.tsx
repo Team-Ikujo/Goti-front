@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import { AVAILABLE_YEARS } from './constants';
 
+const MONTHS = Array.from({ length: 12 }, (_, index) => index + 1);
+
 type YearMonthPickerProps = {
    year: number;
    month: number;
@@ -14,41 +16,29 @@ type YearMonthPickerProps = {
    onClose: () => void;
 };
 
-const MONTHS = Array.from({ length: 12 }, (_, index) => index + 1);
-
-function YearMonthPicker({ year, month, containerRef, onConfirm, onClose }: YearMonthPickerProps) {
+export function YearMonthPicker({ year, month, containerRef, onConfirm, onClose }: YearMonthPickerProps) {
    const [localYear, setLocalYear] = useState(year);
    const [localMonth, setLocalMonth] = useState(month);
 
+   const yearIdx = AVAILABLE_YEARS.indexOf(localYear);
+   const canPrevYear = yearIdx > 0;
+   const canNextYear = yearIdx < AVAILABLE_YEARS.length - 1;
+
    // containerRef 기준 외부 클릭 → 닫힘
-   // (트리거 버튼도 containerRef 안에 있으므로 버튼 클릭 시 닫힘 없음)
    useEffect(() => {
       function handleClickOutside(e: MouseEvent) {
          if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
             onClose();
          }
       }
-      document.addEventListener('mousedown', handleMouseDown);
-      return () => document.removeEventListener('mousedown', handleMouseDown);
-   }, [containerRef, onClose]);
-}
-
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
-   }, [onClose, containerRef]);
-
-export function YearPicker({ year, containerRef, onSelect, onClose }: YearPickerProps) {
-   useClickOutside(containerRef, onClose);
-   // 화살표: 피커 내부 하이라이트만 이동 (부모 상태 즉시 변경 X)
-   // 항목 클릭: onSelect 호출 후 닫힘 → 그때 부모 상태 적용
-   const [localYear, setLocalYear] = useState(year);
-   const yearIdx = AVAILABLE_YEARS.indexOf(localYear);
+   }, [containerRef, onClose]);
 
    return (
-      <div
-         className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 bg-white rounded-[12px] shadow-xl border border-(--border-normal) overflow-hidden"
-      >
+      <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 bg-white rounded-[12px] shadow-xl border border-(--border-normal) overflow-hidden">
          <div className="flex">
+            {/* 연도 컬럼 */}
             <div className="flex flex-col items-center w-[100px] border-r border-(--border-normal)">
                <button
                   onClick={() => canPrevYear && setLocalYear(AVAILABLE_YEARS[yearIdx - 1])}
@@ -82,6 +72,7 @@ export function YearPicker({ year, containerRef, onSelect, onClose }: YearPicker
                </button>
             </div>
 
+            {/* 월 컬럼 */}
             <div className="flex flex-col items-center w-[80px]">
                <button
                   onClick={() => setLocalMonth(currentMonth => (currentMonth === 1 ? 12 : currentMonth - 1))}
@@ -114,89 +105,26 @@ export function YearPicker({ year, containerRef, onSelect, onClose }: YearPicker
             </div>
          </div>
 
+         {/* 확인/취소 버튼 */}
          <div className="flex border-t border-(--border-normal)">
             <button
-               key={y}
-               onClick={() => {
-                  onSelect(y);
-                  onClose();
-               }}
-               className={cn(
-                  'w-full px-1 py-1.5 text-center leading-normal rounded-sm transition-colors',
-                  y === localYear
-                     ? 'bg-[#f5f5f5] text-heading-1-semibold text-[#171717]'
-                     : 'text-heading-1-regular text-foreground hover:bg-gray-50',
-               )}
+               onClick={onClose}
+               className="flex-1 py-3 text-[14px] font-medium text-[#646f7c] hover:bg-gray-50"
             >
-               {y}
+               취소
             </button>
-         ))}
-         <button
-            onClick={() => yearIdx < AVAILABLE_YEARS.length - 1 && setLocalYear(AVAILABLE_YEARS[yearIdx + 1])}
-            disabled={yearIdx === AVAILABLE_YEARS.length - 1}
-            className="flex items-center justify-center w-full py-1 hover:bg-gray-50 disabled:opacity-30 rounded-sm"
-         >
-            <ChevronDown className="size-5 text-icon-primary" />
-         </button>
-      </div>
-   );
-}
-
-// ─── 월 피커 ───────────────────────────────────────────────
-export type MonthPickerProps = {
-   month: number;
-   containerRef: React.RefObject<HTMLDivElement | null>;
-   onSelect: (month: number) => void;
-   onClose: () => void;
-};
-
-const VISIBLE_MONTH_COUNT = 6;
-
-export function MonthPicker({ month, containerRef, onSelect, onClose }: MonthPickerProps) {
-   useClickOutside(containerRef, onClose);
-   // 항목 클릭: onSelect 호출 후 닫힘 → 그때 부모 상태 적용
-   const [localMonth, setLocalMonth] = useState(month);
-   // 화살표: 6개 단위 슬라이딩 윈도우의 시작 인덱스 (0 or 6)
-   const [visibleStart, setVisibleStart] = useState(month > 6 ? 6 : 0);
-
-   const visibleMonths = MONTHS.slice(visibleStart, visibleStart + VISIBLE_MONTH_COUNT);
-   const canScrollUp = visibleStart > 0;
-   const canScrollDown = visibleStart + VISIBLE_MONTH_COUNT < MONTHS.length;
-
-   return (
-      <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 bg-white rounded-lg shadow-[0px_4px_6px_0px_rgba(0,0,0,0.1),0px_2px_4px_0px_rgba(0,0,0,0.1)] border border-border p-1.5 flex flex-col items-center w-14">
-         <button
-            onClick={() => canScrollUp && setVisibleStart(v => v - 1)}
-            disabled={!canScrollUp}
-            className="flex items-center justify-center w-full py-1 hover:bg-gray-50 disabled:opacity-30 rounded-sm"
-         >
-            <ChevronUp className="size-5 text-icon-primary" />
-         </button>
-         {visibleMonths.map(m => (
             <button
-               key={m}
                onClick={() => {
-                  setLocalMonth(m);
-                  onSelect(m);
+                  onConfirm(localYear, localMonth);
                   onClose();
                }}
-               className={cn(
-                  'w-full px-1 py-1.5 text-center text-[24px] leading-normal rounded-sm transition-colors',
-                  m === localMonth
-                     ? 'bg-[#f5f5f5] font-semibold text-[#171717]'
-                     : 'font-normal text-foreground hover:bg-gray-50',
-               )}
+               className="flex-1 py-3 text-[14px] font-semibold text-(--text-primary) hover:bg-gray-50 border-l border-(--border-normal)"
             >
-               {String(m).padStart(2, '0')}
+               확인
             </button>
-         ))}
-         <button
-            onClick={() => canScrollDown && setVisibleStart(v => v + 1)}
-            disabled={!canScrollDown}
-            className="flex items-center justify-center w-full py-1 hover:bg-gray-50 disabled:opacity-30 rounded-sm"
-         >
-            <ChevronDown className="size-5 text-icon-primary" />
-         </button>
+         </div>
       </div>
    );
 }
+
+export default YearMonthPicker;
