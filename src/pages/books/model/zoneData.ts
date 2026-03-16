@@ -14,4 +14,13 @@ export const BOOKING_ZONES: ZoneItem[] = [
    { id: 'outfield', name: '외야석', price: 10000, remaining: 0, color: '#6CBE88', hotspot: [{ x: 43, y: 23 }], sectionCode: 'OF' },
 ];
 
+const DEFAULT_ZONE_OVERVIEW_IMAGE = '/baseball/seat/kia.png';
+
+// 선택 구역별 하이라이트 이미지 매핑. 추후 애셋이 추가되면 여기만 확장하면 된다.
+const ZONE_OVERVIEW_IMAGE_BY_ID: Partial<Record<ZoneItem['id'], string>> = {
+   k8: '/baseball/seat/kia/KIA_K8_1.png',
+};
+
+export const getZoneOverviewImage = (zoneId: ZoneItem['id']) => ZONE_OVERVIEW_IMAGE_BY_ID[zoneId] ?? DEFAULT_ZONE_OVERVIEW_IMAGE;
+
 export const formatPrice = (value: number) => `${value.toLocaleString('ko-KR')}원`;
