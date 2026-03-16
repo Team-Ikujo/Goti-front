@@ -1,3 +1,4 @@
+// src/pages/home/ui/game-schedule/WeekNavigator.tsx
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRef } from 'react';
 
@@ -6,34 +7,30 @@ import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 
 import { WEEK_OPTIONS } from './constants';
-import YearMonthPicker from './YearMonthPicker';
+import { MonthPicker, YearPicker } from './YearMonthPicker';
 
 type WeekNavigatorProps = {
-  weekYear: number;
-  weekMonth: number;
-  selectedWeek: number;
-  showWeekPicker: boolean;
-  onReset: () => void;
-  onPrevMonth: () => void;
-  onNextMonth: () => void;
-  onOpenPicker: () => void;
-  onClosePicker: () => void;
-  onConfirmPicker: (year: number, month: number) => void;
-  onSelectWeek: (week: number) => void;
+   weekYear: number;
+   weekMonth: number;
+   selectedWeek: number;
+   onReset: () => void;
+   onPrevMonth: () => void;
+   onNextMonth: () => void;
+   onSelectYear: (year: number) => void;
+   onSelectMonth: (month: number) => void;
+   onSelectWeek: (week: number) => void;
 };
 
 function WeekNavigator({
-  weekYear,
-  weekMonth,
-  selectedWeek,
-  showWeekPicker,
-  onReset,
-  onPrevMonth,
-  onNextMonth,
-  onOpenPicker,
-  onClosePicker,
-  onConfirmPicker,
-  onSelectWeek,
+   weekYear,
+   weekMonth,
+   selectedWeek,
+   onReset,
+   onPrevMonth,
+   onNextMonth,
+   onSelectYear,
+   onSelectMonth,
+   onSelectWeek,
 }: WeekNavigatorProps) {
   const pickerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -82,23 +79,26 @@ function WeekNavigator({
         <div className="w-[56px]" />
       </div>
 
-      <div className="flex gap-[30px] justify-center">
-        {WEEK_OPTIONS.map((week) => (
-          <Button
-            key={week}
-            onClick={() => onSelectWeek(week)}
-            variant={week === selectedWeek ? 'primaryline' : 'outline'}
-            className={cn(
-              'px-[22px] py-[9px] rounded-[10px] text-[length:var(--typo---heading\/h4,20px)] font-semibold leading-[1.5]',
-              week !== selectedWeek && 'shadow-[inset_0_0_0_1px_#161d24] text-[#161d24]',
-            )}
-          >
-            {week}주차
-          </Button>
-        ))}
+         <div className="flex gap-7.5 justify-center">
+            {WEEK_OPTIONS.map(week => {
+               const isSelected = week === selectedWeek;
+               return (
+                  <Button
+                     key={week}
+                     onClick={() => onSelectWeek(week)}
+                     variant={isSelected ? 'secondary' : 'tertiary'}
+                     className={cn(
+                        'px-5.5 py-2.25 rounded-[10px] text-heading-3-semibold leading-normal',
+                        !isSelected && 'border-[#161d24] text-[#161d24]',
+                     )}
+                  >
+                     {week}주차
+                  </Button>
+               );
+            })}
+         </div>
       </div>
-    </div>
-  );
+   );
 }
 
 export default WeekNavigator;
