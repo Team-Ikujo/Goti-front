@@ -1,3 +1,4 @@
+// src/shared/ui/button.tsx
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Slot } from 'radix-ui';
@@ -9,39 +10,23 @@ const buttonVariants = cva(
       variants: {
          variant: {
             primary:
-               'bg-[var(--primary-normal)] hover:bg-[var(--primary-strong)] disabled:bg-[var(--primary-disabled)]',
-            primaryline:
-               'shadow-[inset_0_0_0_1px_var(--primary-normal)] bg-transparent text-[var(--primary-normal)] hover:bg-[var(--primary-light)] disabled:shadow-[inset_0_0_0_1px_var(--border-normal)]',
-            outline:
-               'shadow-[inset_0_0_0_1px_var(--border-normal)] bg-transparent hover:bg-[var(--fill-hover)]',
-         },
-         typography: {
-            label1Bold: 'text-label-1-bold',
+               'bg-[var(--primary-normal)] text-[var(--static-white)] hover:bg-[var(--primary-strong)] disabled:bg-[var(--primary-disabled)] disabled:text-[var(--text-disabled)]',
+            secondary:
+               'border border-[var(--primary-normal)] bg-transparent text-[var(--primary-normal)] hover:bg-[var(--primary-light)] disabled:border-[var(--border-normal)] disabled:text-[var(--text-disabled)] disabled:hover:bg-transparent',
+            tertiary:
+               'border border-[var(--border-normal)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--fill-hover)] disabled:text-[var(--text-disabled)] disabled:hover:bg-transparent',
          },
          size: {
-            md: 'px-6 py-3',
-            sm: 'px-4 py-2',
+            xl: 'h-[66px] px-6 py-2 text-[16px] font-medium leading-[1.5]',
+            lg: 'px-6 py-3 text-[16px] font-bold leading-[1.5]',
+            md: 'px-6 py-[10px] text-[14px] font-medium leading-[1.5]',
+            sm: 'px-[14px] py-[6px] text-[14px] font-medium leading-[1.5]',
+            xs: 'px-3 py-1 text-[14px] font-medium leading-[1.45]',
          },
       },
-      compoundVariants: [
-         {
-            variant: 'primary',
-            className: '[color:var(--static-white)] disabled:[color:var(--text-disabled)]',
-         },
-         {
-            variant: 'primaryline',
-            className: 'text-[var(--primary-normal)] disabled:text-(--text-disabled) disabled:hover:bg-transparent',
-         },
-         {
-            variant: 'outline',
-            className:
-               '[color:var(--text-secondary)] disabled:[color:var(--text-disabled)] disabled:hover:bg-transparent',
-         },
-      ],
       defaultVariants: {
          variant: 'primary',
-         typography: 'label1Bold',
-         size: 'md',
+         size: 'lg',
       },
    },
 );
@@ -49,7 +34,6 @@ const buttonVariants = cva(
 function Button({
    className,
    variant,
-   typography,
    size,
    asChild = false,
    ...props
@@ -59,9 +43,7 @@ function Button({
    }) {
    const Comp = asChild ? Slot.Root : 'button';
 
-   return (
-      <Comp data-slot="button" className={cn(buttonVariants({ variant, size, typography }), className)} {...props} />
-   );
+   return <Comp data-slot="button" className={cn(buttonVariants({ variant, size }), className)} {...props} />;
 }
 
 export { Button, buttonVariants };

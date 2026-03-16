@@ -1,0 +1,161 @@
+// src/pages/tickets/ui/constants.ts
+
+import type { GameItem } from './types';
+
+export const MAX_PRICE = 100_000;
+
+/** 홈 페이지 schedule.ts의 venue 목록과 동일하게 유지 */
+export const VENUES = [
+   '잠실 야구장',
+   '대구 삼성라이온즈파크',
+   '사직 야구장',
+   '창원 NC파크',
+   '고척 스카이돔',
+   '광주 기아 챔피언스 필드',
+   '수원 KT위즈파크',
+];
+
+/**
+ * schedule.ts(홈 페이지)와 동일한 경기 데이터.
+ * MOCK_TODAY = '2026-07-03' 기준 오늘 이후 경기(j02~j11)를 사용.
+ * homeTeamId → 팀명 매핑: lg=LG 트윈스, kia=KIA 타이거즈, samsung=삼성 라이온즈,
+ * doosan=두산 베어스, lotte=롯데 자이언츠, hanwha=한화 이글스,
+ * nc=NC 다이노스, kt=KT 위즈, kiwoom=키움 히어로즈, ssg=SSG 랜더스
+ */
+export const MOCK_GAMES: GameItem[] = [
+   // ── 7/3 (금) — 오늘 ────────────────────────────────────────────
+   {
+      id: 'j02',
+      awayTeam: 'KIA 타이거즈',
+      homeTeam: 'LG 트윈스',
+      date: '2026-07-03',
+      dateTime: '2026.07.03 (금) 18:30',
+      venue: '잠실 야구장',
+      remainingSeats: 312,
+      minPrice: 14_000,
+      maxPrice: 55_000,
+      bookingStatus: '예매 가능',
+      resellStatus: '리셀 가능',
+   },
+   {
+      id: 'j03',
+      awayTeam: '두산 베어스',
+      homeTeam: '삼성 라이온즈',
+      date: '2026-07-03',
+      dateTime: '2026.07.03 (금) 18:30',
+      venue: '대구 삼성라이온즈파크',
+      remainingSeats: 184,
+      minPrice: 12_000,
+      maxPrice: 40_000,
+      bookingStatus: '예매 가능',
+      resellStatus: '리셀 예정',
+   },
+
+   // ── 7/4 (토) ────────────────────────────────────────────────────
+   {
+      id: 'j04',
+      awayTeam: 'KIA 타이거즈',
+      homeTeam: 'LG 트윈스',
+      date: '2026-07-04',
+      dateTime: '2026.07.04 (토) 14:00',
+      venue: '잠실 야구장',
+      remainingSeats: 58,
+      minPrice: 18_000,
+      maxPrice: 75_000,
+      bookingStatus: '예매 가능',
+      resellStatus: '리셀 가능',
+   },
+   {
+      id: 'j05',
+      awayTeam: '두산 베어스',
+      homeTeam: '삼성 라이온즈',
+      date: '2026-07-04',
+      dateTime: '2026.07.04 (토) 14:00',
+      venue: '대구 삼성라이온즈파크',
+      remainingSeats: 231,
+      minPrice: 12_000,
+      maxPrice: 40_000,
+      bookingStatus: '판매 예정',
+      resellStatus: '리셀 예정',
+   },
+   {
+      id: 'j06',
+      awayTeam: '한화 이글스',
+      homeTeam: '롯데 자이언츠',
+      date: '2026-07-04',
+      dateTime: '2026.07.04 (토) 14:00',
+      venue: '사직 야구장',
+      remainingSeats: 97,
+      minPrice: 10_000,
+      maxPrice: 38_000,
+      bookingStatus: '예매 가능',
+      resellStatus: '리셀 가능',
+   },
+   {
+      id: 'j07',
+      awayTeam: 'KT 위즈',
+      homeTeam: 'NC 다이노스',
+      date: '2026-07-04',
+      dateTime: '2026.07.04 (토) 14:00',
+      venue: '창원 NC파크',
+      remainingSeats: 0,
+      minPrice: 0,
+      maxPrice: 0,
+      bookingStatus: '매진',
+      resellStatus: '리셀 가능',
+   },
+   {
+      id: 'j08',
+      awayTeam: 'SSG 랜더스',
+      homeTeam: '키움 히어로즈',
+      date: '2026-07-04',
+      dateTime: '2026.07.04 (토) 14:00',
+      venue: '고척 스카이돔',
+      remainingSeats: 0,
+      minPrice: 0,
+      maxPrice: 0,
+      bookingStatus: '매진',
+      resellStatus: '매진',
+   },
+
+   // ── 7/5 (일) ────────────────────────────────────────────────────
+   {
+      id: 'j09',
+      awayTeam: 'KIA 타이거즈',
+      homeTeam: 'LG 트윈스',
+      date: '2026-07-05',
+      dateTime: '2026.07.05 (일) 17:00',
+      venue: '잠실 야구장',
+      remainingSeats: 145,
+      minPrice: 18_000,
+      maxPrice: 65_000,
+      bookingStatus: '예매 가능',
+      resellStatus: '리셀 가능',
+   },
+   {
+      id: 'j10',
+      awayTeam: '두산 베어스',
+      homeTeam: '삼성 라이온즈',
+      date: '2026-07-05',
+      dateTime: '2026.07.05 (일) 17:00',
+      venue: '대구 삼성라이온즈파크',
+      remainingSeats: 209,
+      minPrice: 12_000,
+      maxPrice: 40_000,
+      bookingStatus: '예매 가능',
+      resellStatus: '리셀 가능',
+   },
+   {
+      id: 'j11',
+      awayTeam: '한화 이글스',
+      homeTeam: '롯데 자이언츠',
+      date: '2026-07-05',
+      dateTime: '2026.07.05 (일) 17:00',
+      venue: '사직 야구장',
+      remainingSeats: 73,
+      minPrice: 10_000,
+      maxPrice: 38_000,
+      bookingStatus: '예매 가능',
+      resellStatus: '리셀 가능',
+   },
+];

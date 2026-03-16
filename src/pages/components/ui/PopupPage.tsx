@@ -40,7 +40,7 @@ const PopupPage = () => {
             <h2 className="text-heading-4-medium text-foreground">닫기 아이콘 비노출</h2>
             <Dialog>
                <DialogTrigger asChild>
-                  <Button variant="outline">아이콘 없는 팝업 열기</Button>
+                  <Button variant="tertiary">아이콘 없는 팝업 열기</Button>
                </DialogTrigger>
                <DialogContent className="flex flex-col overflow-hidden" showCloseButton={false}>
                   <DialogHeader>
@@ -62,7 +62,7 @@ const PopupPage = () => {
             <h2 className="text-heading-4-medium text-foreground">제어형 팝업</h2>
             <div className="flex items-center gap-3">
                <Button onClick={() => setIsControlledOpen(true)}>제어형 열기</Button>
-               <Button variant="outline" onClick={() => setIsControlledOpen(false)}>
+               <Button variant="tertiary" onClick={() => setIsControlledOpen(false)}>
                   외부에서 닫기
                </Button>
             </div>

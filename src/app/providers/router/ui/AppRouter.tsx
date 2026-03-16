@@ -18,6 +18,7 @@ import BooksLayout from '@/shared/widgets/layout/books';
 import Chip from '@/pages/components/ui/ChipPage';
 import ListPage from '@/pages/components/ui/ListPage';
 import TeamsPage from '@/pages/teams';
+import TeamDetailPage from '@/pages/teams/ui/TeamDetailPage';
 import TicketsPage from '@/pages/tickets';
 import BooksPage from '@/pages/books';
 import SeatsPage from '@/pages/books/ui/SeatsPage';
@@ -41,7 +42,7 @@ const AppRouter = () => {
                <Route index element={<HomePage />} />
                <Route path="tickets" element={<TicketsPage />} />
                <Route path="teams" element={<TeamsPage />} />
-               <Route path="teams/:teamId" element={<div>Team Detail Page Placeholder</div>} />
+               <Route path="teams/:teamId" element={<TeamDetailPage />} />
             </Route>
             <Route path="/books" element={<BooksLayout />}>
                <Route index element={<BooksPage />} />
