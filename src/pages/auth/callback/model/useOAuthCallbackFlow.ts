@@ -117,6 +117,11 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
           throw new Error("Missing authorization code.");
         }
 
+        console.log("[OAuth] Provider authorization code received.", {
+          provider: normalizedProvider,
+          authCode: code,
+        });
+
         if (!isSocialProvider(normalizedProvider)) {
           throw new Error(`Unsupported provider: ${normalizedProvider ?? "none"}`);
         }
