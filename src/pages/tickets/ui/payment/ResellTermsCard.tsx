@@ -1,26 +1,17 @@
-// src/pages/tickets/ui/payment/TermsCard.tsx
+// src/pages/tickets/ui/payment/ResellTermsCard.tsx
 
 import { Checkbox } from '@/shared/ui/checkbox';
 
 import { PaymentCard } from './PaymentCard';
 
-interface TermsCardProps {
+interface ResellTermsCardProps {
    agreedPrivacy: boolean;
-   agreedPolicy: boolean;
    agreedResell: boolean;
    onChangePrivacy: (v: boolean) => void;
-   onChangePolicy: (v: boolean) => void;
    onChangeResell: (v: boolean) => void;
 }
 
-export function TermsCard({
-   agreedPrivacy,
-   agreedPolicy,
-   agreedResell,
-   onChangePrivacy,
-   onChangePolicy,
-   onChangeResell,
-}: TermsCardProps) {
+export function ResellTermsCard({ agreedPrivacy, agreedResell, onChangePrivacy, onChangeResell }: ResellTermsCardProps) {
    return (
       <PaymentCard>
          <h3 className="text-[20px] font-bold leading-[1.5] text-foreground mb-5">약관 동의</h3>
@@ -30,18 +21,7 @@ export function TermsCard({
                <div className="flex items-center gap-[6px]">
                   <span className="text-[14px] font-semibold leading-[1.5] text-foreground">[필수]</span>
                   <div className="border-b border-foreground">
-                     <span className="text-[14px] font-medium leading-[1.5] text-foreground">
-                        개인정보 수집 및 이용 동의
-                     </span>
-                  </div>
-               </div>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-               <Checkbox checked={agreedPolicy} onCheckedChange={v => onChangePolicy(!!v)} />
-               <div className="flex items-center gap-[6px]">
-                  <span className="text-[14px] font-semibold leading-[1.5] text-foreground">[필수]</span>
-                  <div className="border-b border-foreground">
-                     <span className="text-[14px] font-medium leading-[1.5] text-foreground">취소/환불 정책 동의</span>
+                     <span className="text-[14px] font-medium leading-[1.5] text-foreground">개인정보 수집 및 이용 동의</span>
                   </div>
                </div>
             </label>

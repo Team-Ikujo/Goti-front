@@ -16,3 +16,4 @@ export * from './ShippingAddressCard';
 export * from './CashReceiptCard';
 export * from './NotesCard';
 export * from './ResellInfoCard';
+export * from './ResellTermsCard';

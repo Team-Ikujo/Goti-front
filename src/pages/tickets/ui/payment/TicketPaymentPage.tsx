@@ -60,6 +60,7 @@ export default function TicketPaymentPage() {
    // 약관
    const [agreedPrivacy, setAgreedPrivacy] = useState(false);
    const [agreedPolicy, setAgreedPolicy] = useState(false);
+   const [agreedResell, setAgreedResell] = useState(false);
 
    const shippingFee = deliveryMethod === 'delivery' ? 3000 : 0;
 
@@ -67,7 +68,7 @@ export default function TicketPaymentPage() {
    // 무통장 입금 + 미발행이 아닌 경우 현금영수증 번호 필수
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
    const isFormValid =
-      !!name && !!phone && !!email && isDeliveryValid && isCashReceiptValid && agreedPrivacy && agreedPolicy;
+      !!name && !!phone && !!email && isDeliveryValid && isCashReceiptValid && agreedPrivacy && agreedPolicy && agreedResell;
 
    const handleZipResult = (zip: string, addr: string) => {
       setZipCode(zip);
@@ -162,8 +163,10 @@ export default function TicketPaymentPage() {
                         <TermsCard
                            agreedPrivacy={agreedPrivacy}
                            agreedPolicy={agreedPolicy}
+                           agreedResell={agreedResell}
                            onChangePrivacy={setAgreedPrivacy}
                            onChangePolicy={setAgreedPolicy}
+                           onChangeResell={setAgreedResell}
                         />
 
                         {/* 유의사항 */}
