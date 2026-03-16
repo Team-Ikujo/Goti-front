@@ -5,7 +5,6 @@ import { useSocialOAuthLogin } from "@/features/auth/model/useSocialOAuthLogin";
 const NaverLoginButton = () => {
   const handleClick = useSocialOAuthLogin({
     provider: "naver",
-    requiresIssuedState: true,
     buildAuthUrl: (state) => buildNaverAuthUrl(state ?? ""),
   });
 

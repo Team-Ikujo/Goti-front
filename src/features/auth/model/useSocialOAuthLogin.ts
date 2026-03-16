@@ -1,37 +1,25 @@
 import { useCallback } from "react";
 import { issueSocialState } from "@/features/auth/api/oauthApi";
 import type { SocialProvider } from "@/features/auth/api/oauthApi";
+import { setIssuedSocialState } from "@/features/auth/lib/socialStateStorage";
 import { openOAuthPopup } from "@/shared/lib/openOAuthPopup";
 
 type UseSocialOAuthLoginParams = {
   provider: SocialProvider;
-  requiresIssuedState: boolean;
-  buildAuthUrl: (state?: string) => string;
-  createState?: () => string;
+  buildAuthUrl: (state: string) => string;
 };
 
 export const useSocialOAuthLogin = ({
   provider,
-  requiresIssuedState,
   buildAuthUrl,
-  createState,
 }: UseSocialOAuthLoginParams) => {
   return useCallback(async () => {
     try {
-      if (createState) {
-        openOAuthPopup(buildAuthUrl(createState()));
-        return;
-      }
-
-      if (requiresIssuedState) {
-        const { state } = await issueSocialState(provider);
-        openOAuthPopup(buildAuthUrl(state));
-        return;
-      }
-
-      openOAuthPopup(buildAuthUrl());
+      const { state } = await issueSocialState(provider);
+      setIssuedSocialState(provider, state);
+      openOAuthPopup(buildAuthUrl(state));
     } catch (error) {
       console.error(error);
     }
-  }, [buildAuthUrl, createState, provider, requiresIssuedState]);
+  }, [buildAuthUrl, provider]);
 };
