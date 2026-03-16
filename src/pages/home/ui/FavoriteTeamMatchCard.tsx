@@ -63,18 +63,18 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
             </div>
             <Button
                asChild
-               variant="outline"
-               className="px-3 py-1.25 h-auto text-[14px] font-medium text-(--text-secondary) rounded-lg"
+               variant="tertiary"
+               className="px-3 py-1.25 h-auto text-label-2-medium text-muted-foreground rounded-lg bg-background"
             >
                <Link to="/tickets">모든 경기 보기</Link>
             </Button>
          </div>
 
          {/* 바디 */}
-         <div className="flex h-[212px]">
+         <div className="flex h-53">
             {/* 팀 디스플레이 */}
             <div className="flex-1 flex gap-20 items-start px-8 py-5 min-w-0">
-               <span className="text-[32px] font-bold text-primary leading-[1.45] tracking-[-0.032px] w-[110px] shrink-0">
+               <span className="text-[32px] font-bold text-primary leading-[1.45] tracking-[-0.032px] w-27.5 shrink-0">
                   {dDay}
                </span>
 
@@ -132,7 +132,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                   <Button variant="primary" className="w-full h-12 text-[16px] font-bold rounded-lg">
                      예매하기
                   </Button>
-                  <Button variant="primaryline" className="w-full h-12 text-[16px] font-bold rounded-lg">
+                  <Button variant="secondary" className="w-full h-12 text-[16px] font-bold rounded-lg">
                      리셀예매
                   </Button>
                </div>
