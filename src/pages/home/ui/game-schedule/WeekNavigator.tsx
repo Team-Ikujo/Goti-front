@@ -1,13 +1,13 @@
 // src/pages/home/ui/game-schedule/WeekNavigator.tsx
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 
 import { WEEK_OPTIONS } from './constants';
-import { MonthPicker, YearPicker } from './YearMonthPicker';
+import { YearMonthPicker } from './YearMonthPicker';
 
 type WeekNavigatorProps = {
    weekYear: number;
@@ -33,6 +33,14 @@ function WeekNavigator({
    onSelectWeek,
 }: WeekNavigatorProps) {
   const pickerContainerRef = useRef<HTMLDivElement>(null);
+  const [showWeekPicker, setShowWeekPicker] = useState(false);
+
+  const onOpenPicker = () => setShowWeekPicker(true);
+  const onClosePicker = () => setShowWeekPicker(false);
+  const onConfirmPicker = (year: number, month: number) => {
+    onSelectYear(year);
+    onSelectMonth(month);
+  };
 
   return (
     <div className="flex flex-col gap-3">

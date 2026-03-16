@@ -39,8 +39,8 @@ export function FilterSidebar({ activeTab, onApply, className, sheetMode = false
    useEffect(() => {
       setLocalTab(activeTab);
    }, [activeTab]);
-   const [showUpcoming, setShowUpcoming] = useState(false);
-   const [showSoldOut, setShowSoldOut] = useState(false);
+   const [showUpcoming, setShowUpcoming] = useState(true);
+   const [showSoldOut, setShowSoldOut] = useState(true);
    const [dateTime, setDateTime] = useState('');
    const [minPrice, setMinPrice] = useState(0);
    const [maxPrice, setMaxPrice] = useState(MAX_PRICE);
@@ -49,8 +49,8 @@ export function FilterSidebar({ activeTab, onApply, className, sheetMode = false
 
    const handleReset = () => {
       setLocalTab(activeTab); // 마지막 적용 탭으로 복원
-      setShowUpcoming(false);
-      setShowSoldOut(false);
+      setShowUpcoming(true);
+      setShowSoldOut(true);
       setDateTime('');
       setMinPrice(0);
       setMaxPrice(MAX_PRICE);

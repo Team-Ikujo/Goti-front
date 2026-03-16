@@ -1,13 +1,13 @@
 // src/pages/home/ui/game-schedule/AllNavigator.tsx
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 
 import { DISABLED_MONTHS, SEASON_MONTHS } from './constants';
-import { YearPicker } from './YearMonthPicker';
+import { YearMonthPicker } from './YearMonthPicker';
 
 type AllNavigatorProps = {
    allYear: number;
@@ -29,6 +29,14 @@ function AllNavigator({
    onSelectMonth,
 }: AllNavigatorProps) {
   const pickerContainerRef = useRef<HTMLDivElement>(null);
+  const [showAllPicker, setShowAllPicker] = useState(false);
+
+  const onOpenPicker = () => setShowAllPicker(true);
+  const onClosePicker = () => setShowAllPicker(false);
+  const onConfirmPicker = (year: number, month: number) => {
+    onSelectYear(year);
+    onSelectMonth(month);
+  };
 
   return (
     <div className="flex flex-col gap-3">
