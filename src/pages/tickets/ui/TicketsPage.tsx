@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { RefreshCw, SlidersHorizontal } from 'lucide-react';
 
+import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 import { Button } from '@/shared/ui/button';
 import { FilterSidebar } from './FilterSidebar';
 import { GameCard } from './GameCard';
@@ -33,6 +34,7 @@ function applyFilters(games: GameItem[], filters: FilterState, activeTab: TabTyp
 }
 
 const TicketsPage = () => {
+   const { openBookingEntry, bookingGuideDialog } = useBookingEntryFlow();
    const [activeTab, setActiveTab] = useState<TabType>('예매');
    const [displayedGames, setDisplayedGames] = useState<GameItem[]>(MOCK_GAMES);
    const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -94,7 +96,9 @@ const TicketsPage = () => {
                {/* 게임 카드 목록 */}
                <div className="flex flex-col gap-4 h-full">
                   {displayedGames.length > 0 ? (
-                     displayedGames.map(game => <GameCard key={game.id} game={game} activeTab={activeTab} />)
+                     displayedGames.map(game => (
+                        <GameCard key={game.id} game={game} activeTab={activeTab} onBookingClick={openBookingEntry} />
+                     ))
                   ) : (
                      <div className="flex items-center justify-center h-full bg-surface rounded-[14px] text-body-1-medium text-muted-foreground">
                         {appliedSearchQuery.length >= 2 ? '해당 데이터가 없습니다' : '조건에 맞는 경기가 없습니다.'}
@@ -103,6 +107,7 @@ const TicketsPage = () => {
                </div>
             </div>
          </div>
+         {bookingGuideDialog}
 
          {/* 모바일 필터 바텀시트 */}
          {isFilterOpen && (

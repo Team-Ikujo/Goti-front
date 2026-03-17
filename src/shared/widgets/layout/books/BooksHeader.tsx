@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { ChevronLeft, HelpCircle, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import BooksExitDialog from './BooksExitDialog';
 
 const steps = ['구역 선택', '좌석 선택', '배송/주문자 확인', '결제'];
 
@@ -8,11 +10,28 @@ const BooksHeader = () => {
    const { pathname } = useLocation();
    const currentStepIndex = pathname.includes('/books/seats/') ? 1 : 0;
    const isSeatPage = currentStepIndex === 1;
+   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
 
    return (
-      <header className="border-b border-border-light bg-background">
+      <>
+         <BooksExitDialog
+            open={isExitDialogOpen}
+            onOpenChange={setIsExitDialogOpen}
+            onConfirm={() => {
+               setIsExitDialogOpen(false);
+               navigate('/');
+            }}
+         />
+
+         <header className="border-b border-border-light bg-background">
          <div className="flex h-16 items-center justify-between px-4 lg:h-[68px] lg:px-8">
-            <div className="text-heading-4-bold tracking-tight">goTi</div>
+            <button
+               type="button"
+               className="text-heading-4-bold tracking-tight text-foreground"
+               onClick={() => setIsExitDialogOpen(true)}
+            >
+               goTi
+            </button>
             <div className="flex items-center gap-5">
                <div className="relative flex items-center gap-1 text-heading-4-medium text-muted-foreground">
                   <span>예매 시간</span>
@@ -74,7 +93,8 @@ const BooksHeader = () => {
                })}
             </ol>
          </div>
-      </header>
+         </header>
+      </>
    );
 };
 

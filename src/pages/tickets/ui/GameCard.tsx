@@ -32,6 +32,7 @@ function StatusBadge({ status }: { status: string }) {
 interface GameCardProps {
    game: GameItem;
    activeTab: TabType;
+   onBookingClick: () => void;
 }
 
 /** 탭과 현재 상태에 따라 버튼 텍스트와 활성 여부 결정 */
@@ -47,7 +48,7 @@ function getButtonConfig(status: string, activeTab: TabType): { label: string; i
    }
 }
 
-export function GameCard({ game, activeTab }: GameCardProps) {
+export function GameCard({ game, activeTab, onBookingClick }: GameCardProps) {
    const status = activeTab === '예매' ? game.bookingStatus : game.resellStatus;
    const { label: buttonLabel, isActive } = getButtonConfig(status, activeTab);
    const showPrice = game.minPrice > 0;
@@ -108,6 +109,7 @@ export function GameCard({ game, activeTab }: GameCardProps) {
             {/* 액션 버튼 */}
             <button
                disabled={!isActive}
+               onClick={activeTab === '예매' && isActive ? onBookingClick : undefined}
                className={cn(
                   'px-[14px] py-[6px] rounded-[8px] text-body-2-medium whitespace-nowrap transition-colors w-[77px]',
                   isActive

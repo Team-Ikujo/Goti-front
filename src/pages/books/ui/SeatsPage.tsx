@@ -5,17 +5,13 @@ import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 import { createSeatsForZone, getSeatBlocks } from '@/pages/books/model/seatData';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
-import { BOOKING_ZONES, formatPrice } from '@/pages/books/model/zoneData';
+import { BOOKING_ZONES, formatPrice, getZoneOverviewImage } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
 import SeatBlockGrid from './components/SeatBlockGrid';
 
-const KIA_STADIUM_IMAGE = '/baseball/seat/kia.png';
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
 const SCALE_STEP = 0.2;
-const OVERVIEW_MIN_SCALE = 0.8;
-const OVERVIEW_MAX_SCALE = 2;
-const OVERVIEW_SCALE_STEP = 0.2;
 const STAGE_WIDTH = 1240;
 const STAGE_HEIGHT = 620;
 const BLOCK_SEAT_SIZE = 18;
@@ -42,6 +38,7 @@ function SeatsPage() {
       () => BOOKING_ZONES.find((item) => item.id === zoneId) ?? BOOKING_ZONES[0],
       [zoneId],
    );
+   const zoneOverviewImage = useMemo(() => getZoneOverviewImage(zone.id), [zone.id]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
    const seatBlocks = useMemo(() => getSeatBlocks(zone.id), [zone.id]);
@@ -55,7 +52,6 @@ function SeatsPage() {
    const [seatMapOffset, setSeatMapOffset] = useState({ x: 0, y: 0 });
    const [isSeatMapDragging, setIsSeatMapDragging] = useState(false);
    const dragStartRef = useRef<{ x: number; y: number } | null>(null);
-   const [overviewScale, setOverviewScale] = useState(1);
    const mapViewportRef = useRef<HTMLDivElement | null>(null);
    const [mapViewportSize, setMapViewportSize] = useState({ width: 0, height: 0 });
 
@@ -223,16 +219,6 @@ function SeatsPage() {
    const resetSeatMapView = () => {
       setSeatMapScale(1);
       setSeatMapOffset({ x: 0, y: 0 });
-   };
-
-   const updateOverviewScale = (nextScale: number) => {
-      setOverviewScale(
-         Math.min(OVERVIEW_MAX_SCALE, Math.max(OVERVIEW_MIN_SCALE, Number(nextScale.toFixed(2)))),
-      );
-   };
-
-   const resetOverviewView = () => {
-      setOverviewScale(1);
    };
 
    const toggleSeat = (seat: SeatItem) => {
@@ -415,65 +401,13 @@ function SeatsPage() {
 
             <aside className="flex w-full shrink-0 flex-col border-l border-border-light bg-background xl:w-[420px]">
                <div className="relative h-[220px] overflow-hidden border-b border-border-light bg-[#e9ebee] px-5 py-4">
-                  <div
-                     className="relative mx-auto h-full max-w-[260px] origin-center transition-transform duration-150"
-                     style={{ transform: `scale(${overviewScale})` }}
-                  >
+                  <div className="relative mx-auto h-[188px] w-[260px] shrink-0">
                      <img
-                        src={KIA_STADIUM_IMAGE}
-                        alt="기아 챔피언스필드 전체 좌석도"
+                        src={zoneOverviewImage}
+                        alt={`${zone.name} 선택 상태가 반영된 기아 챔피언스필드 좌석도`}
                         className="h-full w-full object-contain"
                         draggable={false}
                      />
-
-                     {BOOKING_ZONES.map((item) => {
-                        const hotspot = item.hotspot[0];
-                        const isCurrent = item.id === zone.id;
-
-                        if (!hotspot) {
-                           return null;
-                        }
-
-                        return (
-                           <button
-                              key={item.id}
-                              type="button"
-                              onClick={() => navigate(`/books/seats/${item.id}`)}
-                              className={[
-                                 'absolute -translate-x-1/2 -translate-y-1/2 rounded-md border px-2 py-1 text-caption-1-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                                 isCurrent ? 'scale-105 text-white shadow-sm ring-2 ring-white/80' : 'text-foreground hover:-translate-y-[55%]',
-                              ].join(' ')}
-                              style={{
-                                 left: `${hotspot.x}%`,
-                                 top: `${hotspot.y}%`,
-                                 borderColor: item.color,
-                                 backgroundColor: isCurrent ? `${item.color}D9` : `${item.color}7A`,
-                              }}
-                              aria-label={`${item.name} 구역으로 이동`}
-                              aria-pressed={isCurrent}
-                           >
-                              {item.sectionCode}
-                           </button>
-                        );
-                     })}
-                  </div>
-
-                  <div className="absolute bottom-5 right-5 flex flex-col gap-2">
-                     <MapControlButton
-                        ariaLabel="확대"
-                        onClick={() => updateOverviewScale(overviewScale + OVERVIEW_SCALE_STEP)}
-                     >
-                        <Plus className="h-5 w-5" aria-hidden="true" />
-                     </MapControlButton>
-                     <MapControlButton
-                        ariaLabel="축소"
-                        onClick={() => updateOverviewScale(overviewScale - OVERVIEW_SCALE_STEP)}
-                     >
-                        <Minus className="h-5 w-5" aria-hidden="true" />
-                     </MapControlButton>
-                     <MapControlButton ariaLabel="초기화" onClick={resetOverviewView}>
-                        <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                     </MapControlButton>
                   </div>
                </div>
 

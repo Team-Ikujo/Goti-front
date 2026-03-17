@@ -9,32 +9,42 @@ type BookingZoneListProps = {
 
 function BookingZoneList({ zones, selectedZoneId, onSelectZone }: BookingZoneListProps) {
    return (
-      <aside className="w-full border-l border-border-light bg-background lg:w-[420px]" aria-label="좌석 등급 및 잔여석">
-         <div className="border-b border-border-light px-6 py-5">
+      <aside
+         className="w-full border-t border-border-light bg-background lg:w-[420px] lg:border-t-0 lg:border-l"
+         aria-label="좌석 등급 및 잔여석"
+      >
+         <div className="border-b border-border-light px-5 py-5">
             <h2 className="text-heading-3-bold text-foreground">좌석 등급/잔여석</h2>
          </div>
-         <ul className="space-y-2 px-6 py-3">
+         <ul className="px-5 py-0">
             {zones.map((zone) => {
                const hasRemaining = zone.remaining > 0;
                const isSelected = zone.id === selectedZoneId;
 
                return (
-                  <li key={zone.id}>
+                  <li key={zone.id} className="border-b border-[#f1f2f4] last:border-b-0">
                      <button
                         type="button"
                         onClick={() => onSelectZone(zone.id)}
                         className={[
-                           'flex h-12 w-full items-center gap-3 rounded-md px-1 text-left transition-colors',
+                           'flex h-12 w-full items-center gap-3 px-0 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
                            isSelected ? 'bg-fill-hoveraccent' : 'hover:bg-fill-hover',
                         ].join(' ')}
                         aria-pressed={isSelected}
                      >
-                        <div className="h-5 w-5 rounded" style={{ backgroundColor: zone.color }} aria-hidden="true" />
-                        <div className="flex min-w-0 flex-1 items-center gap-2 text-body-1-regular text-muted-foreground">
-                           <span className="truncate text-body-1-bold text-muted-foreground">{zone.name}</span>
-                           <span>{formatPrice(zone.price)}</span>
+                        <div className="ml-1 h-12 w-3 shrink-0" aria-hidden="true">
+                           <div className="mt-[18px] h-3 w-3 rounded-[3px]" style={{ backgroundColor: zone.color }} />
                         </div>
-                        <span className={hasRemaining ? 'text-body-1-bold text-primary' : 'text-body-1-bold text-disabled-foreground'}>
+                        <div className="flex min-w-0 flex-1 items-center gap-2 text-body-2-regular text-muted-foreground">
+                           <span className="truncate text-body-1-medium text-foreground">{zone.name}</span>
+                           <span className="shrink-0">{formatPrice(zone.price)}</span>
+                        </div>
+                        <span
+                           className={[
+                              'min-w-[34px] pr-1 text-right text-body-1-bold',
+                              hasRemaining ? 'text-primary' : 'text-disabled-foreground',
+                           ].join(' ')}
+                        >
                            {zone.remaining}석
                         </span>
                      </button>
