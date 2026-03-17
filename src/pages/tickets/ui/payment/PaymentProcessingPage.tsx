@@ -1,5 +1,10 @@
 // src/pages/tickets/ui/payment/PaymentProcessingPage.tsx
 
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+
+import { createPayment, type PaymentRequest } from '@/pages/tickets/api/paymentApi';
+
 import { PaymentHeader } from './_shared';
 
 // TODO: 예매 단계 완성 후 라우터 state/params로 교체
@@ -10,6 +15,43 @@ const MOCK_GAME = {
 };
 
 export default function PaymentProcessingPage() {
+   const navigate = useNavigate();
+   const { state } = useLocation();
+   const paymentRequest = state as PaymentRequest | null;
+
+   useEffect(() => {
+      // StrictMode 이중 실행 방지: cleanup에서 ignore를 true로 설정해
+      // 언마운트된 effect의 navigate 호출을 막는다.
+      let ignore = false;
+
+      if (!paymentRequest) {
+         navigate('/tickets/payment', { replace: true });
+         return;
+      }
+
+      const process = async () => {
+         try {
+            const result = await createPayment(paymentRequest);
+            if (!ignore) {
+               navigate(
+                  `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}`,
+                  { state: result, replace: true },
+               );
+            }
+         } catch {
+            if (!ignore) {
+               navigate('/tickets/payment', { replace: true });
+            }
+         }
+      };
+
+      process();
+
+      return () => {
+         ignore = true;
+      };
+   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
    return (
       <div className="min-h-screen flex flex-col bg-background">
          <PaymentHeader {...MOCK_GAME} />
