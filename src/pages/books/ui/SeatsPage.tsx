@@ -484,6 +484,7 @@ function SeatsPage() {
                   <button
                      type="button"
                      disabled={selectedSeats.length === 0}
+                     onClick={() => navigate('/tickets/payment')}
                      className={[
                         'h-[56px] w-full rounded-[8px] text-label-1-bold transition-colors',
                         selectedSeats.length === 0
