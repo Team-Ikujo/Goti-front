@@ -234,13 +234,7 @@ function SeatsPage() {
       setSeatMapOffset({ x: 0, y: 0 });
    };
 
-   const canDragSeatMap = () => {
-      if (seatMapScale > 1) {
-         return true;
-      }
-
-      return typeof window !== 'undefined' && window.matchMedia('(max-width: 1279px)').matches;
-   };
+   const canDragSeatMap = () => true;
 
    const toggleSeat = (seat: SeatItem) => {
       if (seat.status === 'disabled' || seat.status === 'held') {
