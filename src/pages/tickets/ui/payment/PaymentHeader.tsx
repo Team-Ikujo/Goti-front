@@ -1,32 +1,8 @@
 // src/pages/tickets/ui/payment/PaymentHeader.tsx
 
-import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
 
-function useBookingTimer(initialSeconds = 599) {
-   const [remaining, setRemaining] = useState(initialSeconds);
-   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-   useEffect(() => {
-      timerRef.current = setInterval(() => {
-         setRemaining(prev => {
-            if (prev <= 1) {
-               clearInterval(timerRef.current!);
-               return 0;
-            }
-            return prev - 1;
-         });
-      }, 1000);
-      return () => {
-         if (timerRef.current) clearInterval(timerRef.current);
-      };
-   }, []);
-
-   const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
-   const ss = String(remaining % 60).padStart(2, '0');
-   return `${mm}:${ss}`;
-}
+const PAYMENT_STEPS = ['구역 선택', '좌석 선택', '결제'];
 
 interface PaymentHeaderProps {
    matchTitle: string;
@@ -35,9 +11,6 @@ interface PaymentHeaderProps {
 }
 
 export function PaymentHeader({ matchTitle, venue, dateTime }: PaymentHeaderProps) {
-   const navigate = useNavigate();
-   const timeStr = useBookingTimer();
-
    return (
       <header className="bg-background flex flex-col w-full">
          {/* ── 모바일 헤더 ── */}
@@ -122,5 +95,14 @@ export function PaymentHeader({ matchTitle, venue, dateTime }: PaymentHeaderProp
             </div>
          </div>
       </header>
+      <BooksHeader
+         matchTitle={matchTitle}
+         venue={venue}
+         dateTime={dateTime}
+         steps={PAYMENT_STEPS}
+         currentStepIndex={2}
+         showBackButton
+         backAriaLabel="이전 화면으로 이동"
+      />
    );
 }

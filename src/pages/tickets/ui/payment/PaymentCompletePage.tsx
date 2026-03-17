@@ -103,6 +103,7 @@ export default function PaymentCompletePage() {
                </div>
             </div>
          </div>
+         <BooksHeader currentStepIndex={3} showBackButton={false} showTimer={false} confirmBeforeExit={false} />
 
          <main className="flex-1 bg-white flex justify-center px-4">
             <div className="w-full max-w-[1200px] py-10 flex flex-col gap-[24px] items-center">

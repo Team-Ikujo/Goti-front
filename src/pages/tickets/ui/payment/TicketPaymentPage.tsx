@@ -1,7 +1,8 @@
 // src/pages/tickets/ui/payment/TicketPaymentPage.tsx
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { Button } from '@/shared/ui/button';
 import type { PaymentRequest } from '@/pages/tickets/api/paymentApi';
 import {
@@ -40,6 +41,7 @@ const MOCK_GAME = {
 
 export default function TicketPaymentPage() {
    const navigate = useNavigate();
+   const zonesState = useSeatSelectionStore((state) => state.zones);
 
    // 주문자 정보
    const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('mobile');
@@ -98,6 +100,20 @@ export default function TicketPaymentPage() {
    // 수수료: 매당 1,000원
    const fee = orderInfo.quantity * 1000;
    const totalPayment = shippingFee + fee; // ticketPrice·할인 0원 (TODO: 실데이터 연결 후 업데이트)
+
+   useEffect(() => {
+      const selectedSeatSummary = Object.entries(zonesState).flatMap(([zoneId, zone]) =>
+         zone.selectedSeatIds.map((seatId) => ({
+            zoneId,
+            seatId,
+         })),
+      );
+
+      console.info('[TicketPaymentPage] mounted with seat selections', {
+         selectedSeatCount: selectedSeatSummary.length,
+         selectedSeatSummary,
+      });
+   }, [zonesState]);
 
    const handlePay = () => {
       const paymentRequest: PaymentRequest = {

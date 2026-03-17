@@ -1,15 +1,17 @@
 import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 
-type BooksExitDialogProps = {
+type BooksTimeoutDialogProps = {
    open: boolean;
-   onOpenChange: (open: boolean) => void;
    onConfirm: () => void;
 };
 
-const BooksExitDialog = ({ open, onOpenChange, onConfirm }: BooksExitDialogProps) => {
+/**
+ * 예매 가능 시간이 만료되었을 때 표시하는 전용 팝업입니다.
+ */
+const BooksTimeoutDialog = ({ open, onConfirm }: BooksTimeoutDialogProps) => {
    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open}>
          <DialogContent
             showCloseButton={false}
             closeOnlyWithButton
@@ -17,25 +19,16 @@ const BooksExitDialog = ({ open, onOpenChange, onConfirm }: BooksExitDialogProps
          >
             <DialogHeader className="gap-3 p-5 text-left">
                <DialogTitle align="left" className="text-heading-4-bold font-bold text-(--text-primary)">
-                  예매를 종료하시겠습니까?
+                  예매 가능 시간이 만료되었습니다.
                </DialogTitle>
                <DialogDescription align="left" className="text-body-2-regular text-(--text-secondary)">
-                  진행 중인 예매 정보가 사라집니다.
+                  예매가 종료되며 홈으로 이동합니다.
                </DialogDescription>
             </DialogHeader>
 
-            <DialogFooter className="grid grid-cols-2 gap-2 px-5 pb-5 pt-0">
-               <Button
-                  type="button"
-                  variant="tertiary"
-                  size="lg"
-                  className="text-label-1-bold h-12 w-full rounded-[8px] border-(--border-normal) font-bold text-(--text-secondary)"
-                  onClick={() => onOpenChange(false)}
-               >
-                  취소
-               </Button>
+            <DialogFooter className="px-5 pb-5 pt-0">
                <Button type="button" size="lg" className="text-label-1-bold h-12 w-full rounded-[8px] font-bold" onClick={onConfirm}>
-                  나가기
+                  확인
                </Button>
             </DialogFooter>
          </DialogContent>
@@ -43,4 +36,4 @@ const BooksExitDialog = ({ open, onOpenChange, onConfirm }: BooksExitDialogProps
    );
 };
 
-export default BooksExitDialog;
+export default BooksTimeoutDialog;
