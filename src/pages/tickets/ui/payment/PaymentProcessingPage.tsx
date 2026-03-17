@@ -17,17 +17,19 @@ const MOCK_GAME = {
 export default function PaymentProcessingPage() {
    const navigate = useNavigate();
    const { state } = useLocation();
-   const paymentRequest = state as PaymentRequest | null;
+   const locationState = state as { request: PaymentRequest; amount: number } | null;
 
    useEffect(() => {
       // StrictMode 이중 실행 방지: cleanup에서 ignore를 true로 설정해
       // 언마운트된 effect의 navigate 호출을 막는다.
       let ignore = false;
 
-      if (!paymentRequest) {
+      if (!locationState?.request) {
          navigate('/tickets/payment', { replace: true });
          return;
       }
+
+      const { request: paymentRequest, amount: clientAmount } = locationState;
 
       const process = async () => {
          try {
@@ -35,7 +37,8 @@ export default function PaymentProcessingPage() {
             if (!ignore) {
                navigate(
                   `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}`,
-                  { state: result, replace: true },
+                  // 결제 화면에서 보여준 금액과 동일하게 표시
+                  { state: { ...result, amount: clientAmount }, replace: true },
                );
             }
          } catch {

@@ -30,14 +30,16 @@ export function OrdererInfoCard({
                required
                placeholder="홍길동"
                value={name}
-               onChange={e => onChangeName(e.target.value)}
+               onChange={e => onChangeName(e.target.value.replace(/[^\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318Fa-zA-Z\s]/g, ''))}
             />
             <Input
                label="휴대폰 번호"
                required
-               placeholder="010-1234-5678"
+               placeholder="01012345678"
                value={phone}
-               onChange={e => onChangePhone(e.target.value)}
+               inputMode="numeric"
+               maxLength={11}
+               onChange={e => onChangePhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
             />
             <Input
                label="이메일"
