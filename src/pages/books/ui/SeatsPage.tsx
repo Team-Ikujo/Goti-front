@@ -7,7 +7,9 @@ import { createSeatsForZone, getSeatBlocks } from '@/pages/books/model/seatData'
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { BOOKING_ZONES, formatPrice, getZoneOverviewImage } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
+import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 import SeatBlockGrid from './components/SeatBlockGrid';
+import SelectedSeatSummaryList, { type SelectedSeatSummaryItem } from './components/SelectedSeatSummaryList';
 
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
@@ -22,13 +24,6 @@ const MINIMAP_PADDING_X = 24;
 const MINIMAP_PADDING_Y = 18;
 
 const stepLabels = ['구역 선택', '좌석 선택', '배송/주문자 확인', '결제'];
-
-type SelectedSeatSummaryItem = {
-   seat: SeatItem;
-   zoneId: string;
-   zoneName: string;
-   price: number;
-};
 
 function SeatsPage() {
    const navigate = useNavigate();
@@ -51,6 +46,7 @@ function SeatsPage() {
    const [seatMapScale, setSeatMapScale] = useState(1);
    const [seatMapOffset, setSeatMapOffset] = useState({ x: 0, y: 0 });
    const [isSeatMapDragging, setIsSeatMapDragging] = useState(false);
+   const [isSeatDrawerOpen, setIsSeatDrawerOpen] = useState(true);
    const dragStartRef = useRef<{ x: number; y: number } | null>(null);
    const mapViewportRef = useRef<HTMLDivElement | null>(null);
    const [mapViewportSize, setMapViewportSize] = useState({ width: 0, height: 0 });
@@ -78,6 +74,22 @@ function SeatsPage() {
 
       return () => {
          window.removeEventListener('resize', updateViewportSize);
+      };
+   }, []);
+
+   useEffect(() => {
+      const mediaQuery = window.matchMedia('(min-width: 1280px)');
+      const handleChange = (event: MediaQueryListEvent | MediaQueryList) => {
+         if (event.matches) {
+            setIsSeatDrawerOpen(false);
+         }
+      };
+
+      handleChange(mediaQuery);
+      mediaQuery.addEventListener('change', handleChange);
+
+      return () => {
+         mediaQuery.removeEventListener('change', handleChange);
       };
    }, []);
 
@@ -114,6 +126,7 @@ function SeatsPage() {
    }, [zonesState]);
 
    const selectedPrice = selectedSeats.reduce((total, item) => total + item.price, 0);
+   const bookingButtonLabel = `${selectedSeats.length}매 예매하기`;
 
    const sectionBounds = useMemo(() => {
       if (seatBlocks.length === 0) {
@@ -221,6 +234,14 @@ function SeatsPage() {
       setSeatMapOffset({ x: 0, y: 0 });
    };
 
+   const canDragSeatMap = () => {
+      if (seatMapScale > 1) {
+         return true;
+      }
+
+      return typeof window !== 'undefined' && window.matchMedia('(max-width: 1279px)').matches;
+   };
+
    const toggleSeat = (seat: SeatItem) => {
       if (seat.status === 'disabled' || seat.status === 'held') {
          return;
@@ -230,7 +251,7 @@ function SeatsPage() {
    };
 
    const handleMapPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (seatMapScale <= 1) {
+      if (!canDragSeatMap()) {
          return;
       }
 
@@ -270,13 +291,13 @@ function SeatsPage() {
    return (
       <div className="w-full bg-background text-foreground">
          <main className="flex min-h-[calc(100vh-140px)] flex-col xl:h-[calc(100vh-140px)] xl:flex-row">
-            <section className="flex min-h-[680px] flex-1 flex-col overflow-hidden bg-[#f1f2f4]">
-               <div className="flex items-center justify-between gap-4 px-5 py-3 lg:px-8">
-                  <div className="inline-flex min-w-0 items-center gap-2 rounded-[12px] bg-background px-3 py-2">
+            <section className="relative flex min-h-[660px] flex-1 flex-col overflow-hidden bg-[#eef0f3] xl:min-h-[680px]">
+               <div className="flex items-center justify-between gap-4 px-5 py-5 lg:px-8 lg:py-3">
+                  <div className="inline-flex min-w-0 items-center gap-2 rounded-[12px] bg-background px-4 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)] lg:px-3">
                      <span className="inline-flex items-center justify-center rounded-[8px] bg-primary-light px-2 py-1 text-caption-1-bold text-primary">
                         선택 구역
                      </span>
-                     <span className="truncate text-body-2-bold text-foreground">{zone.name}</span>
+                     <span className="truncate text-body-1-bold text-foreground">{zone.name}</span>
                   </div>
 
                   <div className="hidden items-center lg:flex" aria-label="예매 단계">
@@ -304,14 +325,15 @@ function SeatsPage() {
                   </div>
                </div>
 
-               <div className="relative flex-1 overflow-hidden px-4 pb-6 lg:px-8">
-                  <div className="relative h-full min-h-[560px] overflow-hidden rounded-[24px] bg-[#eef0f3]">
+               <div className="relative flex-1 overflow-hidden px-0 pb-[144px] lg:px-8 lg:pb-6 xl:pb-6">
+                  <div className="relative h-full min-h-[516px] overflow-hidden bg-[#eef0f3] lg:min-h-[560px] lg:rounded-[24px]">
                      <div ref={mapViewportRef} className="absolute inset-0 overflow-hidden">
                         <div
                            className={[
                               'absolute left-1/2 top-14 origin-top',
-                              isSeatMapDragging ? 'cursor-grabbing' : seatMapScale > 1 ? 'cursor-grab' : 'cursor-default',
+                              isSeatMapDragging ? 'cursor-grabbing' : canDragSeatMap() ? 'cursor-grab' : 'cursor-default',
                               isSeatMapDragging ? '' : 'transition-transform duration-150',
+                              'touch-none',
                            ].join(' ')}
                            style={{
                               width: `${STAGE_WIDTH}px`,
@@ -324,7 +346,7 @@ function SeatsPage() {
                            onPointerCancel={handleMapPointerUp}
                         >
                            <div
-                              className="absolute rounded-xl bg-white/70 px-8 py-3 text-body-2-semibold text-muted-foreground shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur"
+                              className="absolute rounded-[10px] bg-[rgba(233,235,238,0.72)] px-8 py-3 text-body-1-bold text-muted-foreground shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur lg:rounded-xl lg:bg-white/70 lg:text-body-2-semibold"
                               style={{
                                  left: '50%',
                                  top: '24px',
@@ -347,7 +369,7 @@ function SeatsPage() {
                         </div>
                      </div>
 
-                     <div className="absolute bottom-5 left-5 overflow-hidden rounded-[16px] bg-[#b0b0b0] shadow-[0_16px_40px_rgba(15,23,42,0.18)]">
+                     <div className="absolute bottom-5 left-5 hidden overflow-hidden rounded-[16px] bg-[#b0b0b0] shadow-[0_16px_40px_rgba(15,23,42,0.18)] lg:block">
                         <div className="relative h-[140px] w-[215px]">
                            <svg
                               viewBox={`0 0 ${MINIMAP_WIDTH} ${MINIMAP_HEIGHT}`}
@@ -384,7 +406,7 @@ function SeatsPage() {
                         </div>
                      </div>
 
-                     <div className="absolute bottom-6 right-6 flex flex-col gap-2">
+                     <div className="absolute bottom-6 right-6 hidden flex-col gap-2 lg:flex">
                         <MapControlButton ariaLabel="확대" onClick={() => updateSeatMapScale(seatMapScale + SCALE_STEP)}>
                            <Plus className="h-5 w-5" aria-hidden="true" />
                         </MapControlButton>
@@ -397,9 +419,89 @@ function SeatsPage() {
                      </div>
                   </div>
                </div>
+
+               <Drawer open={isSeatDrawerOpen} onOpenChange={setIsSeatDrawerOpen} modal={false}>
+                  {!isSeatDrawerOpen ? (
+                     <div className="absolute inset-x-0 bottom-0 z-10 xl:hidden">
+                        <DrawerTrigger asChild>
+                           <button
+                              type="button"
+                              className="w-full rounded-t-[16px] bg-elevated px-5 py-4 text-left shadow-[0_-6px_24px_rgba(0,0,0,0.16)]"
+                           >
+                              <div className="mb-3 flex justify-center" aria-hidden="true">
+                                 <div className="h-1 w-9 rounded-full bg-border-light" />
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                 <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
+                                    <span>선택 좌석</span>
+                                    <span className="text-primary">{selectedSeats.length}</span>
+                                 </div>
+                                 <span className="text-body-1-medium text-tertiary">
+                                    {selectedSeats.length > 0 ? bookingButtonLabel : '열기'}
+                                 </span>
+                              </div>
+                           </button>
+                        </DrawerTrigger>
+                     </div>
+                  ) : null}
+                  <DrawerContent
+                     showOverlay={false}
+                     resizable
+                     defaultHeight={280}
+                     minHeight={152}
+                     maxHeight={560}
+                     className="overflow-hidden border-none p-0 xl:hidden"
+                  >
+                     <div className="h-full overflow-y-auto">
+                        <div className="flex items-center justify-between gap-3 px-5 py-4">
+                           <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
+                              <h2>선택 좌석</h2>
+                              <span className="text-primary">{selectedSeats.length}</span>
+                           </div>
+                           {selectedSeats.length > 0 ? (
+                              <button
+                                 type="button"
+                                 onClick={clearAllSelections}
+                                 className="text-body-1-medium text-tertiary transition-colors hover:text-foreground"
+                              >
+                                 전체 삭제
+                              </button>
+                           ) : null}
+                        </div>
+
+                        <div className="px-5 pb-4">
+                           <SelectedSeatSummaryList
+                              items={selectedSeats}
+                              onRemove={toggleSelectedSeat}
+                              emptyClassName="h-full min-h-[220px] bg-transparent"
+                           />
+                        </div>
+
+                        <div className="px-5 pb-5">
+                           <div className="flex items-center justify-between gap-3 px-1 pb-5 text-heading-4-medium text-secondary">
+                              <span>총 결제 금액</span>
+                              <span className="text-heading-4-bold text-primary">{formatPrice(selectedPrice)}</span>
+                           </div>
+                           <button
+                              type="button"
+                              disabled={selectedSeats.length === 0}
+                              onClick={() => navigate('/tickets/payment')}
+                              className={[
+                                 'h-12 w-full rounded-[8px] text-label-1-bold transition-colors',
+                                 selectedSeats.length === 0
+                                    ? 'bg-fill-disabled text-disabled-foreground'
+                                    : 'bg-primary text-white hover:bg-primary-strong',
+                              ].join(' ')}
+                           >
+                              {bookingButtonLabel}
+                           </button>
+                        </div>
+                     </div>
+                  </DrawerContent>
+               </Drawer>
             </section>
 
-            <aside className="flex w-full shrink-0 flex-col border-l border-border-light bg-background xl:w-[420px]">
+            <aside className="hidden w-full shrink-0 flex-col border-l border-border-light bg-background xl:flex xl:w-[420px]">
                <div className="relative h-[220px] overflow-hidden border-b border-border-light bg-[#e9ebee] px-5 py-4">
                   <div className="relative mx-auto h-[188px] w-[260px] shrink-0">
                      <img
@@ -429,56 +531,18 @@ function SeatsPage() {
                   ) : null}
                </div>
 
-               <div className="flex flex-1 flex-col justify-between gap-4 px-5 pb-5">
+               <div className="flex flex-1 flex-col px-5 pb-5">
                   <div className="flex-1 overflow-y-auto rounded-2xl bg-background">
-                     {selectedSeats.length > 0 ? (
-                        <ul className="space-y-3">
-                           {selectedSeats.map((item) => (
-                              <li
-                                 key={item.seat.id}
-                                 className="flex items-center justify-between rounded-xl border border-border-light px-4 py-3"
-                              >
-                                 <div>
-                                    <p className="text-body-2-semibold text-foreground">{item.zoneName}</p>
-                                    <p className="text-body-2-regular text-muted-foreground">
-                                       {item.seat.block}구역 {item.seat.rowLabel} {item.seat.seatNumber}번
-                                    </p>
-                                 </div>
-                                 <div className="flex items-center gap-3">
-                                    <span className="text-body-2-semibold text-primary">{formatPrice(item.price)}</span>
-                                    <button
-                                       type="button"
-                                       onClick={() => toggleSelectedSeat(item.zoneId, item.seat.id)}
-                                       className="text-caption-1-medium text-muted-foreground transition-colors hover:text-foreground"
-                                    >
-                                       삭제
-                                    </button>
-                                 </div>
-                              </li>
-                           ))}
-                        </ul>
-                     ) : (
-                        <div className="flex h-full min-h-[320px] items-center justify-center text-body-1-regular text-muted-foreground">
-                           선택한 좌석이 없습니다.
-                        </div>
-                     )}
+                     <SelectedSeatSummaryList
+                        items={selectedSeats}
+                        onRemove={toggleSelectedSeat}
+                        emptyClassName="h-full min-h-[220px] bg-transparent"
+                     />
                   </div>
 
-                  <div className="space-y-3 rounded-2xl bg-surface p-4">
-                     <div className="flex items-center justify-between text-body-2-regular text-muted-foreground">
-                        <span>선택 구역</span>
-                        <span className="text-body-2-semibold text-foreground">
-                           {selectedSeats.length > 0 ? `${selectedSeats.length}개 좌석 선택` : '-'}
-                        </span>
-                     </div>
-                     <div className="flex items-center justify-between text-body-2-regular text-muted-foreground">
-                        <span>총 좌석 수</span>
-                        <span className="text-body-2-semibold text-foreground">{selectedSeats.length}석</span>
-                     </div>
-                     <div className="flex items-center justify-between text-body-1-semibold text-foreground">
-                        <span>예상 결제 금액</span>
-                        <span>{formatPrice(selectedPrice)}</span>
-                     </div>
+                  <div className="flex items-center justify-between gap-3 px-1 pb-5 pt-6 text-heading-4-medium text-secondary">
+                     <span>총 결제 금액</span>
+                     <span className="text-heading-4-bold text-primary">{formatPrice(selectedPrice)}</span>
                   </div>
 
                   <button
@@ -492,7 +556,7 @@ function SeatsPage() {
                            : 'bg-primary text-white hover:bg-primary-strong',
                      ].join(' ')}
                   >
-                     예매하기
+                     {bookingButtonLabel}
                   </button>
                </div>
             </aside>
