@@ -4,13 +4,47 @@ import { Input } from '@/shared/ui/input';
 
 import { PaymentCard } from './PaymentCard';
 
+const DAUM_POSTCODE_SCRIPT_URL = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+const DAUM_POSTCODE_SCRIPT_ID = 'daum-postcode-script';
+
 interface ShippingAddressCardProps {
    zipCode: string;
    address: string;
    addressDetail: string;
-   /** 우편번호 검색 완료 후 결과를 부모에 전달 (TODO: 다음 우편번호 API 연결) */
    onZipResult: (zipCode: string, address: string) => void;
    onChangeAddressDetail: (v: string) => void;
+}
+
+/** 다음 우편번호 스크립트를 동적으로 로드하고 팝업을 엽니다. */
+function loadDaumPostcodeAndOpen(onComplete: (zipCode: string, address: string) => void) {
+   const open = () => {
+      new window.daum!.Postcode({
+         oncomplete: (data) => {
+            // 도로명 주소가 있으면 우선 사용, 없으면 지번 주소
+            const selectedAddress = data.roadAddress || data.jibunAddress;
+            onComplete(data.zonecode, selectedAddress);
+         },
+      }).open();
+   };
+
+   if (window.daum?.Postcode) {
+      open();
+      return;
+   }
+
+   // 이미 스크립트 태그가 삽입된 경우 로드 완료를 기다림
+   const existing = document.getElementById(DAUM_POSTCODE_SCRIPT_ID);
+   if (existing) {
+      existing.addEventListener('load', open, { once: true });
+      return;
+   }
+
+   const script = document.createElement('script');
+   script.id = DAUM_POSTCODE_SCRIPT_ID;
+   script.src = DAUM_POSTCODE_SCRIPT_URL;
+   script.onload = open;
+   script.onerror = () => console.error('다음 우편번호 스크립트 로드에 실패했습니다.');
+   document.head.appendChild(script);
 }
 
 export function ShippingAddressCard({
@@ -21,9 +55,7 @@ export function ShippingAddressCard({
    onChangeAddressDetail,
 }: ShippingAddressCardProps) {
    const handleSearchZip = () => {
-      // TODO: 다음 우편번호 API 연결
-      // window.daum?.Postcode({ oncomplete: (data) => onZipResult(data.zonecode, data.roadAddress) }).open();
-      onZipResult('', '');
+      loadDaumPostcodeAndOpen(onZipResult);
    };
 
    return (

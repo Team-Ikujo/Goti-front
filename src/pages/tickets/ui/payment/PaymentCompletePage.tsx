@@ -1,6 +1,7 @@
 // src/pages/tickets/ui/payment/PaymentCompletePage.tsx
 
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import type { PaymentResponse } from '@/pages/tickets/api/paymentApi';
 import { Calendar, CheckCircle, MapPin } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
@@ -16,19 +17,21 @@ const DELIVERY_LABELS: Record<DeliveryMethod, string> = {
 const ENTRANCE_GUIDES: Record<DeliveryMethod, string[]> = {
    mobile: [
       '경기 시작 2시간 전부터 입장 가능합니다',
-      'QR코드는 마이페이지에서 확인하실 수 있습니다.',
+      'QR코드는 마이페이지 > 결제내역 에서 확인하실 수 있습니다.',
       '모바일 티켓 QR코드를 게이트에서 제시해주세요',
       '신분증을 함께 지참해주세요',
    ],
    onsite: [
       '경기 시작 2시간 전부터 티켓 수령 및 입장이 가능합니다.',
-      '경기장 티켓 수령처에서 예매 번호와 신분증을 제시해주세요.',
       '티켓 수령 후 게이트에서 티켓을 제시하고 입장해주세요.',
       '티켓 수령처 위치는 구장 안내를 참고해주세요.',
+      '현장 수령시 본인 확인을 위해 예매번호, 이름 및 전화번호 또는 신분증을 확인할 수 있습니다.',
+      '경로ㆍ청소년ㆍ초등학생ㆍ군인ㆍ국가유공자ㆍ장애인ㆍ다자녀 등 본인 확인이 필요한 경우, 현장 매표소에 증빙 서류 제시 및 본인 확인 후 티켓 수령이 가능합니다.',
    ],
    delivery: [
       '경기 시작 2시간 전부터 입장 가능합니다',
       '배송된 실물 티켓을 지참하여 경기장에 방문해주세요.',
+      '신분증을 함께 지참해주세요',
       '게이트에서 티켓을 제시하고 입장해주세요.',
       '티켓 분실 시 재발급이 어려울 수 있으니 보관에 유의해주세요.',
    ],
@@ -56,8 +59,10 @@ const MOCK_ORDER = {
 export default function PaymentCompletePage() {
    const navigate = useNavigate();
    const [searchParams] = useSearchParams();
+   const { state } = useLocation();
    const deliveryMethod = (searchParams.get('delivery') as DeliveryMethod) ?? 'mobile';
-   const order = MOCK_ORDER;
+   // API 응답이 있으면 사용, 없으면 MOCK_ORDER로 폴백
+   const order = (state as PaymentResponse | null) ?? (MOCK_ORDER as PaymentResponse);
 
    const actionButton =
       deliveryMethod === 'delivery'
@@ -132,12 +137,12 @@ export default function PaymentCompletePage() {
                </div>
 
                {/* 입장 안내 카드 — 수령 방식별 문구 상이 */}
-               <div className="w-full bg-(--fill-hoveraccent) border border-(--border-accent) rounded-[14px] p-[25px]">
+               <div className="w-full bg-fill-hoveraccent border border-border-accent rounded-[14px] p-[25px]">
                   <div className="flex flex-col gap-2">
                      <span className="text-[18px] font-bold leading-[1.55] text-[#0054d1]">입장 안내</span>
-                     <div className="flex flex-col gap-1 text-[16px] font-medium leading-[1.5] text-[#0054d1]">
+                     <div className="flex flex-col gap-1 text-[16px] font-medium leading-normal text-[#0054d1]">
                         {ENTRANCE_GUIDES[deliveryMethod].map((guide, i) => (
-                           <p key={i}>• {guide}</p>
+                           <p key={i} className="w-full">• {guide}</p>
                         ))}
                      </div>
                   </div>

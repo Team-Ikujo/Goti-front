@@ -132,14 +132,14 @@ export function CashReceiptCard({
 
             {/* 번호 유형 선택 + 번호 입력 (미발행 시 숨김) */}
             {receiptType !== 'none' && (
-               <div className="flex items-start gap-2.5">
+               <div className="flex gap-2">
                   <NumTypeSelect value={numType} onChange={onChangeNumType} />
                   <input
                      type="text"
                      value={num}
                      onChange={e => onChangeNum(e.target.value)}
                      placeholder="숫자만 입력해 주세요."
-                     className="flex-1 h-9 px-3 border border-border-light rounded-lg text-[14px] font-medium leading-[1.5] text-foreground placeholder:text-disabled-foreground bg-background outline-none"
+                     className="w-full h-9 px-3 border border-border-light rounded-lg text-[14px] font-medium leading-[1.5] text-foreground flex-1 placeholder:text-disabled-foreground bg-background outline-none"
                   />
                </div>
             )}

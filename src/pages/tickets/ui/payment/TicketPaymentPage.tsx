@@ -1,7 +1,9 @@
 // src/pages/tickets/ui/payment/TicketPaymentPage.tsx
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui/button';
+import type { PaymentRequest } from '@/pages/tickets/api/paymentApi';
 import {
    CashReceiptCard,
    DiscountCard,
@@ -37,6 +39,8 @@ const MOCK_GAME = {
 };
 
 export default function TicketPaymentPage() {
+   const navigate = useNavigate();
+
    // 주문자 정보
    const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('mobile');
    const [name, setName] = useState('');
@@ -68,7 +72,14 @@ export default function TicketPaymentPage() {
    // 무통장 입금 + 미발행이 아닌 경우 현금영수증 번호 필수
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
    const isFormValid =
-      !!name && !!phone && !!email && isDeliveryValid && isCashReceiptValid && agreedPrivacy && agreedPolicy && agreedResell;
+      !!name &&
+      !!phone &&
+      !!email &&
+      isDeliveryValid &&
+      isCashReceiptValid &&
+      agreedPrivacy &&
+      agreedPolicy &&
+      agreedResell;
 
    const handleZipResult = (zip: string, addr: string) => {
       setZipCode(zip);
@@ -89,7 +100,20 @@ export default function TicketPaymentPage() {
    const totalPayment = shippingFee + fee; // ticketPrice·할인 0원 (TODO: 실데이터 연결 후 업데이트)
 
    const handlePay = () => {
-      // TODO: 결제 API 연결
+      const paymentRequest: PaymentRequest = {
+         deliveryMethod,
+         ordererName: name,
+         ordererPhone: phone,
+         ordererEmail: email,
+         paymentMethod,
+         ...(deliveryMethod === 'delivery' && { zipCode, address, addressDetail }),
+         ...(paymentMethod === 'bank' && {
+            cashReceiptType,
+            cashReceiptNumType,
+            cashReceiptNum,
+         }),
+      };
+      navigate('/tickets/payment/processing', { state: paymentRequest });
    };
 
    return (
@@ -159,6 +183,9 @@ export default function TicketPaymentPage() {
                         {/* 결제 방법 */}
                         <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
 
+                        {/* 유의사항 */}
+                        <NotesCard />
+
                         {/* 약관 동의 */}
                         <TermsCard
                            agreedPrivacy={agreedPrivacy}
@@ -168,52 +195,49 @@ export default function TicketPaymentPage() {
                            onChangePolicy={setAgreedPolicy}
                            onChangeResell={setAgreedResell}
                         />
-
-                        {/* 유의사항 */}
-                        <NotesCard />
                      </div>
                   </div>
 
                   {/* 오른쪽: 주문 정보 */}
-                  <div className="flex-1 max-w-[400px] shrink-0 flex flex-col gap-[10px]">
-                     <h2 className="text-[24px] font-bold leading-[1.5] text-foreground h-[36px]">주문 정보 확인</h2>
+                  <div className="flex-1 max-w-100 shrink-0 flex flex-col gap-[10px]">
+                     <h2 className="text-heading-1-bold leading-normal text-foreground h-9">주문 정보 확인</h2>
 
                      <div className="flex flex-col gap-6">
                         <OrderSummaryCard orderInfo={orderInfo} />
 
-                           {/* 현금영수증 (무통장 입금 선택 시에만 표시) */}
-                           {paymentMethod === 'bank' && (
-                              <CashReceiptCard
-                                 receiptType={cashReceiptType}
-                                 onChangeReceiptType={setCashReceiptType}
-                                 numType={cashReceiptNumType}
-                                 onChangeNumType={setCashReceiptNumType}
-                                 num={cashReceiptNum}
-                                 onChangeNum={setCashReceiptNum}
-                                 saveInfo={saveCashReceipt}
-                                 onChangeSaveInfo={setSaveCashReceipt}
-                              />
-                           )}
-
-                           <PaymentAmountCard
-                              ticketPrice={0}
-                              shippingFee={shippingFee}
-                              discounts={[
-                                 { label: '학생 할인 5%', amount: 0 },
-                                 { label: '조기 예매 할인 10%', amount: 0 },
-                              ]}
-                              fee={fee}
+                        {/* 현금영수증 (무통장 입금 선택 시에만 표시) */}
+                        {paymentMethod === 'bank' && (
+                           <CashReceiptCard
+                              receiptType={cashReceiptType}
+                              onChangeReceiptType={setCashReceiptType}
+                              numType={cashReceiptNumType}
+                              onChangeNumType={setCashReceiptNumType}
+                              num={cashReceiptNum}
+                              onChangeNum={setCashReceiptNum}
+                              saveInfo={saveCashReceipt}
+                              onChangeSaveInfo={setSaveCashReceipt}
                            />
-                           <Button
-                              variant="primary"
-                              size="lg"
-                              className="w-full"
-                              disabled={!isFormValid}
-                              onClick={handlePay}
-                           >
-                              {totalPayment.toLocaleString('ko-KR')}원 결제하기
-                           </Button>
-                        </div>
+                        )}
+
+                        <PaymentAmountCard
+                           ticketPrice={0}
+                           shippingFee={shippingFee}
+                           discounts={[
+                              { label: '학생 할인 5%', amount: 0 },
+                              { label: '조기 예매 할인 10%', amount: 0 },
+                           ]}
+                           fee={fee}
+                        />
+                        <Button
+                           variant="primary"
+                           size="lg"
+                           className="w-full"
+                           disabled={!isFormValid}
+                           onClick={handlePay}
+                        >
+                           {totalPayment.toLocaleString('ko-KR')}원 결제하기
+                        </Button>
+                     </div>
                   </div>
                </div>
             </div>
