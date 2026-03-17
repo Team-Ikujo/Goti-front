@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, HelpCircle, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { DEFAULT_BOOKING_TIMER_SECONDS, useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 
 import BooksExitDialog from './BooksExitDialog';
+import BooksTimeoutDialog from './BooksTimeoutDialog';
 
 const DEFAULT_STEPS = ['구역 선택', '좌석 선택', '배송/주문자 확인', '결제'];
 const EXIT_DESTINATIONS = {
@@ -54,11 +56,13 @@ const BooksHeader = ({
    const resolvedCurrentStepIndex = currentStepIndex ?? (pathname.includes('/books/seats/') ? 1 : 0);
    const shouldShowBackButton = showBackButton ?? resolvedCurrentStepIndex > 0;
    const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
+   const [isTimeoutDialogOpen, setIsTimeoutDialogOpen] = useState(false);
    const [exitDestination, setExitDestination] = useState<ExitDestinationKey>('home');
    const [now, setNow] = useState(Date.now());
    const expiresAt = useBookingFlowTimerStore((state) => state.expiresAt);
    const ensureTimerStarted = useBookingFlowTimerStore((state) => state.ensureTimerStarted);
    const clearTimer = useBookingFlowTimerStore((state) => state.clearTimer);
+   const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
 
    useEffect(() => {
       if (!showTimer) {
@@ -88,7 +92,20 @@ const BooksHeader = ({
    const ss = String(remainingSeconds % 60).padStart(2, '0');
    const timeStr = `${mm}:${ss}`;
 
+   useEffect(() => {
+      if (!showTimer || expiresAt === null || remainingSeconds > 0) {
+         return;
+      }
+
+      clearAllSelections();
+      setIsTimeoutDialogOpen(true);
+   }, [clearAllSelections, expiresAt, remainingSeconds, showTimer]);
+
    const openExitDialog = (destination: ExitDestinationKey) => {
+      if (isTimeoutDialogOpen) {
+         return;
+      }
+
       if (!confirmBeforeExit) {
          clearTimer();
          navigate(EXIT_DESTINATIONS[destination]);
@@ -108,6 +125,14 @@ const BooksHeader = ({
                setIsExitDialogOpen(false);
                clearTimer();
                navigate(EXIT_DESTINATIONS[exitDestination]);
+            }}
+         />
+         <BooksTimeoutDialog
+            open={isTimeoutDialogOpen}
+            onConfirm={() => {
+               setIsTimeoutDialogOpen(false);
+               clearTimer();
+               navigate('/');
             }}
          />
 
