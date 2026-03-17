@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
+
+import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
+
 import BooksHeader from './BooksHeader';
 
 const BooksLayout = () => {
@@ -35,6 +38,9 @@ const BooksLayout = () => {
          window.removeEventListener('keydown', handleKeyDown);
          window.removeEventListener('gesturestart', handleGesture as EventListener);
          window.removeEventListener('gesturechange', handleGesture as EventListener);
+
+         // 예매 플로우를 벗어나면 이전 좌석 선택 상태를 남기지 않습니다.
+         useSeatSelectionStore.getState().clearAllSelections();
       };
    }, []);
 

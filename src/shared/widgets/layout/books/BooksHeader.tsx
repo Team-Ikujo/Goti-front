@@ -1,9 +1,16 @@
 import { useState } from 'react';
 import { ChevronLeft, HelpCircle, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+
 import BooksExitDialog from './BooksExitDialog';
 
 const steps = ['구역 선택', '좌석 선택', '배송/주문자 확인', '결제'];
+const EXIT_DESTINATIONS = {
+   home: '/',
+   mypage: '/mypage',
+} as const;
+
+type ExitDestinationKey = keyof typeof EXIT_DESTINATIONS;
 
 const BooksHeader = () => {
    const navigate = useNavigate();
@@ -11,6 +18,12 @@ const BooksHeader = () => {
    const currentStepIndex = pathname.includes('/books/seats/') ? 1 : 0;
    const isSeatPage = currentStepIndex === 1;
    const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
+   const [exitDestination, setExitDestination] = useState<ExitDestinationKey>('home');
+
+   const openExitDialog = (destination: ExitDestinationKey) => {
+      setExitDestination(destination);
+      setIsExitDialogOpen(true);
+   };
 
    return (
       <>
@@ -19,7 +32,7 @@ const BooksHeader = () => {
             onOpenChange={setIsExitDialogOpen}
             onConfirm={() => {
                setIsExitDialogOpen(false);
-               navigate('/');
+               navigate(EXIT_DESTINATIONS[exitDestination]);
             }}
          />
 
@@ -28,7 +41,7 @@ const BooksHeader = () => {
             <button
                type="button"
                className="text-heading-4-bold tracking-tight text-foreground"
-               onClick={() => setIsExitDialogOpen(true)}
+               onClick={() => openExitDialog('home')}
             >
                goTi
             </button>
@@ -44,6 +57,7 @@ const BooksHeader = () => {
                <button
                   type="button"
                   aria-label="마이페이지"
+                  onClick={() => openExitDialog('mypage')}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-md text-icon-secondary"
                >
                   <User className="h-5 w-5" aria-hidden="true" />
