@@ -59,10 +59,10 @@ const BooksHeader = ({
    const [isTimeoutDialogOpen, setIsTimeoutDialogOpen] = useState(false);
    const [exitDestination, setExitDestination] = useState<ExitDestinationKey>('home');
    const [now, setNow] = useState(Date.now());
-   const expiresAt = useBookingFlowTimerStore((state) => state.expiresAt);
-   const ensureTimerStarted = useBookingFlowTimerStore((state) => state.ensureTimerStarted);
-   const clearTimer = useBookingFlowTimerStore((state) => state.clearTimer);
-   const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
+   const expiresAt = useBookingFlowTimerStore(state => state.expiresAt);
+   const ensureTimerStarted = useBookingFlowTimerStore(state => state.ensureTimerStarted);
+   const clearTimer = useBookingFlowTimerStore(state => state.clearTimer);
+   const clearAllSelections = useSeatSelectionStore(state => state.clearAllSelections);
 
    useEffect(() => {
       if (!showTimer) {
@@ -143,7 +143,7 @@ const BooksHeader = ({
                   className="text-heading-4-bold tracking-tight text-foreground"
                   onClick={() => openExitDialog('home')}
                >
-                  goTi
+                  GoTi
                </button>
                <div className="flex items-center gap-5">
                   {showTimer ? (
