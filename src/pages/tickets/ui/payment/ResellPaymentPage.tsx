@@ -48,7 +48,7 @@ export default function ResellPaymentPage() {
 
    // 무통장 입금 + 미발행이 아닌 경우 현금영수증 번호 필수
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
-   const isFormValid = !!name && !!phone && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
+   const isFormValid = !!name && phone.length === 11 && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
 
    const orderInfo = {
       matchTitle: MOCK_GAME.matchTitle,
@@ -76,7 +76,7 @@ export default function ResellPaymentPage() {
             cashReceiptNum,
          }),
       };
-      navigate('/tickets/payment/processing', { state: paymentRequest });
+      navigate('/tickets/payment/processing', { state: { request: paymentRequest, amount: totalPayment } });
    };
 
    return (
@@ -87,10 +87,12 @@ export default function ResellPaymentPage() {
             <div className="w-full max-w-[1200px] py-8 flex flex-col gap-8">
                <h1 className="text-[32px] font-bold leading-[1.45] tracking-[-0.032px] text-foreground">주문서</h1>
 
-               <div className="flex gap-8 items-start">
+               <div className="flex flex-col lg:flex-row gap-8 items-start">
                   {/* 왼쪽: 주문자 정보 */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-[10px]">
-                     <h2 className="text-[24px] font-bold leading-[1.5] text-foreground h-[42px]">주문자 정보 입력</h2>
+                  <div className="w-full lg:flex-1 min-w-0 flex flex-col gap-[10px]">
+                     <h2 className="hidden lg:block text-heading-1-bold leading-normal text-foreground h-9">
+                        주문자 정보 입력
+                     </h2>
 
                      <div className="flex flex-col gap-6">
                         {/* 수령 방식 — 리셀은 모바일 티켓만 가능 */}
@@ -121,26 +123,6 @@ export default function ResellPaymentPage() {
                         {/* 결제 방법 */}
                         <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
 
-                        {/* 유의사항 */}
-                        <ResellNotesCard />
-
-                        {/* 약관 동의 */}
-                        <ResellTermsCard
-                           agreedPrivacy={agreedPrivacy}
-                           agreedResell={agreedResell}
-                           onChangePrivacy={setAgreedPrivacy}
-                           onChangeResell={setAgreedResell}
-                        />
-                     </div>
-                  </div>
-
-                  {/* 오른쪽: 주문 정보 */}
-                  <div className="flex-1 max-w-[400px] shrink-0 flex flex-col gap-[10px]">
-                     <h2 className="text-[24px] font-bold leading-[1.5] text-foreground h-[36px]">주문 정보 확인</h2>
-
-                     <div className="flex flex-col gap-6">
-                        <OrderSummaryCard orderInfo={orderInfo} />
-
                         {/* 현금영수증 (무통장 입금 선택 시에만 표시) */}
                         {paymentMethod === 'bank' && (
                            <CashReceiptCard
@@ -154,6 +136,49 @@ export default function ResellPaymentPage() {
                               onChangeSaveInfo={setSaveCashReceipt}
                            />
                         )}
+
+                        {/* 유의사항 */}
+                        <ResellNotesCard />
+
+                        {/* 약관 동의 */}
+                        <ResellTermsCard
+                           agreedPrivacy={agreedPrivacy}
+                           agreedResell={agreedResell}
+                           onChangePrivacy={setAgreedPrivacy}
+                           onChangeResell={setAgreedResell}
+                        />
+
+                        {/* 모바일 전용: 약관 동의 이후 주문정보 + 결제금액 + 버튼 */}
+                        <div className="lg:hidden flex flex-col gap-6">
+                           <OrderSummaryCard orderInfo={orderInfo} />
+                           <PaymentAmountCard
+                              ticketPrice={0}
+                              shippingFee={0}
+                              discounts={[
+                                 { label: '학생 할인 5%', amount: 0 },
+                                 { label: '조기 예매 할인 10%', amount: 0 },
+                              ]}
+                              fee={fee}
+                           />
+                           <Button
+                              variant="primary"
+                              size="lg"
+                              className="w-full"
+                              disabled={!isFormValid}
+                              onClick={handlePay}
+                           >
+                              {totalPayment.toLocaleString('ko-KR')}원 결제하기
+                           </Button>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* 오른쪽: 주문 정보 — 데스크톱 전용 */}
+                  <div className="hidden lg:flex flex-col flex-1 max-w-100 shrink-0 gap-[10px]">
+                     <h2 className="text-heading-1-bold leading-normal text-foreground h-9">주문 정보 확인</h2>
+
+                     <div className="flex flex-col gap-6">
+                        <OrderSummaryCard orderInfo={orderInfo} />
 
                         <PaymentAmountCard
                            ticketPrice={0}

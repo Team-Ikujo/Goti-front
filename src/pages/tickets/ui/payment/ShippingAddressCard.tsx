@@ -18,13 +18,20 @@ interface ShippingAddressCardProps {
 /** 다음 우편번호 스크립트를 동적으로 로드하고 팝업을 엽니다. */
 function loadDaumPostcodeAndOpen(onComplete: (zipCode: string, address: string) => void) {
    const open = () => {
+      const POPUP_W = 500;
+      const POPUP_H = 600;
+      const left = window.screenX + Math.round((window.outerWidth - POPUP_W) / 2);
+      const top = window.screenY + Math.round((window.outerHeight - POPUP_H) / 2);
+
       new window.daum!.Postcode({
          oncomplete: (data) => {
             // 도로명 주소가 있으면 우선 사용, 없으면 지번 주소
             const selectedAddress = data.roadAddress || data.jibunAddress;
             onComplete(data.zonecode, selectedAddress);
          },
-      }).open();
+         width: POPUP_W,
+         height: POPUP_H,
+      }).open({ left, top });
    };
 
    if (window.daum?.Postcode) {
