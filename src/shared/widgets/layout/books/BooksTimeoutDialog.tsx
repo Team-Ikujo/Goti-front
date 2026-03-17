@@ -18,7 +18,7 @@ const BooksTimeoutDialog = ({ open, onConfirm }: BooksTimeoutDialogProps) => {
             className="w-[calc(100%-40px)] max-w-[335px] gap-0 overflow-hidden rounded-[16px] border-0 bg-(--background-elevated) p-0 shadow-xl"
          >
             <DialogHeader className="gap-3 p-5 text-left">
-               <DialogTitle align="left" className="text-heading-4-bold text-(--text-primary)">
+               <DialogTitle align="left" className="text-heading-4-bold font-bold text-(--text-primary)">
                   예매 가능 시간이 만료되었습니다.
                </DialogTitle>
                <DialogDescription align="left" className="text-body-2-regular text-(--text-secondary)">
