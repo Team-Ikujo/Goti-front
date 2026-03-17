@@ -51,7 +51,7 @@ const TeamSelectModal = ({
 
             {/* 팀 그리드 */}
             <div className="grid grid-cols-2 gap-3">
-               {teams.map(team => (
+               {teams.filter(team => team.id === 'samsung' || team.id === 'kia').map(team => (
                   <button
                      key={team.id}
                      type="button"

@@ -1,4 +1,5 @@
 // src/pages/home/ui/game-schedule/AllNavigator.tsx
+
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRef, useState } from 'react';
 
@@ -28,61 +29,62 @@ function AllNavigator({
    onSelectYear,
    onSelectMonth,
 }: AllNavigatorProps) {
-  const pickerContainerRef = useRef<HTMLDivElement>(null);
-  const [showAllPicker, setShowAllPicker] = useState(false);
+   const pickerContainerRef = useRef<HTMLDivElement>(null);
+   const [showPicker, setShowPicker] = useState(false);
 
-  const onOpenPicker = () => setShowAllPicker(true);
-  const onClosePicker = () => setShowAllPicker(false);
-  const onConfirmPicker = (year: number, month: number) => {
-    onSelectYear(year);
-    onSelectMonth(month);
-  };
+   return (
+      <div className="flex flex-col gap-3">
+         <div className="flex items-center gap-3.5 justify-center">
+            <Badge asChild variant="chipDestructive" className="opacity-50">
+               <button onClick={onReset}>최근</button>
+            </Badge>
 
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-3.5 justify-center">
-        <Badge asChild variant="chipDestructive" className="opacity-50">
-          <button onClick={onReset}>최근</button>
-        </Badge>
+            <div className="flex items-center gap-2">
+               <button
+                  onClick={onPrevYear}
+                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
+               >
+                  <ChevronLeft className="size-5" />
+               </button>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onPrevYear}
-            className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
-          >
-            <ChevronLeft className="size-5" />
-          </button>
+               {/* 트리거 + 피커 컨테이너 */}
+               <div ref={pickerContainerRef} className="relative">
+                  <button
+                     onClick={() => setShowPicker(prev => !prev)}
+                     className="text-[18px] font-bold text-(--text-primary) leading-[1.5] min-w-[60px] text-center"
+                  >
+                     {allYear}
+                  </button>
 
-          {/* 트리거 버튼 + picker를 같은 relative 컨테이너로 묶어 정확한 위치 기준 설정 */}
-          <div ref={pickerContainerRef} className="relative">
-            <button
-              onClick={onOpenPicker}
-              className="text-[18px] font-bold text-(--text-primary) leading-[1.5] min-w-[60px] text-center"
-            >
-              {allYear}
-            </button>
-            {showAllPicker && (
-              <YearMonthPicker
-                year={allYear}
-                month={allMonth}
-                containerRef={pickerContainerRef}
-                onConfirm={onConfirmPicker}
-                onClose={onClosePicker}
-              />
-            )}
-          </div>
+                  {/* 연도만 표시하는 피커 (yearOnly) */}
+                  {showPicker && (
+                     <YearMonthPicker
+                        year={allYear}
+                        month={allMonth}
+                        containerRef={pickerContainerRef}
+                        onSelectYear={year => {
+                           onSelectYear(year);
+                           setShowPicker(false);
+                        }}
+                        onSelectMonth={() => {}}
+                        onClose={() => setShowPicker(false)}
+                        yearOnly
+                     />
+                  )}
+               </div>
 
-          <button
-            onClick={onNextYear}
-            className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
-          >
-            <ChevronRight className="size-5" />
-          </button>
-        </div>
+               <button
+                  onClick={onNextYear}
+                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
+               >
+                  <ChevronRight className="size-5" />
+               </button>
+            </div>
 
-        <div className="w-[56px]" />
-      </div>
+            <div className="w-[56px]" />
+         </div>
 
+         {/* 월 버튼 — 연도 피커 바로 밑 배치 */}
          <div className="flex w-full">
             {SEASON_MONTHS.map((month, index) => {
                const isDisabled = DISABLED_MONTHS.includes(month);

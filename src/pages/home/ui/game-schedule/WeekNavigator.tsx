@@ -1,4 +1,5 @@
 // src/pages/home/ui/game-schedule/WeekNavigator.tsx
+
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRef, useState } from 'react';
 
@@ -32,61 +33,57 @@ function WeekNavigator({
    onSelectMonth,
    onSelectWeek,
 }: WeekNavigatorProps) {
-  const pickerContainerRef = useRef<HTMLDivElement>(null);
-  const [showWeekPicker, setShowWeekPicker] = useState(false);
+   const pickerContainerRef = useRef<HTMLDivElement>(null);
+   const [showPicker, setShowPicker] = useState(false);
 
-  const onOpenPicker = () => setShowWeekPicker(true);
-  const onClosePicker = () => setShowWeekPicker(false);
-  const onConfirmPicker = (year: number, month: number) => {
-    onSelectYear(year);
-    onSelectMonth(month);
-  };
+   return (
+      <div className="flex flex-col gap-3">
+         <div className="flex items-center gap-3.5 justify-center">
+            <Badge asChild variant="chipDestructive" className="opacity-50">
+               <button onClick={onReset}>최근</button>
+            </Badge>
 
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-3.5 justify-center">
-        <Badge asChild variant="chipDestructive" className="opacity-50">
-          <button onClick={onReset}>최근</button>
-        </Badge>
+            <div className="flex items-center gap-2">
+               <button
+                  onClick={onPrevMonth}
+                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
+               >
+                  <ChevronLeft className="size-5" />
+               </button>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onPrevMonth}
-            className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
-          >
-            <ChevronLeft className="size-5" />
-          </button>
+               {/* 트리거 + 피커 컨테이너 */}
+               <div ref={pickerContainerRef} className="relative">
+                  <button
+                     onClick={() => setShowPicker(prev => !prev)}
+                     className="text-[18px] font-bold text-(--text-primary) leading-[1.5] min-w-[110px] text-center"
+                  >
+                     {weekYear}-{String(weekMonth).padStart(2, '0')}
+                  </button>
 
-          {/* 트리거 버튼 + picker를 같은 relative 컨테이너로 묶어 정확한 위치 기준 설정 */}
-          <div ref={pickerContainerRef} className="relative">
-            <button
-              onClick={onOpenPicker}
-              className="text-[18px] font-bold text-(--text-primary) leading-[1.5] min-w-[110px] text-center"
-            >
-              {weekYear}-{String(weekMonth).padStart(2, '0')}
-            </button>
-            {showWeekPicker && (
-              <YearMonthPicker
-                year={weekYear}
-                month={weekMonth}
-                containerRef={pickerContainerRef}
-                onConfirm={onConfirmPicker}
-                onClose={onClosePicker}
-              />
-            )}
-          </div>
+                  {showPicker && (
+                     <YearMonthPicker
+                        year={weekYear}
+                        month={weekMonth}
+                        containerRef={pickerContainerRef}
+                        onSelectYear={onSelectYear}
+                        onSelectMonth={onSelectMonth}
+                        onClose={() => setShowPicker(false)}
+                     />
+                  )}
+               </div>
 
-          <button
-            onClick={onNextMonth}
-            className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
-          >
-            <ChevronRight className="size-5" />
-          </button>
-        </div>
+               <button
+                  onClick={onNextMonth}
+                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
+               >
+                  <ChevronRight className="size-5" />
+               </button>
+            </div>
 
-        <div className="w-[56px]" />
-      </div>
+            <div className="w-[56px]" />
+         </div>
 
+         {/* 주차 버튼 — 날짜 버튼 바로 밑 배치 */}
          <div className="flex gap-7.5 justify-center">
             {WEEK_OPTIONS.map(week => {
                const isSelected = week === selectedWeek;
