@@ -91,6 +91,7 @@ const BooksHeader = ({
    const mm = String(Math.floor(remainingSeconds / 60)).padStart(2, '0');
    const ss = String(remainingSeconds % 60).padStart(2, '0');
    const timeStr = `${mm}:${ss}`;
+   const currentStepLabel = steps[resolvedCurrentStepIndex] ?? '';
 
    useEffect(() => {
       if (!showTimer || expiresAt === null || remainingSeconds > 0) {
@@ -137,7 +138,46 @@ const BooksHeader = ({
          />
 
          <header className="border-b border-border-light bg-background">
-            <div className="flex h-16 items-center justify-between px-4 lg:h-[68px] lg:px-8">
+            <div className="lg:hidden">
+               <div className="relative flex items-center justify-between px-3 py-2">
+                  <div className="flex w-10 justify-start">
+                     {shouldShowBackButton ? (
+                        <button
+                           type="button"
+                           aria-label={backAriaLabel}
+                           onClick={() => {
+                              if (onBack) {
+                                 onBack();
+                                 return;
+                              }
+
+                              navigate(-1);
+                           }}
+                           className="inline-flex h-8 w-8 items-center justify-center rounded-md text-icon-secondary"
+                        >
+                           <ChevronLeft className="h-6 w-6" aria-hidden="true" />
+                        </button>
+                     ) : null}
+                  </div>
+                  <h1 className="absolute left-1/2 -translate-x-1/2 text-heading-4-bold text-foreground">
+                     {currentStepLabel}
+                  </h1>
+                  <div className="flex w-10 justify-end">
+                     {showTimer ? <span className="text-body-1-bold text-primary">{timeStr}</span> : null}
+                  </div>
+               </div>
+
+               <div className="border-b border-border-light px-5 py-[9px]">
+                  <p className="text-body-1-bold text-foreground">{matchTitle}</p>
+                  <div className="flex flex-wrap items-center gap-1 text-caption-1-medium text-secondary">
+                     <span>{venue}</span>
+                     <span aria-hidden="true">·</span>
+                     <span>{dateTime}</span>
+                  </div>
+               </div>
+            </div>
+
+            <div className="hidden h-16 items-center justify-between px-4 lg:flex lg:h-[68px] lg:px-8">
                <button
                   type="button"
                   className="text-heading-4-bold tracking-tight text-foreground"
@@ -173,7 +213,7 @@ const BooksHeader = ({
                </div>
             </div>
 
-            <div className="flex flex-col gap-4 border-t border-border-light px-4 py-4 lg:h-[72px] lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-8 lg:py-0">
+            <div className="hidden flex-col gap-4 border-t border-border-light px-4 py-4 lg:flex lg:h-[72px] lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-8 lg:py-0">
                <div className="flex flex-wrap items-center gap-2 text-body-1-medium text-muted-foreground">
                   {shouldShowBackButton ? (
                      <button
