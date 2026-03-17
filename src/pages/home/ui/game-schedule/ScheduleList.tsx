@@ -1,12 +1,8 @@
-import { useState } from 'react';
 import { TicketX } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
-import { useAuthStore } from '@/entities/auth/model/authStore';
+import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
-
-import BookingGuideDialog from './BookingGuideDialog';
 import { TAB_TODAY, TODAY, statusColor, teamLogos } from './constants';
 import type { DaySchedule, GameRow } from './types';
 import { getGameResultTexts } from './utils';
@@ -370,21 +366,14 @@ type ScheduleListProps = {
 };
 
 function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
-  const navigate = useNavigate();
-  const accessToken = useAuthStore(state => state.accessToken);
-  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const { openBookingEntry, bookingGuideDialog } = useBookingEntryFlow();
 
   const openBookingFlow = (game: GameRow) => {
     if (game.ticket !== '예매하기') {
       return;
     }
 
-    if (!accessToken) {
-      navigate('/auth/login');
-      return;
-    }
-
-    setIsGuideOpen(true);
+    openBookingEntry();
   };
 
   const openResellFlow = (game: GameRow) => {
@@ -392,19 +381,7 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
       return;
     }
 
-    if (!accessToken) {
-      navigate('/auth/login');
-      return;
-    }
-  };
-
-  const confirmGuideAndOpenCaptcha = () => {
-    setIsGuideOpen(false);
-    navigate('/books', {
-      state: {
-        requireCaptcha: true,
-      },
-    });
+    // 리셀 플로우는 별도 구현 전까지 기존 동작을 유지합니다.
   };
 
   if (filteredData.length === 0) {
@@ -447,7 +424,7 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
         );
       })}
 
-      <BookingGuideDialog open={isGuideOpen} onOpenChange={setIsGuideOpen} onConfirm={confirmGuideAndOpenCaptcha} />
+      {bookingGuideDialog}
     </div>
   );
 }

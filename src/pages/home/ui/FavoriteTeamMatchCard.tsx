@@ -4,8 +4,10 @@ import type { Team } from '@/entities/team/model/types';
 import { getClosestMatch, getDDay } from '@/entities/team/model/schedule';
 import { Calendar, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 
 const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
+   const { openBookingEntry, bookingGuideDialog } = useBookingEntryFlow();
    const match = getClosestMatch(team.id);
 
    if (!match) {
@@ -127,7 +129,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                </div>
 
                <div className="flex flex-col gap-2 w-full">
-                  <Button variant="primary" className="w-full h-12 text-[16px] font-bold rounded-lg">
+                  <Button variant="primary" className="w-full h-12 text-[16px] font-bold rounded-lg" onClick={openBookingEntry}>
                      예매하기
                   </Button>
                   <Button variant="secondary" className="w-full h-12 text-[16px] font-bold rounded-lg">
@@ -136,6 +138,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                </div>
             </div>
          </div>
+         {bookingGuideDialog}
       </div>
    );
 };
