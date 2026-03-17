@@ -65,26 +65,24 @@ const GameSchedule = () => {
 
    return (
       <section className="flex flex-col gap-5 w-full">
-         <h2 className="text-[length:var(--typo---heading\/h3,24px)] font-bold text-(--text-primary) leading-[1.5]">
-            경기 일정
-         </h2>
+         <h2 className="text-heading-1-bold text-foreground leading-normal">경기 일정</h2>
 
          <div className="flex flex-col gap-5">
-            <p className="text-[length:var(--typo---heading\/h5,16px)] font-medium text-(--text-secondary)">
-               각 구단을 선택하시면 <span className="text-red-500">구단별 경기일정</span>을 확인할 수 있습니다.
+            <p className="text-body-1-medium text-muted-foreground">
+               각 구단을 선택하시면 <span className="text-destructive">구단별 경기일정</span>을 확인할 수 있습니다.
             </p>
 
             <TeamLogoNav onNavigateTeam={teamId => navigate(`/teams/${teamId}`)} />
 
-            <div className="flex gap-5 border-b border-(--border-normal)">
+            <div className="flex gap-5 border-b border-border">
                {tabs.map((tab, index) => (
                   <button
                      key={tab}
                      onClick={() => setActiveTab(index)}
                      className={
                         index === activeTab
-                           ? 'px-2.5 py-[10px] text-[length:var(--typo---heading\/h4,20px)] font-semibold leading-[1.5] transition-colors text-(--text-primary) border-b-[3px] border-primary -mb-px'
-                           : 'px-2.5 py-[10px] text-[length:var(--typo---heading\/h4,20px)] font-semibold leading-[1.5] transition-colors text-(--text-tertiary)'
+                           ? 'px-2.5 py-2.5 text-heading-3-semibold leading-normal transition-colors text-foreground border-b-[3px] border-primary -mb-px'
+                           : 'px-2.5 py-2.5 text-heading-3-semibold leading-normal transition-colors text-(--text-tertiary)'
                      }
                   >
                      {tab}
