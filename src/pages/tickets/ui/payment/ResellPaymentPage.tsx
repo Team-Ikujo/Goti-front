@@ -1,7 +1,9 @@
 // src/pages/tickets/ui/payment/ResellPaymentPage.tsx
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui/button';
+import type { PaymentRequest } from '@/pages/tickets/api/paymentApi';
 import {
    CashReceiptCard,
    DiscountCard,
@@ -29,6 +31,8 @@ const MOCK_GAME = {
 };
 
 export default function ResellPaymentPage() {
+   const navigate = useNavigate();
+
    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
    const [name, setName] = useState('');
    const [phone, setPhone] = useState('');
@@ -60,7 +64,19 @@ export default function ResellPaymentPage() {
    const totalPayment = fee; // ticketPrice·배송비·할인 0원 (TODO: 실데이터 연결 후 업데이트)
 
    const handlePay = () => {
-      // TODO: 결제 API 연결
+      const paymentRequest: PaymentRequest = {
+         deliveryMethod: 'mobile',
+         ordererName: name,
+         ordererPhone: phone,
+         ordererEmail: email,
+         paymentMethod,
+         ...(paymentMethod === 'bank' && {
+            cashReceiptType,
+            cashReceiptNumType,
+            cashReceiptNum,
+         }),
+      };
+      navigate('/tickets/payment/processing', { state: paymentRequest });
    };
 
    return (
@@ -105,6 +121,9 @@ export default function ResellPaymentPage() {
                         {/* 결제 방법 */}
                         <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
 
+                        {/* 유의사항 */}
+                        <ResellNotesCard />
+
                         {/* 약관 동의 */}
                         <ResellTermsCard
                            agreedPrivacy={agreedPrivacy}
@@ -112,9 +131,6 @@ export default function ResellPaymentPage() {
                            onChangePrivacy={setAgreedPrivacy}
                            onChangeResell={setAgreedResell}
                         />
-
-                        {/* 유의사항 */}
-                        <ResellNotesCard />
                      </div>
                   </div>
 
