@@ -1,10 +1,27 @@
 // src/pages/tickets/ui/payment/PaymentCompletePage.tsx
 
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import type { PaymentResponse } from '@/pages/tickets/api/paymentApi';
 import { Calendar, CheckCircle, ChevronLeft, MapPin } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
+import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
+
+function useTimerStr() {
+   const [now, setNow] = useState(Date.now());
+   const expiresAt = useBookingFlowTimerStore(state => state.expiresAt);
+
+   useEffect(() => {
+      const id = window.setInterval(() => setNow(Date.now()), 1000);
+      return () => window.clearInterval(id);
+   }, []);
+
+   const remaining = expiresAt !== null ? Math.max(0, Math.ceil((expiresAt - now) / 1000)) : 0;
+   const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
+   const ss = String(remaining % 60).padStart(2, '0');
+   return `${mm}:${ss}`;
+}
 
 type DeliveryMethod = 'mobile' | 'onsite' | 'delivery';
 
@@ -60,6 +77,7 @@ export default function PaymentCompletePage() {
    const navigate = useNavigate();
    const [searchParams] = useSearchParams();
    const { state } = useLocation();
+   const timeStr = useTimerStr();
    const deliveryMethod = (searchParams.get('delivery') as DeliveryMethod) ?? 'mobile';
    // API 응답이 있으면 사용, 없으면 MOCK_ORDER로 폴백
    const order = (state as PaymentResponse | null) ?? (MOCK_ORDER as PaymentResponse);
@@ -82,16 +100,16 @@ export default function PaymentCompletePage() {
             <div className="relative flex items-center justify-between pl-3 pr-5 py-2">
                <button
                   type="button"
-                  onClick={() => navigate('/')}
+                  onClick={() => navigate(-1)}
                   className="p-1 flex items-center justify-center shrink-0"
-                  aria-label="홈으로"
+                  aria-label="뒤로가기"
                >
                   <ChevronLeft className="size-6 text-foreground" />
                </button>
                <span className="absolute left-1/2 -translate-x-1/2 text-[18px] font-bold leading-[1.55] text-foreground whitespace-nowrap">
                   예매 완료
                </span>
-               <div className="w-8" />
+               <span className="text-[16px] font-bold leading-normal text-primary">{timeStr}</span>
             </div>
             {/* 2행: 경기 정보 */}
             <div className="flex flex-col items-start justify-center px-5 py-[9px] border-b border-border-light">
@@ -103,7 +121,6 @@ export default function PaymentCompletePage() {
                </div>
             </div>
          </div>
-         <BooksHeader currentStepIndex={3} showBackButton={false} showTimer={false} confirmBeforeExit={false} />
 
          <main className="flex-1 bg-white flex justify-center px-4">
             <div className="w-full max-w-[1200px] py-10 flex flex-col gap-[24px] items-center">
@@ -135,11 +152,15 @@ export default function PaymentCompletePage() {
                      <div className="flex flex-wrap items-center gap-4">
                         <div className="flex items-center gap-2">
                            <Calendar className="size-5 text-foreground shrink-0" />
-                           <span className="text-[16px] font-medium leading-normal text-foreground">{order.gameDate}</span>
+                           <span className="text-[16px] font-medium leading-normal text-foreground">
+                              {order.gameDate}
+                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                            <MapPin className="size-5 text-foreground shrink-0" />
-                           <span className="text-[16px] font-medium leading-normal text-foreground">{order.gameVenue}</span>
+                           <span className="text-[16px] font-medium leading-normal text-foreground">
+                              {order.gameVenue}
+                           </span>
                         </div>
                      </div>
                   </div>
@@ -148,14 +169,18 @@ export default function PaymentCompletePage() {
                   <div className="border-t border-border pt-6 flex gap-5 items-start">
                      <div className="flex-1 flex flex-col gap-1">
                         <span className="text-[16px] font-bold leading-normal text-disabled-foreground">수량</span>
-                        <span className="text-[16px] font-medium leading-normal text-foreground">{order.quantity}매</span>
+                        <span className="text-[16px] font-medium leading-normal text-foreground">
+                           {order.quantity}매
+                        </span>
                      </div>
                      {/* 수직 구분선 */}
                      <div className="w-px self-stretch bg-border" />
                      <div className="flex-1 flex flex-col gap-1">
                         <span className="text-[16px] font-bold leading-normal text-disabled-foreground">좌석 정보</span>
                         {order.seats.map((seat, i) => (
-                           <span key={i} className="text-[16px] font-medium leading-normal text-foreground">{seat}</span>
+                           <span key={i} className="text-[16px] font-medium leading-normal text-foreground">
+                              {seat}
+                           </span>
                         ))}
                      </div>
                   </div>
@@ -167,7 +192,9 @@ export default function PaymentCompletePage() {
                      <span className="text-[18px] font-bold leading-[1.55] text-[#0054d1]">입장 안내</span>
                      <div className="flex flex-col gap-1 text-[16px] font-medium leading-normal text-[#0054d1]">
                         {ENTRANCE_GUIDES[deliveryMethod].map((guide, i) => (
-                           <p key={i} className="w-full">• {guide}</p>
+                           <p key={i} className="w-full">
+                              • {guide}
+                           </p>
                         ))}
                      </div>
                   </div>
@@ -190,9 +217,7 @@ export default function PaymentCompletePage() {
                      ))}
                      <div className="flex items-start justify-between text-[16px] leading-normal">
                         <span className="font-bold text-muted-foreground">결제 금액</span>
-                        <span className="font-medium text-destructive">
-                           {order.amount.toLocaleString('ko-KR')}원
-                        </span>
+                        <span className="font-medium text-destructive">{order.amount.toLocaleString('ko-KR')}원</span>
                      </div>
                   </div>
                </div>
