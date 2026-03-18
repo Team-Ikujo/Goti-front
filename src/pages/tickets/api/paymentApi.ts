@@ -1,6 +1,7 @@
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import type { CashReceiptNumType, CashReceiptType, PaymentMethod } from '../ui/payment/types';
+import type { BotReport } from 'util/botDetector';
 
 interface CheckoutFormRequest {
    deliveryMethod: 'mobile' | 'onsite' | 'delivery';
@@ -14,6 +15,7 @@ interface CheckoutFormRequest {
    cashReceiptType?: CashReceiptType;
    cashReceiptNumType?: CashReceiptNumType;
    cashReceiptNum?: string;
+   botData?: BotReport;
 }
 
 export interface PaymentResponse {
@@ -35,7 +37,6 @@ export interface PaymentResponse {
    recipientPhone?: string;
    recipientAddress?: string;
 }
-
 export type TicketCheckoutSeat = {
    seatId: string;
    label: string;
@@ -231,7 +232,6 @@ const holdSeat = async (seatId: string, payload: HoldSeatRequest) => {
       `/api/v1/seat-reservations/seats/${encodeURIComponent(seatId)}`,
       payload,
    );
-
    return response.data.data;
 };
 
