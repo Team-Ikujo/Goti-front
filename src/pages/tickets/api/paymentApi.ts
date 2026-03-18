@@ -1,7 +1,7 @@
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import type { CashReceiptNumType, CashReceiptType, PaymentMethod } from '../ui/payment/types';
-import type { BotReport } from 'util/botDetector';
+import type { BotReport } from '@/shared/lib/botDetector';
 
 interface CheckoutFormRequest {
    deliveryMethod: 'mobile' | 'onsite' | 'delivery';

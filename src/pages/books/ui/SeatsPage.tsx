@@ -12,7 +12,7 @@ import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBo
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 import SeatMapStage from './components/SeatMapStage';
 import SelectedSeatSummaryList, { type SelectedSeatSummaryItem } from './components/SelectedSeatSummaryList';
-import { useBotDetector } from 'hooks/useBotDetector';
+import { useBotDetector } from '@/shared/lib/useBotDetector';
 
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;

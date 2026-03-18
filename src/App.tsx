@@ -2,7 +2,7 @@ import './styles/globals.css';
 import { QueryProvider } from '@/app/providers/query';
 import { AppRouter } from '@/app/providers/router';
 import { useEffect } from 'react';
-import { GuardrailTelemetry } from 'util/GuardrailTelemetry';
+import { GuardrailTelemetry } from '@/shared/lib/GuardrailTelemetry';
 
 const App = () => {
    useEffect(() => {

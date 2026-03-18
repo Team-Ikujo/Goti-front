@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { BotDetector, BotReport } from '../util/botDetector';
+import { BotDetector, BotReport } from './botDetector';
 
 export const useBotDetector = () => {
    // useRef에 BotDetector 인스턴스 또는 null이 들어갈 수 있음을 명시
