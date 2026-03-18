@@ -1,3 +1,20 @@
+export interface StadiumInfoItem {
+  label: string;
+  value: string;
+}
+
+export interface BusStop {
+  name: string;
+  buses: { type: '간선' | '지선'; routes: string }[];
+}
+
+export interface StadiumGuideData {
+  stadiumImageSrc: string;
+  mapImageSrc: string;
+  info: StadiumInfoItem[];
+  busStops: BusStop[];
+}
+
 export type Team = {
   id: string;
   name: string;
@@ -10,5 +27,7 @@ export type Team = {
   serverStadiumId?: string;
   /** 홈 구장명 (경기 일정 venue 표시용) */
   stadiumName?: string;
+  /** 구장안내 탭 데이터 */
+  stadiumGuide?: StadiumGuideData;
 };
 

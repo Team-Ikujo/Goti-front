@@ -68,7 +68,7 @@ const TeamDetailPage = () => {
 
                   {activeBookingTab === 1 && <SeatMapTab serverStadiumId={team.serverStadiumId} />}
 
-                  {activeBookingTab === 2 && <StadiumGuideTab />}
+                  {activeBookingTab === 2 && <StadiumGuideTab team={team} />}
                </div>
             </div>
          </div>
