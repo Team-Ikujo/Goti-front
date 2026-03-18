@@ -120,7 +120,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                <Button
                   variant="primary"
                   className="flex-1 max-w-[300px] h-[46px] text-[14px] font-bold rounded-[10px] tracking-[-0.15px]"
-                  onClick={openBookingEntry}
+                  onClick={() => openBookingEntry({ homeTeamId: match.homeTeamId })}
                >
                   예매하기
                </Button>
@@ -193,7 +193,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                   <Button
                      variant="primary"
                      className="h-12 text-[16px] font-bold rounded-lg"
-                     onClick={openBookingEntry}
+                     onClick={() => openBookingEntry({ homeTeamId: match.homeTeamId })}
                   >
                      예매하기
                   </Button>
