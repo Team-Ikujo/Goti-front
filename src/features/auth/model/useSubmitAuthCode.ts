@@ -5,6 +5,7 @@ import {
 } from "../api/oauthApi";
 import {
   loginWithSocialVerifyToken,
+  sendSignupSmsCode,
   signupWithSocialVerifyToken,
 } from "../api/authApi";
 
@@ -29,5 +30,11 @@ export const useSocialLogin = () => {
 export const useSocialSignup = () => {
   return useMutation({
     mutationFn: signupWithSocialVerifyToken,
+  });
+};
+
+export const useSendSignupSmsCode = () => {
+  return useMutation({
+    mutationFn: sendSignupSmsCode,
   });
 };

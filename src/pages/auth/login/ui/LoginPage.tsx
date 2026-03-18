@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { KakaoLoginButton } from "@/features/auth/kakao";
 import { NaverLoginButton } from "@/features/auth/naver";
 import { GoogleLoginButton } from "@/features/auth/google";
@@ -20,9 +22,19 @@ const socialLoginButtons: SocialLoginButtonItem[] = [
 ];
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const accessToken = useAuthStore((state) => state.accessToken);
   const recentLoginProvider = useAuthStore(
     (state) => state.recentLoginProvider,
   );
+
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+
+    navigate("/", { replace: true });
+  }, [accessToken, navigate]);
 
   return (
     <div className="flex w-full h-screen items-center justify-center min-h-screen bg-white text-text-primary">
