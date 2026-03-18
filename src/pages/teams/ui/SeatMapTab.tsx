@@ -1,4 +1,5 @@
 // src/pages/teams/ui/SeatMapTab.tsx
+import { useEffect, useState } from 'react';
 import seatMapImg from '@/shared/ui/image/스크린샷 2026-02-10 오전 9.34.37 1.png';
 import {
    Table,
@@ -8,8 +9,11 @@ import {
    TableHeader,
    TableRow,
 } from '@/shared/ui/table';
+import type { SeatGradeResponse } from '@/shared/types/game';
+import { gameApi } from '../api/gameApi';
 
-const LEGEND_ITEMS = [
+// stadiumId가 없을 때 보여줄 폴백 범례
+const FALLBACK_LEGEND = [
    { color: '#d0514f', name: '챔피언석' },
    { color: '#284785', name: '중앙테이블석(2인, 3인)' },
    { color: '#db58af', name: 'K9석' },
@@ -26,6 +30,21 @@ const LEGEND_ITEMS = [
    { color: '#ccac56', name: '외야자유석' },
    { color: '#6cbe88', name: '외야가족석(6인)' },
 ];
+
+function useSeatGrades(serverStadiumId: string | undefined) {
+   const [grades, setGrades] = useState<SeatGradeResponse[]>([]);
+
+   useEffect(() => {
+      if (!serverStadiumId) return;
+
+      gameApi
+         .getSeatGrades(serverStadiumId)
+         .then(setGrades)
+         .catch(err => console.error('좌석 등급 조회 실패:', err));
+   }, [serverStadiumId]);
+
+   return grades;
+}
 
 interface PriceRow {
    seat: string;
@@ -68,7 +87,18 @@ const PRICE_TABLE: PriceSection[] = [
    },
 ];
 
-export function SeatMapTab() {
+interface Props {
+   serverStadiumId: string | undefined;
+}
+
+export function SeatMapTab({ serverStadiumId }: Props) {
+   const grades = useSeatGrades(serverStadiumId);
+
+   // API 데이터가 있으면 사용, 없으면 폴백 범례 사용
+   const legendItems = grades.length > 0
+      ? grades.map(g => ({ color: `#${g.displayColorHex.replace('#', '')}`, name: g.name }))
+      : FALLBACK_LEGEND;
+
    return (
       <div className="flex flex-col gap-[30px] md:gap-[120px] items-start w-full">
          {/* 좌석도 */}
@@ -86,7 +116,7 @@ export function SeatMapTab() {
                {/* 범례 */}
                <div className="bg-background border-2 border-[#e9ebee] flex gap-[10px] items-start max-w-[1000px] overflow-hidden p-[30px] rounded-[8px] w-full">
                   <div className="flex flex-1 flex-col gap-[10px] items-start min-w-0">
-                     {LEGEND_ITEMS.slice(0, 8).map(item => (
+                     {legendItems.slice(0, 8).map(item => (
                         <div key={item.name} className="flex gap-[11px] items-center w-full">
                            <div
                               className="rounded-[2px] shrink-0 size-[20px]"
@@ -99,7 +129,7 @@ export function SeatMapTab() {
                      ))}
                   </div>
                   <div className="flex flex-1 flex-col gap-[10px] items-start min-w-0">
-                     {LEGEND_ITEMS.slice(8).map(item => (
+                     {legendItems.slice(8).map(item => (
                         <div key={item.name} className="flex gap-[11px] items-center w-full">
                            <div
                               className="rounded-[2px] shrink-0 size-[20px]"

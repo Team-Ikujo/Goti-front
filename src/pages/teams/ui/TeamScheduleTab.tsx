@@ -2,40 +2,39 @@
 import { useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-import { mapGamesToDaySchedules, useGameSchedules } from '@/entities/game/model/schedule';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import ScheduleList from '@/pages/home/ui/game-schedule/ScheduleList';
 import { YearMonthPicker } from '@/pages/home/ui/game-schedule/YearMonthPicker';
-import {
-   CURRENT_MONTH,
-   CURRENT_WEEK,
-   CURRENT_YEAR,
-   WEEK_OPTIONS,
-   TAB_WEEK,
-} from '@/pages/home/ui/game-schedule/constants';
+import { WEEK_OPTIONS, TAB_WEEK } from '@/pages/home/ui/game-schedule/constants';
 import { filterScheduleData } from '@/pages/home/ui/game-schedule/utils';
+import { useGameSchedules } from '../api/useGameSchedules';
 import { BookingGuide } from './BookingGuide';
 
-interface Props {
-   teamId: string | undefined;
-   teamName: string | undefined;
+function getCurrentWeek(): number {
+   return Math.ceil(new Date().getDate() / 7);
 }
 
-export function TeamScheduleTab({ teamId, teamName }: Props) {
-   const [weekYear, setWeekYear] = useState(CURRENT_YEAR);
-   const [weekMonth, setWeekMonth] = useState(CURRENT_MONTH);
-   const [selectedWeek, setSelectedWeek] = useState(CURRENT_WEEK);
+interface Props {
+   serverTeamId: string | undefined;
+}
+
+export function TeamScheduleTab({ serverTeamId }: Props) {
+   const now = new Date();
+   const [weekYear, setWeekYear] = useState(now.getFullYear());
+   const [weekMonth, setWeekMonth] = useState(now.getMonth() + 1);
+   const [selectedWeek, setSelectedWeek] = useState(getCurrentWeek());
    const [showPicker, setShowPicker] = useState(false);
    const pickerContainerRef = useRef<HTMLDivElement>(null);
-   const scheduleQuery = useGameSchedules({
+   const { schedules, loading, error } = useGameSchedules({
+      serverTeamId,
       year: weekYear,
       month: weekMonth,
+      week: selectedWeek,
    });
-   const scheduleData = useMemo(() => mapGamesToDaySchedules(scheduleQuery.data ?? []), [scheduleQuery.data]);
 
    const filteredData = useMemo(() => {
-      const byWeek = filterScheduleData(scheduleData, {
+      return filterScheduleData(schedules, {
          activeTab: TAB_WEEK,
          weekYear,
          weekMonth,
@@ -43,16 +42,7 @@ export function TeamScheduleTab({ teamId, teamName }: Props) {
          allYear: weekYear,
          allMonth: weekMonth,
       });
-
-      if (!teamId) return byWeek;
-
-      return byWeek
-         .map(day => ({
-            ...day,
-            games: day.games.filter(g => g.awayTeamId === teamId || g.homeTeamId === teamId),
-         }))
-         .filter(day => day.games.length > 0);
-   }, [scheduleData, selectedWeek, teamId, weekMonth, weekYear]);
+   }, [schedules, weekMonth, selectedWeek, weekYear]);
 
    const prevMonth = () => {
       if (weekMonth === 1) {
@@ -143,9 +133,13 @@ export function TeamScheduleTab({ teamId, teamName }: Props) {
          <div className="flex flex-col gap-30 items-start w-full">
             {/* 경기 일정 리스트 */}
             <div className="flex flex-col gap-6.25 items-start w-full">
-               {scheduleQuery.isError ? (
+               {loading ? (
+                  <div className="flex h-[400px] items-center justify-center w-full">
+                     <p className="text-[18px] text-[#acb4bb]">일정을 불러오는 중...</p>
+                  </div>
+               ) : error ? (
                   <div className="rounded-[10px] border border-border bg-surface px-5 py-10 text-center text-body-1-medium text-muted-foreground w-full">
-                     {teamName ? `${teamName} 경기 일정을 불러오지 못했습니다.` : '경기 일정을 불러오지 못했습니다.'}
+                     경기 일정을 불러오지 못했습니다.
                   </div>
                ) : (
                   <ScheduleList activeTab={TAB_WEEK} filteredData={filteredData} />

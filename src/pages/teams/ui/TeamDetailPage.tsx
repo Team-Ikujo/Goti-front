@@ -3,14 +3,9 @@ import { useParams, Navigate } from 'react-router-dom';
 
 import { teams } from '@/entities/team/model/teams';
 import { cn } from '@/shared/lib/utils';
-import { TEAM_IDS } from '@/pages/home/ui/game-schedule/constants';
 import { TeamScheduleTab } from './TeamScheduleTab';
 import { SeatMapTab } from './SeatMapTab';
 import { StadiumGuideTab } from './StadiumGuideTab';
-
-const TEAM_NAME_BY_ID: Record<string, string> = Object.fromEntries(
-   Object.entries(TEAM_IDS).map(([name, id]) => [id, name]),
-);
 
 const BOOKING_TABS = ['예매하기', '좌석도', '구장안내'];
 
@@ -69,9 +64,9 @@ const TeamDetailPage = () => {
 
                {/* 탭 컨텐츠 */}
                <div className="flex flex-col gap-6.25 items-start w-full">
-                  {activeBookingTab === 0 && <TeamScheduleTab teamId={teamId} teamName={teamId ? TEAM_NAME_BY_ID[teamId] : undefined} />}
+                  {activeBookingTab === 0 && <TeamScheduleTab serverTeamId={team.serverTeamId} />}
 
-                  {activeBookingTab === 1 && <SeatMapTab />}
+                  {activeBookingTab === 1 && <SeatMapTab serverStadiumId={team.serverStadiumId} />}
 
                   {activeBookingTab === 2 && <StadiumGuideTab />}
                </div>

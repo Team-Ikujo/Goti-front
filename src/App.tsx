@@ -11,23 +11,27 @@ const App = () => {
       const deviceId = localStorage.getItem('device_id') || 'dev_fallback_456';
       const traceId = crypto.randomUUID();
 
+      const apiUrlBehavior = import.meta.env.PUBLIC_TELEMETRY_BEHAVIOR_URL;
+      const apiUrlRaw = import.meta.env.PUBLIC_TELEMETRY_RAW_URL;
+
+      // 텔레메트리 API URL이 설정되지 않으면 수집 비활성화
+      if (!apiUrlBehavior || !apiUrlRaw) return;
+
       // 2. SDK 인스턴스 생성
       const telemetry = new GuardrailTelemetry({
          sessionId: sessionId,
          deviceId: deviceId,
          clientTraceId: traceId,
-         apiUrlBehavior: 'https://api.yourdomain.com/v1/telemetry/behavior',
-         apiUrlRaw: 'https://api.yourdomain.com/v1/telemetry/raw',
+         apiUrlBehavior,
+         apiUrlRaw,
       });
 
       // 3. 백그라운드 수집 시작
       telemetry.start();
-      console.log('Telemetry 수집이 시작되었습니다.');
 
       // 4. 클린업 함수 (컴포넌트가 언마운트될 때 리스너와 인터벌 제거)
       return () => {
          telemetry.stop();
-         console.log('Telemetry 수집이 종료되었습니다.');
       };
    }, []); // 빈 배열 []: 앱이 처음 켜질 때 딱 한 번만 실행됨
    return (

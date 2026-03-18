@@ -7,6 +7,9 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/samsung.png",
     logoAspectClassName: "aspect-[1280/962]",
     isEnabled: true,
+    serverTeamId: "", // TODO: 서버에서 생성된 팀 UUID로 채워주세요
+    serverStadiumId: "", // TODO: 서버에서 생성된 홈구장 UUID로 채워주세요
+    stadiumName: "대구",
   },
   {
     id: "kia",
@@ -14,6 +17,9 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/kia.png",
     logoAspectClassName: "aspect-[1280/954]",
     isEnabled: true,
+    serverTeamId: "", // TODO: 서버에서 생성된 팀 UUID로 채워주세요
+    serverStadiumId: "", // TODO: 서버에서 생성된 홈구장 UUID로 채워주세요
+    stadiumName: "광주",
   },
   {
     id: "lg",
