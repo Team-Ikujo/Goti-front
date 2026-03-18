@@ -57,6 +57,17 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const awayTeam = opponent;
    const dDay = getDDay(match.date);
    const formattedDate = `${match.date.replace(/-/g, '.')} ${match.time}`;
+   const awayTeamName = teams.find(t => t.id === match.awayTeamId)?.name ?? match.awayTeamId;
+   const homeTeamName = teams.find(t => t.id === match.homeTeamId)?.name ?? match.homeTeamId;
+
+   const handleBookingClick = () => {
+      openBookingEntry({
+         homeTeamId: match.homeTeamId,
+         matchTitle: `${awayTeamName} vs ${homeTeamName}`,
+         venue: match.venue,
+         dateTime: formattedDate,
+      });
+   };
 
    return (
       <div className="bg-white border border-[#e9ebee] rounded-2xl overflow-hidden shadow-[0px_20px_50px_-12px_rgba(0,0,0,0.25)]">
@@ -120,7 +131,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                <Button
                   variant="primary"
                   className="flex-1 max-w-[300px] h-[46px] text-[14px] font-bold rounded-[10px] tracking-[-0.15px]"
-                  onClick={() => openBookingEntry({ homeTeamId: match.homeTeamId })}
+                  onClick={handleBookingClick}
                >
                   예매하기
                </Button>
@@ -193,7 +204,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                   <Button
                      variant="primary"
                      className="h-12 text-[16px] font-bold rounded-lg"
-                     onClick={() => openBookingEntry({ homeTeamId: match.homeTeamId })}
+                     onClick={handleBookingClick}
                   >
                      예매하기
                   </Button>

@@ -373,7 +373,11 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
       return;
     }
 
-    openBookingEntry({ homeTeamId: TEAM_IDS[game.home] });
+    openBookingEntry({
+      homeTeamId: TEAM_IDS[game.home],
+      matchTitle: `${game.away} vs ${game.home}`,
+      dateTime: game.time,
+    });
   };
 
   const openResellFlow = (game: GameRow) => {

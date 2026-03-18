@@ -4,6 +4,7 @@ export type BookingTeamId = 'kia' | 'samsung';
 
 type BookingTeamConfig = {
    displayName: string;
+   stadiumName: string;
    stadiumImage: string;
    stadiumImageAlt: string;
    zoneDisplayOrder: string[];
@@ -50,6 +51,7 @@ const SAMSUNG_BOOKING_ZONES: ZoneItem[] = [
 const BOOKING_TEAM_CONFIGS: Record<BookingTeamId, BookingTeamConfig> = {
    kia: {
       displayName: 'KIA 타이거즈',
+      stadiumName: '광주 기아 챔피언스 필드',
       stadiumImage: '/baseball/seat/kia.png',
       stadiumImageAlt: '기아 챔피언스필드 구역도',
       zoneDisplayOrder: ['k9', 'k8', 'k5', 'ev', 'outfield', 'skybox', 'champion', 'center-table', 'mediheal-table', 'party', 'family'],
@@ -60,6 +62,7 @@ const BOOKING_TEAM_CONFIGS: Record<BookingTeamId, BookingTeamConfig> = {
    },
    samsung: {
       displayName: '삼성 라이온즈',
+      stadiumName: '대구 삼성라이온즈파크',
       stadiumImage: '/baseball/seat/samsung.png',
       stadiumImageAlt: '대구 삼성라이온즈파크 구역도',
       zoneDisplayOrder: [
@@ -109,6 +112,8 @@ export const getZoneDisplayOrder = (teamId?: string) => getBookingTeamConfig(tea
 export const getStadiumImage = (teamId?: string) => getBookingTeamConfig(teamId).stadiumImage;
 
 export const getStadiumImageAlt = (teamId?: string) => getBookingTeamConfig(teamId).stadiumImageAlt;
+
+export const getStadiumName = (teamId?: string) => getBookingTeamConfig(teamId).stadiumName;
 
 export const getZoneOverviewImage = (teamId: string | undefined, zoneId: ZoneItem['id']) => {
    const teamConfig = getBookingTeamConfig(teamId);

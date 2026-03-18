@@ -7,10 +7,16 @@ import BookingGuideDialog from '@/shared/ui/booking-guide-dialog';
 export type BookingEntryState = {
   requireCaptcha?: boolean;
   homeTeamId?: string;
+  matchTitle?: string;
+  venue?: string;
+  dateTime?: string;
 };
 
 type OpenBookingEntryOptions = {
   homeTeamId?: string;
+  matchTitle?: string;
+  venue?: string;
+  dateTime?: string;
 };
 
 /**
@@ -31,6 +37,9 @@ export function useBookingEntryFlow() {
     setPendingEntryState({
       requireCaptcha: true,
       homeTeamId: options?.homeTeamId,
+      matchTitle: options?.matchTitle,
+      venue: options?.venue,
+      dateTime: options?.dateTime,
     });
     setIsGuideOpen(true);
   };

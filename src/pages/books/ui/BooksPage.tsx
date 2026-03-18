@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { getBookingTeamConfig, getStadiumImage, getStadiumImageAlt, getZoneDisplayOrder, getBookingZones } from '@/pages/books/model/zoneData';
+import { getBookingTeamConfig, getZoneDisplayOrder, getBookingZones } from '@/pages/books/model/zoneData';
 import type { BookingEntryState } from '@/shared/lib/use-booking-entry-flow';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 
@@ -83,6 +83,7 @@ const BooksPage = () => {
       setSelectedZoneId(zoneId);
       navigate(`/books/seats/${zoneId}`, {
          state: {
+            ...bookingEntryState,
             homeTeamId: bookingEntryState?.homeTeamId,
          } satisfies BookingEntryState,
       });
@@ -106,6 +107,7 @@ const BooksPage = () => {
          replace: true,
          state: bookingEntryState?.homeTeamId
             ? ({
+                 ...bookingEntryState,
                  homeTeamId: bookingEntryState.homeTeamId,
               } satisfies BookingEntryState)
             : undefined,
@@ -147,8 +149,8 @@ const BooksPage = () => {
                selectedZoneId={selectedZoneId}
                onSelectZone={handleSelectZone}
                mobileExpanded={!isCaptchaOpen && !isZoneDrawerOpen}
-               stadiumImage={getStadiumImage(bookingEntryState?.homeTeamId)}
-               stadiumImageAlt={getStadiumImageAlt(bookingEntryState?.homeTeamId)}
+               stadiumImage={bookingTeamConfig.stadiumImage}
+               stadiumImageAlt={bookingTeamConfig.stadiumImageAlt}
             />
             {!isCaptchaOpen ? (
                <Drawer open={isZoneDrawerOpen} onOpenChange={setIsZoneDrawerOpen} modal={false}>

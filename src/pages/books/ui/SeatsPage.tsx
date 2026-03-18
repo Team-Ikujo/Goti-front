@@ -5,7 +5,7 @@ import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 import { createSeatsForZone, getSeatBlocks } from '@/pages/books/model/seatData';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
-import { formatPrice, getBookingZones, getZoneOverviewImage } from '@/pages/books/model/zoneData';
+import { formatPrice, getBookingZones, getZoneOverviewImage, getStadiumName } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
 import type { BookingEntryState } from '@/shared/lib/use-booking-entry-flow';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
@@ -38,6 +38,7 @@ function SeatsPage() {
       [bookingZones, zoneId],
    );
    const zoneOverviewImage = useMemo(() => getZoneOverviewImage(bookingEntryState?.homeTeamId, zone.id), [bookingEntryState?.homeTeamId, zone.id]);
+   const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
    const seatBlocks = useMemo(() => getSeatBlocks(zone.id), [zone.id]);
@@ -504,7 +505,7 @@ function SeatsPage() {
                   <div className="relative mx-auto h-[188px] w-[260px] shrink-0">
                      <img
                         src={zoneOverviewImage}
-                        alt={`${zone.name} 선택 상태가 반영된 기아 챔피언스필드 좌석도`}
+                        alt={`${zone.name} 선택 상태가 반영된 ${stadiumName} 좌석도`}
                         className="h-full w-full object-contain"
                         draggable={false}
                      />
