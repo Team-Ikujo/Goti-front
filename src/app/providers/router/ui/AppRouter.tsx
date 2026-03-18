@@ -26,12 +26,14 @@ import PaymentProcessingPage from '@/pages/tickets/ui/payment/PaymentProcessingP
 import PaymentCompletePage from '@/pages/tickets/ui/payment/PaymentCompletePage';
 import BooksPage from '@/pages/books';
 import SeatsPage from '@/pages/books/ui/SeatsPage';
+import AuthSessionController from './AuthSessionController';
 import BookingFlowStateGuard from './BookingFlowStateGuard';
 import OAuthMessageListener from './OAuthMessageListener';
 
 const AppRouter = () => {
    return (
       <BrowserRouter>
+         <AuthSessionController />
          <OAuthMessageListener />
          <BookingFlowStateGuard />
          <Routes>

@@ -2,7 +2,7 @@ import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Button } from '@/shared/ui/button';
 import { cn } from '@/shared/lib/utils';
 import { Heart, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTeamStore } from '@/entities/team/model/teamStore';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
@@ -16,8 +16,10 @@ const navTabs = [
 
 const Header = () => {
    const accessToken = useAuthStore(state => state.accessToken);
-   const authExpiresAt = useAuthStore(state => state.authExpiresAt);
+   const sessionRemainingSeconds = useAuthStore(state => state.sessionRemainingSeconds);
    const clearAuth = useAuthStore(state => state.clearAuth);
+   const logoutReason = useAuthStore(state => state.logoutReason);
+   const clearLogoutReason = useAuthStore(state => state.clearLogoutReason);
    const isLoggedIn = !!accessToken;
    const navigate = useNavigate();
 
@@ -26,14 +28,22 @@ const Header = () => {
    const { selectedTeam, setSelectedTeam } = useTeamStore();
 
    const handleLogout = () => clearAuth();
-   const handleSessionTimeout = () => {
-      clearAuth();
-      setIsSessionTimeoutDialogOpen(true);
+   const handleSessionTimeoutDialogClose = () => {
+      setIsSessionTimeoutDialogOpen(false);
+      clearLogoutReason();
    };
+
+   useEffect(() => {
+      if (logoutReason !== 'expired') {
+         return;
+      }
+
+      setIsSessionTimeoutDialogOpen(true);
+   }, [logoutReason]);
 
    return (
       <>
-         <SessionTimeoutDialog open={isSessionTimeoutDialogOpen} onConfirm={() => setIsSessionTimeoutDialogOpen(false)} />
+         <SessionTimeoutDialog open={isSessionTimeoutDialogOpen} onConfirm={handleSessionTimeoutDialogClose} />
          <header className="flex flex-col w-full">
             {/* State bar */}
             <div className="bg-background w-full px-4 py-1">
@@ -45,9 +55,8 @@ const Header = () => {
                   </div>
                   {isLoggedIn && (
                      <SessionStatus
-                        authExpiresAt={authExpiresAt}
+                        remainingSeconds={sessionRemainingSeconds}
                         onLogout={handleLogout}
-                        onTimeout={handleSessionTimeout}
                      />
                   )}
                </div>
