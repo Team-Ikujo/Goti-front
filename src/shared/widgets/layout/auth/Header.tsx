@@ -13,13 +13,62 @@ const navTabs = [
    { label: '구단', to: '/teams' },
 ] as const;
 
-const SESSION_DURATION = 60 * 60;
-
 const formatTime = (seconds: number) => {
    const h = Math.floor(seconds / 3600);
    const m = Math.floor((seconds % 3600) / 60);
    const s = seconds % 60;
    return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+};
+
+const SessionStatus = ({
+   authExpiresAt,
+   onLogout,
+}: {
+   authExpiresAt: number | null;
+   onLogout: () => void;
+}) => {
+   const [now, setNow] = useState(Date.now());
+   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+   useEffect(() => {
+      if (authExpiresAt === null) {
+         if (intervalRef.current) clearInterval(intervalRef.current);
+         return;
+      }
+
+      setNow(Date.now());
+      intervalRef.current = setInterval(() => {
+         setNow(Date.now());
+      }, 1000);
+
+      return () => {
+         if (intervalRef.current) clearInterval(intervalRef.current);
+      };
+   }, [authExpiresAt]);
+
+   const remaining = authExpiresAt ? Math.max(0, Math.ceil((authExpiresAt - now) / 1000)) : 0;
+
+   useEffect(() => {
+      if (authExpiresAt === null || remaining > 0) {
+         return;
+      }
+
+      onLogout();
+   }, [authExpiresAt, onLogout, remaining]);
+
+   if (authExpiresAt === null) {
+      return null;
+   }
+
+   return (
+      <div className="flex items-center gap-2 px-1.5">
+         <Clock className="size-4 text-primary" />
+         <span className="text-caption-2-medium text-primary">{formatTime(remaining)}</span>
+         <button onClick={onLogout} className="text-caption-2-medium text-(--text-tertiary) underline">
+            로그아웃
+         </button>
+      </div>
+   );
 };
 
 const TeamSelectModal = ({
@@ -75,35 +124,14 @@ const TeamSelectModal = ({
 };
 
 const Header = () => {
-   const { accessToken, clearAuth } = useAuthStore();
+   const accessToken = useAuthStore(state => state.accessToken);
+   const authExpiresAt = useAuthStore(state => state.authExpiresAt);
+   const clearAuth = useAuthStore(state => state.clearAuth);
    const isLoggedIn = !!accessToken;
    const navigate = useNavigate();
 
-   const [remaining, setRemaining] = useState(SESSION_DURATION);
-   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
    const [teamModalOpen, setTeamModalOpen] = useState(false);
    const { selectedTeam, setSelectedTeam } = useTeamStore();
-
-   useEffect(() => {
-      if (isLoggedIn) {
-         setRemaining(SESSION_DURATION);
-         intervalRef.current = setInterval(() => {
-            setRemaining(prev => {
-               if (prev <= 1) {
-                  clearInterval(intervalRef.current!);
-                  clearAuth();
-                  return 0;
-               }
-               return prev - 1;
-            });
-         }, 1000);
-      } else {
-         if (intervalRef.current) clearInterval(intervalRef.current);
-      }
-      return () => {
-         if (intervalRef.current) clearInterval(intervalRef.current);
-      };
-   }, [isLoggedIn, clearAuth]);
 
    const handleLogout = () => clearAuth();
 
@@ -118,18 +146,7 @@ const Header = () => {
                      <span className="text-caption-2-medium text-(--text-tertiary)">혼잡도:</span>
                      <span className="text-caption-2-medium text-success">원활</span>
                   </div>
-                  {isLoggedIn && (
-                     <div className="flex items-center gap-2 px-1.5">
-                        <Clock className="size-4 text-primary" />
-                        <span className="text-caption-2-medium text-primary">{formatTime(remaining)}</span>
-                        <button
-                           onClick={handleLogout}
-                           className="text-caption-2-medium text-(--text-tertiary) underline"
-                        >
-                           로그아웃
-                        </button>
-                     </div>
-                  )}
+                  {isLoggedIn && <SessionStatus authExpiresAt={authExpiresAt} onLogout={handleLogout} />}
                </div>
             </div>
 
