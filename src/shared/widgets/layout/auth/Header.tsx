@@ -1,127 +1,18 @@
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Button } from '@/shared/ui/button';
 import { cn } from '@/shared/lib/utils';
-import { Clock, Heart, Search, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Heart, Search } from 'lucide-react';
+import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { teams } from '@/entities/team/model/teams';
-import type { Team } from '@/entities/team/model/types';
 import { useTeamStore } from '@/entities/team/model/teamStore';
+import SessionTimeoutDialog from './SessionTimeoutDialog';
+import SessionStatus from './SessionStatus';
+import TeamSelectModal from './TeamSelectModal';
 
 const navTabs = [
    { label: '티켓/리셀', to: '/tickets' },
    { label: '구단', to: '/teams' },
 ] as const;
-
-const formatTime = (seconds: number) => {
-   const h = Math.floor(seconds / 3600);
-   const m = Math.floor((seconds % 3600) / 60);
-   const s = seconds % 60;
-   return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
-};
-
-const SessionStatus = ({
-   authExpiresAt,
-   onLogout,
-}: {
-   authExpiresAt: number | null;
-   onLogout: () => void;
-}) => {
-   const [now, setNow] = useState(Date.now());
-   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-   useEffect(() => {
-      if (authExpiresAt === null) {
-         if (intervalRef.current) clearInterval(intervalRef.current);
-         return;
-      }
-
-      setNow(Date.now());
-      intervalRef.current = setInterval(() => {
-         setNow(Date.now());
-      }, 1000);
-
-      return () => {
-         if (intervalRef.current) clearInterval(intervalRef.current);
-      };
-   }, [authExpiresAt]);
-
-   const remaining = authExpiresAt ? Math.max(0, Math.ceil((authExpiresAt - now) / 1000)) : 0;
-
-   useEffect(() => {
-      if (authExpiresAt === null || remaining > 0) {
-         return;
-      }
-
-      onLogout();
-   }, [authExpiresAt, onLogout, remaining]);
-
-   if (authExpiresAt === null) {
-      return null;
-   }
-
-   return (
-      <div className="flex items-center gap-2 px-1.5">
-         <Clock className="size-4 text-primary" />
-         <span className="text-caption-2-medium text-primary">{formatTime(remaining)}</span>
-         <button onClick={onLogout} className="text-caption-2-medium text-(--text-tertiary) underline">
-            로그아웃
-         </button>
-      </div>
-   );
-};
-
-const TeamSelectModal = ({
-   open,
-   onClose,
-   onSelectTeam,
-}: {
-   open: boolean;
-   onClose: () => void;
-   onSelectTeam: (team: Team) => void;
-}) => {
-   if (!open) return null;
-   return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-         <div
-            className="bg-white rounded-2xl w-full max-w-[660px] mx-4 p-8 flex flex-col gap-6"
-            onClick={e => e.stopPropagation()}
-         >
-            {/* 헤더 */}
-            <div className="flex items-center justify-between">
-               <h2 className="text-[22px] font-bold text-foreground">좋아하는 팀을 선택하세요</h2>
-               <button
-                  onClick={onClose}
-                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 transition-colors"
-               >
-                  <X className="size-5 text-foreground" />
-               </button>
-            </div>
-
-            {/* 팀 그리드 */}
-            <div className="grid grid-cols-2 gap-3">
-               {teams.filter(team => team.id === 'samsung' || team.id === 'kia').map(team => (
-                  <button
-                     key={team.id}
-                     type="button"
-                     disabled={!team.isEnabled}
-                     onClick={() => {
-                        onSelectTeam(team);
-                        onClose();
-                     }}
-                     className="flex items-center gap-4 px-5 py-4 rounded-xl border border-[#e5e7eb] bg-[#f9fafb] transition-colors enabled:hover:border-primary enabled:hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                     <div className="size-10 shrink-0">
-                        <img src={team.logoSrc} alt={team.name} className="size-full object-contain" />
-                     </div>
-                     <span className="text-[16px] font-semibold text-foreground">{team.name}</span>
-                  </button>
-               ))}
-            </div>
-         </div>
-      </div>
-   );
-};
 
 const Header = () => {
    const accessToken = useAuthStore(state => state.accessToken);
@@ -131,12 +22,18 @@ const Header = () => {
    const navigate = useNavigate();
 
    const [teamModalOpen, setTeamModalOpen] = useState(false);
+   const [isSessionTimeoutDialogOpen, setIsSessionTimeoutDialogOpen] = useState(false);
    const { selectedTeam, setSelectedTeam } = useTeamStore();
 
    const handleLogout = () => clearAuth();
+   const handleSessionTimeout = () => {
+      clearAuth();
+      setIsSessionTimeoutDialogOpen(true);
+   };
 
    return (
       <>
+         <SessionTimeoutDialog open={isSessionTimeoutDialogOpen} onConfirm={() => setIsSessionTimeoutDialogOpen(false)} />
          <header className="flex flex-col w-full">
             {/* State bar */}
             <div className="bg-background w-full px-4 py-1">
@@ -146,7 +43,13 @@ const Header = () => {
                      <span className="text-caption-2-medium text-(--text-tertiary)">혼잡도:</span>
                      <span className="text-caption-2-medium text-success">원활</span>
                   </div>
-                  {isLoggedIn && <SessionStatus authExpiresAt={authExpiresAt} onLogout={handleLogout} />}
+                  {isLoggedIn && (
+                     <SessionStatus
+                        authExpiresAt={authExpiresAt}
+                        onLogout={handleLogout}
+                        onTimeout={handleSessionTimeout}
+                     />
+                  )}
                </div>
             </div>
 
