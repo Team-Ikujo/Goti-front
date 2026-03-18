@@ -70,17 +70,21 @@ const DEFAULT_BLOCKS: SeatBlock[] = [
 ];
 
 const BLOCK_BY_ZONE: Partial<Record<ZoneItem['id'], SeatBlock[]>> = {
-   skybox: DEFAULT_BLOCKS,
    champion: DEFAULT_BLOCKS,
    'center-table': DEFAULT_BLOCKS,
-   'mediheal-table': DEFAULT_BLOCKS,
+   'cheering-special': DEFAULT_BLOCKS,
    party: DEFAULT_BLOCKS,
-   family: DEFAULT_BLOCKS,
+   'tigers-family': DEFAULT_BLOCKS,
+   'surprise-zone': DEFAULT_BLOCKS,
+   'family-seat': DEFAULT_BLOCKS,
    k9: DEFAULT_BLOCKS,
    k8: DEFAULT_BLOCKS,
    k5: DEFAULT_BLOCKS,
+   'sky-picnic': DEFAULT_BLOCKS,
+   'table-table': DEFAULT_BLOCKS,
    ev: DEFAULT_BLOCKS,
-   outfield: DEFAULT_BLOCKS,
+   'outfield-free': DEFAULT_BLOCKS,
+   'outfield-family': DEFAULT_BLOCKS,
 };
 
 const buildSeatStatus = (activeSeats: Set<string>, rowIndex: number, colIndex: number): SeatStatus => {
