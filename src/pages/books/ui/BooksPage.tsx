@@ -79,13 +79,17 @@ const BooksPage = () => {
       }
    }, [isCaptchaOpen]);
 
+   const resolvedBookingEntryState = bookingEntryState
+      ? ({
+           ...bookingEntryState,
+           requireCaptcha: undefined,
+        } satisfies BookingEntryState)
+      : undefined;
+
    const handleSelectZone = (zoneId: string) => {
       setSelectedZoneId(zoneId);
       navigate(`/books/seats/${zoneId}`, {
-         state: {
-            ...bookingEntryState,
-            homeTeamId: bookingEntryState?.homeTeamId,
-         } satisfies BookingEntryState,
+         state: resolvedBookingEntryState,
       });
    };
 
@@ -105,12 +109,7 @@ const BooksPage = () => {
       setCaptchaError('');
       navigate(location.pathname, {
          replace: true,
-         state: bookingEntryState?.homeTeamId
-            ? ({
-                 ...bookingEntryState,
-                 homeTeamId: bookingEntryState.homeTeamId,
-              } satisfies BookingEntryState)
-            : undefined,
+         state: resolvedBookingEntryState,
       });
    };
 
