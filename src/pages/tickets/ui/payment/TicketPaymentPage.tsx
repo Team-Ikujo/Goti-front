@@ -258,15 +258,11 @@ export default function TicketPaymentPage() {
 
          <main className="flex-1 bg-white flex justify-center px-4">
             <div className="w-full max-w-300 py-8 flex flex-col gap-8">
-               <h1 className="text-heading-2-bold leading-[1.45] tracking-[-0.032px] text-foreground">주문서</h1>
+               <h1 className="text-title-1-bold leading-[1.45] tracking-[-0.032px] text-foreground">주문서</h1>
 
                <div className="flex flex-col lg:flex-row gap-8 items-start">
                   {/* 왼쪽: 주문자 정보 */}
                   <div className="w-full lg:flex-1 min-w-0 flex flex-col gap-2.5">
-                     <h2 className="hidden lg:block text-heading-1-bold leading-normal text-foreground h-9">
-                        주문자 정보 입력
-                     </h2>
-
                      <div className="flex flex-col gap-6">
                         {/* 수령 방식 선택 */}
                         <PaymentCard>
@@ -375,8 +371,6 @@ export default function TicketPaymentPage() {
 
                   {/* 오른쪽: 주문 정보 — 데스크톱 전용 */}
                   <div className="hidden lg:flex flex-col flex-1 max-w-100 shrink-0 gap-2.5">
-                     <h2 className="text-heading-1-bold leading-normal text-foreground h-9">주문 정보 확인</h2>
-
                      <div className="flex flex-col gap-6">
                         <OrderSummaryCard orderInfo={orderInfo} />
 
