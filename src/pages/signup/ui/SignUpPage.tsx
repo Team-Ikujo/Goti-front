@@ -33,6 +33,7 @@ const SignUpPage = () => {
    const navigate = useNavigate();
    const socialSignupMutation = useSocialSignup();
    const sendSignupSmsCodeMutation = useSendSignupSmsCode();
+   const hasHydrated = useAuthStore(state => state.hasHydrated);
    const accessToken = useAuthStore(state => state.accessToken);
    const socialVerifyToken = useAuthStore(state => state.socialVerifyToken);
    const setAuthTokens = useAuthStore(state => state.setAuthTokens);
@@ -174,6 +175,10 @@ const SignUpPage = () => {
    }, [areRequiredTermsChecked, values.birthDate, values.name, values.nationality, values.phone, values.telecom]);
 
    useEffect(() => {
+      if (!hasHydrated) {
+         return;
+      }
+
       if (accessToken) {
          navigate('/', { replace: true });
          return;
@@ -182,7 +187,7 @@ const SignUpPage = () => {
       if (!socialVerifyToken) {
          navigate('/auth/login', { replace: true });
       }
-   }, [accessToken, navigate, socialVerifyToken]);
+   }, [accessToken, hasHydrated, navigate, socialVerifyToken]);
 
    useEffect(() => {
       if (!showAlert) return;
