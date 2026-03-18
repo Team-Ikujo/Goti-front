@@ -8,7 +8,6 @@ type BannerSlide = {
    backgroundImage: string;
    title: string[];
    subtitle: string[];
-   buttonLabel: string;
 };
 
 const slides: BannerSlide[] = [
@@ -17,7 +16,6 @@ const slides: BannerSlide[] = [
       backgroundImage: '/images/HeroStadium.png',
       title: ['2026', 'KBO 시즌권'],
       subtitle: ['2026.02.03(TUE) 18:00', '판매오픈'],
-      buttonLabel: '일정보기',
    },
 ];
 
@@ -110,13 +108,6 @@ const HeroBanner = () => {
                               </span>
                            ))}
                         </p>
-                        <Button
-                           variant="primary"
-                           className="bg-black/20 w-50 hover:bg-black/30 shadow-[inset_0_0_0_1px_var(--border-normal)]"
-                           onMouseDown={e => e.stopPropagation()}
-                        >
-                           {slide.buttonLabel}
-                        </Button>
                      </div>
                   </div>
                </div>

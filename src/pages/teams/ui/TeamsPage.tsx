@@ -21,7 +21,7 @@ const TeamsPage = () => {
                </header>
 
                <div className="grid w-full max-w-250 grid-cols-2 gap-3 min-[768px]:grid-cols-5 min-[768px]:gap-x-7.5 min-[768px]:gap-y-7.5 min-[768px]:px-3.75">
-                  {teams.map(team => (
+                  {teams.filter(team => team.id === 'samsung' || team.id === 'kia').map(team => (
                      <button
                         key={team.id}
                         type="button"

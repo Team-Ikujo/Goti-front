@@ -1,11 +1,11 @@
 // src/pages/teams/ui/TeamScheduleTab.tsx
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import ScheduleList from '@/pages/home/ui/game-schedule/ScheduleList';
-import YearMonthPicker from '@/pages/home/ui/game-schedule/YearMonthPicker';
+import { YearMonthPicker } from '@/pages/home/ui/game-schedule/YearMonthPicker';
 import {
    CURRENT_MONTH,
    CURRENT_WEEK,
@@ -26,12 +26,15 @@ export function TeamScheduleTab({ teamName }: Props) {
    const [weekMonth, setWeekMonth] = useState(CURRENT_MONTH);
    const [selectedWeek, setSelectedWeek] = useState(CURRENT_WEEK);
    const [showPicker, setShowPicker] = useState(false);
+   const pickerContainerRef = useRef<HTMLDivElement>(null);
 
    const filteredData = useMemo(() => {
       const byWeek = filterScheduleData(scheduleData, {
          activeTab: TAB_WEEK,
+         weekYear,
          weekMonth,
          selectedWeek,
+         allYear: weekYear,
          allMonth: weekMonth,
       });
 
@@ -68,43 +71,49 @@ export function TeamScheduleTab({ teamName }: Props) {
    return (
       <>
          {/* 월/주차 네비게이터 */}
-         <div className="flex flex-col gap-1 items-start w-full">
+         <div className="flex flex-col gap-3 items-center w-full">
             {/* 년월 선택 */}
-            <div className="relative flex items-center justify-center overflow-hidden px-5.5 py-2.25 rounded-[30px] w-full">
-               <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
+               <button
+                  onClick={prevMonth}
+                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-icon-primary"
+               >
+                  <ChevronLeft className="size-5 md:size-6" />
+               </button>
+
+               {/* 트리거 + 피커 컨테이너 */}
+               <div ref={pickerContainerRef} className="relative">
                   <button
-                     onClick={prevMonth}
-                     className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
-                  >
-                     <ChevronLeft className="size-5 md:size-6" />
-                  </button>
-                  <button
-                     onClick={() => setShowPicker(true)}
-                     className="text-[20px] md:text-[24px] font-bold text-foreground leading-normal min-w-27.5 text-center whitespace-nowrap"
+                     onClick={() => setShowPicker(prev => !prev)}
+                     className="text-heading-1-bold text-foreground leading-normal min-w-27.5 text-center"
                   >
                      {weekYear}-{String(weekMonth).padStart(2, '0')}
                   </button>
-                  <button
-                     onClick={nextMonth}
-                     className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
-                  >
-                     <ChevronRight className="size-5 md:size-6" />
-                  </button>
+
+                  {showPicker && (
+                     <YearMonthPicker
+                        year={weekYear}
+                        month={weekMonth}
+                        containerRef={pickerContainerRef}
+                        onSelectYear={y => {
+                           setWeekYear(y);
+                           setSelectedWeek(1);
+                        }}
+                        onSelectMonth={m => {
+                           setWeekMonth(m);
+                           setSelectedWeek(1);
+                        }}
+                        onClose={() => setShowPicker(false)}
+                     />
+                  )}
                </div>
 
-               {showPicker && (
-                  <YearMonthPicker
-                     year={weekYear}
-                     month={weekMonth}
-                     onConfirm={(year, month) => {
-                        setWeekYear(year);
-                        setWeekMonth(month);
-                        setSelectedWeek(1);
-                        setShowPicker(false);
-                     }}
-                     onClose={() => setShowPicker(false)}
-                  />
-               )}
+               <button
+                  onClick={nextMonth}
+                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-icon-primary"
+               >
+                  <ChevronRight className="size-5 md:size-6" />
+               </button>
             </div>
 
             {/* 주차 선택 */}

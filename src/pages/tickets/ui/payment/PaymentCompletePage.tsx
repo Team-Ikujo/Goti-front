@@ -1,9 +1,27 @@
 // src/pages/tickets/ui/payment/PaymentCompletePage.tsx
 
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Calendar, CheckCircle, MapPin } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import type { PaymentResponse } from '@/pages/tickets/api/paymentApi';
+import { Calendar, CheckCircle, ChevronLeft, MapPin } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
-import { PaymentHeader } from './_shared';
+import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
+import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
+
+function useTimerStr() {
+   const [now, setNow] = useState(Date.now());
+   const expiresAt = useBookingFlowTimerStore(state => state.expiresAt);
+
+   useEffect(() => {
+      const id = window.setInterval(() => setNow(Date.now()), 1000);
+      return () => window.clearInterval(id);
+   }, []);
+
+   const remaining = expiresAt !== null ? Math.max(0, Math.ceil((expiresAt - now) / 1000)) : 0;
+   const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
+   const ss = String(remaining % 60).padStart(2, '0');
+   return `${mm}:${ss}`;
+}
 
 type DeliveryMethod = 'mobile' | 'onsite' | 'delivery';
 
@@ -16,19 +34,21 @@ const DELIVERY_LABELS: Record<DeliveryMethod, string> = {
 const ENTRANCE_GUIDES: Record<DeliveryMethod, string[]> = {
    mobile: [
       '경기 시작 2시간 전부터 입장 가능합니다',
-      'QR코드는 마이페이지에서 확인하실 수 있습니다.',
+      'QR코드는 마이페이지 > 결제내역 에서 확인하실 수 있습니다.',
       '모바일 티켓 QR코드를 게이트에서 제시해주세요',
       '신분증을 함께 지참해주세요',
    ],
    onsite: [
       '경기 시작 2시간 전부터 티켓 수령 및 입장이 가능합니다.',
-      '경기장 티켓 수령처에서 예매 번호와 신분증을 제시해주세요.',
       '티켓 수령 후 게이트에서 티켓을 제시하고 입장해주세요.',
       '티켓 수령처 위치는 구장 안내를 참고해주세요.',
+      '현장 수령시 본인 확인을 위해 예매번호, 이름 및 전화번호 또는 신분증을 확인할 수 있습니다.',
+      '경로ㆍ청소년ㆍ초등학생ㆍ군인ㆍ국가유공자ㆍ장애인ㆍ다자녀 등 본인 확인이 필요한 경우, 현장 매표소에 증빙 서류 제시 및 본인 확인 후 티켓 수령이 가능합니다.',
    ],
    delivery: [
       '경기 시작 2시간 전부터 입장 가능합니다',
       '배송된 실물 티켓을 지참하여 경기장에 방문해주세요.',
+      '신분증을 함께 지참해주세요',
       '게이트에서 티켓을 제시하고 입장해주세요.',
       '티켓 분실 시 재발급이 어려울 수 있으니 보관에 유의해주세요.',
    ],
@@ -56,8 +76,11 @@ const MOCK_ORDER = {
 export default function PaymentCompletePage() {
    const navigate = useNavigate();
    const [searchParams] = useSearchParams();
+   const { state } = useLocation();
+   const timeStr = useTimerStr();
    const deliveryMethod = (searchParams.get('delivery') as DeliveryMethod) ?? 'mobile';
-   const order = MOCK_ORDER;
+   // API 응답이 있으면 사용, 없으면 MOCK_ORDER로 폴백
+   const order = (state as PaymentResponse | null) ?? (MOCK_ORDER as PaymentResponse);
 
    const actionButton =
       deliveryMethod === 'delivery'
@@ -66,13 +89,44 @@ export default function PaymentCompletePage() {
 
    return (
       <div className="min-h-screen flex flex-col bg-background">
-         <PaymentHeader matchTitle={order.matchTitle} venue={order.venue} dateTime={order.dateTime} />
+         {/* 데스크톱 헤더 */}
+         <div className="hidden lg:block">
+            <BooksHeader />
+         </div>
+
+         {/* 모바일 헤더 */}
+         <div className="lg:hidden flex flex-col w-full bg-background">
+            {/* 1행: 뒤로가기 | 제목(중앙) */}
+            <div className="relative flex items-center justify-between pl-3 pr-5 py-2">
+               <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="p-1 flex items-center justify-center shrink-0"
+                  aria-label="뒤로가기"
+               >
+                  <ChevronLeft className="size-6 text-foreground" />
+               </button>
+               <span className="absolute left-1/2 -translate-x-1/2 text-[18px] font-bold leading-[1.55] text-foreground whitespace-nowrap">
+                  예매 완료
+               </span>
+               <span className="text-[16px] font-bold leading-normal text-primary">{timeStr}</span>
+            </div>
+            {/* 2행: 경기 정보 */}
+            <div className="flex flex-col items-start justify-center px-5 py-[9px] border-b border-border-light">
+               <span className="text-[16px] font-bold leading-normal text-foreground">{order.gameTitle}</span>
+               <div className="flex items-center gap-1 text-[12px] font-medium leading-normal text-muted-foreground">
+                  <span>{order.gameVenue}</span>
+                  <span>∙</span>
+                  <span>{order.gameDate}</span>
+               </div>
+            </div>
+         </div>
 
          <main className="flex-1 bg-white flex justify-center px-4">
-            <div className="w-full max-w-[1200px] py-12 flex flex-col gap-[26px] items-center">
+            <div className="w-full max-w-[1200px] py-10 flex flex-col gap-[24px] items-center">
                {/* 완료 헤더 */}
                <div className="flex flex-col gap-3 items-center w-full">
-                  <div className="size-24 rounded-full bg-(--fill-hoveraccent) flex items-center justify-center">
+                  <div className="size-24 rounded-full bg-fill-hoveraccent flex items-center justify-center">
                      <CheckCircle className="size-12 text-primary" strokeWidth={1.5} />
                   </div>
                   <p className="text-[32px] font-bold leading-[1.45] tracking-[-0.032px] text-[#101828] text-center">
@@ -87,43 +141,44 @@ export default function PaymentCompletePage() {
                <div className="w-full border-2 border-border-light rounded-[14px] p-[26px] flex flex-col gap-6 bg-background">
                   {/* 예매 번호 */}
                   <div className="flex flex-col gap-1">
-                     <span className="text-[16px] font-bold leading-[1.5] text-(--text-secondary)">예매 번호</span>
+                     <span className="text-[16px] font-bold leading-normal text-disabled-foreground">예매 번호</span>
                      <span className="text-[18px] font-bold leading-[1.55] text-foreground">{order.orderNumber}</span>
                   </div>
 
-                  {/* 구분선 + 경기 / 수량 / 좌석 */}
-                  <div className="border-t border-border pt-[30px] flex flex-col gap-[30px]">
-                     {/* 경기 정보 */}
-                     <div className="flex flex-col gap-2">
-                        <span className="text-[16px] font-bold leading-[1.5] text-(--text-secondary)">경기 정보</span>
-                        <span className="text-[24px] font-bold leading-[1.5] text-[#101828]">{order.gameTitle}</span>
-                        <div className="flex items-center gap-4">
-                           <div className="flex items-center gap-2">
-                              <Calendar className="size-5 text-foreground shrink-0" />
-                              <span className="text-[16px] font-medium leading-[1.5] text-foreground">
-                                 {order.gameDate}
-                              </span>
-                           </div>
-                           <div className="flex items-center gap-2">
-                              <MapPin className="size-5 text-foreground shrink-0" />
-                              <span className="text-[16px] font-medium leading-[1.5] text-foreground">
-                                 {order.gameVenue}
-                              </span>
-                           </div>
+                  {/* 경기 정보 */}
+                  <div className="border-t border-border pt-6 flex flex-col gap-2">
+                     <span className="text-[16px] font-bold leading-normal text-disabled-foreground">경기 정보</span>
+                     <span className="text-[24px] font-bold leading-normal text-[#101828]">{order.gameTitle}</span>
+                     <div className="flex flex-wrap items-center gap-4">
+                        <div className="flex items-center gap-2">
+                           <Calendar className="size-5 text-foreground shrink-0" />
+                           <span className="text-[16px] font-medium leading-normal text-foreground">
+                              {order.gameDate}
+                           </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <MapPin className="size-5 text-foreground shrink-0" />
+                           <span className="text-[16px] font-medium leading-normal text-foreground">
+                              {order.gameVenue}
+                           </span>
                         </div>
                      </div>
+                  </div>
 
-                     {/* 수량 */}
-                     <div className="flex flex-col gap-1">
-                        <span className="text-[16px] font-bold leading-[1.5] text-(--text-secondary)">수량</span>
-                        <span className="text-[16px] font-medium leading-[1.5] text-foreground">{order.quantity}매</span>
+                  {/* 수량 + 좌석 정보 — 모바일: 2컬럼 / 데스크톱: 2컬럼 */}
+                  <div className="border-t border-border pt-6 flex gap-5 items-start">
+                     <div className="flex-1 flex flex-col gap-1">
+                        <span className="text-[16px] font-bold leading-normal text-disabled-foreground">수량</span>
+                        <span className="text-[16px] font-medium leading-normal text-foreground">
+                           {order.quantity}매
+                        </span>
                      </div>
-
-                     {/* 좌석 정보 */}
-                     <div className="flex flex-col gap-1">
-                        <span className="text-[16px] font-bold leading-[1.5] text-(--text-secondary)">좌석 정보</span>
+                     {/* 수직 구분선 */}
+                     <div className="w-px self-stretch bg-border" />
+                     <div className="flex-1 flex flex-col gap-1">
+                        <span className="text-[16px] font-bold leading-normal text-disabled-foreground">좌석 정보</span>
                         {order.seats.map((seat, i) => (
-                           <span key={i} className="text-[16px] font-medium leading-[1.5] text-foreground">
+                           <span key={i} className="text-[16px] font-medium leading-normal text-foreground">
                               {seat}
                            </span>
                         ))}
@@ -131,13 +186,15 @@ export default function PaymentCompletePage() {
                   </div>
                </div>
 
-               {/* 입장 안내 카드 — 수령 방식별 문구 상이 */}
-               <div className="w-full bg-(--fill-hoveraccent) border border-(--border-accent) rounded-[14px] p-[25px]">
+               {/* 입장 안내 카드 */}
+               <div className="w-full bg-fill-hoveraccent border border-border-accent rounded-[14px] p-[25px]">
                   <div className="flex flex-col gap-2">
                      <span className="text-[18px] font-bold leading-[1.55] text-[#0054d1]">입장 안내</span>
-                     <div className="flex flex-col gap-1 text-[16px] font-medium leading-[1.5] text-[#0054d1]">
+                     <div className="flex flex-col gap-1 text-[16px] font-medium leading-normal text-[#0054d1]">
                         {ENTRANCE_GUIDES[deliveryMethod].map((guide, i) => (
-                           <p key={i}>• {guide}</p>
+                           <p key={i} className="w-full">
+                              • {guide}
+                           </p>
                         ))}
                      </div>
                   </div>
@@ -153,16 +210,14 @@ export default function PaymentCompletePage() {
                         { label: '주문접수일시', value: order.orderedAt },
                         { label: '수령 방식', value: DELIVERY_LABELS[deliveryMethod] },
                      ].map(({ label, value }) => (
-                        <div key={label} className="flex items-start justify-between text-[16px] leading-[1.5]">
-                           <span className="font-bold text-foreground">{label}</span>
+                        <div key={label} className="flex items-start justify-between text-[16px] leading-normal">
+                           <span className="font-bold text-muted-foreground">{label}</span>
                            <span className="font-medium text-foreground">{value}</span>
                         </div>
                      ))}
-                     <div className="flex items-start justify-between text-[16px] leading-[1.5]">
-                        <span className="font-bold text-foreground">결제 금액</span>
-                        <span className="font-medium text-destructive">
-                           {order.amount.toLocaleString('ko-KR')}원
-                        </span>
+                     <div className="flex items-start justify-between text-[16px] leading-normal">
+                        <span className="font-bold text-muted-foreground">결제 금액</span>
+                        <span className="font-medium text-destructive">{order.amount.toLocaleString('ko-KR')}원</span>
                      </div>
                   </div>
                </div>
@@ -177,8 +232,8 @@ export default function PaymentCompletePage() {
                            { label: '휴대폰번호', value: order.recipientPhone },
                            { label: '주소', value: order.recipientAddress },
                         ].map(({ label, value }) => (
-                           <div key={label} className="flex items-start justify-between text-[16px] leading-[1.5]">
-                              <span className="font-bold text-foreground">{label}</span>
+                           <div key={label} className="flex items-start justify-between text-[16px] leading-normal">
+                              <span className="font-bold text-muted-foreground">{label}</span>
                               <span className="font-medium text-foreground">{value}</span>
                            </div>
                         ))}
@@ -188,10 +243,10 @@ export default function PaymentCompletePage() {
 
                {/* 하단 버튼 */}
                <div className="flex gap-4 justify-center w-full">
-                  <Button variant="secondary" className="w-[360px] py-3" onClick={() => navigate('/')}>
+                  <Button variant="secondary" className="flex-1 max-w-[360px] py-3" onClick={() => navigate('/')}>
                      홈으로
                   </Button>
-                  <Button variant="primary" className="w-[360px] py-3" onClick={actionButton.onClick}>
+                  <Button variant="primary" className="flex-1 max-w-[360px] py-3" onClick={actionButton.onClick}>
                      {actionButton.label}
                   </Button>
                </div>

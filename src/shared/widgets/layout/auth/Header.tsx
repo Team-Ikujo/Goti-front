@@ -51,7 +51,7 @@ const TeamSelectModal = ({
 
             {/* 팀 그리드 */}
             <div className="grid grid-cols-2 gap-3">
-               {teams.map(team => (
+               {teams.filter(team => team.id === 'samsung' || team.id === 'kia').map(team => (
                   <button
                      key={team.id}
                      type="button"
@@ -190,9 +190,9 @@ const Header = () => {
                         </button>
                         <button
                            className="flex items-center justify-center size-9.5 rounded-lg hover:bg-(--fill-hover) transition-colors"
+                           // 마이페이지로 연결
                            onClick={handleLogout}
-                           title="로그아웃"
-                           
+                           title="마이페이지"
                         >
                            <img src="/Icon/Line/Mypage.svg" alt="마이페이지" className="size-4.5" />
                         </button>
