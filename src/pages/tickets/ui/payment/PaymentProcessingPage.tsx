@@ -1,9 +1,14 @@
-// src/pages/tickets/ui/payment/PaymentProcessingPage.tsx
-
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { createPayment, type PaymentRequest } from '@/pages/tickets/api/paymentApi';
+import {
+   submitResaleOrder,
+   submitTicketOrder,
+   type ResaleCheckoutRequest,
+   type TicketCheckoutRequest,
+} from '@/pages/tickets/api/paymentApi';
+import { ApiError } from '@/shared/api/client';
 
 import { PaymentHeader } from './_shared';
 
@@ -17,47 +22,70 @@ const MOCK_GAME = {
 export default function PaymentProcessingPage() {
    const navigate = useNavigate();
    const { state } = useLocation();
-   const locationState = state as { request: PaymentRequest; amount: number } | null;
+   const locationState = state as { request: TicketCheckoutRequest | ResaleCheckoutRequest; amount: number } | null;
+   const hasStartedRef = useRef(false);
+   const { mutateAsync } = useMutation({
+      mutationFn: async (request: TicketCheckoutRequest | ResaleCheckoutRequest) => {
+         if ('gameId' in request && 'selectedSeats' in request) {
+            return submitTicketOrder(request);
+         }
+
+         return submitResaleOrder(request);
+      },
+   });
 
    useEffect(() => {
-      // StrictMode 이중 실행 방지: cleanup에서 ignore를 true로 설정해
-      // 언마운트된 effect의 navigate 호출을 막는다.
-      let ignore = false;
-
       if (!locationState?.request) {
          navigate('/tickets/payment', { replace: true });
          return;
       }
 
+      if (hasStartedRef.current) {
+         return;
+      }
+
+      hasStartedRef.current = true;
+
       const { request: paymentRequest, amount: clientAmount } = locationState;
+      const isStillOnProcessingPage = () => window.location.pathname === '/tickets/payment/processing';
 
       const process = async () => {
          try {
-            const result = await createPayment(paymentRequest);
-            if (!ignore) {
+            const result = await mutateAsync(paymentRequest);
+            if (isStillOnProcessingPage()) {
                navigate(
                   `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}`,
-                  // 결제 화면에서 보여준 금액과 동일하게 표시
                   { state: { ...result, amount: clientAmount }, replace: true },
                );
             }
-         } catch {
-            if (!ignore) {
-               navigate('/tickets/payment', { replace: true });
+         } catch (error) {
+            if (isStillOnProcessingPage()) {
+               const message =
+                  error instanceof ApiError
+                     ? error.message
+                     : '결제 요청 처리 중 오류가 발생했습니다. 입력값을 다시 확인해 주세요.';
+               window.alert(message);
+               navigate('listingId' in paymentRequest ? '/tickets/resell-payment' : '/tickets/payment', { replace: true });
             }
          }
       };
 
       process();
+   }, [locationState, mutateAsync, navigate]);
 
-      return () => {
-         ignore = true;
-      };
-   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+   const headerRequest = locationState?.request;
+   const headerProps =
+      headerRequest && 'matchTitle' in headerRequest
+         ? {
+              matchTitle: headerRequest.matchTitle,
+              venue: headerRequest.gameVenue,
+              dateTime: headerRequest.gameDate,
+           }
+         : MOCK_GAME;
 
    return (
       <div className="min-h-screen flex flex-col bg-background">
-         <PaymentHeader {...MOCK_GAME} />
+         <PaymentHeader {...headerProps} />
 
          <main className="flex-1 bg-white flex flex-col items-center justify-center gap-[50px]">
             {/* 원형 점 스피너 */}

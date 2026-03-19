@@ -1,10 +1,14 @@
 // src/pages/tickets/ui/payment/TicketPaymentPage.tsx
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/entities/auth/model/authStore';
+import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSeatPaymentSummary';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
+import { getBookingTeamConfig, getBookingZones } from '@/pages/books/model/zoneData';
 import { Button } from '@/shared/ui/button';
-import type { PaymentRequest } from '@/pages/tickets/api/paymentApi';
+import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import type { TicketCheckoutRequest } from '@/pages/tickets/api/paymentApi';
 import {
    CashReceiptCard,
    DiscountCard,
@@ -39,9 +43,58 @@ const MOCK_GAME = {
    dateTime: '3.21 (토) 오후 18:30',
 };
 
+const resolveUserIdFromAccessToken = (accessToken: string | null) => {
+   if (!accessToken) {
+      return undefined;
+   }
+
+   const tokenParts = accessToken.split('.');
+
+   if (tokenParts.length < 2) {
+      return undefined;
+   }
+
+   try {
+      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>;
+      const userId =
+         payload.userId ??
+         payload.user_id ??
+         payload.memberId ??
+         payload.member_id ??
+         payload.sub;
+
+      return typeof userId === 'string' && userId.length > 0 ? userId : undefined;
+   } catch {
+      return undefined;
+   }
+};
+
 export default function TicketPaymentPage() {
    const navigate = useNavigate();
+   const location = useLocation();
+   const routeBookingEntryState = location.state as BookingEntryState | null;
+   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
+   const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
+   const accessToken = useAuthStore((state) => state.accessToken);
    const zonesState = useSeatSelectionStore((state) => state.zones);
+   const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
+   const bookingZones = bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId);
+   const paymentSummary = getSelectedSeatPaymentSummary(zonesState, bookingZones);
+   const selectedSeats = Object.entries(zonesState).flatMap(([zoneId, zone]) => {
+      const selectedZone = bookingZones.find((item) => item.id === zoneId);
+
+      if (!selectedZone) {
+         return [];
+      }
+
+      return zone.selectedSeatIds
+         .map((seatId) => zone.seatMap[seatId])
+         .filter((seat) => Boolean(seat))
+         .map((seat) => ({
+            seatId: seat.id,
+            label: `${selectedZone.name} ${seat.block}블록 ${seat.rowLabel} ${seat.seatNumber}번`,
+         }));
+   });
 
    // 주문자 정보
    const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('mobile');
@@ -79,6 +132,9 @@ export default function TicketPaymentPage() {
       !!email &&
       isDeliveryValid &&
       isCashReceiptValid &&
+      selectedSeats.length > 0 &&
+      !!bookingEntryState?.gameId &&
+      !!bookingEntryState?.queueTokenJti &&
       agreedPrivacy &&
       agreedPolicy &&
       agreedResell;
@@ -89,17 +145,25 @@ export default function TicketPaymentPage() {
    };
 
    const orderInfo = {
-      matchTitle: MOCK_GAME.matchTitle,
-      dateTime: MOCK_GAME.dateTime,
-      quantity: 2,
-      seats: ['1E-2구역 0열 0번', '1E-2구역 0열 0번'],
+      matchTitle: bookingEntryState?.matchTitle ?? `${bookingTeamConfig.displayName} 홈경기`,
+      dateTime: bookingEntryState?.dateTime ?? MOCK_GAME.dateTime,
+      quantity: paymentSummary.quantity,
+      seats: paymentSummary.seatLabels,
       deliveryLabel: DELIVERY_LABELS[deliveryMethod],
       paymentLabel: PAYMENT_LABELS[paymentMethod],
    };
 
    // 수수료: 매당 1,000원
    const fee = orderInfo.quantity * 1000;
-   const totalPayment = shippingFee + fee; // ticketPrice·할인 0원 (TODO: 실데이터 연결 후 업데이트)
+   const ticketPrice = paymentSummary.totalPrice;
+   const totalPayment = ticketPrice + shippingFee + fee; // 할인 0원
+   const resolvedUserId = bookingEntryState?.userId ?? resolveUserIdFromAccessToken(accessToken);
+
+   useEffect(() => {
+      if (routeBookingEntryState) {
+         setBookingEntry(routeBookingEntryState);
+      }
+   }, [routeBookingEntryState, setBookingEntry]);
 
    useEffect(() => {
       const selectedSeatSummary = Object.entries(zonesState).flatMap(([zoneId, zone]) =>
@@ -115,8 +179,55 @@ export default function TicketPaymentPage() {
       });
    }, [zonesState]);
 
+   useEffect(() => {
+      console.info('[TicketPaymentPage] form validity check', {
+         isFormValid,
+         hasName: !!name,
+         hasPhoneLength11: phone.length === 11,
+         hasEmail: !!email,
+         isDeliveryValid,
+         isCashReceiptValid,
+         selectedSeatCount: selectedSeats.length,
+         hasGameId: !!bookingEntryState?.gameId,
+         hasQueueTokenJti: !!bookingEntryState?.queueTokenJti,
+         agreedPrivacy,
+         agreedPolicy,
+         agreedResell,
+      });
+   }, [
+      agreedPolicy,
+      agreedPrivacy,
+      agreedResell,
+      bookingEntryState?.gameId,
+      bookingEntryState?.queueTokenJti,
+      email,
+      isCashReceiptValid,
+      isDeliveryValid,
+      isFormValid,
+      name,
+      phone,
+      selectedSeats.length,
+   ]);
+
    const handlePay = () => {
-      const paymentRequest: PaymentRequest = {
+      if (!bookingEntryState?.gameId || !bookingEntryState.queueTokenJti) {
+         return;
+      }
+
+      if (!resolvedUserId) {
+         window.alert('결제 사용자 정보를 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.');
+         return;
+      }
+
+      const paymentRequest: TicketCheckoutRequest = {
+         gameId: bookingEntryState.gameId,
+         queueTokenJti: bookingEntryState.queueTokenJti,
+         userId: resolvedUserId,
+         matchTitle: orderInfo.matchTitle,
+         gameDate: orderInfo.dateTime,
+         gameVenue: bookingEntryState?.venue ?? bookingTeamConfig.stadiumName ?? MOCK_GAME.venue,
+         amount: totalPayment,
+         selectedSeats,
          deliveryMethod,
          ordererName: name,
          ordererPhone: phone,
@@ -134,7 +245,11 @@ export default function TicketPaymentPage() {
 
    return (
       <div className="min-h-screen flex flex-col bg-background">
-         <PaymentHeader {...MOCK_GAME} />
+         <PaymentHeader
+            matchTitle={orderInfo.matchTitle}
+            venue={bookingEntryState?.venue ?? bookingTeamConfig.stadiumName ?? MOCK_GAME.venue}
+            dateTime={orderInfo.dateTime}
+         />
 
          <main className="flex-1 bg-white flex justify-center px-4">
             <div className="w-full max-w-[1200px] py-8 flex flex-col gap-8">
@@ -232,7 +347,7 @@ export default function TicketPaymentPage() {
                         <div className="lg:hidden flex flex-col gap-6">
                            <OrderSummaryCard orderInfo={orderInfo} />
                            <PaymentAmountCard
-                              ticketPrice={0}
+                              ticketPrice={ticketPrice}
                               shippingFee={shippingFee}
                               discounts={[
                                  { label: '학생 할인 5%', amount: 0 },
@@ -261,7 +376,7 @@ export default function TicketPaymentPage() {
                         <OrderSummaryCard orderInfo={orderInfo} />
 
                         <PaymentAmountCard
-                           ticketPrice={0}
+                           ticketPrice={ticketPrice}
                            shippingFee={shippingFee}
                            discounts={[
                               { label: '학생 할인 5%', amount: 0 },

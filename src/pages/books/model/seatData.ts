@@ -70,27 +70,97 @@ const DEFAULT_BLOCKS: SeatBlock[] = [
 ];
 
 const BLOCK_BY_ZONE: Partial<Record<ZoneItem['id'], SeatBlock[]>> = {
-   skybox: DEFAULT_BLOCKS,
    champion: DEFAULT_BLOCKS,
    'center-table': DEFAULT_BLOCKS,
-   'mediheal-table': DEFAULT_BLOCKS,
+   'cheering-special': DEFAULT_BLOCKS,
    party: DEFAULT_BLOCKS,
-   family: DEFAULT_BLOCKS,
+   'tigers-family': DEFAULT_BLOCKS,
+   'surprise-zone': DEFAULT_BLOCKS,
+   'family-seat': DEFAULT_BLOCKS,
    k9: DEFAULT_BLOCKS,
    k8: DEFAULT_BLOCKS,
    k5: DEFAULT_BLOCKS,
+   'sky-picnic': DEFAULT_BLOCKS,
+   'table-table': DEFAULT_BLOCKS,
    ev: DEFAULT_BLOCKS,
-   outfield: DEFAULT_BLOCKS,
+   'outfield-free': DEFAULT_BLOCKS,
+   'outfield-family': DEFAULT_BLOCKS,
 };
 
 const buildSeatStatus = (activeSeats: Set<string>, rowIndex: number, colIndex: number): SeatStatus => {
    return activeSeats.has(`${rowIndex}-${colIndex}`) ? 'available' : 'disabled';
 };
 
-export const getSeatBlocks = (zoneId: ZoneItem['id']) => BLOCK_BY_ZONE[zoneId] ?? DEFAULT_BLOCKS;
+const expandSectionCodes = (sectionCode: string) => {
+   return sectionCode
+      .split(',')
+      .flatMap((token) => {
+         const trimmedToken = token.trim();
+
+         if (!trimmedToken) {
+            return [];
+         }
+
+         if (!trimmedToken.includes('~')) {
+            return [trimmedToken];
+         }
+
+         const [start, end] = trimmedToken.split('~');
+
+         if (!start || !end) {
+            return [trimmedToken];
+         }
+
+         const startMatch = start.match(/^(.*?)(\d+)$/);
+         const endMatch = end.match(/^(.*?)(\d+)$/);
+
+         if (!startMatch || !endMatch || startMatch[1] !== endMatch[1]) {
+            return [trimmedToken];
+         }
+
+         const prefix = startMatch[1];
+         const startNumber = Number(startMatch[2]);
+         const endNumber = Number(endMatch[2]);
+
+         if (Number.isNaN(startNumber) || Number.isNaN(endNumber) || startNumber > endNumber) {
+            return [trimmedToken];
+         }
+
+         const width = startMatch[2].length;
+
+         return Array.from({ length: endNumber - startNumber + 1 }, (_, index) => {
+            return `${prefix}${String(startNumber + index).padStart(width, '0')}`;
+         });
+      })
+      .filter(Boolean);
+};
+
+const applySectionLabelsToBlocks = (blocks: SeatBlock[], sectionCode: string) => {
+   const labels = expandSectionCodes(sectionCode);
+
+   if (labels.length === 0) {
+      return blocks;
+   }
+
+   return blocks.slice(0, labels.length).map((block, index) => {
+      const label = labels[index];
+
+      return {
+         ...block,
+         id: label,
+         label,
+      };
+   });
+};
+
+export const getSeatBlocks = (zone: ZoneItem) => {
+   const baseBlocks = BLOCK_BY_ZONE[zone.id] ?? DEFAULT_BLOCKS;
+
+   return applySectionLabelsToBlocks(baseBlocks, zone.sectionCode);
+};
 
 export const createSeatsForZone = (zone: ZoneItem): SeatItem[] => {
-   return getSeatBlocks(zone.id).flatMap((block) => {
+   return getSeatBlocks(zone).flatMap((block) => {
       const hiddenSeats = new Set(block.hiddenSeats ?? []);
       const activeSeats = new Set(block.activeSeats ?? []);
 

@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, HelpCircle, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getBookingTeamConfig } from '@/pages/books/model/zoneData';
+import { formatBookingHeaderDateTime } from '@/shared/lib/bookingDateTime';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
+import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { DEFAULT_BOOKING_TIMER_SECONDS, useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 
 import BooksExitDialog from './BooksExitDialog';
@@ -39,9 +42,9 @@ export interface BooksHeaderProps {
  * 단계 표시, 경기 정보, 카운트다운, 이탈 확인 동작을 화면별로 조정할 수 있습니다.
  */
 const BooksHeader = ({
-   matchTitle = DEFAULT_MATCH_INFO.matchTitle,
-   venue = DEFAULT_MATCH_INFO.venue,
-   dateTime = DEFAULT_MATCH_INFO.dateTime,
+   matchTitle,
+   venue,
+   dateTime,
    steps = DEFAULT_STEPS,
    currentStepIndex,
    showBackButton,
@@ -52,7 +55,11 @@ const BooksHeader = ({
    confirmBeforeExit = true,
 }: BooksHeaderProps = {}) => {
    const navigate = useNavigate();
-   const { pathname } = useLocation();
+   const { pathname, state } = useLocation();
+   const routeBookingEntryState = state as BookingEntryState | null;
+   const bookingEntryState = useBookingEntryStore((store) => store.entry) ?? routeBookingEntryState;
+   const clearBookingEntry = useBookingEntryStore((store) => store.clearEntry);
+   const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
    const resolvedCurrentStepIndex = currentStepIndex ?? (pathname.includes('/books/seats/') ? 1 : 0);
    const shouldShowBackButton = showBackButton ?? resolvedCurrentStepIndex > 0;
    const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
@@ -92,6 +99,10 @@ const BooksHeader = ({
    const ss = String(remainingSeconds % 60).padStart(2, '0');
    const timeStr = `${mm}:${ss}`;
    const currentStepLabel = steps[resolvedCurrentStepIndex] ?? '';
+   const resolvedMatchTitle =
+      matchTitle ?? bookingEntryState?.matchTitle ?? `${bookingTeamConfig.displayName} 홈경기`;
+   const resolvedVenue = venue ?? bookingEntryState?.venue ?? bookingTeamConfig.stadiumName;
+   const resolvedDateTime = formatBookingHeaderDateTime(dateTime ?? bookingEntryState?.dateTime ?? DEFAULT_MATCH_INFO.dateTime);
 
    useEffect(() => {
       if (!showTimer || expiresAt === null || remainingSeconds > 0) {
@@ -109,6 +120,7 @@ const BooksHeader = ({
 
       if (!confirmBeforeExit) {
          clearTimer();
+         clearBookingEntry();
          navigate(EXIT_DESTINATIONS[destination]);
          return;
       }
@@ -125,6 +137,7 @@ const BooksHeader = ({
             onConfirm={() => {
                setIsExitDialogOpen(false);
                clearTimer();
+               clearBookingEntry();
                navigate(EXIT_DESTINATIONS[exitDestination]);
             }}
          />
@@ -133,6 +146,7 @@ const BooksHeader = ({
             onConfirm={() => {
                setIsTimeoutDialogOpen(false);
                clearTimer();
+               clearBookingEntry();
                navigate('/');
             }}
          />
@@ -168,11 +182,11 @@ const BooksHeader = ({
                </div>
 
                <div className="border-b border-border-light px-5 py-[9px]">
-                  <p className="text-body-1-bold text-foreground">{matchTitle}</p>
+                  <p className="text-body-1-bold text-foreground">{resolvedMatchTitle}</p>
                   <div className="flex flex-wrap items-center gap-1 text-caption-1-medium text-secondary">
-                     <span>{venue}</span>
-                     <span aria-hidden="true">·</span>
-                     <span>{dateTime}</span>
+                     <span>{resolvedVenue}</span>
+                     <span aria-hidden="true">∙</span>
+                     <span>{resolvedDateTime}</span>
                   </div>
                </div>
             </div>
@@ -232,10 +246,10 @@ const BooksHeader = ({
                         <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                      </button>
                   ) : null}
-                  <h1 className="mr-2 text-heading-2-bold text-foreground">{matchTitle}</h1>
-                  <span>{venue}</span>
-                  <span aria-hidden="true">·</span>
-                  <span>{dateTime}</span>
+                  <h1 className="mr-2 text-heading-2-bold text-foreground">{resolvedMatchTitle}</h1>
+                  <span>{resolvedVenue}</span>
+                  <span aria-hidden="true">∙</span>
+                  <span>{resolvedDateTime}</span>
                </div>
                <ol className="flex flex-wrap items-center gap-1 lg:gap-2" aria-label="예매 진행 단계">
                   {steps.map((step, index) => {

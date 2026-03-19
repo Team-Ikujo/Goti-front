@@ -1,20 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 
-import { BOOKING_ZONES } from '@/pages/books/model/zoneData';
+import { fetchSeatGrades, fetchSeatSections, mapSeatSectionsToZones, mergeBookingZones } from '@/pages/books/api/bookingApi';
+import { getBookingTeamConfig, getZoneDisplayOrder, getBookingZones } from '@/pages/books/model/zoneData';
+import type { ZoneItem } from '@/pages/books/model/types';
+import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 
 import BookingCaptchaGate from './components/BookingCaptchaGate';
 import BookingZoneList from './components/BookingZoneList';
 import BookingZoneMap from './components/BookingZoneMap';
 
-const ZONE_DISPLAY_ORDER = ['k9', 'k8', 'k5', 'ev', 'outfield', 'skybox', 'champion', 'center-table', 'mediheal-table', 'party', 'family'];
-
 const CAPTCHA_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-type BookingEntryState = {
-   requireCaptcha?: boolean;
-};
 
 function createMockCaptcha(length = 6): string {
    return Array.from(
@@ -25,15 +23,47 @@ function createMockCaptcha(length = 6): string {
 const BooksPage = () => {
    const navigate = useNavigate();
    const location = useLocation();
-   const bookingEntryState = location.state as BookingEntryState | null;
+   const routeBookingEntryState = location.state as BookingEntryState | null;
+   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
+   const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
+   const patchBookingEntry = useBookingEntryStore((state) => state.patchEntry);
+   const bookingTeamConfig = useMemo(() => getBookingTeamConfig(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
    const requiresCaptcha = Boolean(bookingEntryState?.requireCaptcha);
-   const zones = useMemo(
+   const localZones = useMemo(
       () =>
-         [...BOOKING_ZONES].sort(
-            (a, b) => ZONE_DISPLAY_ORDER.indexOf(a.id) - ZONE_DISPLAY_ORDER.indexOf(b.id) || b.remaining - a.remaining,
+         [...getBookingZones(bookingEntryState?.homeTeamId)].sort(
+            (a, b) =>
+               getZoneDisplayOrder(bookingEntryState?.homeTeamId).indexOf(a.id) -
+                  getZoneDisplayOrder(bookingEntryState?.homeTeamId).indexOf(b.id) || b.remaining - a.remaining,
          ),
-      [],
+      [bookingEntryState?.homeTeamId],
    );
+   const { data: apiZones } = useQuery({
+      queryKey: ['booking-zones', bookingEntryState?.stadiumId, bookingEntryState?.homeTeamId],
+      enabled: Boolean(bookingEntryState?.stadiumId),
+      queryFn: async () => {
+         const [grades, sections] = await Promise.all([
+            fetchSeatGrades(bookingEntryState!.stadiumId!),
+            fetchSeatSections(bookingEntryState!.stadiumId!),
+         ]);
+
+         return mapSeatSectionsToZones({
+            sections,
+            grades,
+            teamId: bookingEntryState?.homeTeamId,
+         });
+      },
+   });
+   const zones = useMemo<ZoneItem[]>(() => {
+      const mergedZones = mergeBookingZones({
+         localZones,
+         apiZones,
+      });
+
+      return [...mergedZones].sort(
+         (left, right) => right.remaining - left.remaining || left.name.localeCompare(right.name, 'ko-KR'),
+      );
+   }, [apiZones, localZones]);
 
    const [selectedZoneId, setSelectedZoneId] = useState(zones[0]?.id ?? '');
    const [isCaptchaOpen, setIsCaptchaOpen] = useState(requiresCaptcha);
@@ -43,6 +73,26 @@ const BooksPage = () => {
    const [isZoneDrawerOpen, setIsZoneDrawerOpen] = useState(true);
 
    const captchaCode = useMemo(() => createMockCaptcha(), [captchaSeed]);
+
+   useEffect(() => {
+      if (routeBookingEntryState) {
+         setBookingEntry(routeBookingEntryState);
+      }
+   }, [routeBookingEntryState, setBookingEntry]);
+
+   useEffect(() => {
+      setSelectedZoneId(zones[0]?.id ?? '');
+   }, [zones]);
+
+   useEffect(() => {
+      if (zones.length === 0) {
+         return;
+      }
+
+      patchBookingEntry({
+         bookingZones: zones,
+      });
+   }, [patchBookingEntry, zones]);
 
    useEffect(() => {
       if (!requiresCaptcha) {
@@ -77,9 +127,23 @@ const BooksPage = () => {
       }
    }, [isCaptchaOpen]);
 
+   const resolvedBookingEntryState = useMemo<BookingEntryState | undefined>(() => {
+      if (!bookingEntryState) {
+         return undefined;
+      }
+
+      return {
+         ...bookingEntryState,
+         requireCaptcha: undefined,
+         bookingZones: zones,
+      } satisfies BookingEntryState;
+   }, [bookingEntryState, zones]);
+
    const handleSelectZone = (zoneId: string) => {
       setSelectedZoneId(zoneId);
-      navigate(`/books/seats/${zoneId}`);
+      navigate(`/books/seats/${zoneId}`, {
+         state: resolvedBookingEntryState,
+      });
    };
 
    const refreshCaptcha = () => {
@@ -96,7 +160,10 @@ const BooksPage = () => {
       setIsCaptchaOpen(false);
       setCaptchaInput('');
       setCaptchaError('');
-      navigate(location.pathname, { replace: true });
+      navigate(location.pathname, {
+         replace: true,
+         state: resolvedBookingEntryState,
+      });
    };
 
    return (
@@ -134,6 +201,8 @@ const BooksPage = () => {
                selectedZoneId={selectedZoneId}
                onSelectZone={handleSelectZone}
                mobileExpanded={!isCaptchaOpen && !isZoneDrawerOpen}
+               stadiumImage={bookingTeamConfig.stadiumImage}
+               stadiumImageAlt={bookingTeamConfig.stadiumImageAlt}
             />
             {!isCaptchaOpen ? (
                <Drawer open={isZoneDrawerOpen} onOpenChange={setIsZoneDrawerOpen} modal={false}>
@@ -176,7 +245,13 @@ const BooksPage = () => {
             ) : null}
          </section>
          <main className="hidden min-h-[calc(100vh-140px)] lg:grid lg:h-[calc(100vh-140px)] lg:grid-cols-[minmax(0,1fr)_420px]">
-            <BookingZoneMap zones={zones} selectedZoneId={selectedZoneId} onSelectZone={handleSelectZone} />
+            <BookingZoneMap
+               zones={zones}
+               selectedZoneId={selectedZoneId}
+               onSelectZone={handleSelectZone}
+               stadiumImage={bookingTeamConfig.stadiumImage}
+               stadiumImageAlt={bookingTeamConfig.stadiumImageAlt}
+            />
             <BookingZoneList zones={zones} selectedZoneId={selectedZoneId} onSelectZone={handleSelectZone} />
          </main>
       </div>

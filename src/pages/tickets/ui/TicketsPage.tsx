@@ -1,13 +1,14 @@
 // src/pages/tickets/ui/TicketsPage.tsx
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RefreshCw, SlidersHorizontal } from 'lucide-react';
 
+import { useGameSchedules } from '@/entities/game/model/schedule';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 import { Button } from '@/shared/ui/button';
 import { FilterSidebar } from './FilterSidebar';
 import { GameCard } from './GameCard';
-import { MOCK_GAMES, MAX_PRICE } from './constants';
+import { MAX_PRICE } from './constants';
 import type { FilterState, GameItem, TabType } from './types';
 
 function applyFilters(games: GameItem[], filters: FilterState, activeTab: TabType): GameItem[] {
@@ -35,25 +36,60 @@ function applyFilters(games: GameItem[], filters: FilterState, activeTab: TabTyp
 
 const TicketsPage = () => {
    const { openBookingEntry, bookingGuideDialog } = useBookingEntryFlow();
+   const scheduleQuery = useGameSchedules();
    const [activeTab, setActiveTab] = useState<TabType>('예매');
-   const [displayedGames, setDisplayedGames] = useState<GameItem[]>(MOCK_GAMES);
    const [isFilterOpen, setIsFilterOpen] = useState(false);
    /** 마지막 조회 시 적용된 검색어 (결과 없음 문구 분기용) */
    const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
+
+   const allGames = useMemo<GameItem[]>(() => {
+      return (scheduleQuery.data ?? []).map((game) => ({
+         id: game.id,
+         homeTeamId: game.homeTeamId ?? '',
+         stadiumId: game.stadiumId,
+         queueTokenJti: game.queueTokenJti,
+         awayTeam: game.awayTeamFullName,
+         homeTeam: game.homeTeamFullName,
+         date: game.date,
+         dateTime: `${game.date.replace(/-/g, '.')} ${game.time}`,
+         venue: game.venue,
+         remainingSeats: game.ticket === '매진' ? 0 : 999,
+         minPrice: 0,
+         maxPrice: 0,
+         bookingStatus: game.ticket === '예매하기' ? '예매 가능' : game.ticket === '판매예정' ? '판매 예정' : '매진',
+         resellStatus: game.resell === '리셀예매' ? '리셀 가능' : game.resell === '리셀예정' ? '리셀 예정' : '매진',
+      }));
+   }, [scheduleQuery.data]);
+
+   const [displayedGames, setDisplayedGames] = useState<GameItem[]>([]);
 
    /** 필터 사이드바에서 조회하기 클릭 시 */
    const handleApply = (filters: FilterState) => {
       setActiveTab(filters.tab);
       setAppliedSearchQuery(filters.searchQuery.trim());
-      setDisplayedGames(applyFilters(MOCK_GAMES, filters, filters.tab));
+      setDisplayedGames(applyFilters(allGames, filters, filters.tab));
       setIsFilterOpen(false);
    };
 
    const handleRefresh = () => {
       setActiveTab('예매');
       setAppliedSearchQuery('');
-      setDisplayedGames(MOCK_GAMES);
+      setDisplayedGames(allGames);
    };
+
+   const handleBookingClick = (game: GameItem) => {
+      openBookingEntry({
+         homeTeamId: game.homeTeamId,
+         gameId: game.id,
+         stadiumId: game.stadiumId,
+         queueTokenJti: game.queueTokenJti,
+         matchTitle: `${game.awayTeam} vs ${game.homeTeam}`,
+         venue: game.venue,
+         dateTime: game.dateTime,
+      });
+   };
+
+   const gamesToRender = displayedGames.length > 0 || appliedSearchQuery || activeTab !== '예매' ? displayedGames : allGames;
 
    return (
       <div className="w-full px-4 py-12.5 pb-30 flex justify-center bg-white h-full">
@@ -82,7 +118,7 @@ const TicketsPage = () => {
                <div className="flex items-center justify-between h-8 ">
                   <h2 className="text-heading-1-bold text-foreground">경기일정</h2>
                   <div className="flex items-center gap-4">
-                     <span className="text-body-2-regular text-muted-foreground">총 {displayedGames.length}개</span>
+                     <span className="text-body-2-regular text-muted-foreground">총 {gamesToRender.length}개</span>
                      <button
                         onClick={handleRefresh}
                         className="flex items-center gap-2 bg-background border border-border rounded-lg px-3 py-1 text-body-2-medium text-foreground h-8 hover:bg-surface transition-colors"
@@ -95,9 +131,13 @@ const TicketsPage = () => {
 
                {/* 게임 카드 목록 */}
                <div className="flex flex-col gap-4 h-full">
-                  {displayedGames.length > 0 ? (
-                     displayedGames.map(game => (
-                        <GameCard key={game.id} game={game} activeTab={activeTab} onBookingClick={openBookingEntry} />
+                  {scheduleQuery.isError ? (
+                     <div className="flex items-center justify-center h-full bg-surface rounded-[14px] text-body-1-medium text-muted-foreground">
+                        경기 일정을 불러오지 못했습니다.
+                     </div>
+                  ) : gamesToRender.length > 0 ? (
+                     gamesToRender.map(game => (
+                        <GameCard key={game.id} game={game} activeTab={activeTab} onBookingClick={handleBookingClick} />
                      ))
                   ) : (
                      <div className="flex items-center justify-center h-full bg-surface rounded-[14px] text-body-1-medium text-muted-foreground">

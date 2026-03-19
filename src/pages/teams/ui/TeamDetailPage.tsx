@@ -20,8 +20,6 @@ const TeamDetailPage = () => {
 
    const [activeBookingTab, setActiveBookingTab] = useState(0);
 
-   const teamName = teamId ? TEAM_NAME_BY_ID[teamId] : undefined;
-
    if (!team) {
       return <Navigate to="/teams" replace />;
    }
@@ -71,7 +69,7 @@ const TeamDetailPage = () => {
 
                {/* 탭 컨텐츠 */}
                <div className="flex flex-col gap-6.25 items-start w-full">
-                  {activeBookingTab === 0 && <TeamScheduleTab teamName={teamName} />}
+                  {activeBookingTab === 0 && <TeamScheduleTab teamId={teamId} teamName={teamId ? TEAM_NAME_BY_ID[teamId] : undefined} />}
 
                   {activeBookingTab === 1 && <SeatMapTab />}
 
