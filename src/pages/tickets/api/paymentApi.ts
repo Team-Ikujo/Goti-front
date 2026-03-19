@@ -228,7 +228,7 @@ const toPaymentMethodLabel = (paymentMethod: PaymentMethod) => {
 
 const holdSeat = async (seatId: string, payload: HoldSeatRequest) => {
    const response = await apiClient.post<ApiEnvelope<HoldSeatResponse>>(
-      `/api/v1/seat-reservations/seats/${seatId}`,
+      `/api/v1/seat-reservations/seats/${encodeURIComponent(seatId)}`,
       payload,
    );
 

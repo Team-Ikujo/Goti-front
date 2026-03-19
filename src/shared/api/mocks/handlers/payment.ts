@@ -400,7 +400,7 @@ export const paymentHandlers = [
          gameId?: string;
          queueTokenJti?: string;
       }>(request);
-      const seatId = String(params.seatId);
+      const seatId = decodeURIComponent(String(params.seatId));
       const gameId = body?.gameId?.trim() || 'mock-game-id';
       const queueTokenJti = body?.queueTokenJti?.trim() || `mock-queue-token-${seatId}`;
 
