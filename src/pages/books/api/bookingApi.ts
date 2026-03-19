@@ -3,14 +3,14 @@ import type { ApiEnvelope } from '@/features/auth/api/types';
 import { getBookingZones } from '@/pages/books/model/zoneData';
 import type { SeatBlock, SeatItem, SeatStatus, ZoneItem } from '@/pages/books/model/types';
 
-type SeatGradeResponse = {
+export type SeatGradeResponse = {
    seatGradeId: string;
    stadiumId: string;
    name: string;
    displayColorHex: string;
 };
 
-type SeatSectionResponse = {
+export type SeatSectionResponse = {
    sectionId: string;
    gradeId: string;
    stadiumId: string;
@@ -18,7 +18,7 @@ type SeatSectionResponse = {
    capacity: number;
 };
 
-type SeatResponse = {
+export type SeatResponse = {
    seatId: string;
    sectionId: string;
    rowName: string;
@@ -26,7 +26,7 @@ type SeatResponse = {
    available: boolean;
 };
 
-type SeatStatusResponse = {
+export type SeatStatusResponse = {
    seatId: string;
    status: string;
 };
@@ -51,7 +51,7 @@ const parseTokenRange = (value: string) => {
    };
 };
 
-const matchesSectionExpression = (expression: string, rawSectionCode: string) => {
+export const matchesSectionExpression = (expression: string, rawSectionCode: string) => {
    const sectionCode = normalizeSectionCode(rawSectionCode);
    const candidates = normalizeSectionCode(expression)
       .replace(/\//g, ',')

@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchSeatGrades, fetchSeatSections, mapSeatSectionsToZones } from '@/pages/books/api/bookingApi';
 import { getBookingTeamConfig, getZoneDisplayOrder, getBookingZones } from '@/pages/books/model/zoneData';
 import type { ZoneItem } from '@/pages/books/model/types';
-import type { BookingEntryState } from '@/shared/lib/use-booking-entry-flow';
+import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 
 import BookingCaptchaGate from './components/BookingCaptchaGate';
@@ -23,7 +23,10 @@ function createMockCaptcha(length = 6): string {
 const BooksPage = () => {
    const navigate = useNavigate();
    const location = useLocation();
-   const bookingEntryState = location.state as BookingEntryState | null;
+   const routeBookingEntryState = location.state as BookingEntryState | null;
+   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
+   const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
+   const patchBookingEntry = useBookingEntryStore((state) => state.patchEntry);
    const bookingTeamConfig = useMemo(() => getBookingTeamConfig(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
    const requiresCaptcha = Boolean(bookingEntryState?.requireCaptcha);
    const localZones = useMemo(
@@ -73,8 +76,24 @@ const BooksPage = () => {
    const captchaCode = useMemo(() => createMockCaptcha(), [captchaSeed]);
 
    useEffect(() => {
+      if (routeBookingEntryState) {
+         setBookingEntry(routeBookingEntryState);
+      }
+   }, [routeBookingEntryState, setBookingEntry]);
+
+   useEffect(() => {
       setSelectedZoneId(zones[0]?.id ?? '');
    }, [zones]);
+
+   useEffect(() => {
+      if (zones.length === 0) {
+         return;
+      }
+
+      patchBookingEntry({
+         bookingZones: zones,
+      });
+   }, [patchBookingEntry, zones]);
 
    useEffect(() => {
       if (!requiresCaptcha) {
