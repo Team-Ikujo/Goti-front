@@ -68,6 +68,16 @@ const getSerializableData = (value: unknown) => {
   return value;
 };
 
+const sanitizeQueryParams = (value: AxiosRequestConfig["params"]) => {
+  if (!value || Array.isArray(value) || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entryValue]) => entryValue !== null && entryValue !== undefined),
+  );
+};
+
 const logRequest = (config: AxiosRequestConfig) => {
   logToConsoles("log", "[API REQUEST]", {
     method: config.method?.toUpperCase() ?? "GET",
@@ -118,6 +128,8 @@ apiClient.interceptors.request.use((config) => {
       config.headers = nextHeaders;
     }
   }
+
+  config.params = sanitizeQueryParams(config.params);
 
   logRequest(config);
   return config;

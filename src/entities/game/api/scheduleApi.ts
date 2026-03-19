@@ -31,14 +31,18 @@ export type GameScheduleResponse = {
 };
 
 export const fetchGameSchedules = async (params: FetchGameSchedulesParams = {}) => {
-  const response = await apiClient.get<ApiEnvelope<GameScheduleResponse[]>>('/api/v1/games/schedules', {
-    params: {
+  const sanitizedParams = Object.fromEntries(
+    Object.entries({
       teamId: params.teamId,
       year: params.year,
       month: params.month,
       week: params.week,
       today: params.today,
-    },
+    }).filter(([, value]) => value !== null && value !== undefined),
+  );
+
+  const response = await apiClient.get<ApiEnvelope<GameScheduleResponse[]>>('/api/v1/games/schedules', {
+    params: sanitizedParams,
   });
 
   return response.data.data;
