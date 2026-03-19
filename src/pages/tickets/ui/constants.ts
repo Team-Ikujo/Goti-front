@@ -27,6 +27,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j02',
       homeTeamId: 'lg',
+      stadiumId: 'stadium-jamsil-baseball',
+      queueTokenJti: 'queue-token-j02',
       awayTeam: 'KIA 타이거즈',
       homeTeam: 'LG 트윈스',
       date: '2026-07-03',
@@ -41,6 +43,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j03',
       homeTeamId: 'samsung',
+      stadiumId: 'stadium-samsung-lions-park',
+      queueTokenJti: 'queue-token-j03',
       awayTeam: '두산 베어스',
       homeTeam: '삼성 라이온즈',
       date: '2026-07-03',
@@ -57,6 +61,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j04',
       homeTeamId: 'lg',
+      stadiumId: 'stadium-jamsil-baseball',
+      queueTokenJti: 'queue-token-j04',
       awayTeam: 'KIA 타이거즈',
       homeTeam: 'LG 트윈스',
       date: '2026-07-04',
@@ -71,6 +77,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j05',
       homeTeamId: 'samsung',
+      stadiumId: 'stadium-samsung-lions-park',
+      queueTokenJti: 'queue-token-j05',
       awayTeam: '두산 베어스',
       homeTeam: '삼성 라이온즈',
       date: '2026-07-04',
@@ -85,6 +93,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j06',
       homeTeamId: 'lotte',
+      stadiumId: 'stadium-sajik-baseball',
+      queueTokenJti: 'queue-token-j06',
       awayTeam: '한화 이글스',
       homeTeam: '롯데 자이언츠',
       date: '2026-07-04',
@@ -99,6 +109,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j07',
       homeTeamId: 'nc',
+      stadiumId: 'stadium-changwon-nc-park',
+      queueTokenJti: 'queue-token-j07',
       awayTeam: 'KT 위즈',
       homeTeam: 'NC 다이노스',
       date: '2026-07-04',
@@ -113,6 +125,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j08',
       homeTeamId: 'kiwoom',
+      stadiumId: 'stadium-gocheok-skydome',
+      queueTokenJti: 'queue-token-j08',
       awayTeam: 'SSG 랜더스',
       homeTeam: '키움 히어로즈',
       date: '2026-07-04',
@@ -129,6 +143,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j09',
       homeTeamId: 'lg',
+      stadiumId: 'stadium-jamsil-baseball',
+      queueTokenJti: 'queue-token-j09',
       awayTeam: 'KIA 타이거즈',
       homeTeam: 'LG 트윈스',
       date: '2026-07-05',
@@ -143,6 +159,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j10',
       homeTeamId: 'samsung',
+      stadiumId: 'stadium-samsung-lions-park',
+      queueTokenJti: 'queue-token-j10',
       awayTeam: '두산 베어스',
       homeTeam: '삼성 라이온즈',
       date: '2026-07-05',
@@ -157,6 +175,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j11',
       homeTeamId: 'lotte',
+      stadiumId: 'stadium-sajik-baseball',
+      queueTokenJti: 'queue-token-j11',
       awayTeam: '한화 이글스',
       homeTeam: '롯데 자이언츠',
       date: '2026-07-05',

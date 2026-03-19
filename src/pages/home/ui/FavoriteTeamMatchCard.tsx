@@ -63,6 +63,9 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const handleBookingClick = () => {
       openBookingEntry({
          homeTeamId: match.homeTeamId,
+         gameId: match.id,
+         stadiumId: match.stadiumId,
+         queueTokenJti: match.queueTokenJti,
          matchTitle: `${awayTeamName} vs ${homeTeamName}`,
          venue: match.venue,
          dateTime: formattedDate,

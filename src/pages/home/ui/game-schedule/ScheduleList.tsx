@@ -373,10 +373,19 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
       return;
     }
 
+    const selectedDay = filteredData.find(day =>
+      day.games.some(dayGame => dayGame === game),
+    );
+    const bookingDateTime = selectedDay ? `${selectedDay.date} ${game.time}` : game.time;
+
     openBookingEntry({
-      homeTeamId: TEAM_IDS[game.home],
+      homeTeamId: game.homeTeamId ?? TEAM_IDS[game.home],
+      gameId: game.gameId,
+      stadiumId: game.stadiumId,
+      queueTokenJti: game.queueTokenJti,
       matchTitle: `${game.away} vs ${game.home}`,
-      dateTime: game.time,
+      venue: game.venue,
+      dateTime: bookingDateTime,
     });
   };
 

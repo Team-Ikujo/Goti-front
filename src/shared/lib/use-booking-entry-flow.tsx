@@ -2,18 +2,28 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '@/entities/auth/model/authStore';
+import type { ZoneItem } from '@/pages/books/model/types';
 import BookingGuideDialog from '@/shared/ui/booking-guide-dialog';
 
 export type BookingEntryState = {
   requireCaptcha?: boolean;
   homeTeamId?: string;
+  gameId?: string;
+  stadiumId?: string;
+  queueTokenJti?: string;
+  userId?: string;
   matchTitle?: string;
   venue?: string;
   dateTime?: string;
+  bookingZones?: ZoneItem[];
 };
 
 type OpenBookingEntryOptions = {
   homeTeamId?: string;
+  gameId?: string;
+  stadiumId?: string;
+  queueTokenJti?: string;
+  userId?: string;
   matchTitle?: string;
   venue?: string;
   dateTime?: string;
@@ -37,6 +47,10 @@ export function useBookingEntryFlow() {
     setPendingEntryState({
       requireCaptcha: true,
       homeTeamId: options?.homeTeamId,
+      gameId: options?.gameId,
+      stadiumId: options?.stadiumId,
+      queueTokenJti: options?.queueTokenJti,
+      userId: options?.userId,
       matchTitle: options?.matchTitle,
       venue: options?.venue,
       dateTime: options?.dateTime,

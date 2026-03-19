@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 
+import { fetchSeatGrades, fetchSeatSections, mapSeatSectionsToZones } from '@/pages/books/api/bookingApi';
 import { getBookingTeamConfig, getZoneDisplayOrder, getBookingZones } from '@/pages/books/model/zoneData';
+import type { ZoneItem } from '@/pages/books/model/types';
 import type { BookingEntryState } from '@/shared/lib/use-booking-entry-flow';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 
@@ -23,7 +26,7 @@ const BooksPage = () => {
    const bookingEntryState = location.state as BookingEntryState | null;
    const bookingTeamConfig = useMemo(() => getBookingTeamConfig(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
    const requiresCaptcha = Boolean(bookingEntryState?.requireCaptcha);
-   const zones = useMemo(
+   const localZones = useMemo(
       () =>
          [...getBookingZones(bookingEntryState?.homeTeamId)].sort(
             (a, b) =>
@@ -32,6 +35,33 @@ const BooksPage = () => {
          ),
       [bookingEntryState?.homeTeamId],
    );
+   const { data: apiZones } = useQuery({
+      queryKey: ['booking-zones', bookingEntryState?.stadiumId, bookingEntryState?.homeTeamId],
+      enabled: Boolean(bookingEntryState?.stadiumId),
+      queryFn: async () => {
+         const [grades, sections] = await Promise.all([
+            fetchSeatGrades(bookingEntryState!.stadiumId!),
+            fetchSeatSections(bookingEntryState!.stadiumId!),
+         ]);
+
+         return mapSeatSectionsToZones({
+            sections,
+            grades,
+            teamId: bookingEntryState?.homeTeamId,
+         });
+      },
+   });
+   const zones = useMemo<ZoneItem[]>(() => {
+      if (bookingEntryState?.bookingZones?.length) {
+         return bookingEntryState.bookingZones;
+      }
+
+      if (apiZones?.length) {
+         return [...apiZones].sort((left, right) => right.remaining - left.remaining || left.name.localeCompare(right.name, 'ko-KR'));
+      }
+
+      return localZones;
+   }, [apiZones, bookingEntryState?.bookingZones, localZones]);
 
    const [selectedZoneId, setSelectedZoneId] = useState(zones[0]?.id ?? '');
    const [isCaptchaOpen, setIsCaptchaOpen] = useState(requiresCaptcha);
@@ -79,12 +109,17 @@ const BooksPage = () => {
       }
    }, [isCaptchaOpen]);
 
-   const resolvedBookingEntryState = bookingEntryState
-      ? ({
-           ...bookingEntryState,
-           requireCaptcha: undefined,
-        } satisfies BookingEntryState)
-      : undefined;
+   const resolvedBookingEntryState = useMemo<BookingEntryState | undefined>(() => {
+      if (!bookingEntryState) {
+         return undefined;
+      }
+
+      return {
+         ...bookingEntryState,
+         requireCaptcha: undefined,
+         bookingZones: zones,
+      } satisfies BookingEntryState;
+   }, [bookingEntryState, zones]);
 
    const handleSelectZone = (zoneId: string) => {
       setSelectedZoneId(zoneId);

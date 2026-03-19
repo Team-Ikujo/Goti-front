@@ -58,6 +58,9 @@ const TicketsPage = () => {
    const handleBookingClick = (game: GameItem) => {
       openBookingEntry({
          homeTeamId: game.homeTeamId,
+         gameId: game.id,
+         stadiumId: game.stadiumId,
+         queueTokenJti: game.queueTokenJti,
          matchTitle: `${game.awayTeam} vs ${game.homeTeam}`,
          venue: game.venue,
          dateTime: game.dateTime,

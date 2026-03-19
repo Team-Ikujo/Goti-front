@@ -1,3 +1,5 @@
+import { buildMockQueueTokenJti, resolveMockStadiumId } from '@/shared/config/booking';
+
 export type Match = {
   id: string;
   homeTeamId: string;
@@ -5,13 +7,15 @@ export type Match = {
   date: string; // 'YYYY-MM-DD'
   time: string; // 'HH:mm'
   venue: string;
+  stadiumId?: string;
+  queueTokenJti?: string;
   weeklyVolume?: number; // 주간 판매량/거래량 (인기 경기 정렬용)
 };
 
 // 목업 기준 오늘 날짜 (단일 소스) — 2026-07-03은 실제로 금요일
 export const MOCK_TODAY = '2026-07-03';
 
-export const schedule: Match[] = [
+const mockSchedule: Match[] = [
   // ── 2025년 7월 목업 일정 ──────────────────────────────────────
   // 7/1 (수) — 이미 종료된 경기
   { id: 'j01', homeTeamId: 'lg',      awayTeamId: 'kia',    date: '2026-07-01', time: '18:30', venue: '잠실 야구장' },
@@ -57,6 +61,12 @@ export const schedule: Match[] = [
   { id: 'm16', homeTeamId: 'kia',     awayTeamId: 'nc',      date: '2026-03-28', time: '14:00', venue: '광주 기아 챔피언스 필드' },
   { id: 'm17', homeTeamId: 'samsung', awayTeamId: 'kt',      date: '2026-03-28', time: '14:00', venue: '대구 삼성라이온즈파크' },
 ];
+
+export const schedule: Match[] = mockSchedule.map((match) => ({
+  ...match,
+  stadiumId: match.stadiumId ?? resolveMockStadiumId(match.homeTeamId),
+  queueTokenJti: match.queueTokenJti ?? buildMockQueueTokenJti(match.id),
+}));
 
 /** 해당 팀의 오늘(MOCK_TODAY) 이후 가장 가까운 경기 */
 export function getClosestMatch(teamId: string): Match | null {
