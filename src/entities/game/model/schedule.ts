@@ -51,15 +51,15 @@ const TEAM_REFERENCES: TeamReference[] = [
 ];
 
 const STADIUM_NAME_BY_ID: Record<string, string> = {
-  'stadium-jamsil-baseball': '잠실',
-  'stadium-samsung-lions-park': '대구',
-  'stadium-sajik-baseball': '사직',
-  'stadium-changwon-nc-park': '창원',
-  'stadium-gocheok-skydome': '고척',
-  'stadium-kia-champions-field': '광주',
-  'stadium-kt-wiz-park': '수원',
-  'stadium-daejeon-baseball': '대전',
-  'stadium-incheon-landers-field': '인천',
+  'stadium-jamsil-baseball': '잠실 야구장',
+  'stadium-samsung-lions-park': '대구 삼성 라이온즈 파크',
+  'stadium-sajik-baseball': '사직 야구장',
+  'stadium-changwon-nc-park': '창원 NC파크',
+  'stadium-gocheok-skydome': '고척 스카이돔',
+  'stadium-kia-champions-field': '기아 챔피언스필드',
+  'stadium-kt-wiz-park': '수원 KT위즈파크',
+  'stadium-daejeon-baseball': '대전 한화생명 볼파크',
+  'stadium-incheon-landers-field': '인천 SSG 랜더스필드',
 };
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
