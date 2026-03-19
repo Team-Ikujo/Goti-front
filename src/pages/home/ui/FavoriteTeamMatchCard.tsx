@@ -11,7 +11,7 @@ import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 
 const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const { openBookingEntry, bookingGuideDialog } = useBookingEntryFlow();
-   const { data } = useGameSchedules();
+   const { data, isPending } = useGameSchedules();
    const match = getClosestMatch(data ?? [], team.id);
 
    /** 헤더 — 경기 없을 때도 공통 사용 */
@@ -38,6 +38,17 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
          </Button>
       </div>
    );
+
+   if (isPending) {
+      return (
+         <div className="bg-white border border-[#e9ebee] rounded-2xl overflow-hidden shadow-[0px_20px_50px_-12px_rgba(0,0,0,0.25)]">
+            {Header}
+            <div className="flex items-center justify-center h-20 text-[14px] text-(--text-tertiary)">
+               경기 일정을 불러오는 중입니다.
+            </div>
+         </div>
+      );
+   }
 
    if (!match) {
       return (
