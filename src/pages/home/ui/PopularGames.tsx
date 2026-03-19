@@ -1,34 +1,13 @@
 import { Calendar, MapPin } from 'lucide-react';
-import { getPopularMatches } from '@/entities/team/model/schedule';
-
-const teamDisplayName: Record<string, string> = {
-   kia: 'KIA',
-   samsung: '삼성',
-   lg: 'LG',
-   lotte: '롯데',
-   doosan: '두산',
-   hanwha: '한화',
-   nc: 'NC',
-   kt: 'KT',
-   kiwoom: '키움',
-   ssg: 'SSG',
-};
-
-const teamLogoPath: Record<string, string> = {
-   kia: '/baseball/logos/kia.png',
-   samsung: '/baseball/logos/samsung.png',
-   lg: '/baseball/logos/lg.png',
-   lotte: '/baseball/logos/lotte.png',
-   doosan: '/baseball/logos/doosan.png',
-   hanwha: '/baseball/logos/hanwha.png',
-   nc: '/baseball/logos/nc.png',
-   kt: '/baseball/logos/kt.png',
-   kiwoom: '/baseball/logos/kiwoom.png',
-   ssg: '/baseball/logos/ssg.png',
-};
+import { getPopularMatches, useGameSchedules } from '@/entities/game/model/schedule';
 
 const PopularGames = () => {
-   const matches = getPopularMatches(5);
+   const { data } = useGameSchedules();
+   const matches = getPopularMatches(data ?? [], 5);
+
+   if (!data) {
+      return null;
+   }
 
    return (
       <section className="flex flex-col gap-5 w-full">
@@ -66,11 +45,11 @@ const PopularGames = () => {
                      {/* 팀 매치업 */}
                      <div className="flex items-center justify-between h-7">
                         <span className="w-17.5 text-[18px] font-bold leading-[1.55] text-foreground">
-                           {teamDisplayName[match.awayTeamId]}
+                           {match.awayTeamName}
                         </span>
                         <span className="text-[14px] font-bold text-(--text-tertiary)">vs</span>
                         <span className="w-17.5 text-[18px] font-bold leading-[1.55] text-foreground text-right">
-                           {teamDisplayName[match.homeTeamId]}
+                           {match.homeTeamName}
                         </span>
                      </div>
 

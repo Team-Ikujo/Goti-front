@@ -1,6 +1,7 @@
 // src/pages/home/ui/GameSchedule.tsx
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGameSchedules, mapGamesToDaySchedules } from '@/entities/game/model/schedule';
 
 import {
    AVAILABLE_YEARS,
@@ -10,7 +11,6 @@ import {
    TAB_ALL,
    TAB_TODAY,
    TAB_WEEK,
-   scheduleData,
    tabs,
 } from './game-schedule/constants';
 import AllNavigator from './game-schedule/AllNavigator';
@@ -29,6 +29,20 @@ const GameSchedule = () => {
 
    const [allYear, setAllYear] = useState(CURRENT_YEAR);
    const [allMonth, setAllMonth] = useState(CURRENT_MONTH);
+
+   const scheduleQuery = useGameSchedules(
+      activeTab === TAB_TODAY
+         ? { today: true }
+         : {
+              year: activeTab === TAB_WEEK ? weekYear : allYear,
+              month: activeTab === TAB_WEEK ? weekMonth : allMonth,
+           },
+   );
+
+   const scheduleData = useMemo(
+      () => mapGamesToDaySchedules(scheduleQuery.data ?? []),
+      [scheduleQuery.data],
+   );
 
    const filteredData = useMemo(
       () =>
@@ -129,7 +143,13 @@ const GameSchedule = () => {
                />
             )}
 
-            <ScheduleList activeTab={activeTab} filteredData={filteredData} />
+            {scheduleQuery.isError ? (
+               <div className="rounded-[10px] border border-border bg-surface px-5 py-10 text-center text-body-1-medium text-muted-foreground">
+                  경기 일정을 불러오지 못했습니다.
+               </div>
+            ) : (
+               <ScheduleList activeTab={activeTab} filteredData={filteredData} />
+            )}
          </div>
       </section>
    );
