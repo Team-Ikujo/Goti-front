@@ -3,7 +3,7 @@ import { TicketX } from 'lucide-react';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
-import { TAB_TODAY, TODAY, TEAM_IDS, statusColor, teamLogos } from './constants';
+import { TAB_TODAY, TEAM_IDS, statusColor, teamLogos } from './constants';
 import type { DaySchedule, GameRow } from './types';
 import { getGameResultTexts } from './utils';
 
@@ -404,7 +404,7 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
   return (
     <div className={cn('flex flex-col w-full', activeTab !== TAB_TODAY && 'gap-[25px]')}>
       {filteredData.map(day => {
-        const isToday = day.isToday ?? day.date === TODAY;
+        const isToday = day.isToday === true;
 
         return (
           <div key={day.date}>

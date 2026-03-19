@@ -5,13 +5,14 @@ import { Link } from 'react-router-dom';
 
 import { teams } from '@/entities/team/model/teams';
 import type { Team } from '@/entities/team/model/types';
-import { getClosestMatch, getDDay } from '@/entities/team/model/schedule';
+import { getClosestMatch, getDDay, useGameSchedules } from '@/entities/game/model/schedule';
 import { Button } from '@/shared/ui/button';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 
 const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const { openBookingEntry, bookingGuideDialog } = useBookingEntryFlow();
-   const match = getClosestMatch(team.id);
+   const { data } = useGameSchedules();
+   const match = getClosestMatch(data ?? [], team.id);
 
    /** 헤더 — 경기 없을 때도 공통 사용 */
    const Header = (
@@ -51,14 +52,20 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
 
    const isHome = match.homeTeamId === team.id;
    const opponentId = isHome ? match.awayTeamId : match.homeTeamId;
-   const opponent = teams.find(t => t.id === opponentId) ?? teams[0];
+   const opponent = teams.find(t => t.id === opponentId) ?? {
+      id: opponentId ?? 'unknown',
+      name: isHome ? match.awayTeamFullName : match.homeTeamFullName,
+      logoSrc: '/Icon/Line/Baseball.svg',
+      logoAspectClassName: 'aspect-square',
+      isEnabled: false,
+   };
    // 응원팀은 항상 좌측(HOME) 위치에 표시
    const homeTeam = team;
    const awayTeam = opponent;
    const dDay = getDDay(match.date);
    const formattedDate = `${match.date.replace(/-/g, '.')} ${match.time}`;
-   const awayTeamName = teams.find(t => t.id === match.awayTeamId)?.name ?? match.awayTeamId;
-   const homeTeamName = teams.find(t => t.id === match.homeTeamId)?.name ?? match.homeTeamId;
+   const awayTeamName = match.awayTeamFullName;
+   const homeTeamName = match.homeTeamFullName;
 
    const handleBookingClick = () => {
       openBookingEntry({

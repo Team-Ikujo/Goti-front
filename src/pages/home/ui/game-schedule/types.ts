@@ -5,6 +5,7 @@ export type ReselStatus = '리셀예매' | '리셀매진' | '리셀예정';
 export type GameRow = {
    gameId?: string;
    homeTeamId?: string;
+   awayTeamId?: string;
    stadiumId?: string;
    queueTokenJti?: string;
    time: string;

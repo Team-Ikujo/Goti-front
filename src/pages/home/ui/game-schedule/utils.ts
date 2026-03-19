@@ -2,7 +2,6 @@ import {
    TAB_ALL,
    TAB_TODAY,
    TAB_WEEK,
-   TODAY,
 } from './constants';
 import type { DaySchedule } from './types';
 
@@ -36,7 +35,7 @@ function isDayInActiveTab(
 ): boolean {
    switch (activeTab) {
       case TAB_TODAY:
-         return day.date === TODAY;
+         return day.isToday === true;
       case TAB_WEEK: {
          const { month, day: dayNum } = parseDate(day.date);
          const week = getWeekOfMonth(dayNum);
