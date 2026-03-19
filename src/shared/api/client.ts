@@ -1,4 +1,5 @@
-import axios, { AxiosError, type AxiosRequestConfig, type AxiosResponse } from "axios";
+import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig, type AxiosResponse } from "axios";
+import { useAuthStore } from "@/entities/auth/model/authStore";
 import { isMswEnabled } from "@/shared/config/runtime";
 
 export class ApiError extends Error {
@@ -57,7 +58,11 @@ const getSerializableData = (value: unknown) => {
   }
 
   if (typeof FormData !== "undefined" && value instanceof FormData) {
-    return Object.fromEntries(value.entries());
+    const entries: Array<[string, FormDataEntryValue]> = [];
+    value.forEach((entryValue, entryKey) => {
+      entries.push([entryKey, entryValue]);
+    });
+    return Object.fromEntries(entries);
   }
 
   return value;
@@ -102,6 +107,18 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
+  const accessToken = useAuthStore.getState().accessToken;
+
+  if (accessToken) {
+    if (config.headers && typeof config.headers.set === "function") {
+      config.headers.set("Authorization", `Bearer ${accessToken}`);
+    } else {
+      const nextHeaders = AxiosHeaders.from(config.headers);
+      nextHeaders.set("Authorization", `Bearer ${accessToken}`);
+      config.headers = nextHeaders;
+    }
+  }
+
   logRequest(config);
   return config;
 });

@@ -206,8 +206,8 @@ export default function PaymentCompletePage() {
                   <div className="flex flex-col gap-3">
                      {[
                         { label: '결제 방법', value: order.paymentMethod },
-                        { label: '주문상태', value: '결제완료' },
-                        { label: '주문접수일시', value: order.orderedAt },
+                        { label: '주문상태', value: order.orderStatus ?? 'PENDING' },
+                        { label: '주문접수일시', value: order.paidAt ?? order.orderedAt },
                         { label: '수령 방식', value: DELIVERY_LABELS[deliveryMethod] },
                      ].map(({ label, value }) => (
                         <div key={label} className="flex items-start justify-between text-[16px] leading-normal">
