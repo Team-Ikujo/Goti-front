@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 import { createSeatsForZone, getSeatBlocks } from '@/pages/books/model/seatData';
+import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSeatPaymentSummary';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
-import { BOOKING_ZONES, formatPrice, getZoneOverviewImage } from '@/pages/books/model/zoneData';
+import { formatPrice, getBookingZones, getZoneOverviewImage, getStadiumName } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
+import type { BookingEntryState } from '@/shared/lib/use-booking-entry-flow';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 import SeatBlockGrid from './components/SeatBlockGrid';
 import SelectedSeatSummaryList, { type SelectedSeatSummaryItem } from './components/SelectedSeatSummaryList';
@@ -27,13 +29,17 @@ const stepLabels = ['구역 선택', '좌석 선택', '배송/주문자 확인',
 
 function SeatsPage() {
    const navigate = useNavigate();
+   const location = useLocation();
    const { zoneId = '' } = useParams();
+   const bookingEntryState = location.state as BookingEntryState | null;
+   const bookingZones = useMemo(() => getBookingZones(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const zone = useMemo(
-      () => BOOKING_ZONES.find((item) => item.id === zoneId) ?? BOOKING_ZONES[0],
-      [zoneId],
+      () => bookingZones.find((item) => item.id === zoneId) ?? bookingZones[0],
+      [bookingZones, zoneId],
    );
-   const zoneOverviewImage = useMemo(() => getZoneOverviewImage(zone.id), [zone.id]);
+   const zoneOverviewImage = useMemo(() => getZoneOverviewImage(bookingEntryState?.homeTeamId, zone.id), [bookingEntryState?.homeTeamId, zone.id]);
+   const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
    const seatBlocks = useMemo(() => getSeatBlocks(zone.id), [zone.id]);
@@ -107,7 +113,7 @@ function SeatsPage() {
 
    const selectedSeats = useMemo<SelectedSeatSummaryItem[]>(() => {
       return Object.entries(zonesState).flatMap(([selectedZoneId, selectedZoneState]) => {
-         const selectedZone = BOOKING_ZONES.find((item) => item.id === selectedZoneId);
+         const selectedZone = bookingZones.find((item) => item.id === selectedZoneId);
 
          if (!selectedZone) {
             return [];
@@ -123,10 +129,23 @@ function SeatsPage() {
                price: selectedZone.price,
             }));
       });
-   }, [zonesState]);
+   }, [bookingZones, zonesState]);
 
    const selectedPrice = selectedSeats.reduce((total, item) => total + item.price, 0);
    const bookingButtonLabel = `${selectedSeats.length}매 예매하기`;
+   const paymentSummary = useMemo(
+      () => getSelectedSeatPaymentSummary(zonesState, bookingZones),
+      [bookingZones, zonesState],
+   );
+
+   const handleProceedToPayment = () => {
+      navigate('/tickets/payment', {
+         state: {
+            ...bookingEntryState,
+            selectedSeatCount: paymentSummary.quantity,
+         },
+      });
+   };
 
    const sectionBounds = useMemo(() => {
       if (seatBlocks.length === 0) {
@@ -479,7 +498,7 @@ function SeatsPage() {
                            <button
                               type="button"
                               disabled={selectedSeats.length === 0}
-                              onClick={() => navigate('/tickets/payment')}
+                              onClick={handleProceedToPayment}
                               className={[
                                  'h-12 w-full rounded-[8px] text-label-1-bold transition-colors',
                                  selectedSeats.length === 0
@@ -500,7 +519,7 @@ function SeatsPage() {
                   <div className="relative mx-auto h-[188px] w-[260px] shrink-0">
                      <img
                         src={zoneOverviewImage}
-                        alt={`${zone.name} 선택 상태가 반영된 기아 챔피언스필드 좌석도`}
+                        alt={`${zone.name} 선택 상태가 반영된 ${stadiumName} 좌석도`}
                         className="h-full w-full object-contain"
                         draggable={false}
                      />
@@ -542,7 +561,7 @@ function SeatsPage() {
                   <button
                      type="button"
                      disabled={selectedSeats.length === 0}
-                     onClick={() => navigate('/tickets/payment')}
+                     onClick={handleProceedToPayment}
                      className={[
                         'h-[56px] w-full rounded-[8px] text-label-1-bold transition-colors',
                         selectedSeats.length === 0

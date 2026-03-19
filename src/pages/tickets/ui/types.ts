@@ -7,6 +7,7 @@ export type ResellStatus = '리셀 가능' | '리셀 예정' | '매진';
 
 export interface GameItem {
    id: string;
+   homeTeamId: string;
    awayTeam: string;
    homeTeam: string;
    date: string;      // YYYY-MM-DD (필터용)

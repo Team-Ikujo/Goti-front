@@ -55,6 +55,15 @@ const TicketsPage = () => {
       setDisplayedGames(MOCK_GAMES);
    };
 
+   const handleBookingClick = (game: GameItem) => {
+      openBookingEntry({
+         homeTeamId: game.homeTeamId,
+         matchTitle: `${game.awayTeam} vs ${game.homeTeam}`,
+         venue: game.venue,
+         dateTime: game.dateTime,
+      });
+   };
+
    return (
       <div className="w-full px-4 py-12.5 pb-30 flex justify-center bg-white h-full">
          <div className="flex items-start justify-between max-w-300 w-full gap-5 ">
@@ -97,7 +106,7 @@ const TicketsPage = () => {
                <div className="flex flex-col gap-4 h-full">
                   {displayedGames.length > 0 ? (
                      displayedGames.map(game => (
-                        <GameCard key={game.id} game={game} activeTab={activeTab} onBookingClick={openBookingEntry} />
+                        <GameCard key={game.id} game={game} activeTab={activeTab} onBookingClick={handleBookingClick} />
                      ))
                   ) : (
                      <div className="flex items-center justify-center h-full bg-surface rounded-[14px] text-body-1-medium text-muted-foreground">

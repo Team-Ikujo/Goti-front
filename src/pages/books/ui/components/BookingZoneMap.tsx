@@ -5,13 +5,15 @@ type BookingZoneMapProps = {
   selectedZoneId: string;
   onSelectZone: (zoneId: string) => void;
   mobileExpanded?: boolean;
+  stadiumImage: string;
+  stadiumImageAlt: string;
 };
-
-const KIA_STADIUM_IMAGE = "/baseball/seat/kia.png";
 
 function BookingZoneMap({
   selectedZoneId,
   mobileExpanded = false,
+  stadiumImage,
+  stadiumImageAlt,
 }: BookingZoneMapProps) {
   return (
     <section
@@ -23,8 +25,8 @@ function BookingZoneMap({
     >
       <div className="flex w-full items-center justify-center lg:max-w-[740px]">
         <img
-          src={KIA_STADIUM_IMAGE}
-          alt="기아 챔피언스필드 구역도"
+          src={stadiumImage}
+          alt={stadiumImageAlt}
           className={[
             "h-auto object-contain object-center lg:w-full lg:max-h-none",
             mobileExpanded ? "w-[122%] max-w-none" : "w-[112%] max-w-none",
