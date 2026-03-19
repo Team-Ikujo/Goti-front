@@ -35,8 +35,6 @@ export default function PaymentProcessingPage() {
    });
 
    useEffect(() => {
-      let ignore = false;
-
       if (!locationState?.request) {
          navigate('/tickets/payment', { replace: true });
          return;
@@ -49,18 +47,19 @@ export default function PaymentProcessingPage() {
       hasStartedRef.current = true;
 
       const { request: paymentRequest, amount: clientAmount } = locationState;
+      const isStillOnProcessingPage = () => window.location.pathname === '/tickets/payment/processing';
 
       const process = async () => {
          try {
             const result = await mutateAsync(paymentRequest);
-            if (!ignore) {
+            if (isStillOnProcessingPage()) {
                navigate(
                   `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}`,
                   { state: { ...result, amount: clientAmount }, replace: true },
                );
             }
          } catch (error) {
-            if (!ignore) {
+            if (isStillOnProcessingPage()) {
                const message =
                   error instanceof ApiError
                      ? error.message
@@ -72,10 +71,6 @@ export default function PaymentProcessingPage() {
       };
 
       process();
-
-      return () => {
-         ignore = true;
-      };
    }, [locationState, mutateAsync, navigate]);
 
    const headerRequest = locationState?.request;
