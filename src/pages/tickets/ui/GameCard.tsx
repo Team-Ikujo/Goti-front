@@ -2,6 +2,7 @@
 
 import { CalendarDays, MapPin, Ticket } from 'lucide-react';
 
+import { formatBookingCardDateTime } from '@/shared/lib/bookingDateTime';
 import { cn } from '@/shared/lib/utils';
 
 import type { GameItem, TabType } from './types';
@@ -52,6 +53,7 @@ export function GameCard({ game, activeTab, onBookingClick }: GameCardProps) {
    const status = activeTab === '예매' ? game.bookingStatus : game.resellStatus;
    const { label: buttonLabel, isActive } = getButtonConfig(status, activeTab);
    const showPrice = game.minPrice > 0;
+   const formattedDateTime = formatBookingCardDateTime(game.dateTime);
 
    const formatPrice = (price: number) => price.toLocaleString('ko-KR') + '원';
 
@@ -73,7 +75,7 @@ export function GameCard({ game, activeTab, onBookingClick }: GameCardProps) {
             <div className="flex items-center gap-4 flex-wrap">
                <div className="flex items-center gap-2 h-5">
                   <CalendarDays className="size-4 text-muted-foreground shrink-0" />
-                  <span className="text-body-2-regular text-muted-foreground whitespace-nowrap">{game.dateTime}</span>
+                  <span className="text-body-2-regular text-muted-foreground whitespace-nowrap">{formattedDateTime}</span>
                </div>
                <div className="flex items-center gap-2 h-5">
                   <MapPin className="size-4 text-muted-foreground shrink-0" />

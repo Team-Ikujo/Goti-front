@@ -46,15 +46,17 @@ const GameSchedule = () => {
 
    const filteredData = useMemo(
       () =>
-         filterScheduleData(scheduleData, {
-            activeTab,
-            weekYear,
-            weekMonth,
-            selectedWeek,
-            allYear,
-            allMonth,
-         }),
-      [activeTab, weekYear, weekMonth, selectedWeek, allYear, allMonth],
+         activeTab === TAB_TODAY
+            ? scheduleData.filter(day => day.games.length > 0)
+            : filterScheduleData(scheduleData, {
+                 activeTab,
+                 weekYear,
+                 weekMonth,
+                 selectedWeek,
+                 allYear,
+                 allMonth,
+              }),
+      [activeTab, weekYear, weekMonth, selectedWeek, allYear, allMonth, scheduleData],
    );
 
    const prevWeekMonth = () => {
@@ -143,7 +145,11 @@ const GameSchedule = () => {
                />
             )}
 
-            {scheduleQuery.isError ? (
+            {scheduleQuery.isPending ? (
+               <div className="rounded-[10px] border border-border bg-surface px-5 py-10 text-center text-body-1-medium text-muted-foreground">
+                  경기 일정을 불러오는 중입니다.
+               </div>
+            ) : scheduleQuery.isError ? (
                <div className="rounded-[10px] border border-border bg-surface px-5 py-10 text-center text-body-1-medium text-muted-foreground">
                   경기 일정을 불러오지 못했습니다.
                </div>

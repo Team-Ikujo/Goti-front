@@ -55,7 +55,7 @@ const SAMSUNG_BOOKING_ZONES: ZoneItem[] = [
 const BOOKING_TEAM_CONFIGS: Record<BookingTeamId, BookingTeamConfig> = {
    kia: {
       displayName: 'KIA 타이거즈',
-      stadiumName: '광주 기아 챔피언스 필드',
+      stadiumName: '기아 챔피언스필드',
       stadiumImage: '/baseball/seat/kia.png',
       stadiumImageAlt: '기아 챔피언스필드 구역도',
       zoneDisplayOrder: [
@@ -82,9 +82,9 @@ const BOOKING_TEAM_CONFIGS: Record<BookingTeamId, BookingTeamConfig> = {
    },
    samsung: {
       displayName: '삼성 라이온즈',
-      stadiumName: '대구 삼성라이온즈파크',
+      stadiumName: '대구 삼성 라이온즈 파크',
       stadiumImage: '/baseball/seat/samsung.png',
-      stadiumImageAlt: '대구 삼성라이온즈파크 구역도',
+      stadiumImageAlt: '대구 삼성 라이온즈 파크 구역도',
       zoneDisplayOrder: [
          'samsung-first-base-exciting',
          'samsung-third-base-exciting',

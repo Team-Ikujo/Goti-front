@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ChevronLeft, HelpCircle, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getBookingTeamConfig } from '@/pages/books/model/zoneData';
+import { formatBookingHeaderDateTime } from '@/shared/lib/bookingDateTime';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { DEFAULT_BOOKING_TIMER_SECONDS, useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
@@ -101,7 +102,7 @@ const BooksHeader = ({
    const resolvedMatchTitle =
       matchTitle ?? bookingEntryState?.matchTitle ?? `${bookingTeamConfig.displayName} 홈경기`;
    const resolvedVenue = venue ?? bookingEntryState?.venue ?? bookingTeamConfig.stadiumName;
-   const resolvedDateTime = dateTime ?? bookingEntryState?.dateTime ?? DEFAULT_MATCH_INFO.dateTime;
+   const resolvedDateTime = formatBookingHeaderDateTime(dateTime ?? bookingEntryState?.dateTime ?? DEFAULT_MATCH_INFO.dateTime);
 
    useEffect(() => {
       if (!showTimer || expiresAt === null || remainingSeconds > 0) {
@@ -184,7 +185,7 @@ const BooksHeader = ({
                   <p className="text-body-1-bold text-foreground">{resolvedMatchTitle}</p>
                   <div className="flex flex-wrap items-center gap-1 text-caption-1-medium text-secondary">
                      <span>{resolvedVenue}</span>
-                     <span aria-hidden="true">·</span>
+                     <span aria-hidden="true">∙</span>
                      <span>{resolvedDateTime}</span>
                   </div>
                </div>
@@ -247,7 +248,7 @@ const BooksHeader = ({
                   ) : null}
                   <h1 className="mr-2 text-heading-2-bold text-foreground">{resolvedMatchTitle}</h1>
                   <span>{resolvedVenue}</span>
-                  <span aria-hidden="true">·</span>
+                  <span aria-hidden="true">∙</span>
                   <span>{resolvedDateTime}</span>
                </div>
                <ol className="flex flex-wrap items-center gap-1 lg:gap-2" aria-label="예매 진행 단계">

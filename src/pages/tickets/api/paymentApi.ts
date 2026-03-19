@@ -228,7 +228,7 @@ const toPaymentMethodLabel = (paymentMethod: PaymentMethod) => {
 
 const holdSeat = async (seatId: string, payload: HoldSeatRequest) => {
    const response = await apiClient.post<ApiEnvelope<HoldSeatResponse>>(
-      `/api/v1/seat-reservations/seats/${seatId}`,
+      `/api/v1/seat-reservations/seats/${encodeURIComponent(seatId)}`,
       payload,
    );
 
@@ -321,10 +321,9 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       ordererEmail: payload.ordererEmail,
    });
 
-   // 테스트를 위해 일반 예매 결제의 사용자 ID 검증을 잠시 비활성화합니다.
-   // if (!payload.userId) {
-   //    throw new Error('결제 사용자 ID가 없어 주문 확정을 진행할 수 없습니다. 로그인 정보를 다시 확인해 주세요.');
-   // }
+   if (!payload.userId) {
+      throw new Error('결제 사용자 ID가 없어 주문 확정을 진행할 수 없습니다. 로그인 정보를 다시 확인해 주세요.');
+   }
 
    const payment = await createOrderPayment(order.orderId, {
       paymentMethod: toPaymentMethodCode(payload.paymentMethod),
@@ -332,7 +331,7 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
    });
 
    const confirmation = await confirmOrderPayment(order.orderId, {
-      userId: payload.userId ?? '8df84c70-833e-4374-85ad-fa52f92f939e',
+      userId: payload.userId,
       paymentId: payment.paymentId,
       pgTid: payment.pgTid,
    });

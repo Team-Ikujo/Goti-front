@@ -32,47 +32,114 @@ export type NormalizedScheduleGame = {
 
 type TeamReference = {
   frontendId: string;
+  teamCode: string;
   shortName: string;
   fullName: string;
   aliases: string[];
 };
 
 const TEAM_REFERENCES: TeamReference[] = [
-  { frontendId: 'kia', shortName: 'KIA', fullName: 'KIA 타이거즈', aliases: ['kia', 'teamkia', 'kiatigers', '기아', '기아타이거즈'] },
-  { frontendId: 'samsung', shortName: '삼성', fullName: '삼성 라이온즈', aliases: ['samsung', 'teamsamsung', '삼성', '삼성라이온즈'] },
-  { frontendId: 'lg', shortName: 'LG', fullName: 'LG 트윈스', aliases: ['lg', 'teamlg', 'lgtwins', '엘지', '엘지트윈스', 'lg트윈스'] },
-  { frontendId: 'hanwha', shortName: '한화', fullName: '한화 이글스', aliases: ['hanwha', 'teamhanwha', '한화', '한화이글스'] },
-  { frontendId: 'ssg', shortName: 'SSG', fullName: 'SSG 랜더스', aliases: ['ssg', 'teamssg', 'ssglanders', '랜더스', 'ssg랜더스'] },
-  { frontendId: 'nc', shortName: 'NC', fullName: 'NC 다이노스', aliases: ['nc', 'teamnc', 'ncdinos', 'nc다이노스'] },
-  { frontendId: 'kt', shortName: 'KT', fullName: 'KT wiz', aliases: ['kt', 'teamkt', 'ktwiz', '케이티', '케이티위즈'] },
-  { frontendId: 'lotte', shortName: '롯데', fullName: '롯데 자이언츠', aliases: ['lotte', 'teamlotte', '롯데', '롯데자이언츠'] },
-  { frontendId: 'doosan', shortName: '두산', fullName: '두산 베어스', aliases: ['doosan', 'teamdoosan', '두산', '두산베어스'] },
-  { frontendId: 'kiwoom', shortName: '키움', fullName: '키움 히어로즈', aliases: ['kiwoom', 'teamkiwoom', '키움', '키움히어로즈'] },
+  { frontendId: 'kia', teamCode: 'KIA', shortName: 'KIA', fullName: 'KIA 타이거즈', aliases: ['kia', 'teamkia', 'kiatigers', '기아', '기아타이거즈'] },
+  { frontendId: 'samsung', teamCode: 'SS', shortName: '삼성', fullName: '삼성 라이온즈', aliases: ['samsung', 'teamsamsung', '삼성', '삼성라이온즈', 'ss', 'samsunglions'] },
+  { frontendId: 'lg', teamCode: 'LG', shortName: 'LG', fullName: 'LG 트윈스', aliases: ['lg', 'teamlg', 'lgtwins', '엘지', '엘지트윈스', 'lg트윈스'] },
+  { frontendId: 'hanwha', teamCode: 'HH', shortName: '한화', fullName: '한화 이글스', aliases: ['hanwha', 'teamhanwha', '한화', '한화이글스', 'hh', 'hanwhaeagles'] },
+  { frontendId: 'ssg', teamCode: 'SSG', shortName: 'SSG', fullName: 'SSG 랜더스', aliases: ['ssg', 'teamssg', 'ssglanders', '랜더스', 'ssg랜더스'] },
+  { frontendId: 'nc', teamCode: 'NC', shortName: 'NC', fullName: 'NC 다이노스', aliases: ['nc', 'teamnc', 'ncdinos', 'nc다이노스'] },
+  { frontendId: 'kt', teamCode: 'KT', shortName: 'KT', fullName: 'KT wiz', aliases: ['kt', 'teamkt', 'ktwiz', '케이티', '케이티위즈'] },
+  { frontendId: 'lotte', teamCode: 'LOT', shortName: '롯데', fullName: '롯데 자이언츠', aliases: ['lotte', 'teamlotte', '롯데', '롯데자이언츠', 'lot', 'lottegiants'] },
+  { frontendId: 'doosan', teamCode: 'DO', shortName: '두산', fullName: '두산 베어스', aliases: ['doosan', 'teamdoosan', '두산', '두산베어스', 'do', 'doosanbears'] },
+  { frontendId: 'kiwoom', teamCode: 'KIW', shortName: '키움', fullName: '키움 히어로즈', aliases: ['kiwoom', 'teamkiwoom', '키움', '키움히어로즈', 'kiw', 'kiwoomheroes'] },
 ];
 
-const STADIUM_NAME_BY_ID: Record<string, string> = {
-  'stadium-jamsil-baseball': '잠실',
-  'stadium-samsung-lions-park': '대구',
-  'stadium-sajik-baseball': '사직',
-  'stadium-changwon-nc-park': '창원',
-  'stadium-gocheok-skydome': '고척',
-  'stadium-kia-champions-field': '광주',
-  'stadium-kt-wiz-park': '수원',
-  'stadium-daejeon-baseball': '대전',
-  'stadium-incheon-landers-field': '인천',
+type StadiumReference = {
+  displayName: string;
+  aliases: string[];
+};
+
+const STADIUM_REFERENCES: Record<string, StadiumReference> = {
+  'stadium-jamsil-baseball': {
+    displayName: '잠실 야구장',
+    aliases: ['잠실야구장'],
+  },
+  'stadium-samsung-lions-park': {
+    displayName: '대구 삼성 라이온즈 파크',
+    aliases: ['대구삼성라이온즈파크', '삼성라이온즈파크'],
+  },
+  'stadium-sajik-baseball': {
+    displayName: '사직 야구장',
+    aliases: ['사직야구장'],
+  },
+  'stadium-changwon-nc-park': {
+    displayName: '창원 NC파크',
+    aliases: ['창원nc파크', 'nc파크'],
+  },
+  'stadium-gocheok-skydome': {
+    displayName: '고척 스카이돔',
+    aliases: ['고척스카이돔'],
+  },
+  'stadium-kia-champions-field': {
+    displayName: '기아 챔피언스필드',
+    aliases: ['광주기아챔피언스필드', '기아챔피언스필드'],
+  },
+  'stadium-kt-wiz-park': {
+    displayName: '수원 KT위즈파크',
+    aliases: ['수원kt위즈파크', 'kt위즈파크'],
+  },
+  'stadium-daejeon-baseball': {
+    displayName: '대전 한화생명 볼파크',
+    aliases: ['대전한화생명볼파크'],
+  },
+  'stadium-incheon-landers-field': {
+    displayName: '인천 SSG 랜더스필드',
+    aliases: ['인천ssg랜더스필드', 'ssg랜더스필드'],
+  },
 };
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 const normalizeLookupValue = (value: string) => value.toLowerCase().replace(/[\s\-_./()]/g, '');
 
-const findTeamReference = (teamId: string) => {
-  const normalized = normalizeLookupValue(teamId);
-  return TEAM_REFERENCES.find((reference) => reference.aliases.some((alias) => normalizeLookupValue(alias) === normalized));
+const findTeamReference = (...candidates: Array<string | undefined>) => {
+  const normalizedCandidates = candidates
+    .filter((candidate): candidate is string => Boolean(candidate))
+    .map(normalizeLookupValue);
+
+  if (normalizedCandidates.length === 0) {
+    return undefined;
+  }
+
+  return TEAM_REFERENCES.find((reference) => {
+    const referenceCandidates = [reference.frontendId, reference.teamCode, reference.shortName, reference.fullName, ...reference.aliases]
+      .map(normalizeLookupValue);
+
+    return normalizedCandidates.some((candidate) => referenceCandidates.includes(candidate));
+  });
 };
 
 const parseApiDateTime = (value: string) => {
-  const [date = '', time = ''] = value.trim().split(' ');
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return { date: '', time: '' };
+  }
+
+  const normalized = trimmedValue.includes('T') ? trimmedValue : trimmedValue.replace(' ', 'T');
+  const parsedDate = new Date(normalized);
+
+  if (!Number.isNaN(parsedDate.getTime())) {
+    const year = parsedDate.getFullYear();
+    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(parsedDate.getDate()).padStart(2, '0');
+    const hour = String(parsedDate.getHours()).padStart(2, '0');
+    const minute = String(parsedDate.getMinutes()).padStart(2, '0');
+
+    return {
+      date: `${year}-${month}-${day}`,
+      time: `${hour}:${minute}`,
+    };
+  }
+
+  const [date = '', time = ''] = trimmedValue.split(/[ T]/);
   return { date, time: time.slice(0, 5) };
 };
 
@@ -92,7 +159,7 @@ const formatOpenedAtInfo = (value?: string) => {
     return undefined;
   }
 
-  const [date = '', time = ''] = value.split(' ');
+  const { date, time } = parseApiDateTime(value);
   const [, month = '', day = ''] = date.split('-');
   const [hour = '', minute = ''] = time.split(':');
   const meridiem = Number(hour) < 12 ? '오전' : '오후';
@@ -149,8 +216,18 @@ const mapResellStatus = (ticketStatus: TicketStatus): ReselStatus => {
   }
 };
 
-const resolveVenueName = (stadiumId: string, homeTeamName: string) => {
-  return STADIUM_NAME_BY_ID[stadiumId] ?? homeTeamName;
+const resolveVenueNameFromGame = (game: GameScheduleResponse, homeTeamName: string) => {
+  const stadiumById = STADIUM_REFERENCES[game.stadiumId];
+
+  if (stadiumById) {
+    return stadiumById.displayName;
+  }
+
+  if (game.stadiumName) {
+    return game.stadiumName;
+  }
+
+  return homeTeamName;
 };
 
 const isSameCalendarDate = (date: string, target: Date) => {
@@ -165,10 +242,12 @@ const isSameCalendarDate = (date: string, target: Date) => {
 
 const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGame => {
   const { date, time } = parseApiDateTime(game.startAt);
-  const homeTeam = findTeamReference(game.homeTeamId);
-  const awayTeam = findTeamReference(game.awayTeamId);
+  const homeTeam = findTeamReference(game.homeTeamCode, game.homeTeamName, game.homeTeamId);
+  const awayTeam = findTeamReference(game.awayTeamCode, game.awayTeamName, game.awayTeamId);
   const status = mapGameStatus(game.gameStatus);
   const ticket = mapTicketStatus(game.ticketingStatus);
+  const fallbackHomeName = game.homeTeamName ?? game.homeTeamCode ?? game.homeTeamId;
+  const fallbackAwayName = game.awayTeamName ?? game.awayTeamCode ?? game.awayTeamId;
 
   return {
     id: game.gameId,
@@ -176,14 +255,14 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
     serverAwayTeamId: game.awayTeamId,
     homeTeamId: homeTeam?.frontendId,
     awayTeamId: awayTeam?.frontendId,
-    homeTeamName: homeTeam?.shortName ?? game.homeTeamId,
-    awayTeamName: awayTeam?.shortName ?? game.awayTeamId,
-    homeTeamFullName: homeTeam?.fullName ?? game.homeTeamId,
-    awayTeamFullName: awayTeam?.fullName ?? game.awayTeamId,
+    homeTeamName: homeTeam?.shortName ?? fallbackHomeName,
+    awayTeamName: awayTeam?.shortName ?? fallbackAwayName,
+    homeTeamFullName: homeTeam?.fullName ?? fallbackHomeName,
+    awayTeamFullName: awayTeam?.fullName ?? fallbackAwayName,
     date,
     dateLabel: toDateLabel(date),
     time,
-    venue: resolveVenueName(game.stadiumId, homeTeam?.shortName ?? game.homeTeamId),
+    venue: resolveVenueNameFromGame(game, homeTeam?.shortName ?? fallbackHomeName),
     stadiumId: game.stadiumId,
     queueTokenJti: buildMockQueueTokenJti(game.gameId),
     score: status === '종료' ? `${game.awayTeamScore}:${game.homeTeamScore}` : null,
@@ -281,7 +360,7 @@ export const getPopularMatches = (games: NormalizedScheduleGame[], limit = 5) =>
 
 export const useGameSchedules = (params: FetchGameSchedulesParams = {}) => {
   return useQuery({
-    queryKey: ['game-schedules', params.year ?? null, params.month ?? null, params.today ?? null],
+    queryKey: ['game-schedules', params.teamId ?? null, params.year ?? null, params.month ?? null, params.week ?? null, params.today ?? null],
     queryFn: async () => {
       const schedules = await fetchGameSchedules(params);
       return schedules.map(normalizeScheduleGame).sort(sortByStartAt);

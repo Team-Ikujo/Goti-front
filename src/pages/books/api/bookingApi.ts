@@ -153,20 +153,70 @@ export const mapSeatSectionsToZones = ({
    teamId?: string;
 }): ZoneItem[] => {
    const gradeById = Object.fromEntries(grades.map((grade) => [grade.seatGradeId, grade]));
+   const aggregatedZones = new Map<string, ZoneItem>();
+   const unmatchedZones: ZoneItem[] = [];
 
-   return sections.map((section) => {
+   sections.forEach((section) => {
       const matchedZone = resolveZoneTemplate(teamId, section.sectionCode);
       const grade = gradeById[section.gradeId];
-      const displayName = matchedZone?.name ?? (grade ? `${grade.name} ${section.sectionCode}` : section.sectionCode);
+      if (matchedZone) {
+         const existingZone = aggregatedZones.get(matchedZone.id);
 
-      return {
+         if (existingZone) {
+            aggregatedZones.set(matchedZone.id, {
+               ...existingZone,
+               remaining: existingZone.remaining + section.capacity,
+            });
+            return;
+         }
+
+         aggregatedZones.set(matchedZone.id, {
+            ...matchedZone,
+            remaining: section.capacity,
+            color: grade?.displayColorHex ?? matchedZone.color ?? DEFAULT_ZONE_COLOR,
+         });
+         return;
+      }
+
+      const displayName = grade ? `${grade.name} ${section.sectionCode}` : section.sectionCode;
+      unmatchedZones.push({
          id: section.sectionId,
          name: displayName,
-         price: matchedZone?.price ?? 0,
+         price: 0,
          remaining: section.capacity,
-         color: grade?.displayColorHex ?? matchedZone?.color ?? DEFAULT_ZONE_COLOR,
-         hotspot: matchedZone?.hotspot ?? [],
+         color: grade?.displayColorHex ?? DEFAULT_ZONE_COLOR,
+         hotspot: [],
          sectionCode: section.sectionCode,
+      } satisfies ZoneItem);
+   });
+
+   return [...aggregatedZones.values(), ...unmatchedZones];
+};
+
+export const mergeBookingZones = ({
+   localZones,
+   apiZones,
+}: {
+   localZones: ZoneItem[];
+   apiZones?: ZoneItem[];
+}): ZoneItem[] => {
+   if (!apiZones?.length) {
+      return localZones;
+   }
+
+   const apiZoneById = new Map(apiZones.map((zone) => [zone.id, zone]));
+
+   return localZones.map((localZone) => {
+      const apiZone = apiZoneById.get(localZone.id);
+
+      if (!apiZone) {
+         return localZone;
+      }
+
+      return {
+         ...localZone,
+         remaining: apiZone.remaining,
+         color: apiZone.color,
       } satisfies ZoneItem;
    });
 };
