@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
-import { fetchSeatGrades, fetchSeatSections, mapSeatSectionsToZones } from '@/pages/books/api/bookingApi';
+import { fetchSeatGrades, fetchSeatSections, mapSeatSectionsToZones, mergeBookingZones } from '@/pages/books/api/bookingApi';
 import { getBookingTeamConfig, getZoneDisplayOrder, getBookingZones } from '@/pages/books/model/zoneData';
 import type { ZoneItem } from '@/pages/books/model/types';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
@@ -55,16 +55,15 @@ const BooksPage = () => {
       },
    });
    const zones = useMemo<ZoneItem[]>(() => {
-      if (bookingEntryState?.bookingZones?.length) {
-         return bookingEntryState.bookingZones;
-      }
+      const mergedZones = mergeBookingZones({
+         localZones,
+         apiZones,
+      });
 
-      if (apiZones?.length) {
-         return [...apiZones].sort((left, right) => right.remaining - left.remaining || left.name.localeCompare(right.name, 'ko-KR'));
-      }
-
-      return localZones;
-   }, [apiZones, bookingEntryState?.bookingZones, localZones]);
+      return [...mergedZones].sort(
+         (left, right) => right.remaining - left.remaining || left.name.localeCompare(right.name, 'ko-KR'),
+      );
+   }, [apiZones, localZones]);
 
    const [selectedZoneId, setSelectedZoneId] = useState(zones[0]?.id ?? '');
    const [isCaptchaOpen, setIsCaptchaOpen] = useState(requiresCaptcha);
