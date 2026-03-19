@@ -30,14 +30,26 @@ const GameSchedule = () => {
    const [allYear, setAllYear] = useState(CURRENT_YEAR);
    const [allMonth, setAllMonth] = useState(CURRENT_MONTH);
 
-   const scheduleQuery = useGameSchedules(
-      activeTab === TAB_TODAY
-         ? { today: true }
-         : {
-              year: activeTab === TAB_WEEK ? weekYear : allYear,
-              month: activeTab === TAB_WEEK ? weekMonth : allMonth,
-           },
-   );
+   const scheduleParams = (() => {
+      switch (activeTab) {
+         case TAB_TODAY:
+            return { today: true };
+         case TAB_WEEK:
+            return {
+               year: weekYear,
+               month: weekMonth,
+               today: false,
+            };
+         default:
+            return {
+               year: allYear,
+               month: allMonth,
+               today: false,
+            };
+      }
+   })();
+
+   const scheduleQuery = useGameSchedules(scheduleParams);
 
    const scheduleData = useMemo(
       () => mapGamesToDaySchedules(scheduleQuery.data ?? []),
