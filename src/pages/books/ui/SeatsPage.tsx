@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 import { createSeatsForZone, getSeatBlocks } from '@/pages/books/model/seatData';
+import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSeatPaymentSummary';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { formatPrice, getBookingZones, getZoneOverviewImage, getStadiumName } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
@@ -132,6 +133,19 @@ function SeatsPage() {
 
    const selectedPrice = selectedSeats.reduce((total, item) => total + item.price, 0);
    const bookingButtonLabel = `${selectedSeats.length}매 예매하기`;
+   const paymentSummary = useMemo(
+      () => getSelectedSeatPaymentSummary(zonesState, bookingZones),
+      [bookingZones, zonesState],
+   );
+
+   const handleProceedToPayment = () => {
+      navigate('/tickets/payment', {
+         state: {
+            ...bookingEntryState,
+            selectedSeatCount: paymentSummary.quantity,
+         },
+      });
+   };
 
    const sectionBounds = useMemo(() => {
       if (seatBlocks.length === 0) {
@@ -484,7 +498,7 @@ function SeatsPage() {
                            <button
                               type="button"
                               disabled={selectedSeats.length === 0}
-                              onClick={() => navigate('/tickets/payment')}
+                              onClick={handleProceedToPayment}
                               className={[
                                  'h-12 w-full rounded-[8px] text-label-1-bold transition-colors',
                                  selectedSeats.length === 0
@@ -547,7 +561,7 @@ function SeatsPage() {
                   <button
                      type="button"
                      disabled={selectedSeats.length === 0}
-                     onClick={() => navigate('/tickets/payment')}
+                     onClick={handleProceedToPayment}
                      className={[
                         'h-[56px] w-full rounded-[8px] text-label-1-bold transition-colors',
                         selectedSeats.length === 0

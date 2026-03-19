@@ -1,9 +1,12 @@
 // src/pages/tickets/ui/payment/TicketPaymentPage.tsx
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSeatPaymentSummary';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
+import { getBookingTeamConfig, getBookingZones } from '@/pages/books/model/zoneData';
 import { Button } from '@/shared/ui/button';
+import type { BookingEntryState } from '@/shared/lib/use-booking-entry-flow';
 import type { PaymentRequest } from '@/pages/tickets/api/paymentApi';
 import {
    CashReceiptCard,
@@ -41,7 +44,12 @@ const MOCK_GAME = {
 
 export default function TicketPaymentPage() {
    const navigate = useNavigate();
+   const location = useLocation();
+   const bookingEntryState = location.state as BookingEntryState | null;
    const zonesState = useSeatSelectionStore((state) => state.zones);
+   const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
+   const bookingZones = getBookingZones(bookingEntryState?.homeTeamId);
+   const paymentSummary = getSelectedSeatPaymentSummary(zonesState, bookingZones);
 
    // 주문자 정보
    const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('mobile');
@@ -89,17 +97,18 @@ export default function TicketPaymentPage() {
    };
 
    const orderInfo = {
-      matchTitle: MOCK_GAME.matchTitle,
-      dateTime: MOCK_GAME.dateTime,
-      quantity: 2,
-      seats: ['1E-2구역 0열 0번', '1E-2구역 0열 0번'],
+      matchTitle: bookingEntryState?.matchTitle ?? `${bookingTeamConfig.displayName} 홈경기`,
+      dateTime: bookingEntryState?.dateTime ?? MOCK_GAME.dateTime,
+      quantity: paymentSummary.quantity,
+      seats: paymentSummary.seatLabels,
       deliveryLabel: DELIVERY_LABELS[deliveryMethod],
       paymentLabel: PAYMENT_LABELS[paymentMethod],
    };
 
    // 수수료: 매당 1,000원
    const fee = orderInfo.quantity * 1000;
-   const totalPayment = shippingFee + fee; // ticketPrice·할인 0원 (TODO: 실데이터 연결 후 업데이트)
+   const ticketPrice = paymentSummary.totalPrice;
+   const totalPayment = ticketPrice + shippingFee + fee; // 할인 0원
 
    useEffect(() => {
       const selectedSeatSummary = Object.entries(zonesState).flatMap(([zoneId, zone]) =>
@@ -134,7 +143,11 @@ export default function TicketPaymentPage() {
 
    return (
       <div className="min-h-screen flex flex-col bg-background">
-         <PaymentHeader {...MOCK_GAME} />
+         <PaymentHeader
+            matchTitle={orderInfo.matchTitle}
+            venue={bookingEntryState?.venue ?? bookingTeamConfig.stadiumName ?? MOCK_GAME.venue}
+            dateTime={orderInfo.dateTime}
+         />
 
          <main className="flex-1 bg-white flex justify-center px-4">
             <div className="w-full max-w-[1200px] py-8 flex flex-col gap-8">
@@ -232,7 +245,7 @@ export default function TicketPaymentPage() {
                         <div className="lg:hidden flex flex-col gap-6">
                            <OrderSummaryCard orderInfo={orderInfo} />
                            <PaymentAmountCard
-                              ticketPrice={0}
+                              ticketPrice={ticketPrice}
                               shippingFee={shippingFee}
                               discounts={[
                                  { label: '학생 할인 5%', amount: 0 },
@@ -261,7 +274,7 @@ export default function TicketPaymentPage() {
                         <OrderSummaryCard orderInfo={orderInfo} />
 
                         <PaymentAmountCard
-                           ticketPrice={0}
+                           ticketPrice={ticketPrice}
                            shippingFee={shippingFee}
                            discounts={[
                               { label: '학생 할인 5%', amount: 0 },
