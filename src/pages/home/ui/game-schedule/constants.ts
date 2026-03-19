@@ -33,7 +33,11 @@ export const scheduleData: DaySchedule[] = [
       year: 2025,
       date: '7월 1일 (수)',
       games: [
-         {
+        {
+            gameId: 'j02',
+            homeTeamId: 'lg',
+            stadiumId: 'stadium-jamsil-baseball',
+            queueTokenJti: 'queue-token-j02',
             time: '18:30',
             venue: '잠실',
             away: 'KIA',
@@ -60,7 +64,11 @@ export const scheduleData: DaySchedule[] = [
             ticket: '예매하기',
             resell: '리셀매진',
          },
-         {
+        {
+            gameId: 'j03',
+            homeTeamId: 'samsung',
+            stadiumId: 'stadium-samsung-lions-park',
+            queueTokenJti: 'queue-token-j03',
             time: '18:30',
             venue: '대구',
             away: '두산',
@@ -76,7 +84,11 @@ export const scheduleData: DaySchedule[] = [
       year: 2025,
       date: '7월 5일 (일)',
       games: [
-         {
+        {
+            gameId: 'j09',
+            homeTeamId: 'lg',
+            stadiumId: 'stadium-jamsil-baseball',
+            queueTokenJti: 'queue-token-j09',
             time: '17:00',
             venue: '잠실',
             away: 'KIA',

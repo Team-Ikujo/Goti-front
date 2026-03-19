@@ -3,6 +3,10 @@ export type TicketStatus = '예매하기' | '매진' | '판매예정';
 export type ReselStatus = '리셀예매' | '리셀매진' | '리셀예정';
 
 export type GameRow = {
+   gameId?: string;
+   homeTeamId?: string;
+   stadiumId?: string;
+   queueTokenJti?: string;
    time: string;
    venue: string;
    away: string;

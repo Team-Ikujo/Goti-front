@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
+import { buildSeatBlockFromApiSeats, fetchSeats, fetchSeatStatuses, mapApiSeatsToSeatItems } from '@/pages/books/api/bookingApi';
 import { createSeatsForZone, getSeatBlocks } from '@/pages/books/model/seatData';
 import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSeatPaymentSummary';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
@@ -32,7 +34,11 @@ function SeatsPage() {
    const location = useLocation();
    const { zoneId = '' } = useParams();
    const bookingEntryState = location.state as BookingEntryState | null;
-   const bookingZones = useMemo(() => getBookingZones(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
+   const bookingZones = useMemo(
+      () => bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId),
+      [bookingEntryState?.bookingZones, bookingEntryState?.homeTeamId],
+   );
+   const hasApiBookingZones = Boolean(bookingEntryState?.bookingZones?.length);
 
    const zone = useMemo(
       () => bookingZones.find((item) => item.id === zoneId) ?? bookingZones[0],
@@ -42,10 +48,44 @@ function SeatsPage() {
    const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
-   const seatBlocks = useMemo(() => getSeatBlocks(zone.id), [zone.id]);
+   const { data: apiSeatData } = useQuery({
+      queryKey: ['booking-seats', bookingEntryState?.gameId, zone.id],
+      enabled: Boolean(hasApiBookingZones && bookingEntryState?.gameId && zone.id),
+      queryFn: async () => {
+         const [seats, statuses] = await Promise.all([
+            fetchSeats(zone.id),
+            fetchSeatStatuses(bookingEntryState!.gameId!, zone.id),
+         ]);
+
+         return {
+            seats,
+            statuses,
+         };
+      },
+   });
+   const apiSeatItems = useMemo(() => {
+      if (!apiSeatData || !zone.sectionCode) {
+         return [];
+      }
+
+      return mapApiSeatsToSeatItems({
+         sectionId: zone.id,
+         sectionCode: zone.sectionCode,
+         seats: apiSeatData.seats,
+         statuses: apiSeatData.statuses,
+      });
+   }, [apiSeatData, zone.id, zone.sectionCode]);
+   const seatBlocks = useMemo(() => {
+      if (apiSeatData && zone.sectionCode) {
+         return buildSeatBlockFromApiSeats(zone.sectionCode, apiSeatData.seats);
+      }
+
+      return getSeatBlocks(zone.id);
+   }, [apiSeatData, zone.id, zone.sectionCode]);
    const zonesState = useSeatSelectionStore((state) => state.zones);
    const zoneSeatState = useSeatSelectionStore((state) => state.zones[zone.id]);
    const initializeZone = useSeatSelectionStore((state) => state.initializeZone);
+   const applyServerSeatSnapshot = useSeatSelectionStore((state) => state.applyServerSeatSnapshot);
    const toggleSelectedSeat = useSeatSelectionStore((state) => state.toggleSelectedSeat);
    const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
 
@@ -58,8 +98,13 @@ function SeatsPage() {
    const [mapViewportSize, setMapViewportSize] = useState({ width: 0, height: 0 });
 
    useEffect(() => {
+      if (apiSeatItems.length > 0) {
+         applyServerSeatSnapshot(zone.id, apiSeatItems);
+         return;
+      }
+
       initializeZone(zone.id, initialSeats);
-   }, [initialSeats, initializeZone, zone.id]);
+   }, [apiSeatItems, applyServerSeatSnapshot, initialSeats, initializeZone, zone.id]);
 
    useEffect(() => {
       const updateViewportSize = () => {
