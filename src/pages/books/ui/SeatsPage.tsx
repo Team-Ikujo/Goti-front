@@ -1,23 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 
-import { buildSeatBlockFromApiSeats, fetchSeats, fetchSeatStatuses, mapApiSeatsToSeatItems } from '@/pages/books/api/bookingApi';
-import { createSeatsForZone, getSeatBlocks } from '@/pages/books/model/seatData';
+import { createSeatsForZone } from '@/pages/books/model/seatData';
 import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSeatPaymentSummary';
+import { useSeatMapData } from '@/pages/books/model/useSeatMapData';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { formatPrice, getBookingZones, getZoneOverviewImage, getStadiumName } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
-import type { BookingEntryState } from '@/shared/lib/use-booking-entry-flow';
+import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
-import SeatBlockGrid from './components/SeatBlockGrid';
+import SeatMapStage from './components/SeatMapStage';
 import SelectedSeatSummaryList, { type SelectedSeatSummaryItem } from './components/SelectedSeatSummaryList';
 
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
-const SCALE_STEP = 0.2;
 const STAGE_WIDTH = 1240;
 const STAGE_HEIGHT = 620;
 const BLOCK_SEAT_SIZE = 18;
@@ -33,12 +30,13 @@ function SeatsPage() {
    const navigate = useNavigate();
    const location = useLocation();
    const { zoneId = '' } = useParams();
-   const bookingEntryState = location.state as BookingEntryState | null;
+   const routeBookingEntryState = location.state as BookingEntryState | null;
+   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
+   const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
    const bookingZones = useMemo(
       () => bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId),
       [bookingEntryState?.bookingZones, bookingEntryState?.homeTeamId],
    );
-   const hasApiBookingZones = Boolean(bookingEntryState?.bookingZones?.length);
 
    const zone = useMemo(
       () => bookingZones.find((item) => item.id === zoneId) ?? bookingZones[0],
@@ -48,40 +46,11 @@ function SeatsPage() {
    const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
-   const { data: apiSeatData } = useQuery({
-      queryKey: ['booking-seats', bookingEntryState?.gameId, zone.id],
-      enabled: Boolean(hasApiBookingZones && bookingEntryState?.gameId && zone.id),
-      queryFn: async () => {
-         const [seats, statuses] = await Promise.all([
-            fetchSeats(zone.id),
-            fetchSeatStatuses(bookingEntryState!.gameId!, zone.id),
-         ]);
-
-         return {
-            seats,
-            statuses,
-         };
-      },
+   const { apiSeatItems, seatBlocks, hasApiSeatMap } = useSeatMapData({
+      gameId: bookingEntryState?.gameId,
+      stadiumId: bookingEntryState?.stadiumId,
+      zone,
    });
-   const apiSeatItems = useMemo(() => {
-      if (!apiSeatData || !zone.sectionCode) {
-         return [];
-      }
-
-      return mapApiSeatsToSeatItems({
-         sectionId: zone.id,
-         sectionCode: zone.sectionCode,
-         seats: apiSeatData.seats,
-         statuses: apiSeatData.statuses,
-      });
-   }, [apiSeatData, zone.id, zone.sectionCode]);
-   const seatBlocks = useMemo(() => {
-      if (apiSeatData && zone.sectionCode) {
-         return buildSeatBlockFromApiSeats(zone.sectionCode, apiSeatData.seats);
-      }
-
-      return getSeatBlocks(zone.id);
-   }, [apiSeatData, zone.id, zone.sectionCode]);
    const zonesState = useSeatSelectionStore((state) => state.zones);
    const zoneSeatState = useSeatSelectionStore((state) => state.zones[zone.id]);
    const initializeZone = useSeatSelectionStore((state) => state.initializeZone);
@@ -98,13 +67,19 @@ function SeatsPage() {
    const [mapViewportSize, setMapViewportSize] = useState({ width: 0, height: 0 });
 
    useEffect(() => {
-      if (apiSeatItems.length > 0) {
+      if (routeBookingEntryState) {
+         setBookingEntry(routeBookingEntryState);
+      }
+   }, [routeBookingEntryState, setBookingEntry]);
+
+   useEffect(() => {
+      if (hasApiSeatMap && apiSeatItems.length > 0) {
          applyServerSeatSnapshot(zone.id, apiSeatItems);
          return;
       }
 
       initializeZone(zone.id, initialSeats);
-   }, [apiSeatItems, applyServerSeatSnapshot, initialSeats, initializeZone, zone.id]);
+   }, [apiSeatItems, applyServerSeatSnapshot, hasApiSeatMap, initialSeats, initializeZone, zone.id]);
 
    useEffect(() => {
       const updateViewportSize = () => {
@@ -184,12 +159,7 @@ function SeatsPage() {
    );
 
    const handleProceedToPayment = () => {
-      navigate('/tickets/payment', {
-         state: {
-            ...bookingEntryState,
-            selectedSeatCount: paymentSummary.quantity,
-         },
-      });
+      navigate('/tickets/payment');
    };
 
    const sectionBounds = useMemo(() => {
@@ -298,8 +268,6 @@ function SeatsPage() {
       setSeatMapOffset({ x: 0, y: 0 });
    };
 
-   const canDragSeatMap = () => true;
-
    const toggleSeat = (seat: SeatItem) => {
       if (seat.status === 'disabled' || seat.status === 'held') {
          return;
@@ -309,10 +277,6 @@ function SeatsPage() {
    };
 
    const handleMapPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!canDragSeatMap()) {
-         return;
-      }
-
       const target = event.target as HTMLElement;
       if (target.closest('button')) {
          return;
@@ -384,98 +348,25 @@ function SeatsPage() {
                </div>
 
                <div className="relative flex-1 overflow-hidden px-0 pb-[144px] lg:px-8 lg:pb-6 xl:pb-6">
-                  <div className="relative h-full min-h-[516px] overflow-hidden bg-[#eef0f3] lg:min-h-[560px] lg:rounded-[24px]">
-                     <div ref={mapViewportRef} className="absolute inset-0 overflow-hidden">
-                        <div
-                           className={[
-                              'absolute left-1/2 top-14 origin-top',
-                              isSeatMapDragging ? 'cursor-grabbing' : canDragSeatMap() ? 'cursor-grab' : 'cursor-default',
-                              isSeatMapDragging ? '' : 'transition-transform duration-150',
-                              'touch-none',
-                           ].join(' ')}
-                           style={{
-                              width: `${STAGE_WIDTH}px`,
-                              height: `${STAGE_HEIGHT}px`,
-                              transform: `translate3d(calc(-50% + ${seatMapOffset.x}px), ${seatMapOffset.y}px, 0) scale(${seatMapScale})`,
-                           }}
-                           onPointerDown={handleMapPointerDown}
-                           onPointerMove={handleMapPointerMove}
-                           onPointerUp={handleMapPointerUp}
-                           onPointerCancel={handleMapPointerUp}
-                        >
-                           <div
-                              className="absolute rounded-[10px] bg-[rgba(233,235,238,0.72)] px-8 py-3 text-body-1-bold text-muted-foreground shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur lg:rounded-xl lg:bg-white/70 lg:text-body-2-semibold"
-                              style={{
-                                 left: '50%',
-                                 top: '24px',
-                                 transform: 'translateX(-50%)',
-                              }}
-                           >
-                              경기장 방향
-                           </div>
-
-                           {seatBlocks.map((block, index) => (
-                              <SeatBlockGrid
-                                 key={block.id}
-                                 block={block}
-                                 blockIndex={index}
-                                 seats={seats.filter((seat) => seat.block === block.id)}
-                                 selectedSeatIds={selectedSeatIds}
-                                 onToggleSeat={toggleSeat}
-                              />
-                           ))}
-                        </div>
-                     </div>
-
-                     <div className="absolute bottom-5 left-5 hidden overflow-hidden rounded-[16px] bg-[#b0b0b0] shadow-[0_16px_40px_rgba(15,23,42,0.18)] lg:block">
-                        <div className="relative h-[140px] w-[215px]">
-                           <svg
-                              viewBox={`0 0 ${MINIMAP_WIDTH} ${MINIMAP_HEIGHT}`}
-                              className="h-full w-full"
-                              role="img"
-                              aria-label={`${zone.name} 섹션 미니맵`}
-                           >
-                              <rect width={MINIMAP_WIDTH} height={MINIMAP_HEIGHT} fill="#b0b0b0" />
-                              {minimapLayout?.blocks.map((block) => (
-                                 <rect
-                                    key={block.id}
-                                    x={block.x}
-                                    y={block.y}
-                                    width={block.width}
-                                    height={block.height}
-                                    rx="2"
-                                    fill={zone.color}
-                                    fillOpacity="0.82"
-                                 />
-                              ))}
-                              {minimapViewport ? (
-                                 <rect
-                                    x={minimapViewport.left}
-                                    y={minimapViewport.top}
-                                    width={Math.max(12, minimapViewport.width)}
-                                    height={Math.max(12, minimapViewport.height)}
-                                    rx="6"
-                                    fill="rgba(255,255,255,0.08)"
-                                    stroke="#ffffff"
-                                    strokeWidth="4"
-                                 />
-                              ) : null}
-                           </svg>
-                        </div>
-                     </div>
-
-                     <div className="absolute bottom-6 right-6 hidden flex-col gap-2 lg:flex">
-                        <MapControlButton ariaLabel="확대" onClick={() => updateSeatMapScale(seatMapScale + SCALE_STEP)}>
-                           <Plus className="h-5 w-5" aria-hidden="true" />
-                        </MapControlButton>
-                        <MapControlButton ariaLabel="축소" onClick={() => updateSeatMapScale(seatMapScale - SCALE_STEP)}>
-                           <Minus className="h-5 w-5" aria-hidden="true" />
-                        </MapControlButton>
-                        <MapControlButton ariaLabel="초기화" onClick={resetSeatMapView}>
-                           <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                        </MapControlButton>
-                     </div>
-                  </div>
+                  <SeatMapStage
+                     isSeatMapDragging={isSeatMapDragging}
+                     mapViewportRef={mapViewportRef}
+                     minimapLayout={minimapLayout}
+                     minimapViewport={minimapViewport}
+                     seatBlocks={seatBlocks}
+                     seatMapOffset={seatMapOffset}
+                     seatMapScale={seatMapScale}
+                     seats={seats}
+                     selectedSeatIds={selectedSeatIds}
+                     zoneColor={zone.color}
+                     zoneName={zone.name}
+                     onMapPointerDown={handleMapPointerDown}
+                     onMapPointerMove={handleMapPointerMove}
+                     onMapPointerUp={handleMapPointerUp}
+                     onResetSeatMapView={resetSeatMapView}
+                     onToggleSeat={toggleSeat}
+                     onUpdateSeatMapScale={updateSeatMapScale}
+                  />
                </div>
 
                <Drawer open={isSeatDrawerOpen} onOpenChange={setIsSeatDrawerOpen} modal={false}>
@@ -620,25 +511,6 @@ function SeatsPage() {
             </aside>
          </main>
       </div>
-   );
-}
-
-type MapControlButtonProps = {
-   ariaLabel: string;
-   children: ReactNode;
-   onClick: () => void;
-};
-
-function MapControlButton({ ariaLabel, children, onClick }: MapControlButtonProps) {
-   return (
-      <button
-         type="button"
-         aria-label={ariaLabel}
-         onClick={onClick}
-         className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border-light bg-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)]"
-      >
-         {children}
-      </button>
    );
 }
 

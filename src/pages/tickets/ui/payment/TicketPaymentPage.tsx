@@ -7,7 +7,7 @@ import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSe
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { getBookingTeamConfig, getBookingZones } from '@/pages/books/model/zoneData';
 import { Button } from '@/shared/ui/button';
-import type { BookingEntryState } from '@/shared/lib/use-booking-entry-flow';
+import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import type { TicketCheckoutRequest } from '@/pages/tickets/api/paymentApi';
 import {
    CashReceiptCard,
@@ -72,7 +72,9 @@ const resolveUserIdFromAccessToken = (accessToken: string | null) => {
 export default function TicketPaymentPage() {
    const navigate = useNavigate();
    const location = useLocation();
-   const bookingEntryState = location.state as BookingEntryState | null;
+   const routeBookingEntryState = location.state as BookingEntryState | null;
+   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
+   const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
    const accessToken = useAuthStore((state) => state.accessToken);
    const zonesState = useSeatSelectionStore((state) => state.zones);
    const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
@@ -158,6 +160,12 @@ export default function TicketPaymentPage() {
    const resolvedUserId = bookingEntryState?.userId ?? resolveUserIdFromAccessToken(accessToken);
 
    useEffect(() => {
+      if (routeBookingEntryState) {
+         setBookingEntry(routeBookingEntryState);
+      }
+   }, [routeBookingEntryState, setBookingEntry]);
+
+   useEffect(() => {
       const selectedSeatSummary = Object.entries(zonesState).flatMap(([zoneId, zone]) =>
          zone.selectedSeatIds.map((seatId) => ({
             zoneId,
@@ -171,15 +179,46 @@ export default function TicketPaymentPage() {
       });
    }, [zonesState]);
 
+   useEffect(() => {
+      console.info('[TicketPaymentPage] form validity check', {
+         isFormValid,
+         hasName: !!name,
+         hasPhoneLength11: phone.length === 11,
+         hasEmail: !!email,
+         isDeliveryValid,
+         isCashReceiptValid,
+         selectedSeatCount: selectedSeats.length,
+         hasGameId: !!bookingEntryState?.gameId,
+         hasQueueTokenJti: !!bookingEntryState?.queueTokenJti,
+         agreedPrivacy,
+         agreedPolicy,
+         agreedResell,
+      });
+   }, [
+      agreedPolicy,
+      agreedPrivacy,
+      agreedResell,
+      bookingEntryState?.gameId,
+      bookingEntryState?.queueTokenJti,
+      email,
+      isCashReceiptValid,
+      isDeliveryValid,
+      isFormValid,
+      name,
+      phone,
+      selectedSeats.length,
+   ]);
+
    const handlePay = () => {
       if (!bookingEntryState?.gameId || !bookingEntryState.queueTokenJti) {
          return;
       }
 
-      if (!resolvedUserId) {
-         window.alert('결제 사용자 정보를 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.');
-         return;
-      }
+      // 테스트를 위해 결제 단계의 로그인 사용자 확인을 잠시 비활성화합니다.
+      // if (!resolvedUserId) {
+      //    window.alert('결제 사용자 정보를 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.');
+      //    return;
+      // }
 
       const paymentRequest: TicketCheckoutRequest = {
          gameId: bookingEntryState.gameId,

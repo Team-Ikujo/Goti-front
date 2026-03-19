@@ -15,7 +15,7 @@ type BookingTeamConfig = {
 const KIA_BOOKING_ZONES: ZoneItem[] = [
    { id: 'champion', name: '챔피언석', price: 55000, remaining: 1200, color: '#D05150', hotspot: [{ x: 45, y: 72 }], sectionCode: 'A-1~A-3' },
    { id: 'center-table', name: '중앙테이블석 (2인, 3인)', price: 55000, remaining: 2000, color: '#284785', hotspot: [{ x: 38, y: 79 }], sectionCode: 'B-1~B-3' },
-   { id: 'k9', name: 'K9석', price: 16000, remaining: 1800, color: '#DB58AF', hotspot: [{ x: 66, y: 70 }], sectionCode: '112,117' },
+   { id: 'k9', name: 'K9석', price: 16000, remaining: 1800, color: '#DB58AF', hotspot: [{ x: 66, y: 70 }], sectionCode: '112,113,116,117' },
    { id: 'k8', name: 'K8석', price: 14000, remaining: 2000, color: '#EFBC2E', hotspot: [{ x: 61, y: 63 }], sectionCode: '108~111' },
    { id: 'cheering-special', name: '응원특별석', price: 18000, remaining: 3000, color: '#F26D5B', hotspot: [{ x: 71, y: 68 }], sectionCode: '118~123' },
    { id: 'k5', name: 'K5석', price: 12000, remaining: 2500, color: '#93CB3A', hotspot: [{ x: 56, y: 56 }], sectionCode: '104~106,124~126' },

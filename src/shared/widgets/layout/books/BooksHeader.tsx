@@ -3,7 +3,7 @@ import { ChevronLeft, HelpCircle, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getBookingTeamConfig } from '@/pages/books/model/zoneData';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
-import type { BookingEntryState } from '@/shared/lib/use-booking-entry-flow';
+import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { DEFAULT_BOOKING_TIMER_SECONDS, useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 
 import BooksExitDialog from './BooksExitDialog';
@@ -55,7 +55,9 @@ const BooksHeader = ({
 }: BooksHeaderProps = {}) => {
    const navigate = useNavigate();
    const { pathname, state } = useLocation();
-   const bookingEntryState = state as BookingEntryState | null;
+   const routeBookingEntryState = state as BookingEntryState | null;
+   const bookingEntryState = useBookingEntryStore((store) => store.entry) ?? routeBookingEntryState;
+   const clearBookingEntry = useBookingEntryStore((store) => store.clearEntry);
    const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
    const resolvedCurrentStepIndex = currentStepIndex ?? (pathname.includes('/books/seats/') ? 1 : 0);
    const shouldShowBackButton = showBackButton ?? resolvedCurrentStepIndex > 0;
@@ -117,6 +119,7 @@ const BooksHeader = ({
 
       if (!confirmBeforeExit) {
          clearTimer();
+         clearBookingEntry();
          navigate(EXIT_DESTINATIONS[destination]);
          return;
       }
@@ -133,6 +136,7 @@ const BooksHeader = ({
             onConfirm={() => {
                setIsExitDialogOpen(false);
                clearTimer();
+               clearBookingEntry();
                navigate(EXIT_DESTINATIONS[exitDestination]);
             }}
          />
@@ -141,6 +145,7 @@ const BooksHeader = ({
             onConfirm={() => {
                setIsTimeoutDialogOpen(false);
                clearTimer();
+               clearBookingEntry();
                navigate('/');
             }}
          />
