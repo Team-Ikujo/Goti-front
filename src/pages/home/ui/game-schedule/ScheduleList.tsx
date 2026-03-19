@@ -7,6 +7,24 @@ import { TAB_TODAY, TEAM_IDS, statusColor, teamLogos } from './constants';
 import type { DaySchedule, GameRow } from './types';
 import { getGameResultTexts } from './utils';
 
+const VENUE_REGION_LABELS: Record<string, string> = {
+  '기아 챔피언스필드': '광주',
+  '광주 기아 챔피언스 필드': '광주',
+  '대구 삼성 라이온즈 파크': '대구',
+  '대구 삼성라이온즈파크': '대구',
+  '잠실 야구장': '잠실',
+  '사직 야구장': '사직',
+  '창원 NC파크': '창원',
+  '고척 스카이돔': '고척',
+  '수원 KT위즈파크': '수원',
+  '대전 한화생명 볼파크': '대전',
+  '인천 SSG 랜더스필드': '인천',
+};
+
+const toVenueRegionLabel = (venue: string) => {
+  return VENUE_REGION_LABELS[venue] ?? venue;
+};
+
 function ScoreDisplay({ game }: { game: GameRow }) {
   const scoreText = game.score ?? 'VS';
 
@@ -236,6 +254,7 @@ function MobileGameRow({
   const isEnded = game.status === '종료';
   const textDisabled = isEnded ? 'text-[#acb4bb]' : 'text-(--text-primary)';
   const resultText = getGameResultTexts(game.score, isEnded);
+  const venueLabel = toVenueRegionLabel(game.venue);
 
   return (
     <div
@@ -251,7 +270,7 @@ function MobileGameRow({
         </span>
         <span className="text-[14px] leading-[1.5] whitespace-nowrap text-[#acb4bb]">|</span>
         <span className={cn('text-[14px] font-semibold leading-[1.5] whitespace-nowrap', textDisabled)}>
-          {game.venue}
+          {venueLabel}
         </span>
       </div>
 
@@ -295,6 +314,7 @@ function DesktopGameRow({
   const isEnded = game.status === '종료';
   const textDisabled = isEnded ? 'text-[#acb4bb]' : 'text-(--text-primary)';
   const resultText = getGameResultTexts(game.score, isEnded);
+  const venueLabel = toVenueRegionLabel(game.venue);
 
   return (
     <div
@@ -312,7 +332,7 @@ function DesktopGameRow({
         </div>
         <div className="flex items-center justify-center w-[40px]">
           <span className={cn('text-[20px] font-semibold text-center leading-[1.5] whitespace-nowrap', textDisabled)}>
-            {game.venue}
+            {venueLabel}
           </span>
         </div>
       </div>
