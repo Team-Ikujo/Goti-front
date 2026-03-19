@@ -27,11 +27,10 @@ export function useBookingEntryFlow() {
   const [pendingEntryState, setPendingEntryState] = useState<BookingEntryState | null>(null);
 
   const openBookingEntry = (options?: OpenBookingEntryOptions) => {
-    // 테스트를 위해 예매 진입 단계의 로그인 여부 확인을 잠시 비활성화합니다.
-    // if (!accessToken) {
-    //   navigate('/auth/login');
-    //   return;
-    // }
+    if (!accessToken) {
+      navigate('/auth/login');
+      return;
+    }
 
     const nextEntryState = {
       requireCaptcha: true,

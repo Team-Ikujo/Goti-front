@@ -101,7 +101,7 @@ export default function ResellPaymentPage() {
    // 무통장 입금 + 미발행이 아닌 경우 현금영수증 번호 필수
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
    const isFormValid = !!name && phone.length === 11 && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
-   const resolvedBuyerId = resellEntryState?.buyerId ?? resolveUserIdFromAccessToken(accessToken) ?? resaleEntry.buyerId;
+   const resolvedBuyerId = resellEntryState?.buyerId ?? resolveUserIdFromAccessToken(accessToken);
 
    const orderInfo = {
       matchTitle: resellEntryState?.matchTitle ?? MOCK_GAME.matchTitle,
@@ -117,11 +117,10 @@ export default function ResellPaymentPage() {
    const ticketPrice = Math.max(totalPayment - fee, 0);
 
    const handlePay = () => {
-      // 테스트를 위해 리셀 결제 단계의 로그인 사용자 확인을 잠시 비활성화합니다.
-      // if (!resolvedBuyerId) {
-      //    window.alert('구매자 정보를 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.');
-      //    return;
-      // }
+      if (!resolvedBuyerId) {
+         window.alert('구매자 정보를 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.');
+         return;
+      }
 
       const paymentRequest: ResaleCheckoutRequest = {
          buyerId: resolvedBuyerId,
