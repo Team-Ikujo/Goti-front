@@ -1,205 +1,336 @@
+import type { ApexOptions } from 'apexcharts';
+import { useMemo, useState } from 'react';
+import Chart from 'react-apexcharts';
+
 import { Button } from '@/shared/ui/button';
 import { formatPrice } from '@/pages/books/model/zoneData';
-import type { SeatItem, ZoneItem } from '@/pages/books/model/types';
-import type { ResellZoneInsights } from '@/pages/books/model/resellData';
-
-type SelectedSeatSummaryItem = {
-   seat: SeatItem;
-   zoneId: string;
-   zoneName: string;
-   price: number;
-};
+import type { ZoneItem } from '@/pages/books/model/types';
+import type { ResellListingItem, ResellTradeRange, ResellZoneInsights } from '@/pages/books/model/resellData';
+import { cn } from '@/shared/lib/utils';
 
 type ResellSeatSidebarProps = {
    insights: ResellZoneInsights;
-   selectedSeats: SelectedSeatSummaryItem[];
-   selectedPrice: number;
+   selectedListingId?: string;
    zone: ZoneItem;
    zoneOverviewImage: string;
-   onClearAllSelections: () => void;
-   onRemoveSeat: (zoneId: string, seatId: string) => void;
+   stadiumName: string;
+   onSelectListing: (listing: ResellListingItem) => void;
    onSubmit: () => void;
+};
+
+const tooltipWeekdayFormatter = new Intl.DateTimeFormat('ko-KR', {
+   weekday: 'short',
+   timeZone: 'Asia/Seoul',
+});
+
+const tooltipDateFormatter = new Intl.DateTimeFormat('sv-SE', {
+   year: 'numeric',
+   month: '2-digit',
+   day: '2-digit',
+   hour: '2-digit',
+   minute: '2-digit',
+   hour12: false,
+   timeZone: 'Asia/Seoul',
+});
+
+const formatTooltipTimestamp = (occurredAt: string) => {
+   const date = new Date(occurredAt);
+
+   return `${tooltipWeekdayFormatter.format(date)}, ${tooltipDateFormatter.format(date).replace(' ', ', ')}`;
+};
+
+const formatTooltipChangeRate = (price: number, previousClose: number) => {
+   if (previousClose <= 0) {
+      return '0.00%';
+   }
+
+   const changeRate = ((price - previousClose) / previousClose) * 100;
+
+   return `${changeRate >= 0 ? '+' : ''}${changeRate.toFixed(2)}%`;
 };
 
 function ResellSeatSidebar({
    insights,
-   selectedSeats,
-   selectedPrice,
+   selectedListingId,
    zone,
    zoneOverviewImage,
-   onClearAllSelections,
-   onRemoveSeat,
+   stadiumName,
+   onSelectListing,
    onSubmit,
 }: ResellSeatSidebarProps) {
-   const chartMin = Math.min(...insights.pricePoints.map((point) => point.price));
-   const chartMax = Math.max(...insights.pricePoints.map((point) => point.price));
-   const chartWidth = 300;
-   const chartHeight = 124;
-   const yRange = Math.max(1, chartMax - chartMin);
+   const [chartRange, setChartRange] = useState<ResellTradeRange>('minute');
+   const pricePoints = insights.pricePointsByRange[chartRange];
+   const priceValues = useMemo(() => pricePoints.map((point) => point.price), [pricePoints]);
+   const chartMin = Math.min(...priceValues);
+   const chartMax = Math.max(...priceValues);
+   const yAxisStep = useMemo(() => {
+      const range = Math.max(1, chartMax - chartMin);
+      const roughStep = range / 4;
 
-   const path = insights.pricePoints
-      .map((point, index) => {
-         const x = (index / Math.max(1, insights.pricePoints.length - 1)) * chartWidth;
-         const y = chartHeight - ((point.price - chartMin) / yRange) * chartHeight;
+      return Math.max(1000, Math.ceil(roughStep / 1000) * 1000);
+   }, [chartMax, chartMin]);
+   const yAxisMin = useMemo(() => {
+      return Math.max(0, Math.floor(chartMin / yAxisStep) * yAxisStep);
+   }, [chartMin, yAxisStep]);
+   const yAxisMax = useMemo(() => {
+      const nextMax = Math.ceil(chartMax / yAxisStep) * yAxisStep;
 
-         return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-      })
-      .join(' ');
+      return nextMax === yAxisMin ? nextMax + yAxisStep : nextMax;
+   }, [chartMax, yAxisMin, yAxisStep]);
+   const chartOptions = useMemo<ApexOptions>(
+      () => ({
+         chart: {
+            type: 'area',
+            height: 200,
+            toolbar: { show: false },
+            zoom: { enabled: false },
+            sparkline: { enabled: false },
+            animations: { enabled: false },
+            fontFamily: 'inherit',
+            parentHeightOffset: 0,
+         },
+         series: [
+            {
+               name: '리셀 가격',
+               data: pricePoints.map((point) => point.price),
+            },
+         ],
+         colors: ['#2563eb'],
+         fill: {
+            type: 'gradient',
+            gradient: {
+               shade: 'light',
+               type: 'vertical',
+               shadeIntensity: 0,
+               inverseColors: false,
+               opacityFrom: 0.2,
+               opacityTo: 0,
+               stops: [0, 100],
+               colorStops: [
+                  [
+                     { offset: 0, color: '#2563eb', opacity: 0.2 },
+                     { offset: 100, color: '#2563eb', opacity: 0 },
+                  ],
+               ],
+            },
+         },
+         stroke: {
+            curve: 'straight',
+            width: 3,
+            lineCap: 'round',
+         },
+         markers: {
+            size: 4,
+            colors: ['#ffffff'],
+            strokeColors: '#2563eb',
+            strokeWidth: 2,
+            hover: { sizeOffset: 1 },
+         },
+         dataLabels: { enabled: false },
+         tooltip: {
+            enabled: true,
+            theme: 'dark',
+            x: { show: false },
+            y: { formatter: undefined, title: { formatter: () => '' } },
+            marker: { show: false },
+            custom: ({ dataPointIndex }) => {
+               const point = pricePoints[dataPointIndex];
+
+               if (!point) {
+                  return '';
+               }
+
+               return `
+                  <div style="border-radius:8px;background:#161d24;padding:4px 8px;color:#ffffff;font-size:12px;font-weight:700;line-height:1.5;">
+                     <div>체결 가격: ${point.price.toLocaleString('ko-KR')}(${formatTooltipChangeRate(point.price, insights.previousClose)})</div>
+                     <div>${formatTooltipTimestamp(point.occurredAt)}</div>
+                  </div>
+               `;
+            },
+         },
+         legend: { show: false },
+        grid: {
+            borderColor: '#d9dde3',
+            strokeDashArray: 4,
+            padding: {
+               top: 8,
+               right: 10,
+               bottom: 0,
+               left: 4,
+            },
+            xaxis: { lines: { show: false } },
+            yaxis: { lines: { show: true } },
+         },
+         xaxis: {
+            categories: pricePoints.map((point) => point.time),
+            axisBorder: { show: false },
+            axisTicks: { show: false },
+            crosshairs: { show: false },
+            tooltip: { enabled: false },
+            labels: {
+               style: {
+                  colors: Array.from({ length: pricePoints.length }, () => '#8a94a6'),
+                  fontSize: '12px',
+                  fontWeight: 400,
+               },
+            },
+         },
+         states: {
+            hover: {
+               filter: {
+                  type: 'none',
+               },
+            },
+            active: {
+               filter: {
+                  type: 'none',
+               },
+            },
+         },
+         yaxis: {
+            show: true,
+            min: yAxisMin,
+            max: yAxisMax,
+            tickAmount: Math.max(1, Math.round((yAxisMax - yAxisMin) / yAxisStep)),
+            stepSize: yAxisStep,
+            opposite: true,
+            decimalsInFloat: 0,
+            forceNiceScale: false,
+            labels: {
+               show: true,
+               minWidth: 44,
+               maxWidth: 44,
+               align: 'left',
+               offsetX: 6,
+               style: {
+                  colors: ['#8a94a6'],
+                  fontSize: '12px',
+                  fontWeight: 400,
+               },
+               formatter: (value) => value.toLocaleString('ko-KR'),
+            },
+         },
+      }),
+      [insights.previousClose, pricePoints, yAxisMax, yAxisMin, yAxisStep],
+   );
 
    return (
       <aside className="flex w-full shrink-0 flex-col border-l border-border-light bg-background xl:w-[420px]">
-         <div className="relative h-[160px] overflow-hidden border-b border-border-light bg-[#e9ebee] px-5 py-3">
-            <div className="relative mx-auto h-full w-[170px] shrink-0">
+         <div className="relative h-[220px] overflow-hidden border-b border-border-light bg-[#e9ebee] px-5 py-2.5">
+            <div className="relative mx-auto h-[200px] w-[200px] shrink-0">
                <img
                   src={zoneOverviewImage}
-                  alt={`${zone.name} 선택 상태가 반영된 기아 챔피언스필드 좌석도`}
-                  className="h-full w-full object-contain"
+                  alt={`${stadiumName} ${zone.name} 구역 좌석도`}
+                  className="h-full w-full object-contain opacity-70"
                   draggable={false}
                />
             </div>
          </div>
 
-         <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-            <section className="space-y-4 rounded-[20px] border border-border-light bg-background p-4">
-               <div className="flex items-baseline gap-1.5">
+         <div className="flex flex-1 flex-col gap-12 overflow-y-auto pb-5">
+            <section className="space-y-6">
+               <div className="flex items-center gap-1 px-5 pt-5">
                   <h2 className="text-heading-3-bold text-foreground">거래 변동</h2>
-                  <span className="text-body-1-bold text-[#ef4444]">
-                     +{formatPrice(insights.changeAmount)} ({insights.changeRate}%)
+                  <span className={cn('text-label-2-semibold', insights.changeAmount >= 0 ? 'text-destructive' : 'text-primary')}>
+                     {insights.changeAmount >= 0 ? '+' : ''}
+                     {formatPrice(insights.changeAmount)} ({insights.changeRate}%)
                   </span>
                </div>
 
-               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-body-2-regular">
+               <div className="grid grid-cols-2 gap-x-8 gap-y-1 px-5 text-caption-1-medium text-tertiary">
                   <Metric label="전일 종가" value={formatPrice(insights.previousClose)} />
                   <Metric label="최근 거래 체결가" value={formatPrice(insights.recentTrade)} />
                   <Metric label="금일 하한가" value={formatPrice(insights.dayLow)} valueClassName="text-primary" />
-                  <Metric label="금일 상한가" value={formatPrice(insights.dayHigh)} valueClassName="text-[#ef4444]" />
+                  <Metric label="금일 상한가" value={formatPrice(insights.dayHigh)} valueClassName="text-destructive" />
                </div>
 
-               <div className="rounded-[16px] border border-border-light bg-white px-3 py-3">
-                  <div className="relative">
-                     <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-[136px] w-full" role="img" aria-label={`${zone.name} 리셀 가격 추이`}>
-                        {[0, 1, 2, 3].map((line) => {
-                           const y = 8 + line * 30;
+               <div className="px-5">
+                  <div className="flex rounded-[12px] bg-[#f1f2f4] p-1">
+                     {([
+                        { key: 'minute', label: '1분' },
+                        { key: 'day', label: '1일' },
+                     ] as const).map((item) => (
+                        <button
+                           key={item.key}
+                           type="button"
+                           onClick={() => setChartRange(item.key)}
+                           className={cn(
+                              'flex-1 rounded-[8px] px-2.5 py-2 text-body-2-bold transition-colors',
+                              chartRange === item.key ? 'bg-background text-secondary' : 'text-disabled-foreground',
+                           )}
+                        >
+                           {item.label}
+                        </button>
+                     ))}
+                  </div>
+               </div>
 
-                           return (
-                              <line
-                                 key={line}
-                                 x1="0"
-                                 y1={y}
-                                 x2={chartWidth}
-                                 y2={y}
-                                 stroke="#d9dde3"
-                                 strokeDasharray="4 4"
-                              />
-                           );
-                        })}
-                        <path d={path} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                        {insights.pricePoints.map((point, index) => {
-                           const x = (index / Math.max(1, insights.pricePoints.length - 1)) * chartWidth;
-                           const y = chartHeight - ((point.price - chartMin) / yRange) * chartHeight;
-
-                           return <circle key={point.time} cx={x} cy={y} r="4" fill="#2563eb" />;
-                        })}
-                     </svg>
-                     <div className="mt-2 flex justify-between text-[11px] font-medium leading-[1.45] text-[#7d8793]">
-                        {insights.pricePoints.map((point) => (
-                           <span key={point.time}>{point.time}</span>
-                        ))}
+               <div className="px-5">
+                  <div className="rounded-[8px] border border-border-light bg-background px-0 py-3">
+                     <div role="img" aria-label={`${zone.name} 리셀 가격 추이`}>
+                        <div className="pr-2">
+                           <Chart options={chartOptions} series={chartOptions.series ?? []} type="area" height={200} />
+                        </div>
                      </div>
                   </div>
                </div>
             </section>
 
-            <section className="space-y-3 rounded-[20px] border border-border-light bg-background p-4">
-               <h3 className="text-heading-3-bold text-foreground">최근 거래 내역</h3>
-               <ul className="space-y-2">
+            <section className="space-y-4">
+               <div className="px-5">
+                  <h3 className="text-heading-3-bold text-foreground">최근 거래 내역</h3>
+               </div>
+               <ul className="space-y-1 px-5">
                   {insights.tradeHistory.map((item) => (
-                     <li key={item.id} className="flex items-center justify-between gap-3 text-body-2-regular">
-                        <div className="min-w-0">
-                           <p className="text-body-2-semibold text-foreground">{formatPrice(item.price)}</p>
-                           <p className="truncate text-muted-foreground">{item.seatLabel}</p>
-                        </div>
-                        <span className="shrink-0 text-caption-1-medium text-[#7d8793]">{item.tradedAt}</span>
+                     <li key={item.id} className="grid grid-cols-[max-content_minmax(0,1fr)_88px] items-center gap-x-3 text-body-2-regular text-secondary">
+                        <span className="whitespace-nowrap text-body-2-semibold">{formatPrice(item.price)}</span>
+                        <span className="min-w-0 truncate text-right">{item.seatLabel}</span>
+                        <span className="whitespace-nowrap text-right text-caption-1-regular text-tertiary">{item.tradedAt}</span>
                      </li>
                   ))}
                </ul>
             </section>
 
-            <section className="space-y-3 rounded-[20px] border border-border-light bg-background p-4">
-               <div className="flex items-center gap-2">
-                  <h3 className="text-heading-3-bold text-foreground">리셀 매물</h3>
-                  <span className="text-heading-4-bold text-primary">{insights.listings.length}</span>
-               </div>
-               <ul className="space-y-3">
-                  {insights.listings.map((item) => (
-                     <li key={item.id} className="rounded-[16px] border border-border-light px-4 py-3">
-                        <div className="flex items-center justify-between gap-3">
-                           <div className="min-w-0">
-                              <p className="text-body-2-semibold text-foreground">{item.seatLabel}</p>
-                              <p className="text-caption-1-medium text-muted-foreground">{item.seller}</p>
-                           </div>
-                           <span className="shrink-0 text-body-2-bold text-primary">{formatPrice(item.price)}</span>
-                        </div>
-                     </li>
-                  ))}
-               </ul>
-            </section>
-
-            <section className="space-y-3 rounded-[20px] bg-surface p-4">
-               <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                     <h3 className="text-heading-3-bold text-foreground">선택 좌석</h3>
-                     {selectedSeats.length > 0 ? <span className="text-heading-4-bold text-primary">{selectedSeats.length}</span> : null}
-                  </div>
-                  {selectedSeats.length > 0 ? (
-                     <button
-                        type="button"
-                        onClick={onClearAllSelections}
-                        className="text-body-2-medium text-muted-foreground transition-colors hover:text-foreground"
-                     >
-                        전체 삭제
-                     </button>
-                  ) : null}
+            <section className="space-y-3">
+               <div className="flex items-center gap-1 px-5">
+                  <h3 className="text-heading-3-bold text-foreground">판매 중인 좌석</h3>
+                  <span className="text-heading-3-bold text-primary">{insights.listings.length}</span>
                </div>
 
-               {selectedSeats.length > 0 ? (
-                  <ul className="space-y-3">
-                     {selectedSeats.map((item) => (
-                        <li key={item.seat.id} className="flex items-center justify-between rounded-[16px] border border-border-light bg-background px-4 py-3">
-                           <div>
-                              <p className="text-body-2-semibold text-foreground">{item.zoneName}</p>
-                              <p className="text-body-2-regular text-muted-foreground">
-                                 {item.seat.block}구역 {item.seat.rowLabel} {item.seat.seatNumber}번
-                              </p>
-                           </div>
-                           <div className="flex items-center gap-3">
-                              <span className="text-body-2-semibold text-primary">{formatPrice(item.price)}</span>
-                              <button
-                                 type="button"
-                                 onClick={() => onRemoveSeat(item.zoneId, item.seat.id)}
-                                 className="text-caption-1-medium text-muted-foreground transition-colors hover:text-foreground"
-                              >
-                                 삭제
-                              </button>
-                           </div>
+               <ul className="space-y-3 px-5">
+                  {insights.listings.map((item) => {
+                     const isSelected = item.listingId === selectedListingId;
+
+                     return (
+                        <li key={item.listingId}>
+                           <button
+                              type="button"
+                              onClick={() => onSelectListing(item)}
+                              className={cn(
+                                 'flex w-full items-start gap-6 rounded-[12px] border px-4 py-4 text-left transition-colors',
+                                 isSelected ? 'border-primary bg-primary/5' : 'border-border-light bg-background hover:border-primary/40',
+                              )}
+                              aria-pressed={isSelected}
+                           >
+                              <span className="flex-1 text-body-1-semibold text-secondary">{item.seatLabel}</span>
+                              <span className="shrink-0 text-body-1-bold text-secondary">{formatPrice(item.listingPrice)}</span>
+                           </button>
                         </li>
-                     ))}
-                  </ul>
-               ) : (
-                  <div className="rounded-[16px] border border-dashed border-border-light bg-background px-4 py-6 text-center text-body-2-regular text-muted-foreground">
-                     선택한 좌석이 없습니다.
-                  </div>
-               )}
-
-               <div className="flex items-center justify-between text-body-1-semibold text-foreground">
-                  <span>예상 결제 금액</span>
-                  <span>{formatPrice(selectedPrice)}</span>
-               </div>
-
-               <Button type="button" disabled={selectedSeats.length === 0} className="h-14 w-full rounded-[8px]" onClick={onSubmit}>
-                  예매하기
-               </Button>
+                     );
+                  })}
+               </ul>
             </section>
+         </div>
+
+         <div className="px-5 pb-5">
+            <Button
+               type="button"
+               disabled={!selectedListingId}
+               className="h-12 w-full rounded-[8px]"
+               onClick={onSubmit}
+            >
+               예매하기
+            </Button>
          </div>
       </aside>
    );
@@ -215,9 +346,9 @@ function Metric({
    valueClassName?: string;
 }) {
    return (
-      <div className="flex items-center justify-between gap-2">
-         <span className="text-muted-foreground">{label}</span>
-         <span className={valueClassName ?? 'text-foreground'}>{value}</span>
+      <div className="flex min-w-0 items-center gap-2">
+         <span className="flex-1">{label}</span>
+         <span className={cn('shrink-0 text-caption-1-bold text-tertiary', valueClassName)}>{value}</span>
       </div>
    );
 }
