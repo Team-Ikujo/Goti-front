@@ -1,14 +1,41 @@
 import { http, HttpResponse } from 'msw';
 
+type MockLoginScenario = 'normal' | 'failed_under_5' | 'failed_over_5' | 'dormant' | 'rejoining_locked';
+
 type MockAuthSession = {
    provider: string;
    isRegistered: boolean;
    userId: string;
    mobile?: string;
    smsCode?: string;
+   // authCode 패턴으로 로그인 시나리오 결정
+   loginScenario?: MockLoginScenario;
 };
 
-const mockAuthSessions = new Map<string, MockAuthSession>();
+// 팝업 창과 부모 창 간 세션 공유를 위해 localStorage 사용
+const MOCK_AUTH_SESSIONS_KEY = '__mock_auth_sessions__';
+
+const mockAuthSessions = {
+   get(token: string): MockAuthSession | undefined {
+      try {
+         const raw = localStorage.getItem(MOCK_AUTH_SESSIONS_KEY);
+         const map: Record<string, MockAuthSession> = raw ? JSON.parse(raw) : {};
+         return map[token];
+      } catch {
+         return undefined;
+      }
+   },
+   set(token: string, session: MockAuthSession) {
+      try {
+         const raw = localStorage.getItem(MOCK_AUTH_SESSIONS_KEY);
+         const map: Record<string, MockAuthSession> = raw ? JSON.parse(raw) : {};
+         map[token] = session;
+         localStorage.setItem(MOCK_AUTH_SESSIONS_KEY, JSON.stringify(map));
+      } catch {
+         // ignore
+      }
+   },
+};
 
 const createId = (prefix: string) => {
    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -19,11 +46,11 @@ const createId = (prefix: string) => {
 };
 
 const encodeBase64Url = (value: string) => {
-   if (typeof btoa === 'function') {
-      return btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-   }
-
-   throw new Error('Base64 encoding is not available in the current environment.');
+   // encodeURIComponent로 유니코드(한글 등)를 Latin1 범위로 변환 후 btoa
+   const latin1 = encodeURIComponent(value).replace(/%([0-9A-F]{2})/g, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16)),
+   );
+   return btoa(latin1).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 };
 
 const buildMockAccessToken = (payload: Record<string, unknown>) => {
@@ -37,6 +64,8 @@ const buildMockAccessToken = (payload: Record<string, unknown>) => {
 const resolveRegisteredState = (authCode: string) => {
    return !/(signup|register|join|new)/i.test(authCode);
 };
+
+const resolveLoginScenario = (): MockLoginScenario => 'normal';
 
 export const authHandlers = [
    http.get('/api/v1/auth/:provider/state', async ({ params }) => {
@@ -67,11 +96,13 @@ export const authHandlers = [
       const socialVerifyToken = createId('svt');
       const isRegistered = resolveRegisteredState(body.authCode);
       const userId = createId('user');
+      const loginScenario = isRegistered ? resolveLoginScenario() : undefined;
 
       mockAuthSessions.set(socialVerifyToken, {
          provider,
          isRegistered,
          userId,
+         loginScenario,
       });
 
       return HttpResponse.json({
@@ -101,6 +132,12 @@ export const authHandlers = [
          return HttpResponse.json({ message: 'Signup is required for this account.' }, { status: 409 });
       }
 
+      const scenario = session.loginScenario ?? 'normal';
+      const failCountByScenario: Record<string, number | undefined> = {
+         failed_under_5: 3,
+         failed_over_5: 5,
+      };
+
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
@@ -110,6 +147,8 @@ export const authHandlers = [
                userId: session.userId,
                provider: session.provider,
             }),
+            ...(scenario !== 'normal' && { accountStatus: scenario }),
+            ...(failCountByScenario[scenario] !== undefined && { failCount: failCountByScenario[scenario] }),
          },
       });
    }),

@@ -1,8 +1,18 @@
 import apiClient from "@/shared/api/client";
 import type { ApiEnvelope } from "./types";
 
+// 로그인 성공 후 서버에서 반환하는 계정 상태
+export type LoginAccountStatus =
+  | 'normal'           // 정상
+  | 'failed_under_5'   // 로그인 실패 이력 (5회 미만)
+  | 'failed_over_5'    // 로그인 제한 (5회 이상)
+  | 'dormant'          // 휴면 계정
+  | 'rejoining_locked' // 탈퇴 후 재가입 불가 (7일 이내)
+
 export type AuthTokenResponse = {
   accessToken: string;
+  accountStatus?: LoginAccountStatus;
+  failCount?: number; // failed_under_5 / failed_over_5 일 때 실패 횟수
 };
 
 export type SignupGender = "MALE" | "FEMALE";

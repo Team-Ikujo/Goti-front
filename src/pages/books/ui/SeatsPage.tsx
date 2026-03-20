@@ -3,14 +3,16 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { createSeatsForZone } from '@/pages/books/model/seatData';
-import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSeatPaymentSummary';
+import { getResellZoneInsights, type ResellListingItem } from '@/pages/books/model/resellData';
 import { useSeatMapData } from '@/pages/books/model/useSeatMapData';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { formatPrice, getBookingZones, getZoneOverviewImage, getStadiumName } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
+import { getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 import SeatMapStage from './components/SeatMapStage';
+import ResellSeatSidebar from './components/ResellSeatSidebar';
 import SelectedSeatSummaryList, { type SelectedSeatSummaryItem } from './components/SelectedSeatSummaryList';
 import { useBotDetector } from '@/shared/lib/useBotDetector';
 
@@ -31,6 +33,8 @@ function SeatsPage() {
    const navigate = useNavigate();
    const location = useLocation();
    const { zoneId = '' } = useParams();
+   const bookingFlowMode = getBookingFlowMode(location.search);
+   const isResellMode = bookingFlowMode === 'resell';
    const routeBookingEntryState = location.state as BookingEntryState | null;
    const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
    const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
@@ -121,6 +125,14 @@ function SeatsPage() {
       };
    }, []);
 
+   useEffect(() => {
+      if (!isResellMode) {
+         return;
+      }
+
+      clearAllSelections();
+   }, [clearAllSelections, isResellMode, zone.id]);
+
    const seats = useMemo(() => {
       if (!zoneSeatState) {
          return initialSeats;
@@ -154,14 +166,76 @@ function SeatsPage() {
    }, [bookingZones, zonesState]);
 
    const selectedPrice = selectedSeats.reduce((total, item) => total + item.price, 0);
-   const bookingButtonLabel = `${selectedSeats.length}매 예매하기`;
-   const paymentSummary = useMemo(
-      () => getSelectedSeatPaymentSummary(zonesState, bookingZones),
-      [bookingZones, zonesState],
+   const resellInsights = useMemo(
+      () =>
+         isResellMode
+            ? getResellZoneInsights({
+                 zone,
+                 seats,
+              })
+            : null,
+      [isResellMode, seats, zone],
    );
+   const resellListingBySeatId = useMemo(
+      () => new Map((resellInsights?.listings ?? []).map((listing) => [listing.seatId, listing])),
+      [resellInsights?.listings],
+   );
+   const selectedResellListing = useMemo(() => {
+      if (!isResellMode) {
+         return null;
+      }
+
+      const selectedSeatId = selectedSeats[0]?.seat.id;
+
+      return selectedSeatId ? resellListingBySeatId.get(selectedSeatId) ?? null : null;
+   }, [isResellMode, resellListingBySeatId, selectedSeats]);
+   const summaryPrice = isResellMode
+      ? (selectedResellListing?.totalAmount ?? selectedResellListing?.listingPrice ?? 0)
+      : selectedPrice;
+   const bookingButtonLabel = isResellMode ? '예매하기' : `${selectedSeats.length}매 예매하기`;
+   const displaySeats = useMemo(() => {
+      if (!isResellMode) {
+         return seats;
+      }
+
+      return seats.map((seat) => {
+         if (resellListingBySeatId.has(seat.id)) {
+            return seat;
+         }
+
+         return {
+            ...seat,
+            status: 'disabled',
+         } satisfies SeatItem;
+      });
+   }, [isResellMode, resellListingBySeatId, seats]);
 
    const handleProceedToPayment = () => {
       const botData = getBotReport();
+
+      if (isResellMode) {
+         if (!selectedResellListing) {
+            return;
+         }
+
+         navigate('/tickets/resell-payment', {
+            state: {
+               listingId: selectedResellListing.listingId,
+               queueTokenJti: bookingEntryState?.queueTokenJti,
+               sellerId: selectedResellListing.sellerId,
+               settlementAmount: selectedResellListing.settlementAmount,
+               totalAmount: selectedResellListing.totalAmount,
+               totalBuyerFee: selectedResellListing.totalBuyerFee,
+               totalSellerFee: selectedResellListing.totalSellerFee,
+               seatInfo: selectedResellListing.seatInfo,
+               matchTitle: bookingEntryState?.matchTitle,
+               venue: bookingEntryState?.venue,
+               dateTime: bookingEntryState?.dateTime,
+               botData,
+            },
+         });
+         return;
+      }
 
       navigate('/tickets/payment', {
          state: {
@@ -282,7 +356,32 @@ function SeatsPage() {
          return;
       }
 
+      if (isResellMode) {
+         if (!resellListingBySeatId.has(seat.id)) {
+            return;
+         }
+
+         const isAlreadySelected = selectedSeatIds.includes(seat.id);
+
+         if (!isAlreadySelected) {
+            clearAllSelections();
+         }
+
+         toggleSelectedSeat(zone.id, seat.id);
+         return;
+      }
+
       toggleSelectedSeat(zone.id, seat.id);
+   };
+
+   const handleSelectResellListing = (listing: ResellListingItem) => {
+      const isAlreadySelected = selectedSeatIds.includes(listing.seatId);
+
+      if (!isAlreadySelected) {
+         clearAllSelections();
+      }
+
+      toggleSelectedSeat(zone.id, listing.seatId);
    };
 
    const handleMapPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -317,16 +416,6 @@ function SeatsPage() {
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
          event.currentTarget.releasePointerCapture(event.pointerId);
       }
-   };
-   // 🔴 2. 예매 페이지로 넘어가기 전 봇 데이터를 추출하는 핸들러 추가
-   const handleNavigateToPayment = () => {
-      const botReport = getBotReport();
-
-      console.log('수집된 봇 데이터:', botReport);
-
-      // 옵션 A: 여기서 좌석 선점(Hold) API를 쏠 때 botReport를 같이 보냄
-      // 옵션 B: React Router의 state를 이용해 결제 페이지로 데이터를 넘겨서 최종 결제 시 서버로 보냄
-      navigate('/tickets/payment', { state: { botData: botReport } });
    };
 
    return (
@@ -378,7 +467,7 @@ function SeatsPage() {
                      seatBlocks={seatBlocks}
                      seatMapOffset={seatMapOffset}
                      seatMapScale={seatMapScale}
-                     seats={seats}
+                     seats={displaySeats}
                      selectedSeatIds={selectedSeatIds}
                      zoneColor={zone.color}
                      zoneName={zone.name}
@@ -404,11 +493,11 @@ function SeatsPage() {
                               </div>
                               <div className="flex items-center justify-between gap-3">
                                  <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
-                                    <span>선택 좌석</span>
+                                    <span>{isResellMode ? '리셀 예매' : '선택 좌석'}</span>
                                     <span className="text-primary">{selectedSeats.length}</span>
                                  </div>
                                  <span className="text-body-1-medium text-tertiary">
-                                    {selectedSeats.length > 0 ? bookingButtonLabel : '열기'}
+                                    {selectedSeats.length > 0 ? formatPrice(summaryPrice) : '열기'}
                                  </span>
                               </div>
                            </button>
@@ -424,113 +513,181 @@ function SeatsPage() {
                      className="overflow-hidden border-none p-0 xl:hidden"
                   >
                      <div className="h-full overflow-y-auto">
-                        <div className="flex items-center justify-between gap-3 px-5 py-4">
-                           <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
-                              <h2>선택 좌석</h2>
-                              <span className="text-primary">{selectedSeats.length}</span>
-                           </div>
-                           {selectedSeats.length > 0 ? (
-                              <button
-                                 type="button"
-                                 onClick={clearAllSelections}
-                                 className="text-body-1-medium text-tertiary transition-colors hover:text-foreground"
-                              >
-                                 전체 삭제
-                              </button>
-                           ) : null}
-                        </div>
+                        {isResellMode ? (
+                           <>
+                              <div className="px-5 py-4">
+                                 <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
+                                    <h2>판매 중인 좌석</h2>
+                                    <span className="text-primary">{resellInsights?.listings.length ?? 0}</span>
+                                 </div>
+                              </div>
 
-                        <div className="px-5 pb-4">
-                           <SelectedSeatSummaryList
-                              items={selectedSeats}
-                              onRemove={toggleSelectedSeat}
-                              emptyClassName="h-full min-h-[220px] bg-transparent"
-                           />
-                        </div>
+                              <div className="space-y-3 px-5 pb-4">
+                                 {resellInsights?.listings.map((listing) => {
+                                    const isSelected = selectedResellListing?.listingId === listing.listingId;
 
-                        <div className="px-5 pb-5">
-                           <div className="flex items-center justify-between gap-3 px-1 pb-5 text-heading-4-medium text-secondary">
-                              <span>총 결제 금액</span>
-                              <span className="text-heading-4-bold text-primary">{formatPrice(selectedPrice)}</span>
-                           </div>
-                           <button
-                              type="button"
-                              disabled={selectedSeats.length === 0}
-                              onClick={handleProceedToPayment}
-                              className={[
-                                 'h-12 w-full rounded-[8px] text-label-1-bold transition-colors',
-                                 selectedSeats.length === 0
-                                    ? 'bg-fill-disabled text-disabled-foreground'
-                                    : 'bg-primary text-white hover:bg-primary-strong',
-                              ].join(' ')}
-                           >
-                              {bookingButtonLabel}
-                           </button>
-                        </div>
+                                    return (
+                                       <button
+                                          key={listing.listingId}
+                                          type="button"
+                                          onClick={() => handleSelectResellListing(listing)}
+                                          className={[
+                                             'flex w-full items-start justify-between gap-4 rounded-[12px] border px-4 py-4 text-left transition-colors',
+                                             isSelected ? 'border-primary bg-primary/5' : 'border-border-light bg-background',
+                                          ].join(' ')}
+                                       >
+                                          <span className="text-body-1-semibold text-secondary">{listing.seatLabel}</span>
+                                          <span className="shrink-0 text-body-1-bold text-secondary">
+                                             {formatPrice(listing.listingPrice)}
+                                          </span>
+                                       </button>
+                                    );
+                                 })}
+                              </div>
+
+                              <div className="px-5 pb-5">
+                                 <div className="flex items-center justify-between gap-3 px-1 pb-5 text-heading-4-medium text-secondary">
+                                    <span>총 결제 금액</span>
+                                    <span className="text-heading-4-bold text-primary">{formatPrice(summaryPrice)}</span>
+                                 </div>
+                                 <button
+                                    type="button"
+                                    disabled={!selectedResellListing}
+                                    onClick={handleProceedToPayment}
+                                    className={[
+                                       'h-12 w-full rounded-[8px] text-label-1-bold transition-colors',
+                                       !selectedResellListing
+                                          ? 'bg-fill-disabled text-disabled-foreground'
+                                          : 'bg-primary text-white hover:bg-primary-strong',
+                                    ].join(' ')}
+                                 >
+                                    {bookingButtonLabel}
+                                 </button>
+                              </div>
+                           </>
+                        ) : (
+                           <>
+                              <div className="flex items-center justify-between gap-3 px-5 py-4">
+                                 <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
+                                    <h2>선택 좌석</h2>
+                                    <span className="text-primary">{selectedSeats.length}</span>
+                                 </div>
+                                 {selectedSeats.length > 0 ? (
+                                    <button
+                                       type="button"
+                                       onClick={clearAllSelections}
+                                       className="text-body-1-medium text-tertiary transition-colors hover:text-foreground"
+                                    >
+                                       전체 삭제
+                                    </button>
+                                 ) : null}
+                              </div>
+
+                              <div className="px-5 pb-4">
+                                 <SelectedSeatSummaryList
+                                    items={selectedSeats}
+                                    onRemove={toggleSelectedSeat}
+                                    emptyClassName="h-full min-h-[220px] bg-transparent"
+                                 />
+                              </div>
+
+                              <div className="px-5 pb-5">
+                                 <div className="flex items-center justify-between gap-3 px-1 pb-5 text-heading-4-medium text-secondary">
+                                    <span>총 결제 금액</span>
+                                    <span className="text-heading-4-bold text-primary">{formatPrice(summaryPrice)}</span>
+                                 </div>
+                                 <button
+                                    type="button"
+                                    disabled={selectedSeats.length === 0}
+                                    onClick={handleProceedToPayment}
+                                    className={[
+                                       'h-12 w-full rounded-[8px] text-label-1-bold transition-colors',
+                                       selectedSeats.length === 0
+                                          ? 'bg-fill-disabled text-disabled-foreground'
+                                          : 'bg-primary text-white hover:bg-primary-strong',
+                                    ].join(' ')}
+                                 >
+                                    {bookingButtonLabel}
+                                 </button>
+                              </div>
+                           </>
+                        )}
                      </div>
                   </DrawerContent>
                </Drawer>
             </section>
 
-            <aside className="hidden w-full shrink-0 flex-col border-l border-border-light bg-background xl:flex xl:w-[420px]">
-               <div className="relative h-[220px] overflow-hidden border-b border-border-light bg-[#e9ebee] px-5 py-4">
-                  <div className="relative mx-auto h-[188px] w-[260px] shrink-0">
-                     <img
-                        src={zoneOverviewImage}
-                        alt={`${zone.name} 선택 상태가 반영된 ${stadiumName} 좌석도`}
-                        className="h-full w-full object-contain"
-                        draggable={false}
-                     />
+            {isResellMode && resellInsights ? (
+               <ResellSeatSidebar
+                  insights={resellInsights}
+                  selectedListingId={selectedResellListing?.listingId}
+                  zone={zone}
+                  zoneOverviewImage={zoneOverviewImage}
+                  stadiumName={stadiumName}
+                  onSelectListing={handleSelectResellListing}
+                  onSubmit={handleProceedToPayment}
+               />
+            ) : (
+               <aside className="hidden w-full shrink-0 flex-col border-l border-border-light bg-background xl:flex xl:w-[420px]">
+                  <div className="relative h-[220px] overflow-hidden border-b border-border-light bg-[#e9ebee] px-5 py-4">
+                     <div className="relative mx-auto h-[188px] w-[260px] shrink-0">
+                        <img
+                           src={zoneOverviewImage}
+                           alt={`${zone.name} 선택 상태가 반영된 ${stadiumName} 좌석도`}
+                           className="h-full w-full object-contain"
+                           draggable={false}
+                        />
+                     </div>
                   </div>
-               </div>
 
-               <div className="flex items-center justify-between px-5 py-5">
-                  <div className="flex items-center gap-2">
-                     <h2 className="text-heading-3-bold text-foreground">선택 좌석</h2>
+                  <div className="flex items-center justify-between px-5 py-5">
+                     <div className="flex items-center gap-2">
+                        <h2 className="text-heading-3-bold text-foreground">선택 좌석</h2>
+                        {selectedSeats.length > 0 ? (
+                           <span className="text-heading-4-bold text-primary">{selectedSeats.length}</span>
+                        ) : null}
+                     </div>
                      {selectedSeats.length > 0 ? (
-                        <span className="text-heading-4-bold text-primary">{selectedSeats.length}</span>
+                        <button
+                           type="button"
+                           onClick={clearAllSelections}
+                           className="text-body-2-medium text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                           전체 삭제
+                        </button>
                      ) : null}
                   </div>
-                  {selectedSeats.length > 0 ? (
+
+                  <div className="flex flex-1 flex-col px-5 pb-5">
+                     <div className="flex-1 overflow-y-auto rounded-2xl bg-background">
+                        <SelectedSeatSummaryList
+                           items={selectedSeats}
+                           onRemove={toggleSelectedSeat}
+                           emptyClassName="h-full min-h-[220px] bg-transparent"
+                        />
+                     </div>
+
+                     <div className="flex items-center justify-between gap-3 px-1 pb-5 pt-6 text-heading-4-medium text-secondary">
+                        <span>총 결제 금액</span>
+                        <span className="text-heading-4-bold text-primary">{formatPrice(summaryPrice)}</span>
+                     </div>
+
                      <button
                         type="button"
-                        onClick={clearAllSelections}
-                        className="text-body-2-medium text-muted-foreground transition-colors hover:text-foreground"
+                        disabled={selectedSeats.length === 0}
+                        onClick={handleProceedToPayment}
+                        className={[
+                           'h-[56px] w-full rounded-[8px] text-label-1-bold transition-colors',
+                           selectedSeats.length === 0
+                              ? 'bg-fill-disabled text-disabled-foreground'
+                              : 'bg-primary text-white hover:bg-primary-strong',
+                        ].join(' ')}
                      >
-                        전체 삭제
+                        {bookingButtonLabel}
                      </button>
-                  ) : null}
-               </div>
-
-               <div className="flex flex-1 flex-col px-5 pb-5">
-                  <div className="flex-1 overflow-y-auto rounded-2xl bg-background">
-                     <SelectedSeatSummaryList
-                        items={selectedSeats}
-                        onRemove={toggleSelectedSeat}
-                        emptyClassName="h-full min-h-[220px] bg-transparent"
-                     />
                   </div>
-
-                  <div className="flex items-center justify-between gap-3 px-1 pb-5 pt-6 text-heading-4-medium text-secondary">
-                     <span>총 결제 금액</span>
-                     <span className="text-heading-4-bold text-primary">{formatPrice(selectedPrice)}</span>
-                  </div>
-
-                  <button
-                     type="button"
-                     disabled={selectedSeats.length === 0}
-                     onClick={handleProceedToPayment}
-                     className={[
-                        'h-[56px] w-full rounded-[8px] text-label-1-bold transition-colors',
-                        selectedSeats.length === 0
-                           ? 'bg-fill-disabled text-disabled-foreground'
-                           : 'bg-primary text-white hover:bg-primary-strong',
-                     ].join(' ')}
-                  >
-                     {bookingButtonLabel}
-                  </button>
-               </div>
-            </aside>
+               </aside>
+            )}
          </main>
       </div>
    );

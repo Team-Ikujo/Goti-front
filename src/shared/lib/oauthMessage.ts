@@ -1,4 +1,5 @@
 import type { SocialProvider } from "@/features/auth/api/oauthApi";
+import type { LoginAlert } from "@/entities/auth/model/authStore";
 
 export const OAUTH_SUCCESS_MESSAGE_TYPE = "__OAUTH_SUCCESS__" as const;
 
@@ -8,6 +9,7 @@ export type OAuthSuccessMessage = {
   socialVerifyToken: string | null;
   provider?: SocialProvider;
   redirectPath?: string;
+  loginAlert?: LoginAlert;
 };
 
 const isNullableString = (value: unknown): value is string | null => {

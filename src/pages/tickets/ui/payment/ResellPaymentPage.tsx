@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Button } from '@/shared/ui/button';
 import type { ResaleCheckoutRequest } from '@/pages/tickets/api/paymentApi';
+import type { BotReport } from '@/shared/lib/botDetector';
 import {
    CashReceiptCard,
    DiscountCard,
@@ -47,6 +48,7 @@ type ResellPaymentEntryState = Partial<typeof MOCK_RESALE_ENTRY> & {
    matchTitle?: string;
    venue?: string;
    dateTime?: string;
+   botData?: BotReport;
 };
 
 const resolveUserIdFromAccessToken = (accessToken: string | null) => {
@@ -140,6 +142,7 @@ export default function ResellPaymentPage() {
          ordererPhone: phone,
          ordererEmail: email,
          paymentMethod,
+         botData: resellEntryState?.botData,
          ...(paymentMethod === 'bank' && {
             cashReceiptType,
             cashReceiptNumType,

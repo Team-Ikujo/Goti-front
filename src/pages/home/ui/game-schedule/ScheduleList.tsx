@@ -386,7 +386,7 @@ type ScheduleListProps = {
 };
 
 function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
-  const { openBookingEntry, bookingGuideDialog } = useBookingEntryFlow();
+  const { openBookingEntry, openResellEntry, bookingGuideDialog } = useBookingEntryFlow();
 
   const openBookingFlow = (game: GameRow) => {
     if (game.ticket !== '예매하기') {
@@ -414,7 +414,20 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
       return;
     }
 
-    // 리셀 플로우는 별도 구현 전까지 기존 동작을 유지합니다.
+    const selectedDay = filteredData.find(day =>
+      day.games.some(dayGame => dayGame === game),
+    );
+    const resellDateTime = selectedDay ? `${selectedDay.date} ${game.time}` : game.time;
+
+    openResellEntry({
+      homeTeamId: game.homeTeamId ?? TEAM_IDS[game.home],
+      gameId: game.gameId,
+      stadiumId: game.stadiumId,
+      queueTokenJti: game.queueTokenJti,
+      matchTitle: `${game.away} vs ${game.home}`,
+      venue: game.venue,
+      dateTime: resellDateTime,
+    });
   };
 
   if (filteredData.length === 0) {

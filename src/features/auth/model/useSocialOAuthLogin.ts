@@ -3,6 +3,7 @@ import { issueSocialState } from "@/features/auth/api/oauthApi";
 import type { SocialProvider } from "@/features/auth/api/oauthApi";
 import { setIssuedSocialState } from "@/features/auth/lib/socialStateStorage";
 import { openOAuthPopup } from "@/shared/lib/openOAuthPopup";
+import { useAuthStore } from "@/entities/auth/model/authStore";
 
 type UseSocialOAuthLoginParams = {
   provider: SocialProvider;
@@ -15,6 +16,8 @@ export const useSocialOAuthLogin = ({
   requiresIssuedState,
   buildAuthUrl,
 }: UseSocialOAuthLoginParams) => {
+  const startLoginPopupTimer = useAuthStore((s) => s.startLoginPopupTimer);
+
   return useCallback(async () => {
     try {
       if (!requiresIssuedState) {
@@ -26,6 +29,7 @@ export const useSocialOAuthLogin = ({
         });
 
         openOAuthPopup(authUrl);
+        startLoginPopupTimer();
         return;
       }
 
@@ -40,8 +44,9 @@ export const useSocialOAuthLogin = ({
 
       setIssuedSocialState(provider, state);
       openOAuthPopup(authUrl);
+      startLoginPopupTimer();
     } catch (error) {
       console.error(error);
     }
-  }, [buildAuthUrl, provider, requiresIssuedState]);
+  }, [buildAuthUrl, provider, requiresIssuedState, startLoginPopupTimer]);
 };

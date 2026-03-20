@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchSeatGrades, fetchSeatSections, mapSeatSectionsToZones, mergeBookingZones } from '@/pages/books/api/bookingApi';
 import { getBookingTeamConfig, getZoneDisplayOrder, getBookingZones } from '@/pages/books/model/zoneData';
 import type { ZoneItem } from '@/pages/books/model/types';
+import { getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 
@@ -24,6 +25,7 @@ const BooksPage = () => {
    const navigate = useNavigate();
    const location = useLocation();
    const routeBookingEntryState = location.state as BookingEntryState | null;
+   const bookingFlowMode = getBookingFlowMode(location.search);
    const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
    const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
    const patchBookingEntry = useBookingEntryStore((state) => state.patchEntry);
@@ -141,7 +143,10 @@ const BooksPage = () => {
 
    const handleSelectZone = (zoneId: string) => {
       setSelectedZoneId(zoneId);
-      navigate(`/books/seats/${zoneId}`, {
+      navigate({
+         pathname: `/books/seats/${zoneId}`,
+         search: location.search,
+      }, {
          state: resolvedBookingEntryState,
       });
    };
@@ -160,7 +165,10 @@ const BooksPage = () => {
       setIsCaptchaOpen(false);
       setCaptchaInput('');
       setCaptchaError('');
-      navigate(location.pathname, {
+      navigate({
+         pathname: location.pathname,
+         search: location.search,
+      }, {
          replace: true,
          state: resolvedBookingEntryState,
       });
@@ -217,7 +225,9 @@ const BooksPage = () => {
                                  <div className="h-1 w-9 rounded-full bg-border-light" />
                               </div>
                               <div className="flex items-center justify-between gap-3">
-                                 <span className="text-heading-3-bold text-foreground">좌석 등급/잔여석</span>
+                                 <span className="text-heading-3-bold text-foreground">
+                                    {bookingFlowMode === 'resell' ? '리셀 좌석 구역' : '좌석 등급/잔여석'}
+                                 </span>
                                  <span className="text-body-1-medium text-tertiary">{zones.length}개 구역</span>
                               </div>
                            </button>
