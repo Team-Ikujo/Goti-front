@@ -35,7 +35,7 @@ function applyFilters(games: GameItem[], filters: FilterState, activeTab: TabTyp
 }
 
 const TicketsPage = () => {
-   const { openBookingEntry, bookingGuideDialog } = useBookingEntryFlow();
+   const { openBookingEntry, openResellEntry, bookingGuideDialog } = useBookingEntryFlow();
    const scheduleQuery = useGameSchedules();
    const [activeTab, setActiveTab] = useState<TabType>('예매');
    const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -77,7 +77,20 @@ const TicketsPage = () => {
       setDisplayedGames(allGames);
    };
 
-   const handleBookingClick = (game: GameItem) => {
+   const handleGameActionClick = (game: GameItem) => {
+      if (activeTab === '리셀') {
+         openResellEntry({
+            homeTeamId: game.homeTeamId,
+            gameId: game.id,
+            stadiumId: game.stadiumId,
+            queueTokenJti: game.queueTokenJti,
+            matchTitle: `${game.awayTeam} vs ${game.homeTeam}`,
+            venue: game.venue,
+            dateTime: game.dateTime,
+         });
+         return;
+      }
+
       openBookingEntry({
          homeTeamId: game.homeTeamId,
          gameId: game.id,
@@ -137,7 +150,7 @@ const TicketsPage = () => {
                      </div>
                   ) : gamesToRender.length > 0 ? (
                      gamesToRender.map(game => (
-                        <GameCard key={game.id} game={game} activeTab={activeTab} onBookingClick={handleBookingClick} />
+                        <GameCard key={game.id} game={game} activeTab={activeTab} onActionClick={handleGameActionClick} />
                      ))
                   ) : (
                      <div className="flex items-center justify-center h-full bg-surface rounded-[14px] text-body-1-medium text-muted-foreground">
