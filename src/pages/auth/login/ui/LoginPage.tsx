@@ -5,6 +5,8 @@ import { KakaoLoginButton } from "@/features/auth/kakao";
 import { NaverLoginButton } from "@/features/auth/naver";
 import { GoogleLoginButton } from "@/features/auth/google";
 import RecentLoginBadge from "@/features/auth/ui/RecentLoginBadge";
+import LoginTimeoutDialog from "./LoginTimeoutDialog";
+import LoginStatusDialog from "./LoginStatusDialog";
 import {
   useAuthStore,
   type SocialProvider,
@@ -27,6 +29,10 @@ const LoginPage = () => {
   const recentLoginProvider = useAuthStore(
     (state) => state.recentLoginProvider,
   );
+  const loginTimedOut = useAuthStore((state) => state.loginTimedOut);
+  const clearLoginTimedOut = useAuthStore((state) => state.clearLoginTimedOut);
+  const loginAlert = useAuthStore((state) => state.loginAlert);
+  const setLoginAlert = useAuthStore((state) => state.setLoginAlert);
 
   useEffect(() => {
     if (!accessToken) {
@@ -58,6 +64,8 @@ const LoginPage = () => {
           ))}
         </section>
       </div>
+      <LoginTimeoutDialog open={loginTimedOut} onConfirm={clearLoginTimedOut} />
+      <LoginStatusDialog alert={loginAlert} onConfirm={() => setLoginAlert(null)} />
     </div>
   );
 };

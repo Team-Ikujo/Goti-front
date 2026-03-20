@@ -1,11 +1,15 @@
 import { http, HttpResponse } from 'msw';
 
+type MockLoginScenario = 'normal' | 'failed_under_5' | 'failed_over_5' | 'dormant' | 'rejoining_locked';
+
 type MockAuthSession = {
    provider: string;
    isRegistered: boolean;
    userId: string;
    mobile?: string;
    smsCode?: string;
+   // authCode 패턴으로 로그인 시나리오 결정
+   loginScenario?: MockLoginScenario;
 };
 
 const mockAuthSessions = new Map<string, MockAuthSession>();
@@ -34,8 +38,19 @@ const buildMockAccessToken = (payload: Record<string, unknown>) => {
    return `${header}.${body}.${signature}`;
 };
 
-const resolveRegisteredState = (authCode: string) => {
-   return !/(signup|register|join|new)/i.test(authCode);
+const resolveRegisteredState = (_authCode: string) => {
+   // 테스트용: 항상 미가입 상태로 고정 (회원가입 플로우 테스트)
+   return false;
+};
+
+// authCode 패턴으로 로그인 후 시나리오 결정
+// 예: authCode에 "scenario:dormant" 포함 시 휴면 시나리오
+const resolveLoginScenario = (authCode: string): MockLoginScenario => {
+   if (/scenario:failed_over_5/i.test(authCode)) return 'failed_over_5';
+   if (/scenario:failed_under_5/i.test(authCode)) return 'failed_under_5';
+   if (/scenario:dormant/i.test(authCode)) return 'dormant';
+   if (/scenario:rejoining_locked/i.test(authCode)) return 'rejoining_locked';
+   return 'normal';
 };
 
 export const authHandlers = [
@@ -67,11 +82,13 @@ export const authHandlers = [
       const socialVerifyToken = createId('svt');
       const isRegistered = resolveRegisteredState(body.authCode);
       const userId = createId('user');
+      const loginScenario = isRegistered ? resolveLoginScenario(body.authCode) : undefined;
 
       mockAuthSessions.set(socialVerifyToken, {
          provider,
          isRegistered,
          userId,
+         loginScenario,
       });
 
       return HttpResponse.json({
@@ -101,6 +118,12 @@ export const authHandlers = [
          return HttpResponse.json({ message: 'Signup is required for this account.' }, { status: 409 });
       }
 
+      const scenario = session.loginScenario ?? 'normal';
+      const failCountByScenario: Record<string, number | undefined> = {
+         failed_under_5: 3,
+         failed_over_5: 5,
+      };
+
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
@@ -110,6 +133,8 @@ export const authHandlers = [
                userId: session.userId,
                provider: session.provider,
             }),
+            ...(scenario !== 'normal' && { accountStatus: scenario }),
+            ...(failCountByScenario[scenario] !== undefined && { failCount: failCountByScenario[scenario] }),
          },
       });
    }),

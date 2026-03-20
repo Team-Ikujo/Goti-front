@@ -1,5 +1,12 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import type { LoginAccountStatus } from "@/features/auth/api/authApi";
+
+export type LoginAlert =
+  | { type: 'failed_under_5'; failCount: number; redirectPath: string }
+  | { type: 'failed_over_5'; failCount: number }
+  | { type: 'dormant'; redirectPath: string }
+  | { type: 'rejoining_locked' }
 
 export type SocialProvider = "kakao" | "naver" | "google";
 export type LogoutReason = "manual" | "expired";
@@ -22,6 +29,9 @@ export type AuthState = {
   recentLoginProvider: SocialProvider | null;
   logoutReason: LogoutReason | null;
   sessionTimerId: number | null;
+  loginPopupTimerId: number | null;
+  loginTimedOut: boolean;
+  loginAlert: LoginAlert | null;
   // 인증 단계 응답 처리 시 setAuthTokens 사용(일관된 일괄 업데이트).
   // 토큰 갱신 등 일부 값만 바꿀 때는 setAccessToken 사용.
   setAccessToken: (accessToken: string | null) => void;
@@ -36,6 +46,10 @@ export type AuthState = {
   syncAuthSession: () => void;
   startAuthSessionTimer: () => void;
   stopAuthSessionTimer: () => void;
+  startLoginPopupTimer: () => void;
+  clearLoginPopupTimer: () => void;
+  clearLoginTimedOut: () => void;
+  setLoginAlert: (alert: LoginAlert | null) => void;
 };
 
 export const useAuthStore = create<AuthState>()(
@@ -48,6 +62,9 @@ export const useAuthStore = create<AuthState>()(
       recentLoginProvider: null,
       logoutReason: null,
       sessionTimerId: null,
+      loginPopupTimerId: null,
+      loginTimedOut: false,
+      loginAlert: null,
       setAccessToken: (accessToken) => {
         const previousState = get();
         const nextAuthExpiresAt =
@@ -151,6 +168,33 @@ export const useAuthStore = create<AuthState>()(
 
         set({ sessionTimerId: null });
       },
+      // 로그인 팝업 5분 타임아웃 타이머 시작
+      startLoginPopupTimer: () => {
+        const { loginPopupTimerId } = get();
+
+        if (loginPopupTimerId !== null) {
+          window.clearTimeout(loginPopupTimerId);
+        }
+
+        const timerId = window.setTimeout(() => {
+          set({ loginTimedOut: true, loginPopupTimerId: null });
+        }, 5 * 60 * 1000);
+
+        set({ loginPopupTimerId: timerId, loginTimedOut: false });
+      },
+      // 팝업 성공 시 타이머 취소
+      clearLoginPopupTimer: () => {
+        const { loginPopupTimerId } = get();
+
+        if (loginPopupTimerId !== null) {
+          window.clearTimeout(loginPopupTimerId);
+        }
+
+        set({ loginPopupTimerId: null });
+      },
+      // 타임아웃 다이얼로그 확인 후 상태 초기화
+      clearLoginTimedOut: () => set({ loginTimedOut: false }),
+      setLoginAlert: (loginAlert) => set({ loginAlert }),
     }),
     {
       name: "auth-store",

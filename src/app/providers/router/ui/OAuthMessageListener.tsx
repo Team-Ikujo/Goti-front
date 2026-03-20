@@ -8,22 +8,31 @@ const OAuthMessageListener = () => {
   const navigate = useNavigate();
   const setAuthTokens = useAuthStore((s) => s.setAuthTokens);
   const setRecentLoginProvider = useAuthStore((s) => s.setRecentLoginProvider);
+  const clearLoginPopupTimer = useAuthStore((s) => s.clearLoginPopupTimer);
+  const setLoginAlert = useAuthStore((s) => s.setLoginAlert);
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       if (!isOAuthSuccessMessage(event.data)) return;
+      clearLoginPopupTimer();
       setAuthTokens({
         accessToken: event.data.accessToken,
         socialVerifyToken: event.data.socialVerifyToken,
       });
       if (event.data.provider) setRecentLoginProvider(event.data.provider);
+
+      // 계정 상태 알림이 있으면 store에 저장 (LoginPage에서 다이얼로그 표시)
+      if (event.data.loginAlert) {
+        setLoginAlert(event.data.loginAlert);
+      }
+
       navigate(event.data.redirectPath ?? "/", { replace: true });
     };
 
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, [navigate, setAuthTokens, setRecentLoginProvider]);
+  }, [navigate, setAuthTokens, setRecentLoginProvider, clearLoginPopupTimer, setLoginAlert]);
 
   return null;
 };
