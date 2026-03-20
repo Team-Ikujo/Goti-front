@@ -186,7 +186,7 @@ function ActionButtons({
             onClick={() => onOpenBookingFlow(game)}
             className={cn(
               'h-full flex-1 px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium leading-[1.5] text-white',
-              canBook ? 'bg-primary' : 'bg-[#acb4bb]',
+              canBook ? 'bg-primary' : 'bg-[#acb4bb] cursor-not-allowed',
             )}
           >
             {game.ticket}
@@ -199,7 +199,7 @@ function ActionButtons({
               'h-full flex-1 px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium leading-[1.5] border',
               canResellBook
                 ? 'bg-background border-primary text-primary'
-                : 'bg-background border-[#acb4bb] text-[#acb4bb]',
+                : 'bg-background border-[#acb4bb] text-[#acb4bb] cursor-not-allowed',
             )}
           >
             {game.resell}
@@ -214,7 +214,7 @@ function ActionButtons({
           onClick={() => onOpenBookingFlow(game)}
           className={cn(
             'h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] text-white',
-            canBook ? 'bg-primary' : 'bg-[#acb4bb] w-[88px]',
+            canBook ? 'bg-primary' : 'bg-[#acb4bb] w-[88px] cursor-not-allowed',
           )}
         >
           {game.ticket}
@@ -227,7 +227,7 @@ function ActionButtons({
             'h-full px-[16px] py-[8px] rounded-[6px] text-[16px] font-medium leading-[1.5] border',
             canResellBook
               ? 'bg-background border-primary text-primary'
-              : 'bg-background border-[#acb4bb] text-[#acb4bb] w-[88px] whitespace-nowrap',
+              : 'bg-background border-[#acb4bb] text-[#acb4bb] w-[88px] whitespace-nowrap cursor-not-allowed',
           )}
         >
           {game.resell}

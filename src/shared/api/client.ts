@@ -3,15 +3,15 @@ import { useAuthStore } from "@/entities/auth/model/authStore";
 import { isMswEnabled } from "@/shared/config/runtime";
 
 export class ApiError extends Error {
-  status?: number;
-  data?: unknown;
+   status?: number;
+   data?: unknown;
 
-  constructor(message: string, status?: number, data?: unknown) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-    this.data = data;
-  }
+   constructor(message: string, status?: number, data?: unknown) {
+      super(message);
+      this.name = 'ApiError';
+      this.status = status;
+      this.data = data;
+   }
 }
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? "").trim();
@@ -139,11 +139,11 @@ apiClient.interceptors.response.use(
           ? data
           : (data as { message?: string })?.message ?? "Request failed";
 
-      return Promise.reject(new ApiError(message, status, data));
-    }
+         return Promise.reject(new ApiError(message, status, data));
+      }
 
-    return Promise.reject(new ApiError(error.message));
-  },
+      return Promise.reject(new ApiError(error.message));
+   },
 );
 
 export default apiClient;

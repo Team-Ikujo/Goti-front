@@ -4,9 +4,8 @@ import { teams } from '@/entities/team/model/teams';
 const TeamsPage = () => {
    const navigate = useNavigate();
 
-   const handleTeamClick = (teamId: string) => {
-      navigate(`/teams/${teamId}`);
-   };
+   // isEnabled: true인 팀만 표시 (현재 삼성, KIA)
+   const enabledTeams = teams.filter(team => team.isEnabled);
 
    return (
       <section className="flex-1 bg-background">
@@ -20,33 +19,24 @@ const TeamsPage = () => {
                   </p>
                </header>
 
-               <div className="grid w-full max-w-250 grid-cols-2 gap-3 min-[768px]:grid-cols-5 min-[768px]:gap-x-7.5 min-[768px]:gap-y-7.5 min-[768px]:px-3.75">
-                  {teams.filter(team => team.id === 'samsung' || team.id === 'kia').map(team => (
+               <div className="flex w-full flex-wrap justify-start gap-3">
+                  {enabledTeams.map(team => (
                      <button
                         key={team.id}
                         type="button"
-                        onClick={() => handleTeamClick(team.id)}
-                        disabled={!team.isEnabled}
-                        aria-label={`${team.name}${team.isEnabled ? ' 상세 보기' : ' 준비 중'}`}
-                        className="relative flex h-51.5 w-full flex-col items-center justify-center overflow-hidden rounded-[10px] border-2 border-solid border-[#e5e7eb] bg-[#f9fafb] p-5 disabled:cursor-not-allowed disabled:opacity-40"
+                        onClick={() => navigate(`/teams/${team.id}`)}
+                        className="flex flex-col items-center justify-center rounded-[10px] border-2 border-[#e5e7eb] bg-[#f9fafb] p-5 w-32.5 hover:border-primary transition-colors"
                      >
-                        <div className="flex w-32.5 max-w-32.5 flex-col items-start">
-                           <div className="relative flex aspect-150/150 w-full flex-col items-center justify-center overflow-hidden px-3.75 py-2.5">
-                              <div className={`relative w-full shrink-0 ${team.logoAspectClassName}`}>
-                                 <img
-                                    src={team.logoSrc}
-                                    alt=""
-                                    aria-hidden="true"
-                                    className="pointer-events-none absolute inset-0 size-full max-w-none object-cover"
-                                 />
-                              </div>
-                           </div>
-                           <div className="relative flex w-full shrink-0 items-center justify-center overflow-hidden rounded-xs px-13.25 py-1">
-                              <span className="text-heading-4-semibold whitespace-nowrap text-foreground">
-                                 {team.name}
-                              </span>
-                           </div>
+                        <div className="flex items-center justify-center w-25 h-25 px-3.75 py-2.5">
+                           <img
+                              src={team.logoSrc}
+                              alt={team.name}
+                              className={`w-full h-full object-contain ${team.logoAspectClassName}`}
+                           />
                         </div>
+                        <span className="text-[18px] font-semibold leading-[1.55] text-[#161d24] text-center whitespace-nowrap mt-1">
+                           {team.name}
+                        </span>
                      </button>
                   ))}
                </div>

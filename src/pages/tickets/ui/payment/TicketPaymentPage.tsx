@@ -72,7 +72,8 @@ const resolveUserIdFromAccessToken = (accessToken: string | null) => {
 export default function TicketPaymentPage() {
    const navigate = useNavigate();
    const location = useLocation();
-   const routeBookingEntryState = location.state as BookingEntryState | null;
+   const locationState = location.state as (BookingEntryState & { botData?: TicketCheckoutRequest['botData'] }) | null;
+   const routeBookingEntryState = locationState;
    const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
    const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
    const accessToken = useAuthStore((state) => state.accessToken);
@@ -95,6 +96,7 @@ export default function TicketPaymentPage() {
             label: `${selectedZone.name} ${seat.block}블록 ${seat.rowLabel} ${seat.seatNumber}번`,
          }));
    });
+   const botData = locationState?.botData;
 
    // 주문자 정보
    const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('mobile');
@@ -167,7 +169,7 @@ export default function TicketPaymentPage() {
 
    useEffect(() => {
       const selectedSeatSummary = Object.entries(zonesState).flatMap(([zoneId, zone]) =>
-         zone.selectedSeatIds.map((seatId) => ({
+         zone.selectedSeatIds.map(seatId => ({
             zoneId,
             seatId,
          })),
@@ -233,6 +235,7 @@ export default function TicketPaymentPage() {
          ordererPhone: phone,
          ordererEmail: email,
          paymentMethod,
+         botData,
          ...(deliveryMethod === 'delivery' && { zipCode, address, addressDetail }),
          ...(paymentMethod === 'bank' && {
             cashReceiptType,
@@ -240,6 +243,8 @@ export default function TicketPaymentPage() {
             cashReceiptNum,
          }),
       };
+      console.log('결제 요청 시 포함된 봇 데이터:', paymentRequest.botData);
+
       navigate('/tickets/payment/processing', { state: { request: paymentRequest, amount: totalPayment } });
    };
 
@@ -252,20 +257,16 @@ export default function TicketPaymentPage() {
          />
 
          <main className="flex-1 bg-white flex justify-center px-4">
-            <div className="w-full max-w-[1200px] py-8 flex flex-col gap-8">
-               <h1 className="text-[32px] font-bold leading-[1.45] tracking-[-0.032px] text-foreground">주문서</h1>
+            <div className="w-full max-w-300 py-8 flex flex-col gap-8">
+               <h1 className="text-title-1-bold leading-[1.45] tracking-[-0.032px] text-foreground">주문서</h1>
 
                <div className="flex flex-col lg:flex-row gap-8 items-start">
                   {/* 왼쪽: 주문자 정보 */}
-                  <div className="w-full lg:flex-1 min-w-0 flex flex-col gap-[10px]">
-                     <h2 className="hidden lg:block text-heading-1-bold leading-normal text-foreground h-9">
-                        주문자 정보 입력
-                     </h2>
-
+                  <div className="w-full lg:flex-1 min-w-0 flex flex-col gap-2.5">
                      <div className="flex flex-col gap-6">
                         {/* 수령 방식 선택 */}
                         <PaymentCard>
-                           <h3 className="text-[20px] font-bold leading-[1.5] text-foreground mb-5">수령 방식 선택</h3>
+                           <h3 className="text-heading-3-bold leading-normal text-foreground mb-5">수령 방식 선택</h3>
                            <div className="flex flex-col gap-3">
                               <RadioOptionCard
                                  selected={deliveryMethod === 'mobile'}
@@ -369,9 +370,7 @@ export default function TicketPaymentPage() {
                   </div>
 
                   {/* 오른쪽: 주문 정보 — 데스크톱 전용 */}
-                  <div className="hidden lg:flex flex-col flex-1 max-w-100 shrink-0 gap-[10px]">
-                     <h2 className="text-heading-1-bold leading-normal text-foreground h-9">주문 정보 확인</h2>
-
+                  <div className="hidden lg:flex flex-col flex-1 max-w-100 shrink-0 gap-2.5">
                      <div className="flex flex-col gap-6">
                         <OrderSummaryCard orderInfo={orderInfo} />
 

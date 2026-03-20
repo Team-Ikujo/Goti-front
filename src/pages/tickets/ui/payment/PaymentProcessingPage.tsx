@@ -35,6 +35,8 @@ export default function PaymentProcessingPage() {
    });
 
    useEffect(() => {
+      let isActive = true;
+
       if (!locationState?.request) {
          navigate('/tickets/payment', { replace: true });
          return;
@@ -51,8 +53,11 @@ export default function PaymentProcessingPage() {
 
       const process = async () => {
          try {
-            const result = await mutateAsync(paymentRequest);
-            if (isStillOnProcessingPage()) {
+            const [result] = await Promise.all([
+               mutateAsync(paymentRequest),
+               new Promise(resolve => setTimeout(resolve, 1000)),
+            ]);
+            if (isActive && isStillOnProcessingPage()) {
                navigate(
                   `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}`,
                   { state: { ...result, amount: clientAmount }, replace: true },
@@ -71,6 +76,10 @@ export default function PaymentProcessingPage() {
       };
 
       process();
+
+      return () => {
+         isActive = false;
+      };
    }, [locationState, mutateAsync, navigate]);
 
    const headerRequest = locationState?.request;
