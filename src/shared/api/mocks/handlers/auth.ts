@@ -61,7 +61,9 @@ const buildMockAccessToken = (payload: Record<string, unknown>) => {
    return `${header}.${body}.${signature}`;
 };
 
-const resolveRegisteredState = () => false;
+const resolveRegisteredState = (authCode: string) => {
+   return !/(signup|register|join|new)/i.test(authCode);
+};
 
 const resolveLoginScenario = (): MockLoginScenario => 'normal';
 
@@ -92,7 +94,7 @@ export const authHandlers = [
       }
 
       const socialVerifyToken = createId('svt');
-      const isRegistered = resolveRegisteredState();
+      const isRegistered = resolveRegisteredState(body.authCode);
       const userId = createId('user');
       const loginScenario = isRegistered ? resolveLoginScenario() : undefined;
 
