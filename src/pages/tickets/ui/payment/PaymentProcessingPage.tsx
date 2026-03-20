@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
@@ -24,15 +23,6 @@ export default function PaymentProcessingPage() {
    const { state } = useLocation();
    const locationState = state as { request: TicketCheckoutRequest | ResaleCheckoutRequest; amount: number } | null;
    const hasStartedRef = useRef(false);
-   const { mutateAsync } = useMutation({
-      mutationFn: async (request: TicketCheckoutRequest | ResaleCheckoutRequest) => {
-         if ('gameId' in request && 'selectedSeats' in request) {
-            return submitTicketOrder(request);
-         }
-
-         return submitResaleOrder(request);
-      },
-   });
 
    useEffect(() => {
       let isActive = true;
@@ -53,8 +43,10 @@ export default function PaymentProcessingPage() {
 
       const process = async () => {
          try {
+            const submitOrder =
+               'gameId' in paymentRequest && 'selectedSeats' in paymentRequest ? submitTicketOrder : submitResaleOrder;
             const [result] = await Promise.all([
-               mutateAsync(paymentRequest),
+               submitOrder(paymentRequest),
                new Promise(resolve => setTimeout(resolve, 1000)),
             ]);
             if (isActive && isStillOnProcessingPage()) {
@@ -80,7 +72,7 @@ export default function PaymentProcessingPage() {
       return () => {
          isActive = false;
       };
-   }, [locationState, mutateAsync, navigate]);
+   }, [locationState, navigate]);
 
    const headerRequest = locationState?.request;
    const headerProps =
