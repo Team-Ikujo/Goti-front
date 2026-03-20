@@ -23,9 +23,10 @@ export default function PaymentProcessingPage() {
    const { state } = useLocation();
    const locationState = state as { request: TicketCheckoutRequest | ResaleCheckoutRequest; amount: number } | null;
    const hasStartedRef = useRef(false);
+   const isMountedRef = useRef(false);
 
    useEffect(() => {
-      let isActive = true;
+      isMountedRef.current = true;
 
       if (!locationState?.request) {
          navigate('/tickets/payment', { replace: true });
@@ -49,14 +50,14 @@ export default function PaymentProcessingPage() {
                submitOrder(paymentRequest),
                new Promise(resolve => setTimeout(resolve, 1000)),
             ]);
-            if (isActive && isStillOnProcessingPage()) {
+            if (isMountedRef.current && isStillOnProcessingPage()) {
                navigate(
                   `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}`,
                   { state: { ...result, amount: clientAmount }, replace: true },
                );
             }
          } catch (error) {
-            if (isStillOnProcessingPage()) {
+            if (isMountedRef.current && isStillOnProcessingPage()) {
                const message =
                   error instanceof ApiError
                      ? error.message
@@ -70,7 +71,7 @@ export default function PaymentProcessingPage() {
       process();
 
       return () => {
-         isActive = false;
+         isMountedRef.current = false;
       };
    }, [locationState, navigate]);
 
