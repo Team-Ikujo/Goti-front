@@ -9,8 +9,10 @@ import LoginTimeoutDialog from "./LoginTimeoutDialog";
 import LoginStatusDialog from "./LoginStatusDialog";
 import {
   useAuthStore,
+  type LoginAlert,
   type SocialProvider,
 } from "@/entities/auth/model/authStore";
+
 
 type SocialLoginButtonItem = {
   provider: SocialProvider;
@@ -35,12 +37,11 @@ const LoginPage = () => {
   const setLoginAlert = useAuthStore((state) => state.setLoginAlert);
 
   useEffect(() => {
-    if (!accessToken) {
-      return;
-    }
-
+    if (!accessToken) return;
+    // loginAlert가 있으면 다이얼로그를 먼저 보여준 뒤 이동
+    if (loginAlert) return;
     navigate("/", { replace: true });
-  }, [accessToken, navigate]);
+  }, [accessToken, loginAlert, navigate]);
 
   return (
     <div className="flex w-full h-screen items-center justify-center min-h-screen bg-white text-text-primary">
@@ -65,7 +66,18 @@ const LoginPage = () => {
         </section>
       </div>
       <LoginTimeoutDialog open={loginTimedOut} onConfirm={clearLoginTimedOut} />
-      <LoginStatusDialog alert={loginAlert} onConfirm={() => setLoginAlert(null)} />
+      <LoginStatusDialog
+        alert={loginAlert}
+        onConfirm={() => {
+          const alert = loginAlert;
+          setLoginAlert(null);
+          // redirectPath가 있는 타입(failed_under_5, dormant)은 해당 경로로 이동
+          if (alert && 'redirectPath' in alert) {
+            navigate(alert.redirectPath, { replace: true });
+          }
+        }}
+      />
+
     </div>
   );
 };

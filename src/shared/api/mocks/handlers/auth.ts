@@ -61,20 +61,9 @@ const buildMockAccessToken = (payload: Record<string, unknown>) => {
    return `${header}.${body}.${signature}`;
 };
 
-const resolveRegisteredState = (_authCode: string) => {
-   // 테스트용: 항상 미가입 상태로 고정 (회원가입 플로우 테스트)
-   return false;
-};
+const resolveRegisteredState = () => false;
 
-// authCode 패턴으로 로그인 후 시나리오 결정
-// 예: authCode에 "scenario:dormant" 포함 시 휴면 시나리오
-const resolveLoginScenario = (authCode: string): MockLoginScenario => {
-   if (/scenario:failed_over_5/i.test(authCode)) return 'failed_over_5';
-   if (/scenario:failed_under_5/i.test(authCode)) return 'failed_under_5';
-   if (/scenario:dormant/i.test(authCode)) return 'dormant';
-   if (/scenario:rejoining_locked/i.test(authCode)) return 'rejoining_locked';
-   return 'normal';
-};
+const resolveLoginScenario = (): MockLoginScenario => 'normal';
 
 export const authHandlers = [
    http.get('/api/v1/auth/:provider/state', async ({ params }) => {
@@ -103,9 +92,9 @@ export const authHandlers = [
       }
 
       const socialVerifyToken = createId('svt');
-      const isRegistered = resolveRegisteredState(body.authCode);
+      const isRegistered = resolveRegisteredState();
       const userId = createId('user');
-      const loginScenario = isRegistered ? resolveLoginScenario(body.authCode) : undefined;
+      const loginScenario = isRegistered ? resolveLoginScenario() : undefined;
 
       mockAuthSessions.set(socialVerifyToken, {
          provider,

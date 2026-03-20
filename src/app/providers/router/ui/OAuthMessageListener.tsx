@@ -22,9 +22,10 @@ const OAuthMessageListener = () => {
       });
       if (event.data.provider) setRecentLoginProvider(event.data.provider);
 
-      // 계정 상태 알림이 있으면 store에 저장 (LoginPage에서 다이얼로그 표시)
       if (event.data.loginAlert) {
+        // 계정 상태 알림이 있으면 navigate 하지 않고 LoginPage에서 다이얼로그 표시 후 이동
         setLoginAlert(event.data.loginAlert);
+        return;
       }
 
       navigate(event.data.redirectPath ?? "/", { replace: true });
