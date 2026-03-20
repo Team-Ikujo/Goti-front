@@ -3,14 +3,9 @@ import { useParams, Navigate } from 'react-router-dom';
 
 import { teams } from '@/entities/team/model/teams';
 import { cn } from '@/shared/lib/utils';
-import { TEAM_IDS } from '@/pages/home/ui/game-schedule/constants';
 import { TeamScheduleTab } from './TeamScheduleTab';
 import { SeatMapTab } from './SeatMapTab';
 import { StadiumGuideTab } from './StadiumGuideTab';
-
-const TEAM_NAME_BY_ID: Record<string, string> = Object.fromEntries(
-   Object.entries(TEAM_IDS).map(([name, id]) => [id, name]),
-);
 
 const BOOKING_TABS = ['예매하기', '좌석도', '구장안내'];
 
@@ -67,13 +62,17 @@ const TeamDetailPage = () => {
                   })}
                </div>
 
-               {/* 탭 컨텐츠 */}
+               {/* 탭 컨텐츠 - hidden으로 숨겨 언마운트 방지 (재호출 없음) */}
                <div className="flex flex-col gap-6.25 items-start w-full">
-                  {activeBookingTab === 0 && <TeamScheduleTab teamId={teamId} teamName={teamId ? TEAM_NAME_BY_ID[teamId] : undefined} />}
-
-                  {activeBookingTab === 1 && <SeatMapTab />}
-
-                  {activeBookingTab === 2 && <StadiumGuideTab />}
+                  <div className={activeBookingTab !== 0 ? 'hidden' : 'contents'}>
+                     <TeamScheduleTab serverTeamId={team.serverTeamId} />
+                  </div>
+                  <div className={activeBookingTab !== 1 ? 'hidden' : 'contents'}>
+                     <SeatMapTab serverStadiumId={team.serverStadiumId} />
+                  </div>
+                  <div className={activeBookingTab !== 2 ? 'hidden' : 'contents'}>
+                     <StadiumGuideTab team={team} />
+                  </div>
                </div>
             </div>
          </div>

@@ -12,6 +12,7 @@ import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBo
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 import SeatMapStage from './components/SeatMapStage';
 import SelectedSeatSummaryList, { type SelectedSeatSummaryItem } from './components/SelectedSeatSummaryList';
+import { useBotDetector } from '@/shared/lib/useBotDetector';
 
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
@@ -33,6 +34,7 @@ function SeatsPage() {
    const routeBookingEntryState = location.state as BookingEntryState | null;
    const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
    const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
+   const { getBotReport } = useBotDetector();
    const bookingZones = useMemo(
       () => bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId),
       [bookingEntryState?.bookingZones, bookingEntryState?.homeTeamId],
@@ -125,7 +127,7 @@ function SeatsPage() {
       }
 
       return zoneSeatState.seatOrder
-         .map((seatId) => zoneSeatState.seatMap[seatId])
+         .map(seatId => zoneSeatState.seatMap[seatId])
          .filter((seat): seat is SeatItem => Boolean(seat));
    }, [initialSeats, zoneSeatState]);
 
@@ -140,9 +142,9 @@ function SeatsPage() {
          }
 
          return selectedZoneState.selectedSeatIds
-            .map((seatId) => selectedZoneState.seatMap[seatId])
+            .map(seatId => selectedZoneState.seatMap[seatId])
             .filter((seat): seat is SeatItem => Boolean(seat))
-            .map((seat) => ({
+            .map(seat => ({
                seat,
                zoneId: selectedZoneId,
                zoneName: selectedZone.name,
@@ -159,7 +161,14 @@ function SeatsPage() {
    );
 
    const handleProceedToPayment = () => {
-      navigate('/tickets/payment');
+      const botData = getBotReport();
+
+      navigate('/tickets/payment', {
+         state: {
+            ...bookingEntryState,
+            botData,
+         },
+      });
    };
 
    const sectionBounds = useMemo(() => {
@@ -167,7 +176,7 @@ function SeatsPage() {
          return null;
       }
 
-      const blockMetrics = seatBlocks.map((block) => {
+      const blockMetrics = seatBlocks.map(block => {
          const width = block.cols * (BLOCK_SEAT_SIZE + BLOCK_SEAT_GAP) - BLOCK_SEAT_GAP;
          const height = block.rows * (BLOCK_SEAT_SIZE + BLOCK_SEAT_GAP) - BLOCK_SEAT_GAP;
 
@@ -181,10 +190,10 @@ function SeatsPage() {
       });
 
       return {
-         left: Math.min(...blockMetrics.map((block) => block.offsetX)),
-         top: Math.min(...blockMetrics.map((block) => block.offsetY)),
-         right: Math.max(...blockMetrics.map((block) => block.right)),
-         bottom: Math.max(...blockMetrics.map((block) => block.bottom)),
+         left: Math.min(...blockMetrics.map(block => block.offsetX)),
+         top: Math.min(...blockMetrics.map(block => block.offsetY)),
+         right: Math.max(...blockMetrics.map(block => block.right)),
+         bottom: Math.max(...blockMetrics.map(block => block.bottom)),
          blocks: blockMetrics,
       };
    }, [seatBlocks]);
@@ -208,7 +217,7 @@ function SeatsPage() {
          scale,
          offsetX,
          offsetY,
-         blocks: sectionBounds.blocks.map((block) => ({
+         blocks: sectionBounds.blocks.map(block => ({
             id: block.id,
             x: offsetX + (block.offsetX - sectionBounds.left) * scale,
             y: offsetY + (block.offsetY - sectionBounds.top) * scale,
@@ -309,6 +318,16 @@ function SeatsPage() {
          event.currentTarget.releasePointerCapture(event.pointerId);
       }
    };
+   // 🔴 2. 예매 페이지로 넘어가기 전 봇 데이터를 추출하는 핸들러 추가
+   const handleNavigateToPayment = () => {
+      const botReport = getBotReport();
+
+      console.log('수집된 봇 데이터:', botReport);
+
+      // 옵션 A: 여기서 좌석 선점(Hold) API를 쏠 때 botReport를 같이 보냄
+      // 옵션 B: React Router의 state를 이용해 결제 페이지로 데이터를 넘겨서 최종 결제 시 서버로 보냄
+      navigate('/tickets/payment', { state: { botData: botReport } });
+   };
 
    return (
       <div className="w-full bg-background text-foreground">
@@ -337,7 +356,10 @@ function SeatsPage() {
                                  {label}
                               </span>
                               {index < stepLabels.length - 1 ? (
-                                 <span className="text-[18px] leading-none font-bold text-border-light" aria-hidden="true">
+                                 <span
+                                    className="text-[18px] leading-none font-bold text-border-light"
+                                    aria-hidden="true"
+                                 >
                                     ›
                                  </span>
                               ) : null}

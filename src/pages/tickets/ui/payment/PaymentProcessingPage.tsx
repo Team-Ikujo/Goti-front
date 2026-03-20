@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
@@ -24,17 +23,11 @@ export default function PaymentProcessingPage() {
    const { state } = useLocation();
    const locationState = state as { request: TicketCheckoutRequest | ResaleCheckoutRequest; amount: number } | null;
    const hasStartedRef = useRef(false);
-   const { mutateAsync } = useMutation({
-      mutationFn: async (request: TicketCheckoutRequest | ResaleCheckoutRequest) => {
-         if ('gameId' in request && 'selectedSeats' in request) {
-            return submitTicketOrder(request);
-         }
-
-         return submitResaleOrder(request);
-      },
-   });
+   const isMountedRef = useRef(false);
 
    useEffect(() => {
+      isMountedRef.current = true;
+
       if (!locationState?.request) {
          navigate('/tickets/payment', { replace: true });
          return;
@@ -51,15 +44,20 @@ export default function PaymentProcessingPage() {
 
       const process = async () => {
          try {
-            const result = await mutateAsync(paymentRequest);
-            if (isStillOnProcessingPage()) {
+            const submitOrder =
+               'gameId' in paymentRequest && 'selectedSeats' in paymentRequest ? submitTicketOrder : submitResaleOrder;
+            const [result] = await Promise.all([
+               submitOrder(paymentRequest),
+               new Promise(resolve => setTimeout(resolve, 1000)),
+            ]);
+            if (isMountedRef.current && isStillOnProcessingPage()) {
                navigate(
                   `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}`,
                   { state: { ...result, amount: clientAmount }, replace: true },
                );
             }
          } catch (error) {
-            if (isStillOnProcessingPage()) {
+            if (isMountedRef.current && isStillOnProcessingPage()) {
                const message =
                   error instanceof ApiError
                      ? error.message
@@ -71,7 +69,11 @@ export default function PaymentProcessingPage() {
       };
 
       process();
-   }, [locationState, mutateAsync, navigate]);
+
+      return () => {
+         isMountedRef.current = false;
+      };
+   }, [locationState, navigate]);
 
    const headerRequest = locationState?.request;
    const headerProps =

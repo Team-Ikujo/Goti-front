@@ -1,6 +1,7 @@
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import type { CashReceiptNumType, CashReceiptType, PaymentMethod } from '../ui/payment/types';
+import type { BotReport } from '@/shared/lib/botDetector';
 
 interface CheckoutFormRequest {
    deliveryMethod: 'mobile' | 'onsite' | 'delivery';
@@ -14,6 +15,7 @@ interface CheckoutFormRequest {
    cashReceiptType?: CashReceiptType;
    cashReceiptNumType?: CashReceiptNumType;
    cashReceiptNum?: string;
+   botData?: BotReport;
 }
 
 export interface PaymentResponse {
@@ -35,7 +37,6 @@ export interface PaymentResponse {
    recipientPhone?: string;
    recipientAddress?: string;
 }
-
 export type TicketCheckoutSeat = {
    seatId: string;
    label: string;
@@ -44,7 +45,6 @@ export type TicketCheckoutSeat = {
 export interface TicketCheckoutRequest extends CheckoutFormRequest {
    gameId: string;
    queueTokenJti: string;
-   userId?: string;
    matchTitle: string;
    gameDate: string;
    gameVenue: string;
@@ -91,18 +91,6 @@ type CreateOrderResponse = {
    orderStatus: string;
    totalQuantity: number;
    totalAmount: number;
-};
-
-type ConfirmOrderPaymentRequest = {
-   userId: string;
-   paymentId: string;
-   pgTid: string;
-};
-
-type ConfirmOrderPaymentResponse = {
-   orderId: string;
-   orderStatus: string;
-   issuedTicketCount: number;
 };
 
 type OrderPaymentRequest = {
@@ -161,21 +149,7 @@ type ResalePaymentRequest = {
    idempotencyKey: string;
 };
 
-type ResaleCompletedOrderItem = {
-   transactionId: string;
-   listingId: string;
-   seatInfo: string;
-   price: number;
-};
-
-type ResaleCompletedOrderResponse = {
-   orderId: string;
-   orderNumber: string;
-   buyerId: string;
-   totalAmount: number;
-   orderStatus: string;
-   items: ResaleCompletedOrderItem[];
-};
+type PaymentMethodCode = 'CARD' | 'KAKAO_PAY' | 'NAVER_PAY' | 'TOSS_PAY' | 'ACCOUNT_TRANSFER';
 
 const formatOrderedAt = (date: Date) => {
    return date.toLocaleString('ko-KR', {
@@ -196,7 +170,11 @@ const createClientTransactionId = (prefix: string) => {
    return `${prefix}-${Date.now()}`;
 };
 
-const toPaymentMethodCode = (paymentMethod: PaymentMethod) => {
+const assertNever = (value: never): never => {
+   throw new Error(`지원하지 않는 결제 수단입니다: ${String(value)}`);
+};
+
+const toPaymentMethodCode = (paymentMethod: PaymentMethod): PaymentMethodCode => {
    switch (paymentMethod) {
       case 'card':
          return 'CARD';
@@ -208,6 +186,8 @@ const toPaymentMethodCode = (paymentMethod: PaymentMethod) => {
          return 'TOSS_PAY';
       case 'bank':
          return 'ACCOUNT_TRANSFER';
+      default:
+         return assertNever(paymentMethod);
    }
 };
 
@@ -223,6 +203,8 @@ const toPaymentMethodLabel = (paymentMethod: PaymentMethod) => {
          return '토스페이';
       case 'bank':
          return '무통장 입금';
+      default:
+         return assertNever(paymentMethod);
    }
 };
 
@@ -231,7 +213,6 @@ const holdSeat = async (seatId: string, payload: HoldSeatRequest) => {
       `/api/v1/seat-reservations/seats/${encodeURIComponent(seatId)}`,
       payload,
    );
-
    return response.data.data;
 };
 
@@ -244,15 +225,6 @@ const createOrder = async (payload: CreateOrderRequest) => {
 const createOrderPayment = async (orderId: string, payload: OrderPaymentRequest) => {
    const response = await apiClient.post<ApiEnvelope<OrderPaymentResponse>>(
       `/api/v1/orders/${orderId}/payments`,
-      payload,
-   );
-
-   return response.data.data;
-};
-
-const confirmOrderPayment = async (orderId: string, payload: ConfirmOrderPaymentRequest) => {
-   const response = await apiClient.post<ApiEnvelope<ConfirmOrderPaymentResponse>>(
-      `/api/v1/orders/${orderId}/payment-confirmations`,
       payload,
    );
 
@@ -283,20 +255,6 @@ const createResalePayment = async (payload: ResalePaymentRequest) => {
    return response.data.data;
 };
 
-const completeResaleOrder = async (orderId: string, paymentId: string) => {
-   const response = await apiClient.patch<ApiEnvelope<ResaleCompletedOrderResponse>>(
-      `/api/v1/resales/orders/${orderId}/complete`,
-      undefined,
-      {
-         params: {
-            paymentId,
-         },
-      },
-   );
-
-   return response.data.data;
-};
-
 export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise<PaymentResponse> => {
    const heldSeats = await Promise.all(
       payload.selectedSeats.map(async ({ seatId, label }) => {
@@ -321,28 +279,17 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       ordererEmail: payload.ordererEmail,
    });
 
-   if (!payload.userId) {
-      throw new Error('결제 사용자 ID가 없어 주문 확정을 진행할 수 없습니다. 로그인 정보를 다시 확인해 주세요.');
-   }
-
    const payment = await createOrderPayment(order.orderId, {
       paymentMethod: toPaymentMethodCode(payload.paymentMethod),
       idempotencyKey: createClientTransactionId('idempotency'),
    });
 
-   const confirmation = await confirmOrderPayment(order.orderId, {
-      userId: payload.userId,
-      paymentId: payment.paymentId,
-      pgTid: payment.pgTid,
-   });
-
    return {
       orderId: order.orderId,
       orderNumber: order.orderNumber,
-      orderStatus: confirmation.orderStatus,
+      orderStatus: order.orderStatus,
       paymentStatus: payment.paymentStatus,
       paidAt: payment.paidAt,
-      issuedTicketCount: confirmation.issuedTicketCount,
       gameTitle: payload.matchTitle,
       gameDate: payload.gameDate,
       gameVenue: payload.gameVenue,
@@ -390,22 +337,17 @@ export const submitResaleOrder = async (payload: ResaleCheckoutRequest): Promise
       idempotencyKey: createClientTransactionId('resale-idempotency'),
    });
 
-   const completedOrder = await completeResaleOrder(order.orderId, payment.paymentId);
-
    return {
-      orderId: completedOrder.orderId,
-      orderNumber: completedOrder.orderNumber,
-      orderStatus: completedOrder.orderStatus,
+      orderId: order.orderId,
+      orderNumber: order.orderNumber,
+      orderStatus: order.orderStatus,
       paymentStatus: payment.paymentStatus,
       paidAt: payment.paidAt,
       gameTitle: payload.matchTitle,
       gameDate: payload.gameDate,
       gameVenue: payload.gameVenue,
-      quantity: completedOrder.items.length || order.totalQuantity,
-      seats:
-         completedOrder.items.length > 0
-            ? completedOrder.items.map((item) => item.seatInfo)
-            : [payload.seatInfo],
+      quantity: order.totalQuantity,
+      seats: [payload.seatInfo],
       paymentMethod: toPaymentMethodLabel(payload.paymentMethod),
       orderedAt: formatOrderedAt(new Date()),
       amount: payload.totalAmount,
