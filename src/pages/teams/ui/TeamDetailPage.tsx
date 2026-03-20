@@ -62,13 +62,17 @@ const TeamDetailPage = () => {
                   })}
                </div>
 
-               {/* 탭 컨텐츠 */}
+               {/* 탭 컨텐츠 - hidden으로 숨겨 언마운트 방지 (재호출 없음) */}
                <div className="flex flex-col gap-6.25 items-start w-full">
-                  {activeBookingTab === 0 && <TeamScheduleTab serverTeamId={team.serverTeamId} />}
-
-                  {activeBookingTab === 1 && <SeatMapTab serverStadiumId={team.serverStadiumId} />}
-
-                  {activeBookingTab === 2 && <StadiumGuideTab team={team} />}
+                  <div className={activeBookingTab !== 0 ? 'hidden' : 'contents'}>
+                     <TeamScheduleTab serverTeamId={team.serverTeamId} />
+                  </div>
+                  <div className={activeBookingTab !== 1 ? 'hidden' : 'contents'}>
+                     <SeatMapTab serverStadiumId={team.serverStadiumId} />
+                  </div>
+                  <div className={activeBookingTab !== 2 ? 'hidden' : 'contents'}>
+                     <StadiumGuideTab team={team} />
+                  </div>
                </div>
             </div>
          </div>

@@ -134,7 +134,7 @@ export function TeamScheduleTab({ serverTeamId }: Props) {
             {/* 경기 일정 리스트 */}
             <div className="flex flex-col gap-6.25 items-start w-full">
                {loading ? (
-                  <div className="flex h-[400px] items-center justify-center w-full">
+                  <div className="flex h-100 items-center justify-center rounded-[10px] border-border bg-surface w-full">
                      <p className="text-[18px] text-[#acb4bb]">일정을 불러오는 중...</p>
                   </div>
                ) : error ? (

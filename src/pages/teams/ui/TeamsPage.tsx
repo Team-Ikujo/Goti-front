@@ -19,7 +19,7 @@ const TeamsPage = () => {
                   </p>
                </header>
 
-               <div className="flex flex-wrap justify-center gap-3">
+               <div className="flex w-full flex-wrap justify-start gap-3">
                   {enabledTeams.map(team => (
                      <button
                         key={team.id}

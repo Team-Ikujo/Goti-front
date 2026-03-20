@@ -15,12 +15,17 @@ export interface StadiumGuideData {
   busStops: BusStop[];
 }
 
+/** 서버 enum 기준 팀 코드 (GET /api/v1/baseball-teams teamCode 필드와 매핑) */
+export type TeamCode = 'LG' | 'DO' | 'KIW' | 'HH' | 'KT' | 'SSG' | 'KIA' | 'LOT' | 'NC' | 'SS';
+
 export type Team = {
   id: string;
   name: string;
   logoSrc: string;
   logoAspectClassName: string;
   isEnabled: boolean;
+  /** 서버 팀 코드 — GET /api/v1/baseball-teams 응답의 teamCode와 매핑 */
+  teamCode?: TeamCode;
   /** 서버에 등록된 팀 UUID (GET /api/v1/games/schedules teamId 파라미터에 사용) */
   serverTeamId?: string;
   /** 서버에 등록된 홈구장 UUID (좌석도/등급 조회에 사용) */
