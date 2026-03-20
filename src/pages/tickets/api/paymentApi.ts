@@ -168,15 +168,25 @@ const createClientTransactionId = (prefix: string) => {
    return `${prefix}-${Date.now()}`;
 };
 
+const assertNever = (value: never): never => {
+   throw new Error(`지원하지 않는 결제 수단입니다: ${String(value)}`);
+};
+
 const toPaymentMethodCode = (paymentMethod: PaymentMethod) => {
    switch (paymentMethod) {
       case 'card':
+         return 'CARD';
+      // 현재 공개 결제 API 스펙은 간편결제를 별도 enum으로 받지 않고 CARD 로 통합한다.
       case 'kakao':
+         return 'CARD';
       case 'naver':
+         return 'CARD';
       case 'toss':
          return 'CARD';
       case 'bank':
          return 'ACCOUNT_TRANSFER';
+      default:
+         return assertNever(paymentMethod);
    }
 };
 
@@ -192,6 +202,8 @@ const toPaymentMethodLabel = (paymentMethod: PaymentMethod) => {
          return '토스페이';
       case 'bank':
          return '무통장 입금';
+      default:
+         return assertNever(paymentMethod);
    }
 };
 
