@@ -317,7 +317,13 @@ const parseJsonBody = async <T>(request: Request): Promise<T | null> => {
 };
 
 const isTicketPaymentMethod = (paymentMethod: unknown) => {
-   return paymentMethod === 'CARD' || paymentMethod === 'ACCOUNT_TRANSFER';
+   return (
+      paymentMethod === 'CARD' ||
+      paymentMethod === 'KAKAO_PAY' ||
+      paymentMethod === 'NAVER_PAY' ||
+      paymentMethod === 'TOSS_PAY' ||
+      paymentMethod === 'ACCOUNT_TRANSFER'
+   );
 };
 
 const buildPageResponse = <T>(content: T[], page = 0, size = content.length || 10) => {
@@ -657,6 +663,10 @@ export const paymentHandlers = [
          !body.idempotencyKey
       ) {
          return buildErrorResponse('Missing resale payment fields.');
+      }
+
+      if (!isTicketPaymentMethod(body.paymentMethod)) {
+         return buildErrorResponse('Invalid resale payment method.');
       }
 
       const invalidItem = body.items.find(

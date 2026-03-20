@@ -149,6 +149,8 @@ type ResalePaymentRequest = {
    idempotencyKey: string;
 };
 
+type PaymentMethodCode = 'CARD' | 'KAKAO_PAY' | 'NAVER_PAY' | 'TOSS_PAY' | 'ACCOUNT_TRANSFER';
+
 const formatOrderedAt = (date: Date) => {
    return date.toLocaleString('ko-KR', {
       year: 'numeric',
@@ -172,17 +174,16 @@ const assertNever = (value: never): never => {
    throw new Error(`지원하지 않는 결제 수단입니다: ${String(value)}`);
 };
 
-const toPaymentMethodCode = (paymentMethod: PaymentMethod) => {
+const toPaymentMethodCode = (paymentMethod: PaymentMethod): PaymentMethodCode => {
    switch (paymentMethod) {
       case 'card':
          return 'CARD';
-      // 현재 공개 결제 API 스펙은 간편결제를 별도 enum으로 받지 않고 CARD 로 통합한다.
       case 'kakao':
-         return 'CARD';
+         return 'KAKAO_PAY';
       case 'naver':
-         return 'CARD';
+         return 'NAVER_PAY';
       case 'toss':
-         return 'CARD';
+         return 'TOSS_PAY';
       case 'bank':
          return 'ACCOUNT_TRANSFER';
       default:
