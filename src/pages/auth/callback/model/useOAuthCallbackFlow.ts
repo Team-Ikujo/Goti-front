@@ -8,7 +8,8 @@ import type {
   SocialProvider,
   SubmitAuthCodeParams,
 } from "@/features/auth/api/oauthApi";
-import { useAuthStore } from "@/entities/auth/model/authStore";
+import { useAuthStore, type LoginAlert } from "@/entities/auth/model/authStore";
+import type { LoginAccountStatus } from "@/features/auth/api/authApi";
 import { ApiError } from "@/shared/api/client";
 import {
   OAUTH_SUCCESS_MESSAGE_TYPE,
@@ -85,10 +86,31 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
     }
     didRunRef.current = true;
 
+    // accountStatus → LoginAlert 변환
+    const buildLoginAlert = (
+      status: LoginAccountStatus | undefined,
+      failCount: number | undefined,
+      redirectPath: string,
+    ): LoginAlert | undefined => {
+      switch (status) {
+        case 'failed_under_5':
+          return { type: 'failed_under_5', failCount: failCount ?? 0, redirectPath };
+        case 'failed_over_5':
+          return { type: 'failed_over_5', failCount: failCount ?? 5 };
+        case 'dormant':
+          return { type: 'dormant', redirectPath };
+        case 'rejoining_locked':
+          return { type: 'rejoining_locked' };
+        default:
+          return undefined;
+      }
+    };
+
     const redirectFromPopup = (
       path: string,
       tokens: { accessToken: string | null; socialVerifyToken: string | null },
       provider: SocialProvider,
+      loginAlert?: LoginAlert,
     ) => {
       if (window.opener && !window.opener.closed) {
         const message: OAuthSuccessMessage = {
@@ -97,6 +119,7 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
           socialVerifyToken: tokens.socialVerifyToken,
           provider,
           redirectPath: path,
+          loginAlert,
         };
         window.opener.postMessage(
           message,
@@ -154,13 +177,18 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
           const loginResponse = await socialLoginMutation.mutateAsync({
             socialVerifyToken: response.socialVerifyToken,
           });
+          const loginAlert = buildLoginAlert(
+            loginResponse.accountStatus,
+            loginResponse.failCount,
+            "/",
+          );
           const tokens = {
             accessToken: loginResponse.accessToken,
             socialVerifyToken: null,
           };
           setAuthTokens(tokens);
           setMessage("로그인 완료!");
-          if (!redirectFromPopup("/", tokens, normalizedProvider)) {
+          if (!redirectFromPopup("/", tokens, normalizedProvider, loginAlert)) {
             navigate("/", { replace: true });
           }
           return;
