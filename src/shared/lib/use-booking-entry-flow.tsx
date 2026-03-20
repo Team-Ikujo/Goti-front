@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { createBookingFlowSearch } from '@/shared/lib/booking-flow';
+import { createBookingFlowSearch, type BookingFlowMode } from '@/shared/lib/booking-flow';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import BookingGuideDialog from '@/shared/ui/booking-guide-dialog';
@@ -31,6 +31,11 @@ const createBookingEntryState = (options?: OpenBookingEntryOptions): BookingEntr
   } satisfies BookingEntryState;
 };
 
+type PendingEntry = {
+  entryState: BookingEntryState;
+  mode: BookingFlowMode;
+};
+
 /**
  * 홈 경기 일정의 예매 진입 플로우를 다른 화면에서도 재사용하기 위한 훅입니다.
  */
@@ -39,7 +44,18 @@ export function useBookingEntryFlow() {
   const accessToken = useAuthStore(state => state.accessToken);
   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
-  const [pendingEntryState, setPendingEntryState] = useState<BookingEntryState | null>(null);
+  const [pendingEntry, setPendingEntry] = useState<PendingEntry | null>(null);
+
+  const openEntryWithGuide = (mode: BookingFlowMode, options?: OpenBookingEntryOptions) => {
+    const nextEntryState = createBookingEntryState(options);
+
+    setBookingEntry(nextEntryState);
+    setPendingEntry({
+      entryState: nextEntryState,
+      mode,
+    });
+    setIsGuideOpen(true);
+  };
 
   const openBookingEntry = (options?: OpenBookingEntryOptions) => {
     if (!accessToken) {
@@ -47,10 +63,7 @@ export function useBookingEntryFlow() {
       return;
     }
 
-    const nextEntryState = createBookingEntryState(options);
-    setBookingEntry(nextEntryState);
-    setPendingEntryState(nextEntryState);
-    setIsGuideOpen(true);
+    openEntryWithGuide('standard', options);
   };
 
   const openResellEntry = (options?: OpenBookingEntryOptions) => {
@@ -59,14 +72,7 @@ export function useBookingEntryFlow() {
       return;
     }
 
-    const nextEntryState = createBookingEntryState(options);
-    setBookingEntry(nextEntryState);
-    navigate({
-      pathname: '/books',
-      search: createBookingFlowSearch('resell'),
-    }, {
-      state: nextEntryState,
-    });
+    openEntryWithGuide('resell', options);
   };
 
   const bookingGuideDialog = (
@@ -75,8 +81,11 @@ export function useBookingEntryFlow() {
       onOpenChange={setIsGuideOpen}
       onConfirm={() => {
         setIsGuideOpen(false);
-        navigate('/books', {
-          state: pendingEntryState ?? { requireCaptcha: true },
+        navigate({
+          pathname: '/books',
+          search: createBookingFlowSearch(pendingEntry?.mode ?? 'standard'),
+        }, {
+          state: pendingEntry?.entryState ?? { requireCaptcha: true },
         });
       }}
     />
