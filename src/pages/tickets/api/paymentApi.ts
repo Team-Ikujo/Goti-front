@@ -45,7 +45,6 @@ export type TicketCheckoutSeat = {
 export interface TicketCheckoutRequest extends CheckoutFormRequest {
    gameId: string;
    queueTokenJti: string;
-   userId?: string;
    matchTitle: string;
    gameDate: string;
    gameVenue: string;
@@ -92,18 +91,6 @@ type CreateOrderResponse = {
    orderStatus: string;
    totalQuantity: number;
    totalAmount: number;
-};
-
-type ConfirmOrderPaymentRequest = {
-   userId: string;
-   paymentId: string;
-   pgTid: string;
-};
-
-type ConfirmOrderPaymentResponse = {
-   orderId: string;
-   orderStatus: string;
-   issuedTicketCount: number;
 };
 
 type OrderPaymentRequest = {
@@ -162,22 +149,6 @@ type ResalePaymentRequest = {
    idempotencyKey: string;
 };
 
-type ResaleCompletedOrderItem = {
-   transactionId: string;
-   listingId: string;
-   seatInfo: string;
-   price: number;
-};
-
-type ResaleCompletedOrderResponse = {
-   orderId: string;
-   orderNumber: string;
-   buyerId: string;
-   totalAmount: number;
-   orderStatus: string;
-   items: ResaleCompletedOrderItem[];
-};
-
 const formatOrderedAt = (date: Date) => {
    return date.toLocaleString('ko-KR', {
       year: 'numeric',
@@ -200,13 +171,10 @@ const createClientTransactionId = (prefix: string) => {
 const toPaymentMethodCode = (paymentMethod: PaymentMethod) => {
    switch (paymentMethod) {
       case 'card':
-         return 'CARD';
       case 'kakao':
-         return 'KAKAO_PAY';
       case 'naver':
-         return 'NAVER_PAY';
       case 'toss':
-         return 'TOSS_PAY';
+         return 'CARD';
       case 'bank':
          return 'ACCOUNT_TRANSFER';
    }
@@ -250,15 +218,6 @@ const createOrderPayment = async (orderId: string, payload: OrderPaymentRequest)
    return response.data.data;
 };
 
-const confirmOrderPayment = async (orderId: string, payload: ConfirmOrderPaymentRequest) => {
-   const response = await apiClient.post<ApiEnvelope<ConfirmOrderPaymentResponse>>(
-      `/api/v1/orders/${orderId}/payment-confirmations`,
-      payload,
-   );
-
-   return response.data.data;
-};
-
 const createResaleHold = async (payload: ResaleHoldRequest) => {
    const response = await apiClient.post<ApiEnvelope<ResaleHoldResponse>>('/api/v1/resales/holds', payload);
 
@@ -279,20 +238,6 @@ const getResaleTransactions = async (orderId: string) => {
 
 const createResalePayment = async (payload: ResalePaymentRequest) => {
    const response = await apiClient.post<ApiEnvelope<OrderPaymentResponse>>('/api/v1/resales/payments', payload);
-
-   return response.data.data;
-};
-
-const completeResaleOrder = async (orderId: string, paymentId: string) => {
-   const response = await apiClient.patch<ApiEnvelope<ResaleCompletedOrderResponse>>(
-      `/api/v1/resales/orders/${orderId}/complete`,
-      undefined,
-      {
-         params: {
-            paymentId,
-         },
-      },
-   );
 
    return response.data.data;
 };
@@ -321,28 +266,17 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       ordererEmail: payload.ordererEmail,
    });
 
-   if (!payload.userId) {
-      throw new Error('결제 사용자 ID가 없어 주문 확정을 진행할 수 없습니다. 로그인 정보를 다시 확인해 주세요.');
-   }
-
    const payment = await createOrderPayment(order.orderId, {
       paymentMethod: toPaymentMethodCode(payload.paymentMethod),
       idempotencyKey: createClientTransactionId('idempotency'),
    });
 
-   const confirmation = await confirmOrderPayment(order.orderId, {
-      userId: payload.userId,
-      paymentId: payment.paymentId,
-      pgTid: payment.pgTid,
-   });
-
    return {
       orderId: order.orderId,
       orderNumber: order.orderNumber,
-      orderStatus: confirmation.orderStatus,
+      orderStatus: order.orderStatus,
       paymentStatus: payment.paymentStatus,
       paidAt: payment.paidAt,
-      issuedTicketCount: confirmation.issuedTicketCount,
       gameTitle: payload.matchTitle,
       gameDate: payload.gameDate,
       gameVenue: payload.gameVenue,
@@ -390,22 +324,17 @@ export const submitResaleOrder = async (payload: ResaleCheckoutRequest): Promise
       idempotencyKey: createClientTransactionId('resale-idempotency'),
    });
 
-   const completedOrder = await completeResaleOrder(order.orderId, payment.paymentId);
-
    return {
-      orderId: completedOrder.orderId,
-      orderNumber: completedOrder.orderNumber,
-      orderStatus: completedOrder.orderStatus,
+      orderId: order.orderId,
+      orderNumber: order.orderNumber,
+      orderStatus: order.orderStatus,
       paymentStatus: payment.paymentStatus,
       paidAt: payment.paidAt,
       gameTitle: payload.matchTitle,
       gameDate: payload.gameDate,
       gameVenue: payload.gameVenue,
-      quantity: completedOrder.items.length || order.totalQuantity,
-      seats:
-         completedOrder.items.length > 0
-            ? completedOrder.items.map((item) => item.seatInfo)
-            : [payload.seatInfo],
+      quantity: order.totalQuantity,
+      seats: [payload.seatInfo],
       paymentMethod: toPaymentMethodLabel(payload.paymentMethod),
       orderedAt: formatOrderedAt(new Date()),
       amount: payload.totalAmount,

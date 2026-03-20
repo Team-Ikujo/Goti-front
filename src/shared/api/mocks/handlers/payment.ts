@@ -549,63 +549,6 @@ export const paymentHandlers = [
       });
    }),
 
-   http.post('/api/v1/orders/:orderId/payment-confirmations', async ({ params, request }) => {
-      const body = (await request.json()) as {
-         userId?: string;
-         paymentId?: string;
-         pgTid?: string;
-      };
-
-      const order = ticketOrders.get(String(params.orderId));
-
-      if (!order) {
-         return buildErrorResponse('Order not found.', 404);
-      }
-
-      if (!body?.userId || !body?.paymentId || !body?.pgTid) {
-         return buildErrorResponse('Missing payment confirmation fields.');
-      }
-
-      const payment = ticketPayments.get(body.paymentId);
-
-      if (!payment || payment.orderId !== order.orderId || payment.pgTid !== body.pgTid) {
-         return buildErrorResponse('Payment confirmation does not match the order.', 409);
-      }
-
-      const confirmedOrder: TicketOrder = {
-         ...order,
-         orderStatus: 'CONFIRMED',
-      };
-      ticketOrders.set(order.orderId, confirmedOrder);
-
-      confirmedOrder.holdIds.forEach((holdId) => {
-         const hold = seatReservationHolds.get(holdId);
-
-         if (!hold) {
-            return;
-         }
-
-         const ticketId = createId('ticket');
-         ticketRecords.set(ticketId, {
-            ticketId,
-            orderId: confirmedOrder.orderId,
-            gameId: confirmedOrder.gameId,
-            seatId: hold.seatId,
-            qrToken: `qr-${ticketId}`,
-         });
-      });
-
-      return HttpResponse.json({
-         code: 'SUCCESS',
-         message: 'ok',
-         data: {
-            orderId: confirmedOrder.orderId,
-            orderStatus: confirmedOrder.orderStatus,
-            issuedTicketCount: confirmedOrder.totalQuantity,
-         },
-      });
-   }),
-
    http.post('/api/v1/resales/holds', async ({ request }) => {
       const body = (await request.json()) as {
          listingId?: string;
@@ -767,21 +710,6 @@ export const paymentHandlers = [
       });
    }),
 
-   http.patch('/api/v1/resales/payments/orders/:orderId/release', async ({ params }) => {
-      const orderId = String(params.orderId);
-      const order = resaleOrders.get(orderId);
-
-      if (!order) {
-         return buildErrorResponse('Resale order not found.', 404);
-      }
-
-      return HttpResponse.json({
-         code: 'SUCCESS',
-         message: 'ok',
-         data: `Escrow released for order ${orderId}`,
-      });
-   }),
-
    http.get('/api/v1/resales/payments/ledgers', async ({ request }) => {
       const searchParams = new URL(request.url).searchParams;
       const page = Number(searchParams.get('page') ?? 0);
@@ -806,49 +734,6 @@ export const paymentHandlers = [
          code: 'SUCCESS',
          message: 'ok',
          data: ledger,
-      });
-   }),
-
-   http.patch('/api/v1/resales/orders/:orderId/complete', async ({ params, request }) => {
-      const paymentId = new URL(request.url).searchParams.get('paymentId');
-      const order = resaleOrders.get(String(params.orderId));
-
-      if (!order) {
-         return buildErrorResponse('Resale order not found.', 404);
-      }
-
-      if (!paymentId) {
-         return buildErrorResponse('Missing paymentId query parameter.');
-      }
-
-      const payment = resalePayments.get(paymentId);
-
-      if (!payment || payment.orderId !== order.orderId) {
-         return buildErrorResponse('Resale payment does not match the order.', 409);
-      }
-
-      const completedOrder: ResaleOrder = {
-         ...order,
-         orderStatus: 'COMPLETED',
-      };
-      resaleOrders.set(order.orderId, completedOrder);
-
-      return HttpResponse.json({
-         code: 'SUCCESS',
-         message: 'ok',
-         data: {
-            orderId: completedOrder.orderId,
-            orderNumber: completedOrder.orderNumber,
-            buyerId: createId('buyer'),
-            totalAmount: completedOrder.totalAmount,
-            orderStatus: completedOrder.orderStatus,
-            items: completedOrder.transactionIds.map((transactionId, index) => ({
-               transactionId,
-               listingId: createId(`listing-${index + 1}`),
-               seatInfo: `1루 지정석 ${index + 1}열 ${index + 12}번`,
-               price: 54000,
-            })),
-         },
       });
    }),
 
