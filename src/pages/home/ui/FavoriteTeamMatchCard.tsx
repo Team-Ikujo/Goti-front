@@ -10,7 +10,7 @@ import { Button } from '@/shared/ui/button';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 
 const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
-   const { openBookingEntry, bookingGuideDialog } = useBookingEntryFlow();
+   const { openBookingEntry, openResellEntry, bookingGuideDialog } = useBookingEntryFlow();
    const { data, isPending } = useGameSchedules();
    const match = getClosestMatch(data ?? [], team.id);
 
@@ -90,6 +90,22 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
       });
    };
 
+   const handleResellClick = () => {
+      if (match.resell !== '리셀예매') {
+         return;
+      }
+
+      openResellEntry({
+         homeTeamId: match.homeTeamId,
+         gameId: match.id,
+         stadiumId: match.stadiumId,
+         queueTokenJti: match.queueTokenJti,
+         matchTitle: `${awayTeamName} vs ${homeTeamName}`,
+         venue: match.venue,
+         dateTime: formattedDate,
+      });
+   };
+
    return (
       <div className="bg-white border border-[#e9ebee] rounded-2xl overflow-hidden shadow-[0px_20px_50px_-12px_rgba(0,0,0,0.25)]">
          {Header}
@@ -159,6 +175,8 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                <Button
                   variant="secondary"
                   className="flex-1 max-w-[300px] h-[46px] text-[14px] font-bold rounded-[10px] tracking-[-0.15px]"
+                  disabled={match.resell !== '리셀예매'}
+                  onClick={handleResellClick}
                >
                   리셀예매
                </Button>
@@ -229,7 +247,12 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                   >
                      예매하기
                   </Button>
-                  <Button variant="secondary" className="h-12 text-[16px] font-bold rounded-lg">
+                  <Button
+                     variant="secondary"
+                     className="h-12 text-[16px] font-bold rounded-lg"
+                     disabled={match.resell !== '리셀예매'}
+                     onClick={handleResellClick}
+                  >
                      리셀예매
                   </Button>
                </div>

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { createBookingFlowSearch } from '@/shared/lib/booking-flow';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import BookingGuideDialog from '@/shared/ui/booking-guide-dialog';
 
-type OpenBookingEntryOptions = {
+export type OpenBookingEntryOptions = {
   homeTeamId?: string;
   gameId?: string;
   stadiumId?: string;
@@ -14,6 +15,20 @@ type OpenBookingEntryOptions = {
   matchTitle?: string;
   venue?: string;
   dateTime?: string;
+};
+
+const createBookingEntryState = (options?: OpenBookingEntryOptions): BookingEntryState => {
+  return {
+    requireCaptcha: true,
+    homeTeamId: options?.homeTeamId,
+    gameId: options?.gameId,
+    stadiumId: options?.stadiumId,
+    queueTokenJti: options?.queueTokenJti,
+    userId: options?.userId,
+    matchTitle: options?.matchTitle,
+    venue: options?.venue,
+    dateTime: options?.dateTime,
+  } satisfies BookingEntryState;
 };
 
 /**
@@ -32,21 +47,26 @@ export function useBookingEntryFlow() {
       return;
     }
 
-    const nextEntryState = {
-      requireCaptcha: true,
-      homeTeamId: options?.homeTeamId,
-      gameId: options?.gameId,
-      stadiumId: options?.stadiumId,
-      queueTokenJti: options?.queueTokenJti,
-      userId: options?.userId,
-      matchTitle: options?.matchTitle,
-      venue: options?.venue,
-      dateTime: options?.dateTime,
-    } satisfies BookingEntryState;
-
+    const nextEntryState = createBookingEntryState(options);
     setBookingEntry(nextEntryState);
     setPendingEntryState(nextEntryState);
     setIsGuideOpen(true);
+  };
+
+  const openResellEntry = (options?: OpenBookingEntryOptions) => {
+    if (!accessToken) {
+      navigate('/auth/login');
+      return;
+    }
+
+    const nextEntryState = createBookingEntryState(options);
+    setBookingEntry(nextEntryState);
+    navigate({
+      pathname: '/books',
+      search: createBookingFlowSearch('resell'),
+    }, {
+      state: nextEntryState,
+    });
   };
 
   const bookingGuideDialog = (
@@ -64,6 +84,7 @@ export function useBookingEntryFlow() {
 
   return {
     openBookingEntry,
+    openResellEntry,
     bookingGuideDialog,
   };
 }
