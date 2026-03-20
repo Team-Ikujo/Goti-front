@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/entities/auth/model/authStore';
 import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSeatPaymentSummary';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { getBookingTeamConfig, getBookingZones } from '@/pages/books/model/zoneData';
@@ -43,32 +42,6 @@ const MOCK_GAME = {
    dateTime: '3.21 (토) 오후 18:30',
 };
 
-const resolveUserIdFromAccessToken = (accessToken: string | null) => {
-   if (!accessToken) {
-      return undefined;
-   }
-
-   const tokenParts = accessToken.split('.');
-
-   if (tokenParts.length < 2) {
-      return undefined;
-   }
-
-   try {
-      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>;
-      const userId =
-         payload.userId ??
-         payload.user_id ??
-         payload.memberId ??
-         payload.member_id ??
-         payload.sub;
-
-      return typeof userId === 'string' && userId.length > 0 ? userId : undefined;
-   } catch {
-      return undefined;
-   }
-};
-
 export default function TicketPaymentPage() {
    const navigate = useNavigate();
    const location = useLocation();
@@ -76,7 +49,6 @@ export default function TicketPaymentPage() {
    const routeBookingEntryState = locationState;
    const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
    const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
-   const accessToken = useAuthStore((state) => state.accessToken);
    const zonesState = useSeatSelectionStore((state) => state.zones);
    const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
    const bookingZones = bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId);
@@ -159,7 +131,6 @@ export default function TicketPaymentPage() {
    const fee = orderInfo.quantity * 1000;
    const ticketPrice = paymentSummary.totalPrice;
    const totalPayment = ticketPrice + shippingFee + fee; // 할인 0원
-   const resolvedUserId = bookingEntryState?.userId ?? resolveUserIdFromAccessToken(accessToken);
 
    useEffect(() => {
       if (routeBookingEntryState) {
@@ -216,15 +187,9 @@ export default function TicketPaymentPage() {
          return;
       }
 
-      if (!resolvedUserId) {
-         window.alert('결제 사용자 정보를 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.');
-         return;
-      }
-
       const paymentRequest: TicketCheckoutRequest = {
          gameId: bookingEntryState.gameId,
          queueTokenJti: bookingEntryState.queueTokenJti,
-         userId: resolvedUserId,
          matchTitle: orderInfo.matchTitle,
          gameDate: orderInfo.dateTime,
          gameVenue: bookingEntryState?.venue ?? bookingTeamConfig.stadiumName ?? MOCK_GAME.venue,
