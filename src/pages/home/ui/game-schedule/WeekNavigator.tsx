@@ -88,7 +88,7 @@ function WeekNavigator({
                 컨테이너 560px(max-w-140): 버튼 88px × 5 + 갭 30px × 4 = 560px
                 컨테이너 343px(min): 버튼 67px × 5 + 갭 2px × 4 = 343px
               버튼 너비 보간: clamp(67, 33.81px + 9.68%, 88) */}
-         <div className="flex justify-between w-full max-w-140 mx-auto min-w-[343px]">
+         <div className="flex justify-between w-full max-w-140 mx-auto min-w-[343px] h-12">
             {WEEK_OPTIONS.map(week => {
                const isSelected = week === selectedWeek;
                return (
