@@ -44,6 +44,9 @@ const MOCK_GAME = {
    dateTime: '3.21 (토) 오후 18:30',
 };
 
+const SUPPORTED_PAYMENT_METHODS: PaymentMethod[] = ['card', 'bank'];
+const UNSUPPORTED_PAYMENT_METHOD_MESSAGE = '아직 지원하지 않는 결제수단입니다.';
+
 export default function TicketPaymentPage() {
    const navigate = useNavigate();
    const location = useLocation();
@@ -177,6 +180,15 @@ export default function TicketPaymentPage() {
       selectedSeats.length,
    ]);
 
+   const handleSelectPaymentMethod = (method: PaymentMethod) => {
+      if (!SUPPORTED_PAYMENT_METHODS.includes(method)) {
+         window.alert(UNSUPPORTED_PAYMENT_METHOD_MESSAGE);
+         return;
+      }
+
+      setPaymentMethod(method);
+   };
+
    const handlePay = () => {
       if (!bookingEntryState?.gameId || !bookingEntryState.queueTokenJti) {
          return;
@@ -275,7 +287,7 @@ export default function TicketPaymentPage() {
                         <DiscountCard />
 
                         {/* 결제 방법 */}
-                        <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
+                        <PaymentMethodCard selected={paymentMethod} onSelect={handleSelectPaymentMethod} />
 
                         {/* 현금영수증 (무통장 입금 선택 시에만 표시) */}
                         {paymentMethod === 'bank' && (
