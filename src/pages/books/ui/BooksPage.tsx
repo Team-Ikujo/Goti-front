@@ -44,7 +44,7 @@ const BooksPage = () => {
       enabled: Boolean(bookingEntryState?.stadiumId),
       queryFn: async () => {
          const [grades, sections] = await Promise.all([
-            fetchSeatGrades(bookingEntryState!.stadiumId!),
+            fetchSeatGrades(bookingEntryState!.gameId!, bookingEntryState!.stadiumId!),
             fetchSeatSections(bookingEntryState!.stadiumId!),
          ]);
 
