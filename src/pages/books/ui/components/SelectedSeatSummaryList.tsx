@@ -1,14 +1,9 @@
 import { cn } from '@/shared/lib/utils';
 
-import type { SeatItem } from '@/pages/books/model/types';
+import type { SelectedSeatDetail } from '@/pages/books/model/selectedSeats';
 import SelectedSeatSummaryListItem from './SelectedSeatSummaryListItem';
 
-export type SelectedSeatSummaryItem = {
-   seat: SeatItem;
-   zoneId: string;
-   zoneName: string;
-   price: number;
-};
+export type SelectedSeatSummaryItem = SelectedSeatDetail;
 
 type SelectedSeatSummaryListProps = {
    items: SelectedSeatSummaryItem[];

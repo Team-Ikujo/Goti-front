@@ -4,6 +4,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { createSeatsForZone } from '@/pages/books/model/seatData';
 import { getResellZoneInsights, type ResellListingItem } from '@/pages/books/model/resellData';
+import { getSelectedSeatDetails } from '@/pages/books/model/selectedSeats';
 import { useSeatMapData } from '@/pages/books/model/useSeatMapData';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { formatPrice, getBookingZones, getZoneOverviewImage, getStadiumName } from '@/pages/books/model/zoneData';
@@ -14,7 +15,7 @@ import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 import SeatMapStage from './components/SeatMapStage';
 import ResellSeatSidebar from './components/ResellSeatSidebar';
 import ResellZonePreviewSheet from './components/ResellZonePreviewSheet';
-import SelectedSeatSummaryList, { type SelectedSeatSummaryItem } from './components/SelectedSeatSummaryList';
+import SelectedSeatSummaryList from './components/SelectedSeatSummaryList';
 import { useBotDetector } from '@/shared/lib/useBotDetector';
 
 const MIN_SCALE = 0.8;
@@ -146,25 +147,10 @@ function SeatsPage() {
 
    const selectedSeatIds = zoneSeatState?.selectedSeatIds ?? [];
 
-   const selectedSeats = useMemo<SelectedSeatSummaryItem[]>(() => {
-      return Object.entries(zonesState).flatMap(([selectedZoneId, selectedZoneState]) => {
-         const selectedZone = bookingZones.find((item) => item.id === selectedZoneId);
-
-         if (!selectedZone) {
-            return [];
-         }
-
-         return selectedZoneState.selectedSeatIds
-            .map(seatId => selectedZoneState.seatMap[seatId])
-            .filter((seat): seat is SeatItem => Boolean(seat))
-            .map(seat => ({
-               seat,
-               zoneId: selectedZoneId,
-               zoneName: selectedZone.name,
-               price: selectedZone.price,
-            }));
-      });
-   }, [bookingZones, zonesState]);
+   const selectedSeats = useMemo(
+      () => getSelectedSeatDetails(zonesState, bookingZones),
+      [bookingZones, zonesState],
+   );
 
    const selectedPrice = selectedSeats.reduce((total, item) => total + item.price, 0);
    const resellInsights = useMemo(
