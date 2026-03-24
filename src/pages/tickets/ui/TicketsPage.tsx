@@ -46,8 +46,10 @@ const TicketsPage = () => {
       return (scheduleQuery.data ?? []).map((game) => ({
          id: game.id,
          homeTeamId: game.homeTeamId ?? '',
+         serverHomeTeamId: game.serverHomeTeamId,
          stadiumId: game.stadiumId,
          queueTokenJti: game.queueTokenJti,
+         leagueType: game.leagueType,
          awayTeam: game.awayTeamFullName,
          homeTeam: game.homeTeamFullName,
          date: game.date,
@@ -81,8 +83,11 @@ const TicketsPage = () => {
       if (activeTab === '리셀') {
          openResellEntry({
             homeTeamId: game.homeTeamId,
+            serverHomeTeamId: game.serverHomeTeamId,
             gameId: game.id,
             stadiumId: game.stadiumId,
+            leagueType: game.leagueType,
+            gameDate: game.date,
             queueTokenJti: game.queueTokenJti,
             matchTitle: `${game.awayTeam} vs ${game.homeTeam}`,
             venue: game.venue,
@@ -93,8 +98,11 @@ const TicketsPage = () => {
 
       openBookingEntry({
          homeTeamId: game.homeTeamId,
+         serverHomeTeamId: game.serverHomeTeamId,
          gameId: game.id,
          stadiumId: game.stadiumId,
+         leagueType: game.leagueType,
+         gameDate: game.date,
          queueTokenJti: game.queueTokenJti,
          matchTitle: `${game.awayTeam} vs ${game.homeTeam}`,
          venue: game.venue,

@@ -4,12 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import { createBookingFlowSearch, type BookingFlowMode } from '@/shared/lib/booking-flow';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import type { ApiLeagueType } from '@/shared/types/game';
 import BookingGuideDialog from '@/shared/ui/booking-guide-dialog';
 
 export type OpenBookingEntryOptions = {
   homeTeamId?: string;
+  serverHomeTeamId?: string;
   gameId?: string;
   stadiumId?: string;
+  leagueType?: ApiLeagueType;
+  gameDate?: string;
   queueTokenJti?: string;
   userId?: string;
   matchTitle?: string;
@@ -21,8 +25,11 @@ const createBookingEntryState = (options?: OpenBookingEntryOptions): BookingEntr
   return {
     requireCaptcha: true,
     homeTeamId: options?.homeTeamId,
+    serverHomeTeamId: options?.serverHomeTeamId,
     gameId: options?.gameId,
     stadiumId: options?.stadiumId,
+    leagueType: options?.leagueType,
+    gameDate: options?.gameDate,
     queueTokenJti: options?.queueTokenJti,
     userId: options?.userId,
     matchTitle: options?.matchTitle,

@@ -1,4 +1,5 @@
 // src/pages/tickets/ui/types.ts
+import type { ApiLeagueType } from '@/shared/types/game';
 
 export type TabType = '예매' | '리셀';
 
@@ -8,8 +9,10 @@ export type ResellStatus = '리셀 가능' | '리셀 예정' | '매진';
 export interface GameItem {
    id: string;
    homeTeamId: string;
+   serverHomeTeamId: string;
    stadiumId?: string;
    queueTokenJti?: string;
+   leagueType: ApiLeagueType;
    awayTeam: string;
    homeTeam: string;
    date: string;      // YYYY-MM-DD (필터용)

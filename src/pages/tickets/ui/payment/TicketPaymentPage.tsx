@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSeatPaymentSummary';
+import { getSelectedSeatDetails } from '@/pages/books/model/selectedSeats';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { getBookingTeamConfig, getBookingZones } from '@/pages/books/model/zoneData';
 import { Button } from '@/shared/ui/button';
@@ -53,21 +54,11 @@ export default function TicketPaymentPage() {
    const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
    const bookingZones = bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId);
    const paymentSummary = getSelectedSeatPaymentSummary(zonesState, bookingZones);
-   const selectedSeats = Object.entries(zonesState).flatMap(([zoneId, zone]) => {
-      const selectedZone = bookingZones.find((item) => item.id === zoneId);
-
-      if (!selectedZone) {
-         return [];
-      }
-
-      return zone.selectedSeatIds
-         .map((seatId) => zone.seatMap[seatId])
-         .filter((seat) => Boolean(seat))
-         .map((seat) => ({
-            seatId: seat.id,
-            label: `${selectedZone.name} ${seat.block}블록 ${seat.rowLabel} ${seat.seatNumber}번`,
-         }));
-   });
+   const selectedSeatDetails = getSelectedSeatDetails(zonesState, bookingZones);
+   const selectedSeats = selectedSeatDetails.map(({ seat, zoneName }) => ({
+      seatId: seat.id,
+      label: `${zoneName} ${seat.block}블록 ${seat.rowLabel} ${seat.seatNumber}번`,
+   }));
    const botData = locationState?.botData;
 
    // 주문자 정보
@@ -139,18 +130,16 @@ export default function TicketPaymentPage() {
    }, [routeBookingEntryState, setBookingEntry]);
 
    useEffect(() => {
-      const selectedSeatSummary = Object.entries(zonesState).flatMap(([zoneId, zone]) =>
-         zone.selectedSeatIds.map(seatId => ({
-            zoneId,
-            seatId,
-         })),
-      );
+      const selectedSeatSummary = selectedSeatDetails.map(({ zoneId, seat }) => ({
+         zoneId,
+         seatId: seat.id,
+      }));
 
       console.info('[TicketPaymentPage] mounted with seat selections', {
          selectedSeatCount: selectedSeatSummary.length,
          selectedSeatSummary,
       });
-   }, [zonesState]);
+   }, [selectedSeatDetails]);
 
    useEffect(() => {
       console.info('[TicketPaymentPage] form validity check', {
