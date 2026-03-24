@@ -68,7 +68,7 @@ const TeamDetailPage = () => {
                      <TeamScheduleTab serverTeamId={team.serverTeamId} />
                   </div>
                   <div className={activeBookingTab !== 1 ? 'hidden' : 'contents'}>
-                     <SeatMapTab serverStadiumId={team.serverStadiumId} />
+                     <SeatMapTab serverStadiumId={team.serverStadiumId} teamId={team.id} />
                   </div>
                   <div className={activeBookingTab !== 2 ? 'hidden' : 'contents'}>
                      <StadiumGuideTab team={team} />

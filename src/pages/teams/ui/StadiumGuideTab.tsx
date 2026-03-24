@@ -8,13 +8,13 @@ interface Props {
 function BusBadge({ type }: { type: '간선' | '지선' }) {
    if (type === '간선') {
       return (
-         <span className="bg-[#1565c0] flex h-[21px] items-center justify-center overflow-hidden px-[10px] rounded-[15px] shrink-0">
+         <span className="bg-[#1565c0] flex h-[21px] w-[44px] items-center justify-center overflow-hidden rounded-[15px] shrink-0">
             <span className="text-[13px] font-bold text-white leading-[1.5] whitespace-nowrap">간선</span>
          </span>
       );
    }
    return (
-      <span className="border-[1.5px] border-[#2e7d32] flex h-[21px] items-center justify-center overflow-hidden px-[10px] rounded-[15px] shrink-0">
+      <span className="border-[1.5px] border-[#2e7d32] flex h-[21px] w-[44px] items-center justify-center overflow-hidden rounded-[15px] shrink-0">
          <span className="text-[13px] font-bold text-[#2e7d32] leading-[1.5] whitespace-nowrap">지선</span>
       </span>
    );
@@ -78,7 +78,7 @@ export function StadiumGuideTab({ team }: Props) {
             <div className="flex flex-col md:flex-row gap-[20px] md:gap-[50px] items-start w-full">
                {/* 지도 이미지 */}
                <div className="flex flex-1 flex-col items-center max-w-full md:max-w-[700px] overflow-hidden w-full">
-                  <div className="aspect-[960/480] relative w-full max-w-[700px]">
+                  <div className="aspect-[960/480] relative w-full max-w-[700px] overflow-hidden rounded-[14px]">
                      <img
                         src={guide.mapImageSrc}
                         alt="구장 위치 지도"

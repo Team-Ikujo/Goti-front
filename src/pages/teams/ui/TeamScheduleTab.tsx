@@ -30,6 +30,7 @@ export function TeamScheduleTab({ serverTeamId }: Props) {
       serverTeamId,
       year: weekYear,
       month: weekMonth,
+      week: selectedWeek,
    });
 
    const filteredData = useMemo(() => {

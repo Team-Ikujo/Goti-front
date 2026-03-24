@@ -15,7 +15,7 @@ type BookingTeamConfig = {
 const KIA_BOOKING_ZONES: ZoneItem[] = [
    { id: 'champion', name: '챔피언석', price: 55000, remaining: 1200, color: '#D05150', hotspot: [{ x: 45, y: 72 }], sectionCode: 'A-1~A-3' },
    { id: 'center-table', name: '중앙테이블석 (2인, 3인)', price: 55000, remaining: 2000, color: '#284785', hotspot: [{ x: 38, y: 79 }], sectionCode: 'B-1~B-3' },
-   { id: 'k9', name: 'K9석', price: 16000, remaining: 1800, color: '#DB58AF', hotspot: [{ x: 66, y: 70 }], sectionCode: '112,113,116,117' },
+   { id: 'k9', name: 'K9석', price: 16000, remaining: 1800, color: '#DB58AF', hotspot: [{ x: 66, y: 70 }], sectionCode: '112,117' },
    { id: 'k8', name: 'K8석', price: 14000, remaining: 2000, color: '#EFBC2E', hotspot: [{ x: 61, y: 63 }], sectionCode: '108~111' },
    { id: 'cheering-special', name: '응원특별석', price: 18000, remaining: 3000, color: '#F26D5B', hotspot: [{ x: 71, y: 68 }], sectionCode: '118~123' },
    { id: 'k5', name: 'K5석', price: 12000, remaining: 2500, color: '#93CB3A', hotspot: [{ x: 56, y: 56 }], sectionCode: '104~106,124~126' },
@@ -33,23 +33,23 @@ const KIA_BOOKING_ZONES: ZoneItem[] = [
 // 삼성 좌석 가격/잔여석은 실데이터가 아직 없어, 전달받은 좌석 수를 임시 잔여석으로 사용한다.
 const SAMSUNG_BOOKING_ZONES: ZoneItem[] = [
    { id: 'samsung-first-base-infield', name: '1루 내야지정석', price: 22000, remaining: 2800, color: '#0A58BF', hotspot: [], sectionCode: '1-6~1-11' },
-   { id: 'samsung-third-base-infield', name: '3루 내야지정석', price: 22000, remaining: 2600, color: '#145EB8', hotspot: [], sectionCode: '3B' },
+   { id: 'samsung-third-base-infield', name: '3루 내야지정석', price: 22000, remaining: 2600, color: '#145EB8', hotspot: [], sectionCode: '3-6~3-11' },
    { id: 'samsung-first-base-exciting', name: '1루 익사이팅석', price: 28000, remaining: 1500, color: '#0A8AD8', hotspot: [], sectionCode: '1-1~1-5' },
    { id: 'samsung-third-base-exciting', name: '3루 익사이팅석', price: 28000, remaining: 1300, color: '#17A2C7', hotspot: [], sectionCode: '3E-1~3E-3' },
    { id: 'samsung-blue-zone', name: '블루존', price: 20000, remaining: 1500, color: '#1F4D93', hotspot: [], sectionCode: '3-1~3-5' },
    { id: 'samsung-away-zone', name: '원정 응원석', price: 17000, remaining: 1200, color: '#5B6DB2', hotspot: [], sectionCode: 'S1~S6' },
    { id: 'samsung-sky-lower', name: 'SKY 하단 지정석', price: 18000, remaining: 2500, color: '#5A7EE0', hotspot: [], sectionCode: 'S7~S22' },
    { id: 'samsung-sky-upper', name: 'SKY 상단 지정석', price: 14000, remaining: 3000, color: '#8AA0E8', hotspot: [], sectionCode: 'U1~U24' },
-   { id: 'samsung-outfield', name: '외야 지정석', price: 12000, remaining: 3500, color: '#3AA66B', hotspot: [], sectionCode: 'LF/RF' },
-   { id: 'samsung-grass', name: '잔디석', price: 10000, remaining: 1300, color: '#7BBE43', hotspot: [], sectionCode: 'GRASS' },
-   { id: 'samsung-center-table', name: '중앙 테이블석', price: 30000, remaining: 1000, color: '#234785', hotspot: [], sectionCode: 'CT' },
-   { id: 'samsung-first-base-table', name: '1루 테이블석', price: 30000, remaining: 700, color: '#32559A', hotspot: [], sectionCode: '1T' },
-   { id: 'samsung-third-base-table', name: '3루 테이블석', price: 30000, remaining: 700, color: '#4064B0', hotspot: [], sectionCode: '3T' },
-   { id: 'samsung-yogibo-family', name: 'SKY 요기보 패밀리존', price: 36000, remaining: 300, color: '#6F5BD3', hotspot: [], sectionCode: 'YF' },
-   { id: 'samsung-party-floor', name: '파티플로어 라이브석', price: 42000, remaining: 300, color: '#7840C9', hotspot: [], sectionCode: 'PF' },
-   { id: 'samsung-rooftop-table', name: '루프탑 테이블석', price: 45000, remaining: 200, color: '#9152D9', hotspot: [], sectionCode: 'RT' },
-   { id: 'samsung-camping-zone', name: '캠핑존', price: 50000, remaining: 200, color: '#A64DB3', hotspot: [], sectionCode: 'CAMP' },
-   { id: 'samsung-wheelchair', name: '휠체어석', price: 10000, remaining: 400, color: '#6D7C8F', hotspot: [], sectionCode: 'WC' },
+   { id: 'samsung-outfield', name: '외야 지정석', price: 12000, remaining: 3500, color: '#3AA66B', hotspot: [], sectionCode: 'LF-1~LF-10,RF-1~RF-10' },
+   { id: 'samsung-grass', name: '잔디석', price: 10000, remaining: 1300, color: '#7BBE43', hotspot: [], sectionCode: 'GR-1~GR-3' },
+   { id: 'samsung-center-table', name: '중앙 테이블석', price: 30000, remaining: 1000, color: '#234785', hotspot: [], sectionCode: 'CT-1~CT-3' },
+   { id: 'samsung-first-base-table', name: '1루 테이블석', price: 30000, remaining: 700, color: '#32559A', hotspot: [], sectionCode: '1T-1~1T-2' },
+   { id: 'samsung-third-base-table', name: '3루 테이블석', price: 30000, remaining: 700, color: '#4064B0', hotspot: [], sectionCode: '3T-1~3T-2' },
+   { id: 'samsung-yogibo-family', name: 'SKY 요기보 패밀리존', price: 36000, remaining: 300, color: '#6F5BD3', hotspot: [], sectionCode: 'YG-1~YG-2' },
+   { id: 'samsung-party-floor', name: '파티플로어 라이브석', price: 42000, remaining: 300, color: '#7840C9', hotspot: [], sectionCode: 'PF-1~PF-2' },
+   { id: 'samsung-rooftop-table', name: '루프탑 테이블석', price: 45000, remaining: 200, color: '#9152D9', hotspot: [], sectionCode: 'RT-1' },
+   { id: 'samsung-camping-zone', name: '캠핑존', price: 50000, remaining: 200, color: '#A64DB3', hotspot: [], sectionCode: 'CP-1' },
+   { id: 'samsung-wheelchair', name: '휠체어석', price: 10000, remaining: 400, color: '#6D7C8F', hotspot: [], sectionCode: 'WC-1~WC-2' },
 ];
 
 const BOOKING_TEAM_CONFIGS: Record<BookingTeamId, BookingTeamConfig> = {

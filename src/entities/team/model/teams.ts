@@ -1,7 +1,7 @@
 import stadiumImgKia from '@/shared/ui/image/image 195.png';
 import mapImgKia from '@/shared/ui/image/스크린샷 2026-02-10 오전 9.48.52 1.png';
-import stadiumImgSamsung from '@/shared/ui/image/image 195.png'; // TODO: 삼성 구장 이미지로 교체
-import mapImgSamsung from '@/shared/ui/image/스크린샷 2026-02-10 오전 9.48.52 1.png'; // TODO: 삼성 지도 이미지로 교체
+const stadiumImgSamsung = '/images/삼성 홈구장 외관.jpeg';
+const mapImgSamsung = '/images/삼성 위치.png';
 import type { Team } from "./types";
 
 export const teams: Team[] = [
@@ -27,22 +27,23 @@ export const teams: Team[] = [
       ],
       busStops: [
         {
-          name: '삼성라이온즈파크 1701',
+          name: '수성알파시티역 5번출구 (경산 방면)',
           buses: [
-            { type: '간선', routes: '349, 509, 618' },
-            { type: '지선', routes: '달서5, 수성3' },
+            { type: '간선', routes: '309, 349, 609, 937' },
+            { type: '지선', routes: '399, 509, 990, 991, 수성3' },
           ],
         },
         {
-          name: '야구전설로입구 1702',
+          name: '수성알파시티역 1번출구 (시내 방면)',
           buses: [
-            { type: '간선', routes: '349, 509' },
+            { type: '간선', routes: '309, 609, 649, 937' },
+            { type: '지선', routes: '399, 509, 991, 수성3' },
           ],
         },
         {
-          name: '수성못역 1625',
+          name: '수성못역 (수성못로)',
           buses: [
-            { type: '간선', routes: '349, 410, 509, 618, 649' },
+            { type: '간선', routes: '349, 618, 649' },
             { type: '지선', routes: '수성1, 수성3' },
           ],
         },
@@ -71,33 +72,25 @@ export const teams: Team[] = [
       ],
       busStops: [
         {
-          name: '제2광천교 4509',
+          name: '광주기아챔피언스필드 (서림로)',
           buses: [
-            { type: '간선', routes: '상무64, 228' },
-            { type: '지선', routes: '매월26, 일곡38, 송암47, 상무64, 228' },
+            { type: '간선', routes: '매월16' },
+            { type: '지선', routes: '일곡38, 운림51, 용전84, 첨단95' },
           ],
         },
         {
-          name: '무등야구장 4439',
+          name: '무등야구장 (무등로)',
           buses: [
-            { type: '간선', routes: '송정98, 228, 임곡89' },
-            { type: '지선', routes: '일곡38' },
+            { type: '간선', routes: '228' },
+            { type: '지선', routes: '일곡38, 임곡89, 송정98' },
           ],
         },
         {
-          name: '광주기아챔피언스필드 4490, 1780048',
+          name: '광주기아챔피언스필드입구 (무등로)',
           buses: [
-            { type: '간선', routes: '매월16, 운림51, 첨단95' },
-            { type: '지선', routes: '일곡38, 녹진100, 마령100, 장성100, 진원100' },
+            { type: '간선', routes: '228' },
+            { type: '지선', routes: '금남58, 임곡89, 송정98' },
           ],
-        },
-        {
-          name: '광주기아챔피언스필드 정문 4491',
-          buses: [{ type: '간선', routes: '매월16' }],
-        },
-        {
-          name: '임동주공아파트 4667',
-          buses: [{ type: '간선', routes: '용전84' }],
         },
       ],
     },
