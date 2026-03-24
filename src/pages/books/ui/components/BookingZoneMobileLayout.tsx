@@ -43,7 +43,7 @@ function BookingZoneMobileLayout({
                {!isZoneDrawerOpen ? (
                   <div className="absolute inset-x-0 bottom-0 z-10">
                      <DrawerTrigger asChild>
-                        <button
+                       <button
                            type="button"
                            className="w-full rounded-t-[16px] bg-elevated px-5 py-4 text-left shadow-[0_-6px_24px_rgba(0,0,0,0.16)]"
                         >

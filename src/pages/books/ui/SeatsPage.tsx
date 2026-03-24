@@ -13,6 +13,7 @@ import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBo
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 import SeatMapStage from './components/SeatMapStage';
 import ResellSeatSidebar from './components/ResellSeatSidebar';
+import ResellZonePreviewSheet from './components/ResellZonePreviewSheet';
 import SelectedSeatSummaryList, { type SelectedSeatSummaryItem } from './components/SelectedSeatSummaryList';
 import { useBotDetector } from '@/shared/lib/useBotDetector';
 
@@ -507,69 +508,22 @@ function SeatsPage() {
                   <DrawerContent
                      showOverlay={false}
                      resizable
-                     defaultHeight={280}
-                     minHeight={152}
+                     defaultHeight={isResellMode ? 488 : 280}
+                     minHeight={isResellMode ? 280 : 152}
                      maxHeight={560}
                      className="overflow-hidden border-none p-0 xl:hidden"
                   >
                      <div className="h-full overflow-y-auto">
-                        {isResellMode ? (
-                           <>
-                              <div className="px-5 py-4">
-                                 <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
-                                    <h2>판매 중인 좌석</h2>
-                                    <span className="text-primary">{resellInsights?.listings.length ?? 0}</span>
-                                 </div>
-                              </div>
-
-                              <div className="space-y-3 px-5 pb-4">
-                                 {resellInsights?.listings.map((listing) => {
-                                    const isSelected = selectedResellListing?.listingId === listing.listingId;
-
-                                    return (
-                                       <button
-                                          key={listing.listingId}
-                                          type="button"
-                                          onClick={() => handleSelectResellListing(listing)}
-                                          className={[
-                                             'flex w-full items-start justify-between gap-4 rounded-[12px] bg-background px-4 py-4 text-left transition-colors',
-                                             isSelected ? 'border-2 border-primary' : 'border border-border-light',
-                                          ].join(' ')}
-                                       >
-                                          <span className="text-body-1-semibold text-secondary">{listing.seatLabel}</span>
-                                          <span
-                                             className={[
-                                                'shrink-0 text-body-1-bold',
-                                                isSelected ? 'text-primary' : 'text-secondary',
-                                             ].join(' ')}
-                                          >
-                                             {formatPrice(listing.listingPrice)}
-                                          </span>
-                                       </button>
-                                    );
-                                 })}
-                              </div>
-
-                              <div className="px-5 pb-5">
-                                 <div className="flex items-center justify-between gap-3 px-1 pb-5 text-heading-4-medium text-secondary">
-                                    <span>총 결제 금액</span>
-                                    <span className="text-heading-4-bold text-primary">{formatPrice(summaryPrice)}</span>
-                                 </div>
-                                 <button
-                                    type="button"
-                                    disabled={!selectedResellListing}
-                                    onClick={handleProceedToPayment}
-                                    className={[
-                                       'h-12 w-full rounded-[8px] text-label-1-bold transition-colors',
-                                       !selectedResellListing
-                                          ? 'bg-fill-disabled text-disabled-foreground'
-                                          : 'bg-primary text-white hover:bg-primary-strong',
-                                    ].join(' ')}
-                                 >
-                                    {bookingButtonLabel}
-                                 </button>
-                              </div>
-                           </>
+                        {isResellMode && resellInsights ? (
+                           <ResellZonePreviewSheet
+                              insights={resellInsights}
+                              zone={zone}
+                              selectedListingId={selectedResellListing?.listingId}
+                              onSelectListing={handleSelectResellListing}
+                              submitLabel={bookingButtonLabel}
+                              submitDisabled={!selectedResellListing}
+                              onSubmit={handleProceedToPayment}
+                           />
                         ) : (
                            <>
                               <div className="flex items-center justify-between gap-3 px-5 py-4">
