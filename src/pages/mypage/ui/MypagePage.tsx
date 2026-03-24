@@ -8,16 +8,21 @@ import SaleHistoryCard from './SaleHistoryCard';
 import { Button } from '@/shared/ui/button';
 import { DatePicker } from '@/shared/ui/date-picker';
 import { PURCHASE_ITEMS, SALE_ITEMS } from '../model/mockData';
-import type { PurchaseStatus } from './PurchaseHistoryCard';
-import type { SaleStatus } from './SaleHistoryCard';
 
 type HistoryTab = 'purchase' | 'sale';
-type PurchaseStatusFilter = '전체' | PurchaseStatus;
-type SaleStatusFilter = '전체' | SaleStatus;
+type PurchaseStatusFilter = '전체' | '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
+type SaleStatusFilter = '전체' | '판매 중' | '판매 완료' | '정산 대기';
 type PeriodFilter = '전체 내역' | '1개월' | '3개월' | '6개월' | '직접설정';
 type PurchaseTypeFilter = '전체 내역' | '리셀' | '예매';
 
-const PURCHASE_STATUS_CHIPS: PurchaseStatusFilter[] = ['전체', '결제완료', '취소/환불', '정산대기'];
+const PURCHASE_STATUS_CHIPS: PurchaseStatusFilter[] = [
+   '전체',
+   '입금 대기',
+   '예매 완료',
+   '부분 처리',
+   '관람 완료',
+   '취소/환불',
+];
 const SALE_STATUS_CHIPS: SaleStatusFilter[] = ['전체', '판매 중', '판매 완료', '정산 대기'];
 const PERIOD_OPTIONS: PeriodFilter[] = ['전체 내역', '1개월', '3개월', '6개월', '직접설정'];
 const PURCHASE_TYPE_OPTIONS: PurchaseTypeFilter[] = ['전체 내역', '리셀', '예매'];
@@ -179,13 +184,15 @@ export default function MypagePage() {
                            <p className="text-body-1-regular text-muted-foreground">010-1234-5678</p>
                         </div>
                      </div>
-                     <button
+                     <Button
+                        variant="tertiary"
+                        size="sm"
                         onClick={() => navigate('/mypage/account')}
-                        className="flex items-center gap-2 border border-border rounded-lg px-3.5 py-1.5 text-body-2-regular text-muted-foreground hover:bg-surface transition-colors"
+                        className="text-body-2-regular font-normal [&_svg]:size-4"
                      >
                         <Settings size={16} />
                         계정 정보 수정
-                     </button>
+                     </Button>
                   </div>
                </div>
 
@@ -218,15 +225,16 @@ export default function MypagePage() {
                   {/* 탭 */}
                   <div className="bg-[#f1f2f4] rounded-lg p-1 flex mb-6">
                      {(['purchase', 'sale'] as const).map(tab => (
-                        <button
+                        <Button
                            key={tab}
+                           variant="none"
                            onClick={() => handleTabChange(tab)}
                            className={`flex-1 py-2.5 text-body-2-semibold rounded-md transition-all ${
                               activeTab === tab ? 'bg-background text-foreground shadow-sm' : 'text-(--text-tertiary)'
                            }`}
                         >
                            {tab === 'purchase' ? '구매 내역' : '판매 내역'}
-                        </button>
+                        </Button>
                      ))}
                   </div>
 
@@ -239,26 +247,28 @@ export default function MypagePage() {
 
                            {/* 기간 드롭다운 */}
                            <div className="relative" ref={periodDropdownRef}>
-                              <button
+                              <Button
+                                 variant="none"
                                  onClick={() => setShowPeriodDropdown(p => !p)}
-                                 className="flex items-center gap-2 border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-29.75 justify-between"
+                                 className="flex items-center gap-2 border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-29.75 justify-between [&_svg]:size-4"
                               >
                                  <span>{pendingPeriod}</span>
                                  <ChevronDown size={16} />
-                              </button>
+                              </Button>
                               {showPeriodDropdown && (
                                  <div className="absolute top-full left-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-10 min-w-29.75 p-0.75 flex flex-col gap-0.5">
                                     {PERIOD_OPTIONS.map(opt => {
                                        const isSelected = pendingPeriod === opt;
                                        return (
-                                          <button
+                                          <Button
                                              key={opt}
+                                             variant="none"
                                              onClick={() => handlePeriodChange(opt)}
-                                             className={`w-full flex items-center justify-between px-1 py-1 rounded-sm text-body-2-medium text-foreground tracking-[-0.15px] hover:bg-[#f1f2f4] ${isSelected ? 'bg-fill-disabled' : ''}`}
+                                             className={`w-full flex items-center justify-between px-1 py-1 rounded-sm text-body-2-medium text-foreground tracking-[-0.15px] hover:bg-[#f1f2f4] [&_svg]:size-4 ${isSelected ? 'bg-fill-disabled' : ''}`}
                                           >
                                              <span>{opt}</span>
                                              {isSelected && <Check size={16} className="shrink-0" />}
-                                          </button>
+                                          </Button>
                                        );
                                     })}
                                  </div>
@@ -286,19 +296,21 @@ export default function MypagePage() {
                               </>
                            ) : (
                               <>
-                                 <button
+                                 <Button
+                                    variant="none"
                                     disabled
                                     className="border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-24 cursor-default"
                                  >
                                     {pendingStartDate ? toDisplay(pendingStartDate) : '날짜 선택'}
-                                 </button>
+                                 </Button>
                                  <span className="text-body-2-regular text-foreground">~</span>
-                                 <button
+                                 <Button
+                                    variant="none"
                                     disabled
                                     className="border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-24 cursor-default"
                                  >
                                     {pendingEndDate ? toDisplay(pendingEndDate) : '날짜 선택'}
-                                 </button>
+                                 </Button>
                               </>
                            )}
                         </div>
@@ -313,9 +325,9 @@ export default function MypagePage() {
                                  onChange={e => setSearchQuery(e.target.value)}
                                  className="px-3 py-1.5 text-body-2-regular outline-none w-44.5"
                               />
-                              <button className="px-2 py-1.5 text-(--text-tertiary)">
+                              <Button variant="none" className="px-2 py-1.5 text-(--text-tertiary) [&_svg]:size-4">
                                  <Search size={16} />
-                              </button>
+                              </Button>
                            </div>
 
                            {/* 종류 드롭다운 */}
@@ -323,29 +335,31 @@ export default function MypagePage() {
                               <span className="text-body-2-regular text-foreground whitespace-nowrap">종류:</span>
                               {activeTab === 'purchase' ? (
                                  <div className="relative" ref={typeDropdownRef}>
-                                    <button
+                                    <Button
+                                       variant="none"
                                        onClick={() => setShowTypeDropdown(p => !p)}
-                                       className="flex items-center gap-2 border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-29.75 justify-between"
+                                       className="flex items-center gap-2 border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-29.75 justify-between [&_svg]:size-4"
                                     >
                                        <span>{pendingPurchaseType}</span>
                                        <ChevronDown size={16} />
-                                    </button>
+                                    </Button>
                                     {showTypeDropdown && (
                                        <div className="absolute top-full right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-10 min-w-29.75 p-0.75 flex flex-col gap-0.5">
                                           {PURCHASE_TYPE_OPTIONS.map(opt => {
                                              const isSelected = pendingPurchaseType === opt;
                                              return (
-                                                <button
+                                                <Button
                                                    key={opt}
+                                                   variant="none"
                                                    onClick={() => {
                                                       setPendingPurchaseType(opt);
                                                       setShowTypeDropdown(false);
                                                    }}
-                                                   className={`w-full flex items-center justify-between px-1 py-1 rounded-sm text-body-2-medium text-foreground tracking-[-0.15px] hover:bg-[#f1f2f4] ${isSelected ? 'bg-fill-disabled' : ''}`}
+                                                   className={`w-full flex items-center justify-between px-1 py-1 rounded-sm text-body-2-medium text-foreground tracking-[-0.15px] hover:bg-[#f1f2f4] [&_svg]:size-4 ${isSelected ? 'bg-fill-disabled' : ''}`}
                                                 >
                                                    <span>{opt}</span>
                                                    {isSelected && <Check size={16} className="shrink-0" />}
-                                                </button>
+                                                </Button>
                                              );
                                           })}
                                        </div>
@@ -354,22 +368,24 @@ export default function MypagePage() {
                               ) : (
                                  /* 판매 내역: 리셀 단일 옵션 */
                                  <div className="relative" ref={typeDropdownRef}>
-                                    <button
+                                    <Button
+                                       variant="none"
                                        onClick={() => setShowTypeDropdown(p => !p)}
-                                       className="flex items-center gap-2 border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-29.75 justify-between"
+                                       className="flex items-center gap-2 border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-29.75 justify-between [&_svg]:size-4"
                                     >
                                        <span>리셀</span>
                                        <ChevronDown size={16} />
-                                    </button>
+                                    </Button>
                                     {showTypeDropdown && (
                                        <div className="absolute top-full right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-10 min-w-29.75 p-0.75 flex flex-col gap-0.5">
-                                          <button
+                                          <Button
+                                             variant="none"
                                              onClick={() => setShowTypeDropdown(false)}
-                                             className="w-full flex items-center justify-between px-1 py-1 rounded-sm text-body-2-medium text-foreground tracking-[-0.15px] bg-fill-disabled"
+                                             className="w-full flex items-center justify-between px-1 py-1 rounded-sm text-body-2-medium text-foreground tracking-[-0.15px] bg-fill-disabled [&_svg]:size-4"
                                           >
                                              <span>리셀</span>
                                              <Check size={16} className="shrink-0" />
-                                          </button>
+                                          </Button>
                                        </div>
                                     )}
                                  </div>
@@ -390,11 +406,15 @@ export default function MypagePage() {
 
                   {/* 상태 필터 칩 (즉시 반영) */}
                   <div className="flex items-center gap-3 mb-4">
-                     {(activeTab === 'purchase' ? PURCHASE_STATUS_CHIPS : SALE_STATUS_CHIPS).map(chip => {
+                     {(activeTab === 'purchase'
+                        ? PURCHASE_STATUS_CHIPS
+                        : (SALE_STATUS_CHIPS as (PurchaseStatusFilter | SaleStatusFilter)[])
+                     ).map(chip => {
                         const isActive = activeTab === 'purchase' ? chip === purchaseStatus : chip === saleStatus;
                         return (
-                           <button
+                           <Button
                               key={chip}
+                              variant="none"
                               onClick={() => {
                                  if (activeTab === 'purchase') setPurchaseStatus(chip as PurchaseStatusFilter);
                                  else setSaleStatus(chip as SaleStatusFilter);
@@ -407,7 +427,7 @@ export default function MypagePage() {
                               }`}
                            >
                               {chip}
-                           </button>
+                           </Button>
                         );
                      })}
                   </div>
@@ -433,7 +453,7 @@ export default function MypagePage() {
                                     ))
                                  )
                               ) : (
-                                 <p className="text-center text-(--text-tertiary) py-12 text-body-2-regular">
+                                 <p className="text-center text-(--text-tertiary) text-body-2-regular h-full">
                                     조건에 맞는 {activeTab === 'purchase' ? '구매' : '판매'} 내역이 없습니다.
                                  </p>
                               )}
@@ -442,31 +462,34 @@ export default function MypagePage() {
                            {/* 페이지네이션 */}
                            {totalPages > 1 && (
                               <div className="flex items-center justify-center gap-1 mt-6">
-                                 <button
+                                 <Button
+                                    variant="none"
                                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                    className="w-6 h-6 flex items-center justify-center border border-border rounded-xs text-muted-foreground hover:bg-[#f1f2f4] transition-colors"
+                                    className="size-6 p-0 flex items-center justify-center border border-border rounded-xs text-muted-foreground hover:bg-[#f1f2f4] transition-colors [&_svg]:size-4"
                                  >
                                     <ChevronLeft size={16} />
-                                 </button>
+                                 </Button>
                                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                    <button
+                                    <Button
                                        key={page}
+                                       variant="none"
                                        onClick={() => setCurrentPage(page)}
-                                       className={`w-6 h-6 flex items-center justify-center text-body-2-regular rounded-xs transition-all ${
+                                       className={`size-6 p-0 flex items-center justify-center text-body-2-regular rounded-xs transition-all ${
                                           safePage === page
                                              ? 'bg-primary text-white'
                                              : 'border border-border text-muted-foreground hover:bg-[#f1f2f4]'
                                        }`}
                                     >
                                        {page}
-                                    </button>
+                                    </Button>
                                  ))}
-                                 <button
+                                 <Button
+                                    variant="none"
                                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                    className="w-6 h-6 flex items-center justify-center border border-border rounded-xs text-muted-foreground hover:bg-[#f1f2f4] transition-colors"
+                                    className="size-6 p-0 flex items-center justify-center border border-border rounded-xs text-muted-foreground hover:bg-[#f1f2f4] transition-colors [&_svg]:size-4"
                                  >
                                     <ChevronRight size={16} />
-                                 </button>
+                                 </Button>
                               </div>
                            )}
                         </>

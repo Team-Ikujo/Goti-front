@@ -19,15 +19,15 @@ const TeamsPage = () => {
                   </p>
                </header>
 
-               <div className="grid w-full max-w-250 grid-cols-2 gap-3 min-[768px]:grid-cols-5 min-[768px]:gap-x-7.5 min-[768px]:gap-y-7.5 min-[768px]:px-3.75">
+               <div className="flex w-full flex-wrap justify-start gap-[30px]">
                   {enabledTeams.map(team => (
                      <button
                         key={team.id}
                         type="button"
                         onClick={() => navigate(`/teams/${team.id}`)}
-                        className="flex flex-col items-center justify-center rounded-[10px] border-2 border-[#e5e7eb] bg-[#f9fafb] p-5 w-32.5 hover:border-primary transition-colors"
+                        className="flex flex-col items-center justify-start rounded-[10px] border-2 border-[#e5e7eb] bg-[#f9fafb] p-5 w-[170px] hover:border-primary transition-colors"
                      >
-                        <div className="flex items-center justify-center w-25 h-25 px-3.75 py-2.5">
+                        <div className="flex items-center justify-start w-25 h-25 px-3.75 py-2.5">
                            <img
                               src={team.logoSrc}
                               alt={team.name}

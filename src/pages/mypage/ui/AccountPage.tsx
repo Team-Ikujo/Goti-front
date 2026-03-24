@@ -3,17 +3,34 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
-import {
-   Dialog,
-   DialogContent,
-   DialogClose,
-} from '@/shared/ui/dialog';
+import { Checkbox } from '@/shared/ui/checkbox';
+import { Input } from '@/shared/ui/input';
+import { AccountModals } from './AccountModals';
+import type { ModalType } from './AccountModals';
+import { AccountTermsDialogs } from './AccountTermsDialogs';
+import type { TermsType } from './AccountTermsDialogs';
 
 const BANKS = [
-   '국민은행', '신한은행', '우리은행', '하나은행', 'IBK기업은행',
-   'NH농협은행', '카카오뱅크', '토스뱅크', '케이뱅크', '새마을금고',
-   '신협', '수협은행', 'SC제일은행', '씨티은행', '광주은행',
-   '전북은행', '경남은행', '제주은행', '부산은행', '대구은행',
+   '국민은행',
+   '신한은행',
+   '우리은행',
+   '하나은행',
+   'IBK기업은행',
+   'NH농협은행',
+   '카카오뱅크',
+   '토스뱅크',
+   '케이뱅크',
+   '새마을금고',
+   '신협',
+   '수협은행',
+   'SC제일은행',
+   '씨티은행',
+   '광주은행',
+   '전북은행',
+   '경남은행',
+   '제주은행',
+   '부산은행',
+   '대구은행',
 ];
 
 const DAUM_POSTCODE_SCRIPT_URL = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
@@ -26,7 +43,7 @@ function loadDaumPostcodeAndOpen(onComplete: (zipCode: string, address: string) 
       const left = window.screenX + Math.round((window.outerWidth - POPUP_W) / 2);
       const top = window.screenY + Math.round((window.outerHeight - POPUP_H) / 2);
       new window.daum!.Postcode({
-         oncomplete: (data) => {
+         oncomplete: data => {
             const selectedAddress = data.roadAddress || data.jibunAddress;
             onComplete(data.zonecode, selectedAddress);
          },
@@ -34,9 +51,15 @@ function loadDaumPostcodeAndOpen(onComplete: (zipCode: string, address: string) 
          height: POPUP_H,
       }).open({ left, top });
    };
-   if (window.daum?.Postcode) { open(); return; }
+   if (window.daum?.Postcode) {
+      open();
+      return;
+   }
    const existing = document.getElementById(DAUM_POSTCODE_SCRIPT_ID);
-   if (existing) { existing.addEventListener('load', open, { once: true }); return; }
+   if (existing) {
+      existing.addEventListener('load', open, { once: true });
+      return;
+   }
    const script = document.createElement('script');
    script.id = DAUM_POSTCODE_SCRIPT_ID;
    script.src = DAUM_POSTCODE_SCRIPT_URL;
@@ -45,10 +68,11 @@ function loadDaumPostcodeAndOpen(onComplete: (zipCode: string, address: string) 
    document.head.appendChild(script);
 }
 
-type ModalType = 'identity' | 'cannotDisconnect' | 'withdraw' | 'withdrawBlocked' | null;
 
 /** 미정산 금액 존재 여부 (실제 연동 시 API로 대체) */
-const HAS_UNPAID_AMOUNT = true;
+const HAS_UNPAID_AMOUNT = false;
+/** 예약 또는 판매 중인 티켓 존재 여부 (실제 연동 시 API로 대체) */
+const HAS_ACTIVE_TICKETS = true;
 
 export default function AccountPage() {
    const navigate = useNavigate();
@@ -56,6 +80,9 @@ export default function AccountPage() {
    // ── 모달 ──
    const [modal, setModal] = useState<ModalType>(null);
    const closeModal = () => setModal(null);
+
+   // ── 약관 다이얼로그 ──
+   const [termsDialog, setTermsDialog] = useState<TermsType>(null);
 
    // ── 간편 로그인 연결 ──
    const [googleConnected, setGoogleConnected] = useState(true);
@@ -77,6 +104,8 @@ export default function AccountPage() {
    const [bank, setBank] = useState('');
    const [bankDropdownOpen, setBankDropdownOpen] = useState(false);
    const bankDropdownRef = useRef<HTMLDivElement>(null);
+   const bankButtonRef = useRef<HTMLButtonElement>(null);
+   const accountCardRef = useRef<HTMLDivElement>(null);
    const [accountNumber, setAccountNumber] = useState('');
    const [depositor, setDepositor] = useState('');
    const [agreeAll, setAgreeAll] = useState(false);
@@ -121,6 +150,16 @@ export default function AccountPage() {
 
    const isAccountSaveEnabled = !!(bank && accountNumber && depositor && agreeOpen && agreeThird && agreePersonal);
 
+   /** 계좌 정보 변경 버튼: 계좌 정보 카드로 스크롤 후 은행 드롭다운 오픈 */
+   const handleAccountChange = () => {
+      accountCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // 스크롤 애니메이션 후 드롭다운 오픈
+      setTimeout(() => {
+         setBankDropdownOpen(true);
+         bankButtonRef.current?.focus();
+      }, 400);
+   };
+
    /** 로그아웃 */
    const handleLogout = () => {
       navigate('/');
@@ -128,7 +167,13 @@ export default function AccountPage() {
 
    /** 회원 탈퇴 버튼 클릭 */
    const handleWithdrawClick = () => {
-      setModal(HAS_UNPAID_AMOUNT ? 'withdrawBlocked' : 'withdraw');
+      if (HAS_UNPAID_AMOUNT) {
+         setModal('withdrawBlocked');
+      } else if (HAS_ACTIVE_TICKETS) {
+         setModal('withdrawHasActiveTickets');
+      } else {
+         setModal('withdraw');
+      }
    };
 
    /** 회원 탈퇴 확정 */
@@ -139,7 +184,7 @@ export default function AccountPage() {
 
    return (
       <div className="flex-1 bg-background">
-         <div className="mx-auto max-w-300 px-4 py-8 flex flex-col gap-7">
+         <div className="mx-auto max-w-300 px-4 pt-12.5 pb-30 flex flex-col gap-7">
             {/* 뒤로 가기 */}
             <button
                onClick={() => navigate('/mypage')}
@@ -198,7 +243,13 @@ export default function AccountPage() {
                         <div className="flex items-center gap-2">
                            <p className="text-body-1-regular text-foreground">카카오뱅크</p>
                            <p className="text-body-1-regular text-foreground">3333-67-8765445</p>
-                           <button className="border-b border-muted-foreground text-body-2-regular text-(--text-tertiary)">변경</button>
+                           <button
+                              type="button"
+                              onClick={handleAccountChange}
+                              className="border-b border-muted-foreground text-body-2-regular text-(--text-tertiary)"
+                           >
+                              변경
+                           </button>
                         </div>
                      </div>
                   </div>
@@ -217,7 +268,9 @@ export default function AccountPage() {
                               </div>
                               <p className="text-body-2-medium text-foreground">Google 계정 연결</p>
                            </div>
-                           <span className="bg-[#f1f2f4] text-muted-foreground text-caption-1-regular px-1 py-0.5 rounded">회원가입 계정</span>
+                           <span className="bg-[#f1f2f4] text-muted-foreground text-caption-1-regular px-1 py-0.5 rounded">
+                              회원가입 계정
+                           </span>
                         </div>
                         <Toggle
                            checked={googleConnected}
@@ -254,10 +307,15 @@ export default function AccountPage() {
                </div>
 
                {/* ── 계좌 정보 카드 ── */}
-               <div className="bg-background border border-border-light rounded-2xl p-6 flex flex-col gap-7.5">
+               <div
+                  ref={accountCardRef}
+                  className="bg-background border border-border-light rounded-2xl p-6 flex flex-col gap-7.5"
+               >
                   <p className="text-heading-3-bold text-foreground">계좌 정보</p>
                   <div className="flex flex-col gap-6">
-                     <p className="text-caption-1-regular text-(--text-tertiary)">계좌 미등록 시 리셀 및 취소/환불 기능이 제한됩니다.</p>
+                     <p className="text-caption-1-regular text-(--text-tertiary)">
+                        계좌 미등록 시 리셀 및 취소/환불 기능이 제한됩니다.
+                     </p>
 
                      {/* 은행 + 계좌번호 */}
                      <div className="flex gap-6">
@@ -267,9 +325,10 @@ export default function AccountPage() {
                            </label>
                            <div className="relative" ref={bankDropdownRef}>
                               <button
+                                 ref={bankButtonRef}
                                  type="button"
                                  onClick={() => setBankDropdownOpen(p => !p)}
-                                 className="w-full border border-border rounded-lg h-12 flex items-center justify-between px-4 gap-2 text-body-1-regular text-left hover:border-primary transition-colors"
+                                 className={`w-full border rounded-lg h-12 flex items-center justify-between px-4 gap-2 text-body-1-regular text-left transition-colors ${bankDropdownOpen ? 'border-primary' : 'border-border hover:border-primary'}`}
                               >
                                  <span className={bank ? 'text-foreground' : 'text-(--text-disabled)'}>
                                     {bank || '선택'}
@@ -285,7 +344,10 @@ export default function AccountPage() {
                                        <button
                                           key={b}
                                           type="button"
-                                          onClick={() => { setBank(b); setBankDropdownOpen(false); }}
+                                          onClick={() => {
+                                             setBank(b);
+                                             setBankDropdownOpen(false);
+                                          }}
                                           className={`w-full flex items-center justify-between px-3 py-2 rounded-sm text-body-2-regular text-foreground hover:bg-[#f1f2f4] ${bank === b ? 'bg-fill-disabled' : ''}`}
                                        >
                                           <span>{b}</span>
@@ -296,61 +358,76 @@ export default function AccountPage() {
                               )}
                            </div>
                         </div>
-                        <div className="flex flex-col gap-1 flex-1">
-                           <label className="text-body-2-medium text-muted-foreground">
-                              계좌번호<span className="text-primary">*</span>
-                           </label>
-                           <div className="border border-border rounded-lg h-12 flex items-center px-4 focus-within:border-primary transition-colors">
-                              <input
-                                 type="text"
-                                 placeholder="계좌번호를 입력하세요"
-                                 value={accountNumber}
-                                 onChange={e => setAccountNumber(e.target.value)}
-                                 className="flex-1 text-body-1-regular outline-none text-foreground placeholder:text-(--text-disabled)"
-                              />
-                           </div>
-                        </div>
+                        <Input
+                           className="flex-1"
+                           label="계좌번호"
+                           required
+                           inputMode="numeric"
+                           placeholder="계좌번호를 입력하세요"
+                           value={accountNumber}
+                           onChange={e => setAccountNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                        />
                      </div>
 
                      {/* 예금주 */}
-                     <div className="flex flex-col gap-1">
-                        <label className="text-body-2-medium text-muted-foreground">
-                           예금주<span className="text-primary">*</span>
-                        </label>
-                        <div className="border border-border rounded-lg h-12 flex items-center px-4 focus-within:border-primary transition-colors">
-                           <input
-                              type="text"
-                              placeholder="예금주를 입력하세요"
-                              value={depositor}
-                              onChange={e => setDepositor(e.target.value)}
-                              className="flex-1 text-body-1-regular outline-none text-foreground placeholder:text-(--text-disabled)"
-                           />
-                        </div>
-                     </div>
+                     <Input
+                        label="예금주"
+                        required
+                        placeholder="예금주를 입력하세요"
+                        value={depositor}
+                        onChange={e => setDepositor(e.target.value.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, ''))}
+                     />
 
                      {/* 약관 동의 */}
                      <div className="flex flex-col gap-1">
                         <div className="bg-surface rounded-lg h-12 flex items-center px-4">
                            <label className="flex items-center gap-2 cursor-pointer">
-                              <Checkbox checked={agreeAll} onChange={handleAgreeAll} />
+                              <Checkbox checked={agreeAll} onCheckedChange={v => handleAgreeAll(v === true)} />
                               <span className="text-body-1-medium text-foreground">전체동의</span>
                            </label>
                         </div>
                         <div className="flex flex-col">
-                           {[
-                              { label: '오픈뱅킹공동업무 자동계좌이체 약관', checked: agreeOpen, onChange: (v: boolean) => handleIndividualAgree(setAgreeOpen, v, [agreeThird, agreePersonal]) },
-                              { label: '개인(신용)정보 제3자 제공 동의', checked: agreeThird, onChange: (v: boolean) => handleIndividualAgree(setAgreeThird, v, [agreeOpen, agreePersonal]) },
-                              { label: '개인정보 수집‧이용 동의 [출금이체]', checked: agreePersonal, onChange: (v: boolean) => handleIndividualAgree(setAgreePersonal, v, [agreeOpen, agreeThird]) },
-                           ].map(item => (
+                           {(
+                              [
+                                 {
+                                    label: '오픈뱅킹공동업무 자동계좌이체 약관',
+                                    checked: agreeOpen,
+                                    onChange: (v: boolean) =>
+                                       handleIndividualAgree(setAgreeOpen, v, [agreeThird, agreePersonal]),
+                                    termsKey: 'openBanking' as TermsType,
+                                 },
+                                 {
+                                    label: '개인(신용)정보 제3자 제공 동의',
+                                    checked: agreeThird,
+                                    onChange: (v: boolean) =>
+                                       handleIndividualAgree(setAgreeThird, v, [agreeOpen, agreePersonal]),
+                                    termsKey: 'thirdParty' as TermsType,
+                                 },
+                                 {
+                                    label: '개인정보 수집‧이용 동의 [출금이체]',
+                                    checked: agreePersonal,
+                                    onChange: (v: boolean) =>
+                                       handleIndividualAgree(setAgreePersonal, v, [agreeOpen, agreeThird]),
+                                    termsKey: 'personalInfo' as TermsType,
+                                 },
+                              ] as const
+                           ).map(item => (
                               <div key={item.label} className="flex items-center justify-between h-11 px-4">
                                  <label className="flex items-center gap-2 cursor-pointer flex-1">
-                                    <Checkbox checked={item.checked} onChange={item.onChange} />
+                                    <Checkbox checked={item.checked} onCheckedChange={v => item.onChange(v === true)} />
                                     <span className="text-body-2-regular text-muted-foreground">
                                        <span>(필수) </span>
                                        <span className="font-bold">{item.label}</span>
                                     </span>
                                  </label>
-                                 <ChevronRight size={16} className="text-muted-foreground shrink-0" />
+                                 <button
+                                    type="button"
+                                    onClick={() => setTermsDialog(item.termsKey)}
+                                    className="p-1 -mr-1"
+                                    aria-label={`${item.label} 보기`}
+                                 >
+                                    <ChevronRight size={16} className="text-muted-foreground" />
+                                 </button>
                               </div>
                            ))}
                         </div>
@@ -373,58 +450,27 @@ export default function AccountPage() {
                <div className="bg-background border border-border rounded-[14px] p-6.25 flex flex-col gap-5">
                   <p className="text-heading-3-bold text-foreground">주소 수정</p>
                   <div className="flex gap-5">
-                     <p className="text-body-2-medium text-foreground whitespace-nowrap pt-1">주소정보</p>
+                     <p className="text-body-2-medium text-foreground whitespace-nowrap">주소정보</p>
                      <div className="flex flex-col gap-7.5 flex-1">
                         <div className="flex flex-col gap-4">
                            <div className="flex items-end gap-2.5">
-                              <div className="flex flex-col gap-1 flex-1">
-                                 <label className="text-body-2-bold text-muted-foreground">
-                                    우편번호<span className="text-primary">*</span>
-                                 </label>
-                                 <div className="bg-fill-disabled border border-border rounded-lg h-12 flex items-center px-4">
-                                    <input
-                                       type="text"
-                                       value={zipCode}
-                                       readOnly
-                                       className="flex-1 text-body-1-bold text-(--text-disabled) bg-transparent outline-none"
-                                    />
-                                 </div>
-                              </div>
+                              <Input className="flex-1" label="우편번호" required value={zipCode} disabled readOnly />
                               <button
                                  type="button"
                                  onClick={handlePostcodeSearch}
-                                 className="border border-border rounded-lg px-6 py-3 text-body-1-bold text-muted-foreground whitespace-nowrap hover:bg-surface transition-colors"
+                                 className="border border-border rounded-lg px-6 py-3 text-body-1-bold text-muted-foreground whitespace-nowrap hover:bg-surface transition-colors mb-px"
                               >
                                  우편번호 검색
                               </button>
                            </div>
-                           <div className="flex flex-col gap-1">
-                              <label className="text-body-2-bold text-muted-foreground">
-                                 주소<span className="text-primary">*</span>
-                              </label>
-                              <div className="bg-fill-disabled border border-border rounded-lg h-12 flex items-center px-4">
-                                 <input
-                                    type="text"
-                                    value={address}
-                                    readOnly
-                                    className="flex-1 text-body-1-bold text-(--text-disabled) bg-transparent outline-none"
-                                 />
-                              </div>
-                           </div>
-                           <div className="flex flex-col gap-1">
-                              <label className="text-body-2-bold text-muted-foreground">
-                                 상세 주소<span className="text-primary">*</span>
-                              </label>
-                              <div className="bg-background border border-border rounded-lg h-12 flex items-center px-4 focus-within:border-primary transition-colors">
-                                 <input
-                                    type="text"
-                                    placeholder="상세 주소를 입력하세요"
-                                    value={addressDetail}
-                                    onChange={e => setAddressDetail(e.target.value)}
-                                    className="flex-1 text-body-1-regular text-foreground outline-none placeholder:text-(--text-disabled)"
-                                 />
-                              </div>
-                           </div>
+                           <Input label="주소" required value={address} disabled readOnly />
+                           <Input
+                              label="상세 주소"
+                              required
+                              placeholder="상세 주소를 입력하세요"
+                              value={addressDetail}
+                              onChange={e => setAddressDetail(e.target.value)}
+                           />
                         </div>
                         <button className="border border-border rounded-lg py-3 text-body-1-bold text-muted-foreground w-full hover:bg-surface transition-colors">
                            저장
@@ -456,114 +502,26 @@ export default function AccountPage() {
             </div>
          </div>
 
-         {/* ── 본인 인증 모달 (이름/휴대폰 번호 변경) ── */}
-         <Dialog open={modal === 'identity'} onOpenChange={closeModal}>
-            <DialogContent maxWidth={391} showCloseButton={false} className="rounded-2xl p-0 gap-0">
-               <div className="flex flex-col gap-5 p-5">
-                  <p className="text-heading-4-bold text-foreground leading-[1.55]">
-                     개인정보 변경을 위해<br />본인인증이 필요해요
-                  </p>
-                  <div className="bg-surface rounded-lg p-4 flex flex-col gap-4">
-                     <p className="text-body-2-bold text-destructive">
-                        본인 인증 완료 후 회원 정보가 반영돼요.
-                     </p>
-                     <p className="text-body-2-regular text-muted-foreground">
-                        재인증 시에는 이전에 본인 인증한 명의자와 일치해야 해요.<br />
-                        본인 인증에 문제가 생기면 고객센터로 문의해 주세요.
-                     </p>
-                  </div>
-               </div>
-               <div className="px-5 pb-5">
-                  <DialogClose asChild>
-                     <button className="w-full bg-primary text-white text-body-1-bold rounded-lg px-6 py-3 hover:bg-primary-strong transition-colors">
-                        본인 인증하기
-                     </button>
-                  </DialogClose>
-               </div>
-            </DialogContent>
-         </Dialog>
 
-         {/* ── 계정 해지 불가 모달 (연결 계정 1개) ── */}
-         <Dialog open={modal === 'cannotDisconnect'} onOpenChange={closeModal}>
-            <DialogContent maxWidth={391} showCloseButton={false} className="rounded-2xl p-0 gap-0">
-               <div className="flex flex-col gap-3 p-5">
-                  <p className="text-heading-4-bold text-foreground leading-[1.55]">
-                     계정 해지가 불가능합니다.
-                  </p>
-                  <p className="text-body-2-regular text-muted-foreground">
-                     계정이 1개만 등록되어 있어 연결 해지를 할 수 없습니다.
-                  </p>
-               </div>
-               <div className="px-5 pb-5">
-                  <DialogClose asChild>
-                     <button className="w-full bg-primary text-white text-body-1-bold rounded-lg px-6 py-3 hover:bg-primary-strong transition-colors">
-                        확인
-                     </button>
-                  </DialogClose>
-               </div>
-            </DialogContent>
-         </Dialog>
-
-         {/* ── 회원 탈퇴 확인 모달 (미정산 없음) ── */}
-         <Dialog open={modal === 'withdraw'} onOpenChange={closeModal}>
-            <DialogContent maxWidth={429} showCloseButton={true} className="rounded-2xl p-0 gap-0">
-               <div className="flex flex-col gap-5 p-5">
-                  <p className="text-heading-4-bold text-foreground leading-[1.55]">
-                     회원 탈퇴를 하시겠습니까?
-                  </p>
-                  <div className="bg-surface rounded-lg p-4 flex flex-col gap-4">
-                     <p className="text-body-2-bold text-destructive">
-                        탈퇴 후 7일간 동일한 이메일로 신규가입이 불가능 하며,<br />
-                        동일한 명의로 본인 인증진행이 불가능합니다.
-                     </p>
-                     <p className="text-body-2-regular text-muted-foreground">
-                        탈퇴 시 계정 정보는 관련 법령에 따라 일정 기간 보관 후 삭제되며,<br />
-                        삭제된 정보는 복구되지 않습니다.
-                     </p>
-                  </div>
-               </div>
-               <div className="flex gap-2 px-5 pb-5">
-                  <DialogClose asChild>
-                     <button className="flex-1 border border-border text-body-1-bold text-muted-foreground rounded-lg px-6 py-3 hover:bg-surface transition-colors">
-                        취소
-                     </button>
-                  </DialogClose>
-                  <button
-                     onClick={handleWithdrawConfirm}
-                     className="flex-1 bg-primary text-white text-body-1-bold rounded-lg px-6 py-3 hover:bg-primary-strong transition-colors"
-                  >
-                     회원탈퇴
-                  </button>
-               </div>
-            </DialogContent>
-         </Dialog>
-
-         {/* ── 회원 탈퇴 불가 모달 (미정산 있음) ── */}
-         <Dialog open={modal === 'withdrawBlocked'} onOpenChange={closeModal}>
-            <DialogContent maxWidth={391} showCloseButton={false} className="rounded-2xl p-0 gap-0">
-               <div className="flex flex-col gap-3 p-5">
-                  <p className="text-heading-4-bold text-foreground leading-[1.55]">
-                     미정산 금액이 있어 탈퇴할 수 없습니다.
-                  </p>
-                  <p className="text-body-2-regular text-muted-foreground">
-                     정산 완료 후 탈퇴를 진행해 주세요.
-                  </p>
-               </div>
-               <div className="px-5 pb-5">
-                  <DialogClose asChild>
-                     <button className="w-full bg-primary text-white text-body-1-bold rounded-lg px-6 py-3 hover:bg-primary-strong transition-colors">
-                        확인
-                     </button>
-                  </DialogClose>
-               </div>
-            </DialogContent>
-         </Dialog>
+         <AccountModals
+            modal={modal}
+            onClose={closeModal}
+            onWithdrawConfirm={handleWithdrawConfirm}
+            onNavigateToVerification={() => navigate('/auth/verification-flow')}
+         />
+         <AccountTermsDialogs
+            termsDialog={termsDialog}
+            onClose={() => setTermsDialog(null)}
+         />
       </div>
    );
 }
 
 /* ── 토글 컴포넌트 ── */
-interface ToggleProps { checked: boolean; onChange: () => void; }
+interface ToggleProps {
+   checked: boolean;
+   onChange: () => void;
+}
 function Toggle({ checked, onChange }: ToggleProps) {
    return (
       <button
@@ -575,27 +533,6 @@ function Toggle({ checked, onChange }: ToggleProps) {
          <span
             className={`absolute top-0.5 left-0.5 size-5 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`}
          />
-      </button>
-   );
-}
-
-/* ── 체크박스 컴포넌트 ── */
-interface CheckboxProps { checked: boolean; onChange: (v: boolean) => void; }
-function Checkbox({ checked, onChange }: CheckboxProps) {
-   return (
-      <button
-         role="checkbox"
-         aria-checked={checked}
-         onClick={() => onChange(!checked)}
-         className={`size-6 rounded border-[1.5px] flex items-center justify-center transition-all shrink-0 ${
-            checked ? 'bg-primary border-primary' : 'bg-background border-border'
-         }`}
-      >
-         {checked && (
-            <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
-               <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-         )}
       </button>
    );
 }
