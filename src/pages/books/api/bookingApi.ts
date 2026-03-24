@@ -117,14 +117,16 @@ const sortRowNames = (left: string, right: string) =>
       sensitivity: 'base',
    });
 
-export const fetchSeatGrades = async (stadiumId: string) => {
-   const response = await apiClient.get<ApiEnvelope<SeatGradeResponse[]>>(`/api/v1/stadiums/${stadiumId}/seat-grades`);
+export const fetchSeatGrades = async (gameId: string, stadiumId: string) => {
+   const response = await apiClient.get<ApiEnvelope<SeatGradeResponse[]>>(
+      `/api/v1/stadium-seats/stadiums/${stadiumId}/games/${gameId}/seat-grades`,
+   );
 
    return response.data.data;
 };
 
 export const fetchSeatSections = async (stadiumId: string) => {
-   const response = await apiClient.get<ApiEnvelope<SeatSectionResponse[]>>(`/api/v1/stadiums/${stadiumId}/seat-sections`);
+   const response = await apiClient.get<ApiEnvelope<SeatSectionResponse[]>>(`/api/v1/stadium-seats/stadiums/${stadiumId}/seat-sections`);
 
    return response.data.data;
 };

@@ -1,7 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { buildMockQueueTokenJti } from '@/shared/config/booking';
-import { fetchGameSchedules, type FetchGameSchedulesParams, type GameScheduleResponse } from '@/entities/game/api/scheduleApi';
+import {
+  fetchBaseballTeamDetails,
+  fetchGameSchedules,
+  type FetchGameSchedulesParams,
+  type GameScheduleResponse,
+} from '@/entities/game/api/scheduleApi';
+import { teams } from '@/entities/team/model/teams';
 import type { DaySchedule, GameRow, GameStatus, ReselStatus, TicketStatus } from '@/pages/home/ui/game-schedule/types';
 
 export type NormalizedScheduleGame = {
@@ -32,24 +38,49 @@ export type NormalizedScheduleGame = {
 
 type TeamReference = {
   frontendId: string;
+  serverTeamId?: string;
   teamCode: string;
   shortName: string;
   fullName: string;
   aliases: string[];
 };
 
-const TEAM_REFERENCES: TeamReference[] = [
-  { frontendId: 'kia', teamCode: 'KIA', shortName: 'KIA', fullName: 'KIA 타이거즈', aliases: ['kia', 'teamkia', 'kiatigers', '기아', '기아타이거즈'] },
-  { frontendId: 'samsung', teamCode: 'SS', shortName: '삼성', fullName: '삼성 라이온즈', aliases: ['samsung', 'teamsamsung', '삼성', '삼성라이온즈', 'ss', 'samsunglions'] },
-  { frontendId: 'lg', teamCode: 'LG', shortName: 'LG', fullName: 'LG 트윈스', aliases: ['lg', 'teamlg', 'lgtwins', '엘지', '엘지트윈스', 'lg트윈스'] },
-  { frontendId: 'hanwha', teamCode: 'HH', shortName: '한화', fullName: '한화 이글스', aliases: ['hanwha', 'teamhanwha', '한화', '한화이글스', 'hh', 'hanwhaeagles'] },
-  { frontendId: 'ssg', teamCode: 'SSG', shortName: 'SSG', fullName: 'SSG 랜더스', aliases: ['ssg', 'teamssg', 'ssglanders', '랜더스', 'ssg랜더스'] },
-  { frontendId: 'nc', teamCode: 'NC', shortName: 'NC', fullName: 'NC 다이노스', aliases: ['nc', 'teamnc', 'ncdinos', 'nc다이노스'] },
-  { frontendId: 'kt', teamCode: 'KT', shortName: 'KT', fullName: 'KT wiz', aliases: ['kt', 'teamkt', 'ktwiz', '케이티', '케이티위즈'] },
-  { frontendId: 'lotte', teamCode: 'LOT', shortName: '롯데', fullName: '롯데 자이언츠', aliases: ['lotte', 'teamlotte', '롯데', '롯데자이언츠', 'lot', 'lottegiants'] },
-  { frontendId: 'doosan', teamCode: 'DO', shortName: '두산', fullName: '두산 베어스', aliases: ['doosan', 'teamdoosan', '두산', '두산베어스', 'do', 'doosanbears'] },
-  { frontendId: 'kiwoom', teamCode: 'KIW', shortName: '키움', fullName: '키움 히어로즈', aliases: ['kiwoom', 'teamkiwoom', '키움', '키움히어로즈', 'kiw', 'kiwoomheroes'] },
-];
+const TEAM_ALIASES_BY_ID: Partial<Record<string, string[]>> = {
+  kia: ['teamkia', 'kiatigers', '기아', '기아타이거즈'],
+  samsung: ['teamsamsung', '삼성', '삼성라이온즈', 'ss', 'samsunglions'],
+  lg: ['teamlg', 'lgtwins', '엘지', '엘지트윈스', 'lg트윈스'],
+  hanwha: ['teamhanwha', '한화', '한화이글스', 'hh', 'hanwhaeagles'],
+  ssg: ['teamssg', 'ssglanders', '랜더스', 'ssg랜더스'],
+  nc: ['teamnc', 'ncdinos', 'nc다이노스'],
+  kt: ['teamkt', 'ktwiz', '케이티', '케이티위즈'],
+  lotte: ['teamlotte', '롯데', '롯데자이언츠', 'lot', 'lottegiants'],
+  doosan: ['teamdoosan', '두산', '두산베어스', 'do', 'doosanbears'],
+  kiwoom: ['teamkiwoom', '키움', '키움히어로즈', 'kiw', 'kiwoomheroes'],
+};
+
+const TEAM_SHORT_NAME_BY_ID: Partial<Record<string, string>> = {
+  kia: 'KIA',
+  samsung: '삼성',
+  lg: 'LG',
+  hanwha: '한화',
+  ssg: 'SSG',
+  nc: 'NC',
+  kt: 'KT',
+  lotte: '롯데',
+  doosan: '두산',
+  kiwoom: '키움',
+};
+
+const TEAM_REFERENCES: TeamReference[] = teams
+  .filter((team): team is typeof team & { teamCode: string } => Boolean(team.teamCode))
+  .map((team) => ({
+    frontendId: team.id,
+    serverTeamId: team.serverTeamId,
+    teamCode: team.teamCode,
+    shortName: TEAM_SHORT_NAME_BY_ID[team.id] ?? team.name,
+    fullName: team.name,
+    aliases: [team.id, team.name, team.teamCode, ...(TEAM_ALIASES_BY_ID[team.id] ?? [])],
+  }));
 
 type StadiumReference = {
   displayName: string;
@@ -109,11 +140,68 @@ const findTeamReference = (...candidates: Array<string | undefined>) => {
   }
 
   return TEAM_REFERENCES.find((reference) => {
-    const referenceCandidates = [reference.frontendId, reference.teamCode, reference.shortName, reference.fullName, ...reference.aliases]
+    const referenceCandidates = [
+      reference.frontendId,
+      reference.serverTeamId,
+      reference.teamCode,
+      reference.shortName,
+      reference.fullName,
+      ...reference.aliases,
+    ]
       .map(normalizeLookupValue);
 
     return normalizedCandidates.some((candidate) => referenceCandidates.includes(candidate));
   });
+};
+
+const needsTeamLookup = (
+  teamId: string | undefined,
+  teamCode: string | undefined,
+  teamName: string | undefined,
+) => {
+  if (!teamId) {
+    return false;
+  }
+
+  if (findTeamReference(teamCode, teamName, teamId)) {
+    return false;
+  }
+
+  return !teamCode || !teamName;
+};
+
+const collectLookupTeamIds = (games: GameScheduleResponse[]) => {
+  const ids = new Set<string>();
+
+  games.forEach((game) => {
+    if (needsTeamLookup(game.homeTeamId, game.homeTeamCode, game.homeTeamName)) {
+      ids.add(game.homeTeamId);
+    }
+
+    if (needsTeamLookup(game.awayTeamId, game.awayTeamCode, game.awayTeamName)) {
+      ids.add(game.awayTeamId);
+    }
+  });
+
+  return [...ids];
+};
+
+const mergeScheduleWithTeamDetails = (game: GameScheduleResponse, teamDetails: Map<string, {
+  teamCode: string;
+  teamName: string;
+  homeGround?: string;
+}>) => {
+  const homeTeamDetail = teamDetails.get(game.homeTeamId);
+  const awayTeamDetail = teamDetails.get(game.awayTeamId);
+
+  return {
+    ...game,
+    homeTeamCode: game.homeTeamCode ?? homeTeamDetail?.teamCode,
+    awayTeamCode: game.awayTeamCode ?? awayTeamDetail?.teamCode,
+    homeTeamName: game.homeTeamName ?? homeTeamDetail?.teamName,
+    awayTeamName: game.awayTeamName ?? awayTeamDetail?.teamName,
+    stadiumName: game.stadiumName ?? homeTeamDetail?.homeGround,
+  } satisfies GameScheduleResponse;
 };
 
 const parseApiDateTime = (value: string) => {
@@ -363,7 +451,13 @@ export const useGameSchedules = (params: FetchGameSchedulesParams = {}) => {
     queryKey: ['game-schedules', params.teamId ?? null, params.year ?? null, params.month ?? null, params.week ?? null, params.today ?? null],
     queryFn: async () => {
       const schedules = await fetchGameSchedules(params);
-      return schedules.map(normalizeScheduleGame).sort(sortByStartAt);
+      const lookupTeamIds = collectLookupTeamIds(schedules);
+      const teamDetails = await fetchBaseballTeamDetails(lookupTeamIds);
+
+      return schedules
+        .map((game) => mergeScheduleWithTeamDetails(game, teamDetails))
+        .map(normalizeScheduleGame)
+        .sort(sortByStartAt);
     },
   });
 };
