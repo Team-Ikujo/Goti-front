@@ -7,11 +7,10 @@ import { getBookingTeamConfig, getZoneDisplayOrder, getBookingZones } from '@/pa
 import type { ZoneItem } from '@/pages/books/model/types';
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
-import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 
 import BookingCaptchaGate from './components/BookingCaptchaGate';
-import BookingZoneList from './components/BookingZoneList';
-import BookingZoneMap from './components/BookingZoneMap';
+import BookingZoneDesktopLayout from './components/BookingZoneDesktopLayout';
+import BookingZoneMobileLayout from './components/BookingZoneMobileLayout';
 
 const CAPTCHA_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -203,67 +202,24 @@ const BooksPage = () => {
             onRefresh={refreshCaptcha}
             onSubmit={submitCaptcha}
          />
-         <section className="relative min-h-[calc(100vh-140px)] bg-[#f1f2f4] lg:hidden">
-            <BookingZoneMap
-               zones={zones}
-               selectedZoneId={selectedZoneId}
-               onSelectZone={handleSelectZone}
-               mobileExpanded={!isCaptchaOpen && !isZoneDrawerOpen}
-               stadiumImage={bookingTeamConfig.stadiumImage}
-               stadiumImageAlt={bookingTeamConfig.stadiumImageAlt}
-            />
-            {!isCaptchaOpen ? (
-               <Drawer open={isZoneDrawerOpen} onOpenChange={setIsZoneDrawerOpen} modal={false}>
-                  {!isZoneDrawerOpen ? (
-                     <div className="absolute inset-x-0 bottom-0 z-10">
-                        <DrawerTrigger asChild>
-                           <button
-                              type="button"
-                              className="w-full rounded-t-[16px] bg-elevated px-5 py-4 text-left shadow-[0_-6px_24px_rgba(0,0,0,0.16)]"
-                           >
-                              <div className="mb-3 flex justify-center" aria-hidden="true">
-                                 <div className="h-1 w-9 rounded-full bg-border-light" />
-                              </div>
-                              <div className="flex items-center justify-between gap-3">
-                                 <span className="text-heading-3-bold text-foreground">
-                                    {bookingFlowMode === 'resell' ? '리셀 좌석 구역' : '좌석 등급/잔여석'}
-                                 </span>
-                                 <span className="text-body-1-medium text-tertiary">{zones.length}개 구역</span>
-                              </div>
-                           </button>
-                        </DrawerTrigger>
-                     </div>
-                  ) : null}
-                  <DrawerContent
-                     showOverlay={false}
-                     resizable
-                     defaultHeight={360}
-                     minHeight={232}
-                     maxHeight={488}
-                     className="overflow-hidden border-none p-0"
-                  >
-                     <div className="h-full overflow-y-auto">
-                        <BookingZoneList
-                           variant="drawer"
-                           zones={zones}
-                           selectedZoneId={selectedZoneId}
-                           onSelectZone={handleSelectZone}
-                        />
-                     </div>
-                  </DrawerContent>
-               </Drawer>
-            ) : null}
-         </section>
-         <main className="hidden min-h-[calc(100vh-140px)] lg:grid lg:h-[calc(100vh-140px)] lg:grid-cols-[minmax(0,1fr)_420px]">
-            <BookingZoneMap
-               zones={zones}
-               selectedZoneId={selectedZoneId}
-               onSelectZone={handleSelectZone}
-               stadiumImage={bookingTeamConfig.stadiumImage}
-               stadiumImageAlt={bookingTeamConfig.stadiumImageAlt}
-            />
-            <BookingZoneList zones={zones} selectedZoneId={selectedZoneId} onSelectZone={handleSelectZone} />
-         </main>
+         <BookingZoneMobileLayout
+            bookingFlowMode={bookingFlowMode}
+            zones={zones}
+            selectedZoneId={selectedZoneId}
+            isCaptchaOpen={isCaptchaOpen}
+            isZoneDrawerOpen={isZoneDrawerOpen}
+            onOpenChange={setIsZoneDrawerOpen}
+            onSelectZone={handleSelectZone}
+            stadiumImage={bookingTeamConfig.stadiumImage}
+            stadiumImageAlt={bookingTeamConfig.stadiumImageAlt}
+         />
+         <BookingZoneDesktopLayout
+            zones={zones}
+            selectedZoneId={selectedZoneId}
+            onSelectZone={handleSelectZone}
+            stadiumImage={bookingTeamConfig.stadiumImage}
+            stadiumImageAlt={bookingTeamConfig.stadiumImageAlt}
+         />
       </div>
    );
 };
