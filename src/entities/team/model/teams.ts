@@ -11,6 +11,7 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/samsung.png",
     logoAspectClassName: "aspect-[1280/962]",
     isEnabled: true,
+    serverTeamId: "412cfc77-2c5d-4583-8e79-968339223864",
     teamCode: "SS",
     stadiumName: "대구",
     stadiumGuide: {
@@ -56,6 +57,7 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/kia.png",
     logoAspectClassName: "aspect-[1280/954]",
     isEnabled: true,
+    serverTeamId: "e5f58f8c-fcde-4017-8033-d8deb34fd4a2",
     teamCode: "KIA",
     stadiumName: "광주",
     stadiumGuide: {
@@ -101,6 +103,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/lg.png",
     logoAspectClassName: "aspect-[1280/1023]",
     isEnabled: false,
+    serverTeamId: "f44d1e89-e2fe-40e7-a587-1157d7a9c80a",
+    teamCode: "LG",
   },
   {
     id: "hanwha",
@@ -108,6 +112,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/hanwha.png",
     logoAspectClassName: "aspect-[1280/1065]",
     isEnabled: false,
+    serverTeamId: "34159d27-2497-44d4-a4a2-c461dc3585c8",
+    teamCode: "HH",
   },
   {
     id: "ssg",
@@ -115,6 +121,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/ssg.png",
     logoAspectClassName: "aspect-[1280/754]",
     isEnabled: false,
+    serverTeamId: "c33af471-d869-4af1-9b68-d085472e4408",
+    teamCode: "SSG",
   },
   {
     id: "nc",
@@ -122,6 +130,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/nc.png",
     logoAspectClassName: "aspect-[1280/862]",
     isEnabled: false,
+    serverTeamId: "72c57b65-9f68-4b6e-b9e3-2ec9074861f6",
+    teamCode: "NC",
   },
   {
     id: "kt",
@@ -129,6 +139,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/kt.png",
     logoAspectClassName: "aspect-[1280/1158]",
     isEnabled: false,
+    serverTeamId: "1e4022c6-3887-44f6-b510-d98aad5a4192",
+    teamCode: "KT",
   },
   {
     id: "lotte",
@@ -136,6 +148,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/lotte.png",
     logoAspectClassName: "aspect-[1280/961]",
     isEnabled: false,
+    serverTeamId: "d7b12b0f-c69d-4a7f-badc-04226daabb5f",
+    teamCode: "LOT",
   },
   {
     id: "doosan",
@@ -143,6 +157,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/doosan.png",
     logoAspectClassName: "aspect-[1280/1280]",
     isEnabled: false,
+    serverTeamId: "d64b4220-6479-4e77-986a-f52447a433a6",
+    teamCode: "DO",
   },
   {
     id: "kiwoom",
@@ -150,6 +166,7 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/kiwoom.png",
     logoAspectClassName: "aspect-[1280/940]",
     isEnabled: false,
+    serverTeamId: "520af775-e84b-4112-aa02-18ed1a6c8458",
+    teamCode: "KIW",
   },
 ];
-
