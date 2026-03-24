@@ -532,12 +532,17 @@ function SeatsPage() {
                                           type="button"
                                           onClick={() => handleSelectResellListing(listing)}
                                           className={[
-                                             'flex w-full items-start justify-between gap-4 rounded-[12px] border px-4 py-4 text-left transition-colors',
-                                             isSelected ? 'border-primary bg-primary/5' : 'border-border-light bg-background',
+                                             'flex w-full items-start justify-between gap-4 rounded-[12px] bg-background px-4 py-4 text-left transition-colors',
+                                             isSelected ? 'border-2 border-primary' : 'border border-border-light',
                                           ].join(' ')}
                                        >
                                           <span className="text-body-1-semibold text-secondary">{listing.seatLabel}</span>
-                                          <span className="shrink-0 text-body-1-bold text-secondary">
+                                          <span
+                                             className={[
+                                                'shrink-0 text-body-1-bold',
+                                                isSelected ? 'text-primary' : 'text-secondary',
+                                             ].join(' ')}
+                                          >
                                              {formatPrice(listing.listingPrice)}
                                           </span>
                                        </button>

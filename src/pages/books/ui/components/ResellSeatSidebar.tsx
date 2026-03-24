@@ -307,13 +307,15 @@ function ResellSeatSidebar({
                               type="button"
                               onClick={() => onSelectListing(item)}
                               className={cn(
-                                 'flex w-full items-start gap-6 rounded-[12px] border px-4 py-4 text-left transition-colors',
-                                 isSelected ? 'border-primary bg-primary/5' : 'border-border-light bg-background hover:border-primary/40',
+                                 'flex w-full items-start gap-6 rounded-[12px] bg-background px-4 py-4 text-left transition-colors',
+                                 isSelected ? 'border-2 border-primary' : 'border border-border-light hover:border-primary/40',
                               )}
                               aria-pressed={isSelected}
                            >
                               <span className="flex-1 text-body-1-semibold text-secondary">{item.seatLabel}</span>
-                              <span className="shrink-0 text-body-1-bold text-secondary">{formatPrice(item.listingPrice)}</span>
+                              <span className={cn('shrink-0 text-body-1-bold', isSelected ? 'text-primary' : 'text-secondary')}>
+                                 {formatPrice(item.listingPrice)}
+                              </span>
                            </button>
                         </li>
                      );
