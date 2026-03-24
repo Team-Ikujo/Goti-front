@@ -110,7 +110,7 @@ export default function SaleHistoryCard({ item }: SaleHistoryCardProps) {
             </div>
 
             {/* ③ 판매가 + 금액*/}
-            <div className="flex flex-col items-center justify-center gap-1 w-26 shrink-0 text-center px-2.5">
+            <div className="flex flex-col items-center justify-center gap-1 w-28 shrink-0 text-center whitespace-nowrap">
                <p className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">판매가</p>
                <p className="text-body-1-bold text-foreground whitespace-nowrap">{item.salePrice.toLocaleString()}원</p>
             </div>

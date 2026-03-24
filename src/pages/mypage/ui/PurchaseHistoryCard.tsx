@@ -1,11 +1,14 @@
 // src/pages/mypage/ui/PurchaseHistoryCard.tsx
 
+import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Separator } from '@/shared/ui/separator';
 import TicketTypeBadge from './TicketTypeBadge';
 import type { TicketType } from './TicketTypeBadge';
+import ResellRegisterDialog from './ResellRegisterDialog';
+import QrViewDialog from './QrViewDialog';
 
-export type PurchaseStatus = '결제완료' | '취소/환불' | '정산대기' | '정산완료';
+export type PurchaseStatus = '예매 완료' | '결제완료' | '취소/환불' | '정산대기' | '정산완료';
 
 export interface PurchaseHistoryItem {
    id: string;
@@ -29,6 +32,7 @@ export interface PurchaseHistoryItem {
 }
 
 const STATUS_COLOR: Record<PurchaseStatus, string> = {
+   '예매 완료': 'text-primary',
    결제완료: 'text-foreground',
    '취소/환불': 'text-destructive',
    정산대기: 'text-(--text-tertiary)',
@@ -40,7 +44,34 @@ interface PurchaseHistoryCardProps {
 }
 
 export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) {
+   const [resellOpen, setResellOpen] = useState(false);
+   const [qrOpen, setQrOpen] = useState(false);
+
+   const isBooked = item.paymentStatus === '예매 완료';
+   const showSellBtn = isBooked || item.canSell;
+   const showCancelBtn = isBooked;
+   const showQrBtn = isBooked;
+   const hasAnyButton = showSellBtn || showCancelBtn || showQrBtn;
+
    return (
+      <>
+      {resellOpen && (
+         <ResellRegisterDialog
+            open={resellOpen}
+            onClose={() => setResellOpen(false)}
+            item={item}
+         />
+      )}
+      {qrOpen && (
+         <QrViewDialog
+            open={qrOpen}
+            onClose={() => setQrOpen(false)}
+            seats={item.game.seats.map(seat => ({
+               section: item.game.section,
+               seatDetail: seat,
+            }))}
+         />
+      )}
       <div className="bg-background border border-border rounded-[14px] flex flex-col gap-2.5 px-px py-3.25">
          {/* 상단: 구매일자 / 구매상세 링크 */}
          <div className="flex items-center px-4 py-1">
@@ -120,17 +151,35 @@ export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) 
             {/* 판매 등록 영역 왼쪽 세로 구분선 */}
             <div className="w-px self-stretch bg-border shrink-0" />
 
-            {/* ⑤ 판매 등록 / - — w-25 고정 */}
-            <div className="flex items-center justify-center w-25 shrink-0 px-3">
-               {item.canSell ? (
-                  <button className="w-full border border-primary rounded-lg px-3 py-1 text-body-2-medium text-primary whitespace-nowrap">
-                     판매 등록
+            {/* ⑤ 액션 버튼 — w-[100px] 고정 */}
+            <div className="flex flex-col items-center justify-center gap-1 px-3 shrink-0 w-[100px]">
+               {showSellBtn && (
+                  <button
+                     className="border border-primary flex items-center justify-center px-3 py-1 rounded-[8px] w-full"
+                     onClick={() => setResellOpen(true)}
+                  >
+                     <span className="text-[14px] font-medium leading-[1.45] text-primary whitespace-nowrap">판매 등록</span>
                   </button>
-               ) : (
+               )}
+               {showCancelBtn && (
+                  <button className="border border-border flex items-center justify-center px-3 py-1 rounded-[8px] w-full">
+                     <span className="text-[14px] font-medium leading-[1.45] text-[#374553] whitespace-nowrap">예매 취소</span>
+                  </button>
+               )}
+               {showQrBtn && (
+                  <button
+                     className="border border-border flex items-center justify-center px-3 py-1 rounded-[8px] w-full"
+                     onClick={() => setQrOpen(true)}
+                  >
+                     <span className="text-[14px] font-medium leading-[1.45] text-[#374553] whitespace-nowrap">QR 확인</span>
+                  </button>
+               )}
+               {!hasAnyButton && (
                   <span className="text-foreground text-body-1-regular">-</span>
                )}
             </div>
          </div>
       </div>
+      </>
    );
 }
