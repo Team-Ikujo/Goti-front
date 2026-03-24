@@ -14,19 +14,6 @@ const teamDisplayName: Record<string, string> = {
    ssg: 'SSG',
 };
 
-const teamLogoPath: Record<string, string> = {
-   kia: '/baseball/logos/kia.png',
-   samsung: '/baseball/logos/samsung.png',
-   lg: '/baseball/logos/lg.png',
-   lotte: '/baseball/logos/lotte.png',
-   doosan: '/baseball/logos/doosan.png',
-   hanwha: '/baseball/logos/hanwha.png',
-   nc: '/baseball/logos/nc.png',
-   kt: '/baseball/logos/kt.png',
-   kiwoom: '/baseball/logos/kiwoom.png',
-   ssg: '/baseball/logos/ssg.png',
-};
-
 const PopularGames = () => {
    const matches = getPopularMatches(5);
 
@@ -37,33 +24,26 @@ const PopularGames = () => {
             <h2 className="text-heading-1-bold text-foreground leading-normal">인기 경기</h2>
          </div>
 
-         {/* 카드 리스트 (가로 스크롤) */}
          <div className="flex gap-6 overflow-x-auto pb-1 scrollbar-hide">
             {matches.map((match, i) => (
                <div
                   key={match.id}
                   className="shrink-0 w-75 border border-border rounded-[14px] overflow-hidden bg-background"
                >
-                  {/* 이미지 영역 */}
                   <div className="relative h-50 border-b border-border overflow-hidden bg-white">
-                     {/* 경기 배경 이미지 */}
                      <img
                         src={`/images/${i + 1}번 인기경기.png`}
                         alt=""
                         className="absolute inset-0 w-full h-full object-cover"
                         draggable={false}
                      />
-                     {/* 이미지 오버레이 */}
                      <div className="absolute inset-0 bg-[#000000]/20" />
-                     {/* 순위 번호 */}
                      <span className="absolute left-2.75 bottom-0 text-display-1-bold leading-[1.33] tracking-[-0.05px] text-white">
                         {i + 1}
                      </span>
                   </div>
 
-                  {/* 정보 영역 */}
                   <div className="flex flex-col gap-4 p-6">
-                     {/* 팀 매치업 */}
                      <div className="flex items-center justify-between h-7">
                         <span className="w-17.5 text-[18px] font-bold leading-[1.55] text-foreground">
                            {teamDisplayName[match.awayTeamId]}
@@ -74,7 +54,6 @@ const PopularGames = () => {
                         </span>
                      </div>
 
-                     {/* 날짜/시간 + 장소 */}
                      <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2 h-5">
                            <Calendar className="size-4 text-(--text-tertiary) shrink-0" />

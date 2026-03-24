@@ -1,9 +1,9 @@
 import { authHandlers } from "./auth";
+import { gameHandlers } from "./game";
 import { paymentHandlers } from "./payment";
-import { termsHandlers } from "./terms";
 
 export const handlers = [
   ...authHandlers,
-  ...termsHandlers,
+  ...gameHandlers,
   ...paymentHandlers,
 ];

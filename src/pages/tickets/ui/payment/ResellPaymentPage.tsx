@@ -1,9 +1,11 @@
 // src/pages/tickets/ui/payment/ResellPaymentPage.tsx
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Button } from '@/shared/ui/button';
-import type { PaymentRequest } from '@/pages/tickets/api/paymentApi';
+import type { ResaleCheckoutRequest } from '@/pages/tickets/api/paymentApi';
+import type { BotReport } from '@/shared/lib/botDetector';
 import {
    CashReceiptCard,
    DiscountCard,
@@ -30,8 +32,60 @@ const MOCK_GAME = {
    dateTime: '3.21 (토) 오후 18:30',
 };
 
+const MOCK_RESALE_ENTRY = {
+   buyerId: '8df84c70-833e-4374-85ad-fa52f92f939e',
+   listingId: '2df84c70-833e-4374-85ad-fa52f92f939e',
+   queueTokenJti: 'queue-token-resale-001',
+   sellerId: '7df84c70-833e-4374-85ad-fa52f92f939e',
+   settlementAmount: 46000,
+   totalAmount: 54000,
+   totalBuyerFee: 2000,
+   totalSellerFee: 2000,
+   seatInfo: '1루 지정석 1열 12번',
+};
+
+type ResellPaymentEntryState = Partial<typeof MOCK_RESALE_ENTRY> & {
+   matchTitle?: string;
+   venue?: string;
+   dateTime?: string;
+   botData?: BotReport;
+};
+
+const resolveUserIdFromAccessToken = (accessToken: string | null) => {
+   if (!accessToken) {
+      return undefined;
+   }
+
+   const tokenParts = accessToken.split('.');
+
+   if (tokenParts.length < 2) {
+      return undefined;
+   }
+
+   try {
+      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>;
+      const userId =
+         payload.userId ??
+         payload.user_id ??
+         payload.memberId ??
+         payload.member_id ??
+         payload.sub;
+
+      return typeof userId === 'string' && userId.length > 0 ? userId : undefined;
+   } catch {
+      return undefined;
+   }
+};
+
 export default function ResellPaymentPage() {
    const navigate = useNavigate();
+   const location = useLocation();
+   const accessToken = useAuthStore((state) => state.accessToken);
+   const resellEntryState = location.state as ResellPaymentEntryState | null;
+   const resaleEntry = {
+      ...MOCK_RESALE_ENTRY,
+      ...resellEntryState,
+   };
 
    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
    const [name, setName] = useState('');
@@ -48,49 +102,74 @@ export default function ResellPaymentPage() {
 
    // 무통장 입금 + 미발행이 아닌 경우 현금영수증 번호 필수
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
-   const isFormValid = !!name && !!phone && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
+   const isFormValid = !!name && phone.length === 11 && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
+   const resolvedBuyerId = resellEntryState?.buyerId ?? resolveUserIdFromAccessToken(accessToken);
 
    const orderInfo = {
-      matchTitle: MOCK_GAME.matchTitle,
-      dateTime: MOCK_GAME.dateTime,
-      quantity: 2,
-      seats: ['1E-2구역 0열 0번', '1E-2구역 0열 0번'],
+      matchTitle: resellEntryState?.matchTitle ?? MOCK_GAME.matchTitle,
+      dateTime: resellEntryState?.dateTime ?? MOCK_GAME.dateTime,
+      quantity: 1,
+      seats: [resaleEntry.seatInfo],
       deliveryLabel: '모바일 티켓',
       paymentLabel: PAYMENT_LABELS[paymentMethod],
    };
 
-   // 수수료: 매당 1,000원
-   const fee = orderInfo.quantity * 1000;
-   const totalPayment = fee; // ticketPrice·배송비·할인 0원 (TODO: 실데이터 연결 후 업데이트)
+   const fee = resaleEntry.totalBuyerFee;
+   const totalPayment = resaleEntry.totalAmount;
+   const ticketPrice = Math.max(totalPayment - fee, 0);
 
    const handlePay = () => {
-      const paymentRequest: PaymentRequest = {
+      if (!resolvedBuyerId) {
+         window.alert('구매자 정보를 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.');
+         return;
+      }
+
+      const paymentRequest: ResaleCheckoutRequest = {
+         buyerId: resolvedBuyerId,
+         listingId: resaleEntry.listingId,
+         queueTokenJti: resaleEntry.queueTokenJti,
+         sellerId: resaleEntry.sellerId,
+         settlementAmount: resaleEntry.settlementAmount,
+         totalAmount: resaleEntry.totalAmount,
+         totalBuyerFee: resaleEntry.totalBuyerFee,
+         totalSellerFee: resaleEntry.totalSellerFee,
+         seatInfo: resaleEntry.seatInfo,
+         matchTitle: orderInfo.matchTitle,
+         gameDate: orderInfo.dateTime,
+         gameVenue: resellEntryState?.venue ?? MOCK_GAME.venue,
          deliveryMethod: 'mobile',
          ordererName: name,
          ordererPhone: phone,
          ordererEmail: email,
          paymentMethod,
+         botData: resellEntryState?.botData,
          ...(paymentMethod === 'bank' && {
             cashReceiptType,
             cashReceiptNumType,
             cashReceiptNum,
          }),
       };
-      navigate('/tickets/payment/processing', { state: paymentRequest });
+      navigate('/tickets/payment/processing', { state: { request: paymentRequest, amount: totalPayment } });
    };
 
    return (
       <div className="min-h-screen flex flex-col bg-background">
-         <PaymentHeader {...MOCK_GAME} />
+         <PaymentHeader
+            matchTitle={orderInfo.matchTitle}
+            venue={resellEntryState?.venue ?? MOCK_GAME.venue}
+            dateTime={orderInfo.dateTime}
+         />
 
          <main className="flex-1 bg-white flex justify-center px-4">
             <div className="w-full max-w-[1200px] py-8 flex flex-col gap-8">
                <h1 className="text-[32px] font-bold leading-[1.45] tracking-[-0.032px] text-foreground">주문서</h1>
 
-               <div className="flex gap-8 items-start">
+               <div className="flex flex-col lg:flex-row gap-8 items-start">
                   {/* 왼쪽: 주문자 정보 */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-[10px]">
-                     <h2 className="text-[24px] font-bold leading-[1.5] text-foreground h-[42px]">주문자 정보 입력</h2>
+                  <div className="w-full lg:flex-1 min-w-0 flex flex-col gap-[10px]">
+                     <h2 className="hidden lg:block text-heading-1-bold leading-normal text-foreground h-9">
+                        주문자 정보 입력
+                     </h2>
 
                      <div className="flex flex-col gap-6">
                         {/* 수령 방식 — 리셀은 모바일 티켓만 가능 */}
@@ -121,26 +200,6 @@ export default function ResellPaymentPage() {
                         {/* 결제 방법 */}
                         <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
 
-                        {/* 유의사항 */}
-                        <ResellNotesCard />
-
-                        {/* 약관 동의 */}
-                        <ResellTermsCard
-                           agreedPrivacy={agreedPrivacy}
-                           agreedResell={agreedResell}
-                           onChangePrivacy={setAgreedPrivacy}
-                           onChangeResell={setAgreedResell}
-                        />
-                     </div>
-                  </div>
-
-                  {/* 오른쪽: 주문 정보 */}
-                  <div className="flex-1 max-w-[400px] shrink-0 flex flex-col gap-[10px]">
-                     <h2 className="text-[24px] font-bold leading-[1.5] text-foreground h-[36px]">주문 정보 확인</h2>
-
-                     <div className="flex flex-col gap-6">
-                        <OrderSummaryCard orderInfo={orderInfo} />
-
                         {/* 현금영수증 (무통장 입금 선택 시에만 표시) */}
                         {paymentMethod === 'bank' && (
                            <CashReceiptCard
@@ -155,8 +214,51 @@ export default function ResellPaymentPage() {
                            />
                         )}
 
+                        {/* 유의사항 */}
+                        <ResellNotesCard />
+
+                        {/* 약관 동의 */}
+                        <ResellTermsCard
+                           agreedPrivacy={agreedPrivacy}
+                           agreedResell={agreedResell}
+                           onChangePrivacy={setAgreedPrivacy}
+                           onChangeResell={setAgreedResell}
+                        />
+
+                        {/* 모바일 전용: 약관 동의 이후 주문정보 + 결제금액 + 버튼 */}
+                        <div className="lg:hidden flex flex-col gap-6">
+                           <OrderSummaryCard orderInfo={orderInfo} />
+                           <PaymentAmountCard
+                              ticketPrice={ticketPrice}
+                              shippingFee={0}
+                              discounts={[
+                                 { label: '학생 할인 5%', amount: 0 },
+                                 { label: '조기 예매 할인 10%', amount: 0 },
+                              ]}
+                              fee={fee}
+                           />
+                           <Button
+                              variant="primary"
+                              size="lg"
+                              className="w-full"
+                              disabled={!isFormValid}
+                              onClick={handlePay}
+                           >
+                              {totalPayment.toLocaleString('ko-KR')}원 결제하기
+                           </Button>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* 오른쪽: 주문 정보 — 데스크톱 전용 */}
+                  <div className="hidden lg:flex flex-col flex-1 max-w-100 shrink-0 gap-[10px]">
+                     <h2 className="text-heading-1-bold leading-normal text-foreground h-9">주문 정보 확인</h2>
+
+                     <div className="flex flex-col gap-6">
+                        <OrderSummaryCard orderInfo={orderInfo} />
+
                         <PaymentAmountCard
-                           ticketPrice={0}
+                           ticketPrice={ticketPrice}
                            shippingFee={0}
                            discounts={[
                               { label: '학생 할인 5%', amount: 0 },

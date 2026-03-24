@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Minus, Plus, RotateCcw } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
-import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 
-import { createSeatsForZone, getSeatBlocks } from '@/pages/books/model/seatData';
+import { createSeatsForZone } from '@/pages/books/model/seatData';
+import { getResellZoneInsights, type ResellListingItem } from '@/pages/books/model/resellData';
+import { useSeatMapData } from '@/pages/books/model/useSeatMapData';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
-import { BOOKING_ZONES, formatPrice, getZoneOverviewImage } from '@/pages/books/model/zoneData';
+import { formatPrice, getBookingZones, getZoneOverviewImage, getStadiumName } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
-import SeatBlockGrid from './components/SeatBlockGrid';
+import { getBookingFlowMode } from '@/shared/lib/booking-flow';
+import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
+import SeatMapStage from './components/SeatMapStage';
+import ResellSeatSidebar from './components/ResellSeatSidebar';
+import SelectedSeatSummaryList, { type SelectedSeatSummaryItem } from './components/SelectedSeatSummaryList';
+import { useBotDetector } from '@/shared/lib/useBotDetector';
 
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
-const SCALE_STEP = 0.2;
 const STAGE_WIDTH = 1240;
 const STAGE_HEIGHT = 620;
 const BLOCK_SEAT_SIZE = 18;
@@ -23,41 +29,63 @@ const MINIMAP_PADDING_Y = 18;
 
 const stepLabels = ['구역 선택', '좌석 선택', '배송/주문자 확인', '결제'];
 
-type SelectedSeatSummaryItem = {
-   seat: SeatItem;
-   zoneId: string;
-   zoneName: string;
-   price: number;
-};
-
 function SeatsPage() {
    const navigate = useNavigate();
+   const location = useLocation();
    const { zoneId = '' } = useParams();
+   const bookingFlowMode = getBookingFlowMode(location.search);
+   const isResellMode = bookingFlowMode === 'resell';
+   const routeBookingEntryState = location.state as BookingEntryState | null;
+   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
+   const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
+   const { getBotReport } = useBotDetector();
+   const bookingZones = useMemo(
+      () => bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId),
+      [bookingEntryState?.bookingZones, bookingEntryState?.homeTeamId],
+   );
 
    const zone = useMemo(
-      () => BOOKING_ZONES.find((item) => item.id === zoneId) ?? BOOKING_ZONES[0],
-      [zoneId],
+      () => bookingZones.find((item) => item.id === zoneId) ?? bookingZones[0],
+      [bookingZones, zoneId],
    );
-   const zoneOverviewImage = useMemo(() => getZoneOverviewImage(zone.id), [zone.id]);
+   const zoneOverviewImage = useMemo(() => getZoneOverviewImage(bookingEntryState?.homeTeamId, zone.id), [bookingEntryState?.homeTeamId, zone.id]);
+   const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
-   const seatBlocks = useMemo(() => getSeatBlocks(zone.id), [zone.id]);
+   const { apiSeatItems, seatBlocks, hasApiSeatMap } = useSeatMapData({
+      gameId: bookingEntryState?.gameId,
+      stadiumId: bookingEntryState?.stadiumId,
+      zone,
+   });
    const zonesState = useSeatSelectionStore((state) => state.zones);
    const zoneSeatState = useSeatSelectionStore((state) => state.zones[zone.id]);
    const initializeZone = useSeatSelectionStore((state) => state.initializeZone);
+   const applyServerSeatSnapshot = useSeatSelectionStore((state) => state.applyServerSeatSnapshot);
    const toggleSelectedSeat = useSeatSelectionStore((state) => state.toggleSelectedSeat);
    const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
 
    const [seatMapScale, setSeatMapScale] = useState(1);
    const [seatMapOffset, setSeatMapOffset] = useState({ x: 0, y: 0 });
    const [isSeatMapDragging, setIsSeatMapDragging] = useState(false);
+   const [isSeatDrawerOpen, setIsSeatDrawerOpen] = useState(true);
    const dragStartRef = useRef<{ x: number; y: number } | null>(null);
    const mapViewportRef = useRef<HTMLDivElement | null>(null);
    const [mapViewportSize, setMapViewportSize] = useState({ width: 0, height: 0 });
 
    useEffect(() => {
+      if (routeBookingEntryState) {
+         setBookingEntry(routeBookingEntryState);
+      }
+   }, [routeBookingEntryState, setBookingEntry]);
+
+   useEffect(() => {
+      if (hasApiSeatMap && apiSeatItems.length > 0) {
+         applyServerSeatSnapshot(zone.id, apiSeatItems);
+         return;
+      }
+
       initializeZone(zone.id, initialSeats);
-   }, [initialSeats, initializeZone, zone.id]);
+   }, [apiSeatItems, applyServerSeatSnapshot, hasApiSeatMap, initialSeats, initializeZone, zone.id]);
 
    useEffect(() => {
       const updateViewportSize = () => {
@@ -81,13 +109,37 @@ function SeatsPage() {
       };
    }, []);
 
+   useEffect(() => {
+      const mediaQuery = window.matchMedia('(min-width: 1280px)');
+      const handleChange = (event: MediaQueryListEvent | MediaQueryList) => {
+         if (event.matches) {
+            setIsSeatDrawerOpen(false);
+         }
+      };
+
+      handleChange(mediaQuery);
+      mediaQuery.addEventListener('change', handleChange);
+
+      return () => {
+         mediaQuery.removeEventListener('change', handleChange);
+      };
+   }, []);
+
+   useEffect(() => {
+      if (!isResellMode) {
+         return;
+      }
+
+      clearAllSelections();
+   }, [clearAllSelections, isResellMode, zone.id]);
+
    const seats = useMemo(() => {
       if (!zoneSeatState) {
          return initialSeats;
       }
 
       return zoneSeatState.seatOrder
-         .map((seatId) => zoneSeatState.seatMap[seatId])
+         .map(seatId => zoneSeatState.seatMap[seatId])
          .filter((seat): seat is SeatItem => Boolean(seat));
    }, [initialSeats, zoneSeatState]);
 
@@ -95,32 +147,110 @@ function SeatsPage() {
 
    const selectedSeats = useMemo<SelectedSeatSummaryItem[]>(() => {
       return Object.entries(zonesState).flatMap(([selectedZoneId, selectedZoneState]) => {
-         const selectedZone = BOOKING_ZONES.find((item) => item.id === selectedZoneId);
+         const selectedZone = bookingZones.find((item) => item.id === selectedZoneId);
 
          if (!selectedZone) {
             return [];
          }
 
          return selectedZoneState.selectedSeatIds
-            .map((seatId) => selectedZoneState.seatMap[seatId])
+            .map(seatId => selectedZoneState.seatMap[seatId])
             .filter((seat): seat is SeatItem => Boolean(seat))
-            .map((seat) => ({
+            .map(seat => ({
                seat,
                zoneId: selectedZoneId,
                zoneName: selectedZone.name,
                price: selectedZone.price,
             }));
       });
-   }, [zonesState]);
+   }, [bookingZones, zonesState]);
 
    const selectedPrice = selectedSeats.reduce((total, item) => total + item.price, 0);
+   const resellInsights = useMemo(
+      () =>
+         isResellMode
+            ? getResellZoneInsights({
+                 zone,
+                 seats,
+              })
+            : null,
+      [isResellMode, seats, zone],
+   );
+   const resellListingBySeatId = useMemo(
+      () => new Map((resellInsights?.listings ?? []).map((listing) => [listing.seatId, listing])),
+      [resellInsights?.listings],
+   );
+   const selectedResellListing = useMemo(() => {
+      if (!isResellMode) {
+         return null;
+      }
+
+      const selectedSeatId = selectedSeats[0]?.seat.id;
+
+      return selectedSeatId ? resellListingBySeatId.get(selectedSeatId) ?? null : null;
+   }, [isResellMode, resellListingBySeatId, selectedSeats]);
+   const summaryPrice = isResellMode
+      ? (selectedResellListing?.totalAmount ?? selectedResellListing?.listingPrice ?? 0)
+      : selectedPrice;
+   const bookingButtonLabel = isResellMode ? '예매하기' : `${selectedSeats.length}매 예매하기`;
+   const displaySeats = useMemo(() => {
+      if (!isResellMode) {
+         return seats;
+      }
+
+      return seats.map((seat) => {
+         if (resellListingBySeatId.has(seat.id)) {
+            return seat;
+         }
+
+         return {
+            ...seat,
+            status: 'disabled',
+         } satisfies SeatItem;
+      });
+   }, [isResellMode, resellListingBySeatId, seats]);
+
+   const handleProceedToPayment = () => {
+      const botData = getBotReport();
+
+      if (isResellMode) {
+         if (!selectedResellListing) {
+            return;
+         }
+
+         navigate('/tickets/resell-payment', {
+            state: {
+               listingId: selectedResellListing.listingId,
+               queueTokenJti: bookingEntryState?.queueTokenJti,
+               sellerId: selectedResellListing.sellerId,
+               settlementAmount: selectedResellListing.settlementAmount,
+               totalAmount: selectedResellListing.totalAmount,
+               totalBuyerFee: selectedResellListing.totalBuyerFee,
+               totalSellerFee: selectedResellListing.totalSellerFee,
+               seatInfo: selectedResellListing.seatInfo,
+               matchTitle: bookingEntryState?.matchTitle,
+               venue: bookingEntryState?.venue,
+               dateTime: bookingEntryState?.dateTime,
+               botData,
+            },
+         });
+         return;
+      }
+
+      navigate('/tickets/payment', {
+         state: {
+            ...bookingEntryState,
+            botData,
+         },
+      });
+   };
 
    const sectionBounds = useMemo(() => {
       if (seatBlocks.length === 0) {
          return null;
       }
 
-      const blockMetrics = seatBlocks.map((block) => {
+      const blockMetrics = seatBlocks.map(block => {
          const width = block.cols * (BLOCK_SEAT_SIZE + BLOCK_SEAT_GAP) - BLOCK_SEAT_GAP;
          const height = block.rows * (BLOCK_SEAT_SIZE + BLOCK_SEAT_GAP) - BLOCK_SEAT_GAP;
 
@@ -134,10 +264,10 @@ function SeatsPage() {
       });
 
       return {
-         left: Math.min(...blockMetrics.map((block) => block.offsetX)),
-         top: Math.min(...blockMetrics.map((block) => block.offsetY)),
-         right: Math.max(...blockMetrics.map((block) => block.right)),
-         bottom: Math.max(...blockMetrics.map((block) => block.bottom)),
+         left: Math.min(...blockMetrics.map(block => block.offsetX)),
+         top: Math.min(...blockMetrics.map(block => block.offsetY)),
+         right: Math.max(...blockMetrics.map(block => block.right)),
+         bottom: Math.max(...blockMetrics.map(block => block.bottom)),
          blocks: blockMetrics,
       };
    }, [seatBlocks]);
@@ -161,7 +291,7 @@ function SeatsPage() {
          scale,
          offsetX,
          offsetY,
-         blocks: sectionBounds.blocks.map((block) => ({
+         blocks: sectionBounds.blocks.map(block => ({
             id: block.id,
             x: offsetX + (block.offsetX - sectionBounds.left) * scale,
             y: offsetY + (block.offsetY - sectionBounds.top) * scale,
@@ -226,14 +356,35 @@ function SeatsPage() {
          return;
       }
 
-      toggleSelectedSeat(zone.id, seat.id);
-   };
+      if (isResellMode) {
+         if (!resellListingBySeatId.has(seat.id)) {
+            return;
+         }
 
-   const handleMapPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (seatMapScale <= 1) {
+         const isAlreadySelected = selectedSeatIds.includes(seat.id);
+
+         if (!isAlreadySelected) {
+            clearAllSelections();
+         }
+
+         toggleSelectedSeat(zone.id, seat.id);
          return;
       }
 
+      toggleSelectedSeat(zone.id, seat.id);
+   };
+
+   const handleSelectResellListing = (listing: ResellListingItem) => {
+      const isAlreadySelected = selectedSeatIds.includes(listing.seatId);
+
+      if (!isAlreadySelected) {
+         clearAllSelections();
+      }
+
+      toggleSelectedSeat(zone.id, listing.seatId);
+   };
+
+   const handleMapPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
       const target = event.target as HTMLElement;
       if (target.closest('button')) {
          return;
@@ -270,13 +421,13 @@ function SeatsPage() {
    return (
       <div className="w-full bg-background text-foreground">
          <main className="flex min-h-[calc(100vh-140px)] flex-col xl:h-[calc(100vh-140px)] xl:flex-row">
-            <section className="flex min-h-[680px] flex-1 flex-col overflow-hidden bg-[#f1f2f4]">
-               <div className="flex items-center justify-between gap-4 px-5 py-3 lg:px-8">
-                  <div className="inline-flex min-w-0 items-center gap-2 rounded-[12px] bg-background px-3 py-2">
+            <section className="relative flex min-h-[660px] flex-1 flex-col overflow-hidden bg-[#eef0f3] xl:min-h-[680px]">
+               <div className="flex items-center justify-between gap-4 px-5 py-5 lg:px-8 lg:py-3">
+                  <div className="inline-flex min-w-0 items-center gap-2 rounded-[12px] bg-background px-4 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)] lg:px-3">
                      <span className="inline-flex items-center justify-center rounded-[8px] bg-primary-light px-2 py-1 text-caption-1-bold text-primary">
                         선택 구역
                      </span>
-                     <span className="truncate text-body-2-bold text-foreground">{zone.name}</span>
+                     <span className="truncate text-body-1-bold text-foreground">{zone.name}</span>
                   </div>
 
                   <div className="hidden items-center lg:flex" aria-label="예매 단계">
@@ -294,7 +445,10 @@ function SeatsPage() {
                                  {label}
                               </span>
                               {index < stepLabels.length - 1 ? (
-                                 <span className="text-[18px] leading-none font-bold text-border-light" aria-hidden="true">
+                                 <span
+                                    className="text-[18px] leading-none font-bold text-border-light"
+                                    aria-hidden="true"
+                                 >
                                     ›
                                  </span>
                               ) : null}
@@ -304,218 +458,238 @@ function SeatsPage() {
                   </div>
                </div>
 
-               <div className="relative flex-1 overflow-hidden px-4 pb-6 lg:px-8">
-                  <div className="relative h-full min-h-[560px] overflow-hidden rounded-[24px] bg-[#eef0f3]">
-                     <div ref={mapViewportRef} className="absolute inset-0 overflow-hidden">
-                        <div
-                           className={[
-                              'absolute left-1/2 top-14 origin-top',
-                              isSeatMapDragging ? 'cursor-grabbing' : seatMapScale > 1 ? 'cursor-grab' : 'cursor-default',
-                              isSeatMapDragging ? '' : 'transition-transform duration-150',
-                           ].join(' ')}
-                           style={{
-                              width: `${STAGE_WIDTH}px`,
-                              height: `${STAGE_HEIGHT}px`,
-                              transform: `translate3d(calc(-50% + ${seatMapOffset.x}px), ${seatMapOffset.y}px, 0) scale(${seatMapScale})`,
-                           }}
-                           onPointerDown={handleMapPointerDown}
-                           onPointerMove={handleMapPointerMove}
-                           onPointerUp={handleMapPointerUp}
-                           onPointerCancel={handleMapPointerUp}
-                        >
-                           <div
-                              className="absolute rounded-xl bg-white/70 px-8 py-3 text-body-2-semibold text-muted-foreground shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur"
-                              style={{
-                                 left: '50%',
-                                 top: '24px',
-                                 transform: 'translateX(-50%)',
-                              }}
+               <div className="relative flex-1 overflow-hidden px-0 pb-[144px] lg:px-8 lg:pb-6 xl:pb-6">
+                  <SeatMapStage
+                     isSeatMapDragging={isSeatMapDragging}
+                     mapViewportRef={mapViewportRef}
+                     minimapLayout={minimapLayout}
+                     minimapViewport={minimapViewport}
+                     seatBlocks={seatBlocks}
+                     seatMapOffset={seatMapOffset}
+                     seatMapScale={seatMapScale}
+                     seats={displaySeats}
+                     selectedSeatIds={selectedSeatIds}
+                     zoneColor={zone.color}
+                     zoneName={zone.name}
+                     onMapPointerDown={handleMapPointerDown}
+                     onMapPointerMove={handleMapPointerMove}
+                     onMapPointerUp={handleMapPointerUp}
+                     onResetSeatMapView={resetSeatMapView}
+                     onToggleSeat={toggleSeat}
+                     onUpdateSeatMapScale={updateSeatMapScale}
+                  />
+               </div>
+
+               <Drawer open={isSeatDrawerOpen} onOpenChange={setIsSeatDrawerOpen} modal={false}>
+                  {!isSeatDrawerOpen ? (
+                     <div className="absolute inset-x-0 bottom-0 z-10 xl:hidden">
+                        <DrawerTrigger asChild>
+                           <button
+                              type="button"
+                              className="w-full rounded-t-[16px] bg-elevated px-5 py-4 text-left shadow-[0_-6px_24px_rgba(0,0,0,0.16)]"
                            >
-                              경기장 방향
-                           </div>
-
-                           {seatBlocks.map((block, index) => (
-                              <SeatBlockGrid
-                                 key={block.id}
-                                 block={block}
-                                 blockIndex={index}
-                                 seats={seats.filter((seat) => seat.block === block.id)}
-                                 selectedSeatIds={selectedSeatIds}
-                                 onToggleSeat={toggleSeat}
-                              />
-                           ))}
-                        </div>
-                     </div>
-
-                     <div className="absolute bottom-5 left-5 overflow-hidden rounded-[16px] bg-[#b0b0b0] shadow-[0_16px_40px_rgba(15,23,42,0.18)]">
-                        <div className="relative h-[140px] w-[215px]">
-                           <svg
-                              viewBox={`0 0 ${MINIMAP_WIDTH} ${MINIMAP_HEIGHT}`}
-                              className="h-full w-full"
-                              role="img"
-                              aria-label={`${zone.name} 섹션 미니맵`}
-                           >
-                              <rect width={MINIMAP_WIDTH} height={MINIMAP_HEIGHT} fill="#b0b0b0" />
-                              {minimapLayout?.blocks.map((block) => (
-                                 <rect
-                                    key={block.id}
-                                    x={block.x}
-                                    y={block.y}
-                                    width={block.width}
-                                    height={block.height}
-                                    rx="2"
-                                    fill={zone.color}
-                                    fillOpacity="0.82"
-                                 />
-                              ))}
-                              {minimapViewport ? (
-                                 <rect
-                                    x={minimapViewport.left}
-                                    y={minimapViewport.top}
-                                    width={Math.max(12, minimapViewport.width)}
-                                    height={Math.max(12, minimapViewport.height)}
-                                    rx="6"
-                                    fill="rgba(255,255,255,0.08)"
-                                    stroke="#ffffff"
-                                    strokeWidth="4"
-                                 />
-                              ) : null}
-                           </svg>
-                        </div>
-                     </div>
-
-                     <div className="absolute bottom-6 right-6 flex flex-col gap-2">
-                        <MapControlButton ariaLabel="확대" onClick={() => updateSeatMapScale(seatMapScale + SCALE_STEP)}>
-                           <Plus className="h-5 w-5" aria-hidden="true" />
-                        </MapControlButton>
-                        <MapControlButton ariaLabel="축소" onClick={() => updateSeatMapScale(seatMapScale - SCALE_STEP)}>
-                           <Minus className="h-5 w-5" aria-hidden="true" />
-                        </MapControlButton>
-                        <MapControlButton ariaLabel="초기화" onClick={resetSeatMapView}>
-                           <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                        </MapControlButton>
-                     </div>
-                  </div>
-               </div>
-            </section>
-
-            <aside className="flex w-full shrink-0 flex-col border-l border-border-light bg-background xl:w-[420px]">
-               <div className="relative h-[220px] overflow-hidden border-b border-border-light bg-[#e9ebee] px-5 py-4">
-                  <div className="relative mx-auto h-[188px] w-[260px] shrink-0">
-                     <img
-                        src={zoneOverviewImage}
-                        alt={`${zone.name} 선택 상태가 반영된 기아 챔피언스필드 좌석도`}
-                        className="h-full w-full object-contain"
-                        draggable={false}
-                     />
-                  </div>
-               </div>
-
-               <div className="flex items-center justify-between px-5 py-5">
-                  <div className="flex items-center gap-2">
-                     <h2 className="text-heading-3-bold text-foreground">선택 좌석</h2>
-                     {selectedSeats.length > 0 ? (
-                        <span className="text-heading-4-bold text-primary">{selectedSeats.length}</span>
-                     ) : null}
-                  </div>
-                  {selectedSeats.length > 0 ? (
-                     <button
-                        type="button"
-                        onClick={clearAllSelections}
-                        className="text-body-2-medium text-muted-foreground transition-colors hover:text-foreground"
-                     >
-                        전체 삭제
-                     </button>
-                  ) : null}
-               </div>
-
-               <div className="flex flex-1 flex-col justify-between gap-4 px-5 pb-5">
-                  <div className="flex-1 overflow-y-auto rounded-2xl bg-background">
-                     {selectedSeats.length > 0 ? (
-                        <ul className="space-y-3">
-                           {selectedSeats.map((item) => (
-                              <li
-                                 key={item.seat.id}
-                                 className="flex items-center justify-between rounded-xl border border-border-light px-4 py-3"
-                              >
-                                 <div>
-                                    <p className="text-body-2-semibold text-foreground">{item.zoneName}</p>
-                                    <p className="text-body-2-regular text-muted-foreground">
-                                       {item.seat.block}구역 {item.seat.rowLabel} {item.seat.seatNumber}번
-                                    </p>
+                              <div className="mb-3 flex justify-center" aria-hidden="true">
+                                 <div className="h-1 w-9 rounded-full bg-border-light" />
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                 <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
+                                    <span>{isResellMode ? '리셀 예매' : '선택 좌석'}</span>
+                                    <span className="text-primary">{selectedSeats.length}</span>
                                  </div>
-                                 <div className="flex items-center gap-3">
-                                    <span className="text-body-2-semibold text-primary">{formatPrice(item.price)}</span>
+                                 <span className="text-body-1-medium text-tertiary">
+                                    {selectedSeats.length > 0 ? formatPrice(summaryPrice) : '열기'}
+                                 </span>
+                              </div>
+                           </button>
+                        </DrawerTrigger>
+                     </div>
+                  ) : null}
+                  <DrawerContent
+                     showOverlay={false}
+                     resizable
+                     defaultHeight={280}
+                     minHeight={152}
+                     maxHeight={560}
+                     className="overflow-hidden border-none p-0 xl:hidden"
+                  >
+                     <div className="h-full overflow-y-auto">
+                        {isResellMode ? (
+                           <>
+                              <div className="px-5 py-4">
+                                 <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
+                                    <h2>판매 중인 좌석</h2>
+                                    <span className="text-primary">{resellInsights?.listings.length ?? 0}</span>
+                                 </div>
+                              </div>
+
+                              <div className="space-y-3 px-5 pb-4">
+                                 {resellInsights?.listings.map((listing) => {
+                                    const isSelected = selectedResellListing?.listingId === listing.listingId;
+
+                                    return (
+                                       <button
+                                          key={listing.listingId}
+                                          type="button"
+                                          onClick={() => handleSelectResellListing(listing)}
+                                          className={[
+                                             'flex w-full items-start justify-between gap-4 rounded-[12px] border px-4 py-4 text-left transition-colors',
+                                             isSelected ? 'border-primary bg-primary/5' : 'border-border-light bg-background',
+                                          ].join(' ')}
+                                       >
+                                          <span className="text-body-1-semibold text-secondary">{listing.seatLabel}</span>
+                                          <span className="shrink-0 text-body-1-bold text-secondary">
+                                             {formatPrice(listing.listingPrice)}
+                                          </span>
+                                       </button>
+                                    );
+                                 })}
+                              </div>
+
+                              <div className="px-5 pb-5">
+                                 <div className="flex items-center justify-between gap-3 px-1 pb-5 text-heading-4-medium text-secondary">
+                                    <span>총 결제 금액</span>
+                                    <span className="text-heading-4-bold text-primary">{formatPrice(summaryPrice)}</span>
+                                 </div>
+                                 <button
+                                    type="button"
+                                    disabled={!selectedResellListing}
+                                    onClick={handleProceedToPayment}
+                                    className={[
+                                       'h-12 w-full rounded-[8px] text-label-1-bold transition-colors',
+                                       !selectedResellListing
+                                          ? 'bg-fill-disabled text-disabled-foreground'
+                                          : 'bg-primary text-white hover:bg-primary-strong',
+                                    ].join(' ')}
+                                 >
+                                    {bookingButtonLabel}
+                                 </button>
+                              </div>
+                           </>
+                        ) : (
+                           <>
+                              <div className="flex items-center justify-between gap-3 px-5 py-4">
+                                 <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
+                                    <h2>선택 좌석</h2>
+                                    <span className="text-primary">{selectedSeats.length}</span>
+                                 </div>
+                                 {selectedSeats.length > 0 ? (
                                     <button
                                        type="button"
-                                       onClick={() => toggleSelectedSeat(item.zoneId, item.seat.id)}
-                                       className="text-caption-1-medium text-muted-foreground transition-colors hover:text-foreground"
+                                       onClick={clearAllSelections}
+                                       className="text-body-1-medium text-tertiary transition-colors hover:text-foreground"
                                     >
-                                       삭제
+                                       전체 삭제
                                     </button>
+                                 ) : null}
+                              </div>
+
+                              <div className="px-5 pb-4">
+                                 <SelectedSeatSummaryList
+                                    items={selectedSeats}
+                                    onRemove={toggleSelectedSeat}
+                                    emptyClassName="h-full min-h-[220px] bg-transparent"
+                                 />
+                              </div>
+
+                              <div className="px-5 pb-5">
+                                 <div className="flex items-center justify-between gap-3 px-1 pb-5 text-heading-4-medium text-secondary">
+                                    <span>총 결제 금액</span>
+                                    <span className="text-heading-4-bold text-primary">{formatPrice(summaryPrice)}</span>
                                  </div>
-                              </li>
-                           ))}
-                        </ul>
-                     ) : (
-                        <div className="flex h-full min-h-[320px] items-center justify-center text-body-1-regular text-muted-foreground">
-                           선택한 좌석이 없습니다.
-                        </div>
-                     )}
+                                 <button
+                                    type="button"
+                                    disabled={selectedSeats.length === 0}
+                                    onClick={handleProceedToPayment}
+                                    className={[
+                                       'h-12 w-full rounded-[8px] text-label-1-bold transition-colors',
+                                       selectedSeats.length === 0
+                                          ? 'bg-fill-disabled text-disabled-foreground'
+                                          : 'bg-primary text-white hover:bg-primary-strong',
+                                    ].join(' ')}
+                                 >
+                                    {bookingButtonLabel}
+                                 </button>
+                              </div>
+                           </>
+                        )}
+                     </div>
+                  </DrawerContent>
+               </Drawer>
+            </section>
+
+            {isResellMode && resellInsights ? (
+               <ResellSeatSidebar
+                  insights={resellInsights}
+                  selectedListingId={selectedResellListing?.listingId}
+                  zone={zone}
+                  zoneOverviewImage={zoneOverviewImage}
+                  stadiumName={stadiumName}
+                  onSelectListing={handleSelectResellListing}
+                  onSubmit={handleProceedToPayment}
+               />
+            ) : (
+               <aside className="hidden w-full shrink-0 flex-col border-l border-border-light bg-background xl:flex xl:w-[420px]">
+                  <div className="relative h-[220px] overflow-hidden border-b border-border-light bg-[#e9ebee] px-5 py-4">
+                     <div className="relative mx-auto h-[188px] w-[260px] shrink-0">
+                        <img
+                           src={zoneOverviewImage}
+                           alt={`${zone.name} 선택 상태가 반영된 ${stadiumName} 좌석도`}
+                           className="h-full w-full object-contain"
+                           draggable={false}
+                        />
+                     </div>
                   </div>
 
-                  <div className="space-y-3 rounded-2xl bg-surface p-4">
-                     <div className="flex items-center justify-between text-body-2-regular text-muted-foreground">
-                        <span>선택 구역</span>
-                        <span className="text-body-2-semibold text-foreground">
-                           {selectedSeats.length > 0 ? `${selectedSeats.length}개 좌석 선택` : '-'}
-                        </span>
+                  <div className="flex items-center justify-between px-5 py-5">
+                     <div className="flex items-center gap-2">
+                        <h2 className="text-heading-3-bold text-foreground">선택 좌석</h2>
+                        {selectedSeats.length > 0 ? (
+                           <span className="text-heading-4-bold text-primary">{selectedSeats.length}</span>
+                        ) : null}
                      </div>
-                     <div className="flex items-center justify-between text-body-2-regular text-muted-foreground">
-                        <span>총 좌석 수</span>
-                        <span className="text-body-2-semibold text-foreground">{selectedSeats.length}석</span>
-                     </div>
-                     <div className="flex items-center justify-between text-body-1-semibold text-foreground">
-                        <span>예상 결제 금액</span>
-                        <span>{formatPrice(selectedPrice)}</span>
-                     </div>
+                     {selectedSeats.length > 0 ? (
+                        <button
+                           type="button"
+                           onClick={clearAllSelections}
+                           className="text-body-2-medium text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                           전체 삭제
+                        </button>
+                     ) : null}
                   </div>
 
-                  <button
-                     type="button"
-                     disabled={selectedSeats.length === 0}
-                     className={[
-                        'h-[56px] w-full rounded-[8px] text-label-1-bold transition-colors',
-                        selectedSeats.length === 0
-                           ? 'bg-fill-disabled text-disabled-foreground'
-                           : 'bg-primary text-white hover:bg-primary-strong',
-                     ].join(' ')}
-                  >
-                     예매하기
-                  </button>
-               </div>
-            </aside>
+                  <div className="flex flex-1 flex-col px-5 pb-5">
+                     <div className="flex-1 overflow-y-auto rounded-2xl bg-background">
+                        <SelectedSeatSummaryList
+                           items={selectedSeats}
+                           onRemove={toggleSelectedSeat}
+                           emptyClassName="h-full min-h-[220px] bg-transparent"
+                        />
+                     </div>
+
+                     <div className="flex items-center justify-between gap-3 px-1 pb-5 pt-6 text-heading-4-medium text-secondary">
+                        <span>총 결제 금액</span>
+                        <span className="text-heading-4-bold text-primary">{formatPrice(summaryPrice)}</span>
+                     </div>
+
+                     <button
+                        type="button"
+                        disabled={selectedSeats.length === 0}
+                        onClick={handleProceedToPayment}
+                        className={[
+                           'h-[56px] w-full rounded-[8px] text-label-1-bold transition-colors',
+                           selectedSeats.length === 0
+                              ? 'bg-fill-disabled text-disabled-foreground'
+                              : 'bg-primary text-white hover:bg-primary-strong',
+                        ].join(' ')}
+                     >
+                        {bookingButtonLabel}
+                     </button>
+                  </div>
+               </aside>
+            )}
          </main>
       </div>
-   );
-}
-
-type MapControlButtonProps = {
-   ariaLabel: string;
-   children: ReactNode;
-   onClick: () => void;
-};
-
-function MapControlButton({ ariaLabel, children, onClick }: MapControlButtonProps) {
-   return (
-      <button
-         type="button"
-         aria-label={ariaLabel}
-         onClick={onClick}
-         className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border-light bg-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)]"
-      >
-         {children}
-      </button>
    );
 }
 

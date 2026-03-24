@@ -1,12 +1,18 @@
 import type { ReactNode } from "react";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { KakaoLoginButton } from "@/features/auth/kakao";
 import { NaverLoginButton } from "@/features/auth/naver";
 import { GoogleLoginButton } from "@/features/auth/google";
 import RecentLoginBadge from "@/features/auth/ui/RecentLoginBadge";
+import LoginTimeoutDialog from "./LoginTimeoutDialog";
+import LoginStatusDialog from "./LoginStatusDialog";
 import {
   useAuthStore,
+  type LoginAlert,
   type SocialProvider,
 } from "@/entities/auth/model/authStore";
+
 
 type SocialLoginButtonItem = {
   provider: SocialProvider;
@@ -20,9 +26,22 @@ const socialLoginButtons: SocialLoginButtonItem[] = [
 ];
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const accessToken = useAuthStore((state) => state.accessToken);
   const recentLoginProvider = useAuthStore(
     (state) => state.recentLoginProvider,
   );
+  const loginTimedOut = useAuthStore((state) => state.loginTimedOut);
+  const clearLoginTimedOut = useAuthStore((state) => state.clearLoginTimedOut);
+  const loginAlert = useAuthStore((state) => state.loginAlert);
+  const setLoginAlert = useAuthStore((state) => state.setLoginAlert);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    // loginAlert가 있으면 다이얼로그를 먼저 보여준 뒤 이동
+    if (loginAlert) return;
+    navigate("/", { replace: true });
+  }, [accessToken, loginAlert, navigate]);
 
   return (
     <div className="flex w-full h-screen items-center justify-center min-h-screen bg-white text-text-primary">
@@ -46,6 +65,19 @@ const LoginPage = () => {
           ))}
         </section>
       </div>
+      <LoginTimeoutDialog open={loginTimedOut} onConfirm={clearLoginTimedOut} />
+      <LoginStatusDialog
+        alert={loginAlert}
+        onConfirm={() => {
+          const alert = loginAlert;
+          setLoginAlert(null);
+          // redirectPath가 있는 타입(failed_under_5, dormant)은 해당 경로로 이동
+          if (alert && 'redirectPath' in alert) {
+            navigate(alert.redirectPath, { replace: true });
+          }
+        }}
+      />
+
     </div>
   );
 };

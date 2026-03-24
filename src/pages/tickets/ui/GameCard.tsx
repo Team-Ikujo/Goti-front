@@ -2,6 +2,7 @@
 
 import { CalendarDays, MapPin, Ticket } from 'lucide-react';
 
+import { formatBookingCardDateTime } from '@/shared/lib/bookingDateTime';
 import { cn } from '@/shared/lib/utils';
 
 import type { GameItem, TabType } from './types';
@@ -32,7 +33,7 @@ function StatusBadge({ status }: { status: string }) {
 interface GameCardProps {
    game: GameItem;
    activeTab: TabType;
-   onBookingClick: () => void;
+   onActionClick: (game: GameItem) => void;
 }
 
 /** 탭과 현재 상태에 따라 버튼 텍스트와 활성 여부 결정 */
@@ -48,10 +49,11 @@ function getButtonConfig(status: string, activeTab: TabType): { label: string; i
    }
 }
 
-export function GameCard({ game, activeTab, onBookingClick }: GameCardProps) {
+export function GameCard({ game, activeTab, onActionClick }: GameCardProps) {
    const status = activeTab === '예매' ? game.bookingStatus : game.resellStatus;
    const { label: buttonLabel, isActive } = getButtonConfig(status, activeTab);
    const showPrice = game.minPrice > 0;
+   const formattedDateTime = formatBookingCardDateTime(game.dateTime);
 
    const formatPrice = (price: number) => price.toLocaleString('ko-KR') + '원';
 
@@ -73,7 +75,7 @@ export function GameCard({ game, activeTab, onBookingClick }: GameCardProps) {
             <div className="flex items-center gap-4 flex-wrap">
                <div className="flex items-center gap-2 h-5">
                   <CalendarDays className="size-4 text-muted-foreground shrink-0" />
-                  <span className="text-body-2-regular text-muted-foreground whitespace-nowrap">{game.dateTime}</span>
+                  <span className="text-body-2-regular text-muted-foreground whitespace-nowrap">{formattedDateTime}</span>
                </div>
                <div className="flex items-center gap-2 h-5">
                   <MapPin className="size-4 text-muted-foreground shrink-0" />
@@ -109,7 +111,7 @@ export function GameCard({ game, activeTab, onBookingClick }: GameCardProps) {
             {/* 액션 버튼 */}
             <button
                disabled={!isActive}
-               onClick={activeTab === '예매' && isActive ? onBookingClick : undefined}
+               onClick={isActive ? () => onActionClick(game) : undefined}
                className={cn(
                   'px-[14px] py-[6px] rounded-[8px] text-body-2-medium whitespace-nowrap transition-colors w-[77px]',
                   isActive

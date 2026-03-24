@@ -1,9 +1,13 @@
 // src/pages/tickets/ui/payment/TicketPaymentPage.tsx
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSeatPaymentSummary';
+import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
+import { getBookingTeamConfig, getBookingZones } from '@/pages/books/model/zoneData';
 import { Button } from '@/shared/ui/button';
-import type { PaymentRequest } from '@/pages/tickets/api/paymentApi';
+import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import type { TicketCheckoutRequest } from '@/pages/tickets/api/paymentApi';
 import {
    CashReceiptCard,
    DiscountCard,
@@ -40,6 +44,31 @@ const MOCK_GAME = {
 
 export default function TicketPaymentPage() {
    const navigate = useNavigate();
+   const location = useLocation();
+   const locationState = location.state as (BookingEntryState & { botData?: TicketCheckoutRequest['botData'] }) | null;
+   const routeBookingEntryState = locationState;
+   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
+   const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
+   const zonesState = useSeatSelectionStore((state) => state.zones);
+   const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
+   const bookingZones = bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId);
+   const paymentSummary = getSelectedSeatPaymentSummary(zonesState, bookingZones);
+   const selectedSeats = Object.entries(zonesState).flatMap(([zoneId, zone]) => {
+      const selectedZone = bookingZones.find((item) => item.id === zoneId);
+
+      if (!selectedZone) {
+         return [];
+      }
+
+      return zone.selectedSeatIds
+         .map((seatId) => zone.seatMap[seatId])
+         .filter((seat) => Boolean(seat))
+         .map((seat) => ({
+            seatId: seat.id,
+            label: `${selectedZone.name} ${seat.block}블록 ${seat.rowLabel} ${seat.seatNumber}번`,
+         }));
+   });
+   const botData = locationState?.botData;
 
    // 주문자 정보
    const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('mobile');
@@ -73,10 +102,13 @@ export default function TicketPaymentPage() {
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
    const isFormValid =
       !!name &&
-      !!phone &&
+      phone.length === 11 &&
       !!email &&
       isDeliveryValid &&
       isCashReceiptValid &&
+      selectedSeats.length > 0 &&
+      !!bookingEntryState?.gameId &&
+      !!bookingEntryState?.queueTokenJti &&
       agreedPrivacy &&
       agreedPolicy &&
       agreedResell;
@@ -87,25 +119,88 @@ export default function TicketPaymentPage() {
    };
 
    const orderInfo = {
-      matchTitle: MOCK_GAME.matchTitle,
-      dateTime: MOCK_GAME.dateTime,
-      quantity: 2,
-      seats: ['1E-2구역 0열 0번', '1E-2구역 0열 0번'],
+      matchTitle: bookingEntryState?.matchTitle ?? `${bookingTeamConfig.displayName} 홈경기`,
+      dateTime: bookingEntryState?.dateTime ?? MOCK_GAME.dateTime,
+      quantity: paymentSummary.quantity,
+      seats: paymentSummary.seatLabels,
       deliveryLabel: DELIVERY_LABELS[deliveryMethod],
       paymentLabel: PAYMENT_LABELS[paymentMethod],
    };
 
    // 수수료: 매당 1,000원
    const fee = orderInfo.quantity * 1000;
-   const totalPayment = shippingFee + fee; // ticketPrice·할인 0원 (TODO: 실데이터 연결 후 업데이트)
+   const ticketPrice = paymentSummary.totalPrice;
+   const totalPayment = ticketPrice + shippingFee + fee; // 할인 0원
+
+   useEffect(() => {
+      if (routeBookingEntryState) {
+         setBookingEntry(routeBookingEntryState);
+      }
+   }, [routeBookingEntryState, setBookingEntry]);
+
+   useEffect(() => {
+      const selectedSeatSummary = Object.entries(zonesState).flatMap(([zoneId, zone]) =>
+         zone.selectedSeatIds.map(seatId => ({
+            zoneId,
+            seatId,
+         })),
+      );
+
+      console.info('[TicketPaymentPage] mounted with seat selections', {
+         selectedSeatCount: selectedSeatSummary.length,
+         selectedSeatSummary,
+      });
+   }, [zonesState]);
+
+   useEffect(() => {
+      console.info('[TicketPaymentPage] form validity check', {
+         isFormValid,
+         hasName: !!name,
+         hasPhoneLength11: phone.length === 11,
+         hasEmail: !!email,
+         isDeliveryValid,
+         isCashReceiptValid,
+         selectedSeatCount: selectedSeats.length,
+         hasGameId: !!bookingEntryState?.gameId,
+         hasQueueTokenJti: !!bookingEntryState?.queueTokenJti,
+         agreedPrivacy,
+         agreedPolicy,
+         agreedResell,
+      });
+   }, [
+      agreedPolicy,
+      agreedPrivacy,
+      agreedResell,
+      bookingEntryState?.gameId,
+      bookingEntryState?.queueTokenJti,
+      email,
+      isCashReceiptValid,
+      isDeliveryValid,
+      isFormValid,
+      name,
+      phone,
+      selectedSeats.length,
+   ]);
 
    const handlePay = () => {
-      const paymentRequest: PaymentRequest = {
+      if (!bookingEntryState?.gameId || !bookingEntryState.queueTokenJti) {
+         return;
+      }
+
+      const paymentRequest: TicketCheckoutRequest = {
+         gameId: bookingEntryState.gameId,
+         queueTokenJti: bookingEntryState.queueTokenJti,
+         matchTitle: orderInfo.matchTitle,
+         gameDate: orderInfo.dateTime,
+         gameVenue: bookingEntryState?.venue ?? bookingTeamConfig.stadiumName ?? MOCK_GAME.venue,
+         amount: totalPayment,
+         selectedSeats,
          deliveryMethod,
          ordererName: name,
          ordererPhone: phone,
          ordererEmail: email,
          paymentMethod,
+         botData,
          ...(deliveryMethod === 'delivery' && { zipCode, address, addressDetail }),
          ...(paymentMethod === 'bank' && {
             cashReceiptType,
@@ -113,26 +208,30 @@ export default function TicketPaymentPage() {
             cashReceiptNum,
          }),
       };
-      navigate('/tickets/payment/processing', { state: paymentRequest });
+      console.log('결제 요청 시 포함된 봇 데이터:', paymentRequest.botData);
+
+      navigate('/tickets/payment/processing', { state: { request: paymentRequest, amount: totalPayment } });
    };
 
    return (
       <div className="min-h-screen flex flex-col bg-background">
-         <PaymentHeader {...MOCK_GAME} />
+         <PaymentHeader
+            matchTitle={orderInfo.matchTitle}
+            venue={bookingEntryState?.venue ?? bookingTeamConfig.stadiumName ?? MOCK_GAME.venue}
+            dateTime={orderInfo.dateTime}
+         />
 
          <main className="flex-1 bg-white flex justify-center px-4">
-            <div className="w-full max-w-[1200px] py-8 flex flex-col gap-8">
-               <h1 className="text-[32px] font-bold leading-[1.45] tracking-[-0.032px] text-foreground">주문서</h1>
+            <div className="w-full max-w-300 py-8 flex flex-col gap-8">
+               <h1 className="text-title-1-bold leading-[1.45] tracking-[-0.032px] text-foreground">주문서</h1>
 
-               <div className="flex gap-8 items-start">
+               <div className="flex flex-col lg:flex-row gap-8 items-start">
                   {/* 왼쪽: 주문자 정보 */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-[10px]">
-                     <h2 className="text-[24px] font-bold leading-[1.5] text-foreground h-[42px]">주문자 정보 입력</h2>
-
+                  <div className="w-full lg:flex-1 min-w-0 flex flex-col gap-2.5">
                      <div className="flex flex-col gap-6">
                         {/* 수령 방식 선택 */}
                         <PaymentCard>
-                           <h3 className="text-[20px] font-bold leading-[1.5] text-foreground mb-5">수령 방식 선택</h3>
+                           <h3 className="text-heading-3-bold leading-normal text-foreground mb-5">수령 방식 선택</h3>
                            <div className="flex flex-col gap-3">
                               <RadioOptionCard
                                  selected={deliveryMethod === 'mobile'}
@@ -183,28 +282,6 @@ export default function TicketPaymentPage() {
                         {/* 결제 방법 */}
                         <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
 
-                        {/* 유의사항 */}
-                        <NotesCard />
-
-                        {/* 약관 동의 */}
-                        <TermsCard
-                           agreedPrivacy={agreedPrivacy}
-                           agreedPolicy={agreedPolicy}
-                           agreedResell={agreedResell}
-                           onChangePrivacy={setAgreedPrivacy}
-                           onChangePolicy={setAgreedPolicy}
-                           onChangeResell={setAgreedResell}
-                        />
-                     </div>
-                  </div>
-
-                  {/* 오른쪽: 주문 정보 */}
-                  <div className="flex-1 max-w-100 shrink-0 flex flex-col gap-[10px]">
-                     <h2 className="text-heading-1-bold leading-normal text-foreground h-9">주문 정보 확인</h2>
-
-                     <div className="flex flex-col gap-6">
-                        <OrderSummaryCard orderInfo={orderInfo} />
-
                         {/* 현금영수증 (무통장 입금 선택 시에만 표시) */}
                         {paymentMethod === 'bank' && (
                            <CashReceiptCard
@@ -219,8 +296,51 @@ export default function TicketPaymentPage() {
                            />
                         )}
 
+                        {/* 유의사항 */}
+                        <NotesCard />
+
+                        {/* 약관 동의 */}
+                        <TermsCard
+                           agreedPrivacy={agreedPrivacy}
+                           agreedPolicy={agreedPolicy}
+                           agreedResell={agreedResell}
+                           onChangePrivacy={setAgreedPrivacy}
+                           onChangePolicy={setAgreedPolicy}
+                           onChangeResell={setAgreedResell}
+                        />
+
+                        {/* 모바일 전용: 약관 동의 이후 주문정보 + 결제금액 + 버튼 */}
+                        <div className="lg:hidden flex flex-col gap-6">
+                           <OrderSummaryCard orderInfo={orderInfo} />
+                           <PaymentAmountCard
+                              ticketPrice={ticketPrice}
+                              shippingFee={shippingFee}
+                              discounts={[
+                                 { label: '학생 할인 5%', amount: 0 },
+                                 { label: '조기 예매 할인 10%', amount: 0 },
+                              ]}
+                              fee={fee}
+                           />
+                           <Button
+                              variant="primary"
+                              size="lg"
+                              className="w-full"
+                              disabled={!isFormValid}
+                              onClick={handlePay}
+                           >
+                              {totalPayment.toLocaleString('ko-KR')}원 결제하기
+                           </Button>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* 오른쪽: 주문 정보 — 데스크톱 전용 */}
+                  <div className="hidden lg:flex flex-col flex-1 max-w-100 shrink-0 gap-2.5">
+                     <div className="flex flex-col gap-6">
+                        <OrderSummaryCard orderInfo={orderInfo} />
+
                         <PaymentAmountCard
-                           ticketPrice={0}
+                           ticketPrice={ticketPrice}
                            shippingFee={shippingFee}
                            discounts={[
                               { label: '학생 할인 5%', amount: 0 },

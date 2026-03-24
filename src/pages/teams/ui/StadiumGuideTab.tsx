@@ -1,70 +1,39 @@
 // src/pages/teams/ui/StadiumGuideTab.tsx
-import stadiumImg from '@/shared/ui/image/image 195.png';
-import mapImg from '@/shared/ui/image/스크린샷 2026-02-10 오전 9.48.52 1.png';
+import type { Team } from '@/entities/team/model/types';
 
-const STADIUM_INFO = [
-   { label: '구장명', value: '광주 - 기아 챔피언스 필드' },
-   { label: '주소', value: '광주 북구 서림로 10' },
-   { label: '좌석수', value: '관람석 20,500석' },
-   { label: '총면적', value: '57,646㎡' },
-   { label: '규모', value: '지하 2층 지상 5층' },
-   { label: '펜스', value: '좌 · 우 99m, 중 121m' },
-   { label: '특징', value: '국내 최초 개방형 야구장' },
-];
-
-interface BusStop {
-   name: string;
-   buses: { type: '간선' | '지선'; routes: string }[];
+interface Props {
+   team: Team;
 }
-
-const BUS_STOPS: BusStop[] = [
-   {
-      name: '제2광천교 4509',
-      buses: [
-         { type: '간선', routes: '상무64, 228' },
-         { type: '지선', routes: '매월26, 일곡38, 송암47, 상무64, 228' },
-      ],
-   },
-   {
-      name: '무등야구장 4439',
-      buses: [
-         { type: '간선', routes: '송정98, 228, 임곡89' },
-         { type: '지선', routes: '일곡38' },
-      ],
-   },
-   {
-      name: '광주기아챔피언스필드 4490, 1780048',
-      buses: [
-         { type: '간선', routes: '매월16, 운림51, 첨단95' },
-         { type: '지선', routes: '일곡38, 녹진100, 마령100, 장성100, 진원100' },
-      ],
-   },
-   {
-      name: '광주기아챔피언스필드 정문 4491',
-      buses: [{ type: '간선', routes: '매월16' }],
-   },
-   {
-      name: '임동주공아파트 4667',
-      buses: [{ type: '간선', routes: '용전84' }],
-   },
-];
 
 function BusBadge({ type }: { type: '간선' | '지선' }) {
    if (type === '간선') {
       return (
-         <span className="bg-[#1565c0] flex h-[21px] items-center justify-center overflow-hidden px-[10px] rounded-[15px] shrink-0">
+         <span className="bg-[#1565c0] flex h-[21px] w-[44px] items-center justify-center overflow-hidden rounded-[15px] shrink-0">
             <span className="text-[13px] font-bold text-white leading-[1.5] whitespace-nowrap">간선</span>
          </span>
       );
    }
    return (
-      <span className="border-[1.5px] border-[#2e7d32] flex h-[21px] items-center justify-center overflow-hidden px-[10px] rounded-[15px] shrink-0">
+      <span className="border-[1.5px] border-[#2e7d32] flex h-[21px] w-[44px] items-center justify-center overflow-hidden rounded-[15px] shrink-0">
          <span className="text-[13px] font-bold text-[#2e7d32] leading-[1.5] whitespace-nowrap">지선</span>
       </span>
    );
 }
 
-export function StadiumGuideTab() {
+export function StadiumGuideTab({ team }: Props) {
+   const guide = team.stadiumGuide;
+
+   if (!guide) {
+      return (
+         <div className="flex items-center justify-center w-full py-20">
+            <p className="text-[16px] text-foreground opacity-50">구장 정보가 준비 중입니다.</p>
+         </div>
+      );
+   }
+
+   const stadiumName = guide.info.find(item => item.label === '구장명')?.value ?? '';
+   const address = guide.info.find(item => item.label === '주소')?.value ?? '';
+
    return (
       <div className="flex flex-col gap-[120px] items-start w-full">
          {/* 구장 소개 */}
@@ -76,8 +45,8 @@ export function StadiumGuideTab() {
                <div className="bg-background flex flex-1 items-center justify-center max-w-full md:max-w-[700px] overflow-hidden w-full">
                   <div className="aspect-[1090/700] flex-1 relative w-full max-w-[700px] overflow-hidden rounded-[14px]">
                      <img
-                        src={stadiumImg}
-                        alt="광주 기아 챔피언스 필드"
+                        src={guide.stadiumImageSrc}
+                        alt={stadiumName}
                         className="absolute inset-0 w-full h-full object-cover"
                      />
                   </div>
@@ -86,11 +55,9 @@ export function StadiumGuideTab() {
                {/* 구장 정보 */}
                <div className="flex flex-col gap-[20px] items-start w-full max-w-[700px] md:max-w-none md:w-[300px] md:shrink-0">
                   <div className="h-[6px] bg-foreground w-[150px]" />
-                  <p className="text-[22px] font-bold text-foreground leading-[1.55] w-full">
-                     광주 - 기아 챔피언스 필드
-                  </p>
+                  <p className="text-[22px] font-bold text-foreground leading-[1.55] w-full">{stadiumName}</p>
                   <div className="flex flex-col gap-[10px] items-start w-full">
-                     {STADIUM_INFO.map(({ label, value }) => (
+                     {guide.info.map(({ label, value }) => (
                         <div key={label} className="flex gap-[14px] items-center">
                            <span className="text-[16px] font-medium text-foreground leading-[1.5] w-[50px] shrink-0">
                               {label}
@@ -111,8 +78,12 @@ export function StadiumGuideTab() {
             <div className="flex flex-col md:flex-row gap-[20px] md:gap-[50px] items-start w-full">
                {/* 지도 이미지 */}
                <div className="flex flex-1 flex-col items-center max-w-full md:max-w-[700px] overflow-hidden w-full">
-                  <div className="aspect-[960/480] relative w-full max-w-[700px]">
-                     <img src={mapImg} alt="구장 위치 지도" className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="aspect-[960/480] relative w-full max-w-[700px] overflow-hidden rounded-[14px]">
+                     <img
+                        src={guide.mapImageSrc}
+                        alt="구장 위치 지도"
+                        className="absolute inset-0 w-full h-full object-cover"
+                     />
                   </div>
                </div>
 
@@ -125,7 +96,7 @@ export function StadiumGuideTab() {
                         주소
                      </span>
                      <div className="w-px h-[14px] bg-[#d0d6db] shrink-0" />
-                     <span className="text-[16px] font-medium text-foreground leading-[1.5]">광주 북구 서림로 10</span>
+                     <span className="text-[16px] font-medium text-foreground leading-[1.5]">{address}</span>
                   </div>
                </div>
             </div>
@@ -139,7 +110,7 @@ export function StadiumGuideTab() {
                {/* 제목 라벨 */}
                <div className="bg-[#e9ebee] flex flex-col md:flex-row items-center gap-[10px] px-[20px] py-[4px] rounded-[20px] w-full max-w-[460px] md:absolute md:top-0 md:left-[32px] md:z-10 md:max-w-none md:w-auto md:flex-nowrap">
                   <span className="text-[22px] font-medium text-foreground leading-[1.55] text-center">
-                     광주 - 기아 챔피언스 필드 방면
+                     {stadiumName} 방면
                   </span>
                   <span className="text-[22px] font-bold text-foreground leading-[1.55]">시내 버스 정류장</span>
                </div>
@@ -147,7 +118,7 @@ export function StadiumGuideTab() {
                {/* 버스 정류장 카드 그리드 */}
                <div className="border-[3px] border-[#e9ebee] overflow-hidden pb-[30px] pt-[30px] md:mt-[21px] md:pt-[50px] px-[30px] rounded-[20px] w-full">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-x-[30px] gap-y-[20px]">
-                     {BUS_STOPS.map(stop => (
+                     {guide.busStops.map(stop => (
                         <div
                            key={stop.name}
                            className="bg-[#f4f7fe] border-2 border-[#cbd9fa] flex items-start overflow-hidden p-[20px] rounded-[30px]"

@@ -55,7 +55,7 @@ function WeekNavigator({
                <div ref={pickerContainerRef} className="relative">
                   <button
                      onClick={() => setShowPicker(prev => !prev)}
-                     className="text-[18px] font-bold text-(--text-primary) leading-[1.5] min-w-[110px] text-center"
+                     className="text-heading-3-semibold text-foreground leading-normal min-w-[110px] text-center"
                   >
                      {weekYear}-{String(weekMonth).padStart(2, '0')}
                   </button>
@@ -83,8 +83,12 @@ function WeekNavigator({
             <div className="w-[56px]" />
          </div>
 
-         {/* 주차 버튼 — 날짜 버튼 바로 밑 배치 */}
-         <div className="flex gap-7.5 justify-center">
+         {/* 주차 버튼
+              justify-between이 갭을 자동 분배:
+                컨테이너 560px(max-w-140): 버튼 88px × 5 + 갭 30px × 4 = 560px
+                컨테이너 343px(min): 버튼 67px × 5 + 갭 2px × 4 = 343px
+              버튼 너비 보간: clamp(67, 33.81px + 9.68%, 88) */}
+         <div className="flex justify-between w-full max-w-140 mx-auto min-w-[343px] h-12">
             {WEEK_OPTIONS.map(week => {
                const isSelected = week === selectedWeek;
                return (
@@ -93,7 +97,7 @@ function WeekNavigator({
                      onClick={() => onSelectWeek(week)}
                      variant={isSelected ? 'secondary' : 'tertiary'}
                      className={cn(
-                        'px-5.5 py-2.25 rounded-[10px] text-heading-3-semibold leading-normal',
+                        'w-[clamp(67px,_calc(33.81px_+_9.68%),_88px)] shrink-0 px-5.5 py-2.25 rounded-[10px] text-heading-3-semibold leading-normal h-auto overflow-hidden',
                         !isSelected && 'border-[#161d24] text-[#161d24]',
                      )}
                   >

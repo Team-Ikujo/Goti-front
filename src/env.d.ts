@@ -15,8 +15,13 @@ interface DaumPostcodeOptions {
    height?: number;
 }
 
+interface DaumPostcodeOpenOptions {
+   left?: number;
+   top?: number;
+}
+
 interface DaumPostcode {
-   new (options: DaumPostcodeOptions): { open: () => void };
+   new (options: DaumPostcodeOptions): { open: (options?: DaumPostcodeOpenOptions) => void };
 }
 
 interface Window {

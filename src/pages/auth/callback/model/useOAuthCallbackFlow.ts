@@ -8,13 +8,17 @@ import type {
   SocialProvider,
   SubmitAuthCodeParams,
 } from "@/features/auth/api/oauthApi";
-import { getOAuthRedirectUri } from "@/features/auth/api/oauthApi";
-import { useAuthStore } from "@/entities/auth/model/authStore";
+import { useAuthStore, type LoginAlert } from "@/entities/auth/model/authStore";
+import type { LoginAccountStatus } from "@/features/auth/api/authApi";
 import { ApiError } from "@/shared/api/client";
 import {
   OAUTH_SUCCESS_MESSAGE_TYPE,
   type OAuthSuccessMessage,
 } from "@/shared/lib/oauthMessage";
+import {
+  clearIssuedSocialState,
+  getIssuedSocialState,
+} from "@/features/auth/lib/socialStateStorage";
 
 const isSocialProvider = (value?: string): value is SocialProvider => {
   switch (value) {
@@ -22,6 +26,18 @@ const isSocialProvider = (value?: string): value is SocialProvider => {
     case "naver":
     case "google":
       return true;
+    default:
+      return false;
+  }
+};
+
+const requiresState = (provider: SocialProvider) => {
+  switch (provider) {
+    case "google":
+    case "naver":
+      return true;
+    case "kakao":
+      return false;
     default:
       return false;
   }
@@ -70,10 +86,31 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
     }
     didRunRef.current = true;
 
+    // accountStatus → LoginAlert 변환
+    const buildLoginAlert = (
+      status: LoginAccountStatus | undefined,
+      failCount: number | undefined,
+      redirectPath: string,
+    ): LoginAlert | undefined => {
+      switch (status) {
+        case 'failed_under_5':
+          return { type: 'failed_under_5', failCount: failCount ?? 0, redirectPath };
+        case 'failed_over_5':
+          return { type: 'failed_over_5', failCount: failCount ?? 5 };
+        case 'dormant':
+          return { type: 'dormant', redirectPath };
+        case 'rejoining_locked':
+          return { type: 'rejoining_locked' };
+        default:
+          return undefined;
+      }
+    };
+
     const redirectFromPopup = (
       path: string,
       tokens: { accessToken: string | null; socialVerifyToken: string | null },
       provider: SocialProvider,
+      loginAlert?: LoginAlert,
     ) => {
       if (window.opener && !window.opener.closed) {
         const message: OAuthSuccessMessage = {
@@ -82,6 +119,7 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
           socialVerifyToken: tokens.socialVerifyToken,
           provider,
           redirectPath: path,
+          loginAlert,
         };
         window.opener.postMessage(
           message,
@@ -102,17 +140,36 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
           throw new Error("Missing authorization code.");
         }
 
+        console.log("[OAuth] Provider authorization code received.", {
+          provider: normalizedProvider,
+          authCode: code,
+        });
+
         if (!isSocialProvider(normalizedProvider)) {
           throw new Error(`Unsupported provider: ${normalizedProvider ?? "none"}`);
         }
 
+        const callbackState = params.get("state");
+        const issuedState = getIssuedSocialState(normalizedProvider);
+
+        if (callbackState && issuedState && callbackState !== issuedState) {
+          throw new Error("OAuth state mismatch.");
+        }
+
+        const state = issuedState ?? callbackState;
+
+        if (requiresState(normalizedProvider) && !state) {
+          throw new Error("Missing OAuth state.");
+        }
+
         const verifyPayload: SubmitAuthCodeParams = {
           provider: normalizedProvider,
-          code,
-          redirectUri: getOAuthRedirectUri(normalizedProvider),
-          state: params.get("state"),
+          authCode: code,
+          state,
         };
+
         const response = await submitAuthCodeMutation.mutateAsync(verifyPayload);
+        clearIssuedSocialState(normalizedProvider);
 
         setRecentLoginProvider(normalizedProvider);
 
@@ -120,13 +177,18 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
           const loginResponse = await socialLoginMutation.mutateAsync({
             socialVerifyToken: response.socialVerifyToken,
           });
+          const loginAlert = buildLoginAlert(
+            loginResponse.accountStatus,
+            loginResponse.failCount,
+            "/",
+          );
           const tokens = {
             accessToken: loginResponse.accessToken,
             socialVerifyToken: null,
           };
           setAuthTokens(tokens);
           setMessage("로그인 완료!");
-          if (!redirectFromPopup("/", tokens, normalizedProvider)) {
+          if (!redirectFromPopup("/", tokens, normalizedProvider, loginAlert)) {
             navigate("/", { replace: true });
           }
           return;
@@ -142,6 +204,9 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
           navigate("/auth/terms", { replace: true });
         }
       } catch (error) {
+        if (isSocialProvider(normalizedProvider)) {
+          clearIssuedSocialState(normalizedProvider);
+        }
         setMessage("로그인에 실패했어요. 다시 시도해 주세요.");
         setErrorMessage(formatErrorMessage(error));
         console.error(error);

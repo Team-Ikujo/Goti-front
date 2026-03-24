@@ -1,3 +1,7 @@
+import stadiumImgKia from '@/shared/ui/image/image 195.png';
+import mapImgKia from '@/shared/ui/image/스크린샷 2026-02-10 오전 9.48.52 1.png';
+const stadiumImgSamsung = '/images/삼성 홈구장 외관.jpeg';
+const mapImgSamsung = '/images/삼성 위치.png';
 import type { Team } from "./types";
 
 export const teams: Team[] = [
@@ -7,6 +11,44 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/samsung.png",
     logoAspectClassName: "aspect-[1280/962]",
     isEnabled: true,
+    teamCode: "SS",
+    stadiumName: "대구",
+    stadiumGuide: {
+      stadiumImageSrc: stadiumImgSamsung,
+      mapImageSrc: mapImgSamsung,
+      info: [
+        { label: '구장명', value: '대구 삼성 라이온즈 파크' },
+        { label: '주소', value: '대구광역시 수성구 야구전설로 1' },
+        { label: '좌석수', value: '관람석 24,000석' },
+        { label: '총면적', value: '107,000㎡' },
+        { label: '규모', value: '지상 5층' },
+        { label: '펜스', value: '좌·우 100m, 중 122m' },
+        { label: '특징', value: '국내 최대 규모 야구장' },
+      ],
+      busStops: [
+        {
+          name: '수성알파시티역 5번출구 (경산 방면)',
+          buses: [
+            { type: '간선', routes: '309, 349, 609, 937' },
+            { type: '지선', routes: '399, 509, 990, 991, 수성3' },
+          ],
+        },
+        {
+          name: '수성알파시티역 1번출구 (시내 방면)',
+          buses: [
+            { type: '간선', routes: '309, 609, 649, 937' },
+            { type: '지선', routes: '399, 509, 991, 수성3' },
+          ],
+        },
+        {
+          name: '수성못역 (수성못로)',
+          buses: [
+            { type: '간선', routes: '349, 618, 649' },
+            { type: '지선', routes: '수성1, 수성3' },
+          ],
+        },
+      ],
+    },
   },
   {
     id: "kia",
@@ -14,6 +56,44 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/kia.png",
     logoAspectClassName: "aspect-[1280/954]",
     isEnabled: true,
+    teamCode: "KIA",
+    stadiumName: "광주",
+    stadiumGuide: {
+      stadiumImageSrc: stadiumImgKia,
+      mapImageSrc: mapImgKia,
+      info: [
+        { label: '구장명', value: '광주 - 기아 챔피언스 필드' },
+        { label: '주소', value: '광주 북구 서림로 10' },
+        { label: '좌석수', value: '관람석 20,500석' },
+        { label: '총면적', value: '57,646㎡' },
+        { label: '규모', value: '지하 2층 지상 5층' },
+        { label: '펜스', value: '좌 · 우 99m, 중 121m' },
+        { label: '특징', value: '국내 최초 개방형 야구장' },
+      ],
+      busStops: [
+        {
+          name: '광주기아챔피언스필드 (서림로)',
+          buses: [
+            { type: '간선', routes: '매월16' },
+            { type: '지선', routes: '일곡38, 운림51, 용전84, 첨단95' },
+          ],
+        },
+        {
+          name: '무등야구장 (무등로)',
+          buses: [
+            { type: '간선', routes: '228' },
+            { type: '지선', routes: '일곡38, 임곡89, 송정98' },
+          ],
+        },
+        {
+          name: '광주기아챔피언스필드입구 (무등로)',
+          buses: [
+            { type: '간선', routes: '228' },
+            { type: '지선', routes: '금남58, 임곡89, 송정98' },
+          ],
+        },
+      ],
+    },
   },
   {
     id: "lg",

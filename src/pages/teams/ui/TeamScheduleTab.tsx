@@ -5,47 +5,44 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import ScheduleList from '@/pages/home/ui/game-schedule/ScheduleList';
-import {
-   CURRENT_MONTH,
-   CURRENT_WEEK,
-   CURRENT_YEAR,
-   WEEK_OPTIONS,
-   TAB_WEEK,
-   scheduleData,
-} from '@/pages/home/ui/game-schedule/constants';
 import { YearMonthPicker } from '@/pages/home/ui/game-schedule/YearMonthPicker';
+import { WEEK_OPTIONS, TAB_WEEK } from '@/pages/home/ui/game-schedule/constants';
 import { filterScheduleData } from '@/pages/home/ui/game-schedule/utils';
+import { useGameSchedules } from '../api/useGameSchedules';
 import { BookingGuide } from './BookingGuide';
 
-interface Props {
-   teamName: string | undefined;
+function getCurrentWeek(): number {
+   return Math.ceil(new Date().getDate() / 7);
 }
 
-export function TeamScheduleTab({ teamName }: Props) {
-   const [weekYear, setWeekYear] = useState(CURRENT_YEAR);
-   const [weekMonth, setWeekMonth] = useState(CURRENT_MONTH);
-   const [selectedWeek, setSelectedWeek] = useState(CURRENT_WEEK);
+interface Props {
+   serverTeamId: string | undefined;
+}
+
+export function TeamScheduleTab({ serverTeamId }: Props) {
+   const now = new Date();
+   const [weekYear, setWeekYear] = useState(now.getFullYear());
+   const [weekMonth, setWeekMonth] = useState(now.getMonth() + 1);
+   const [selectedWeek, setSelectedWeek] = useState(getCurrentWeek());
    const [showPicker, setShowPicker] = useState(false);
    const pickerContainerRef = useRef<HTMLDivElement>(null);
+   const { schedules, loading, error } = useGameSchedules({
+      serverTeamId,
+      year: weekYear,
+      month: weekMonth,
+      week: selectedWeek,
+   });
 
    const filteredData = useMemo(() => {
-      const byWeek = filterScheduleData(scheduleData, {
+      return filterScheduleData(schedules, {
          activeTab: TAB_WEEK,
+         weekYear,
          weekMonth,
          selectedWeek,
+         allYear: weekYear,
          allMonth: weekMonth,
-         weekYear,
       });
-
-      if (!teamName) return byWeek;
-
-      return byWeek
-         .map(day => ({
-            ...day,
-            games: day.games.filter(g => g.away === teamName || g.home === teamName),
-         }))
-         .filter(day => day.games.length > 0);
-   }, [weekMonth, selectedWeek, teamName]);
+   }, [schedules, weekMonth, selectedWeek, weekYear]);
 
    const prevMonth = () => {
       if (weekMonth === 1) {
@@ -67,39 +64,41 @@ export function TeamScheduleTab({ teamName }: Props) {
       setSelectedWeek(1);
    };
 
-   const handleConfirm = (year: number, month: number) => {
-      setWeekYear(year);
-      setWeekMonth(month);
-      setSelectedWeek(1);
-   };
-
    return (
       <>
          {/* 월/주차 네비게이터 */}
          <div className="flex flex-col gap-3 items-center w-full">
-            {/* 년월 선택 — Figma: < 2025-07 > */}
-            <div className="flex items-center gap-2 justify-center">
+            {/* 년월 선택 */}
+            <div className="flex items-center gap-2">
                <button
                   onClick={prevMonth}
-                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
+                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-icon-primary"
                >
-                  <ChevronLeft className="size-6" />
+                  <ChevronLeft className="size-5 md:size-6" />
                </button>
 
-               {/* 트리거 버튼 + picker를 같은 relative 컨테이너로 묶어 정확한 위치 기준 설정 */}
+               {/* 트리거 + 피커 컨테이너 */}
                <div ref={pickerContainerRef} className="relative">
                   <button
-                     onClick={() => setShowPicker(v => !v)}
-                     className="text-[24px] font-bold text-(--text-primary) leading-[1.5] min-w-[130px] text-center"
+                     onClick={() => setShowPicker(prev => !prev)}
+                     className="text-heading-1-bold text-foreground leading-normal min-w-27.5 text-center"
                   >
                      {weekYear}-{String(weekMonth).padStart(2, '0')}
                   </button>
+
                   {showPicker && (
                      <YearMonthPicker
                         year={weekYear}
                         month={weekMonth}
                         containerRef={pickerContainerRef}
-                        onConfirm={handleConfirm}
+                        onSelectYear={y => {
+                           setWeekYear(y);
+                           setSelectedWeek(1);
+                        }}
+                        onSelectMonth={m => {
+                           setWeekMonth(m);
+                           setSelectedWeek(1);
+                        }}
                         onClose={() => setShowPicker(false)}
                      />
                   )}
@@ -107,21 +106,25 @@ export function TeamScheduleTab({ teamName }: Props) {
 
                <button
                   onClick={nextMonth}
-                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-(--text-tertiary)"
+                  className="flex items-center justify-center size-8 rounded-full hover:bg-gray-100 text-icon-primary"
                >
-                  <ChevronRight className="size-6" />
+                  <ChevronRight className="size-5 md:size-6" />
                </button>
             </div>
 
-            {/* 주차 선택 */}
-            <div className="flex gap-3.75 md:gap-7.5 items-start justify-center w-full flex-wrap">
+            {/* 주차 선택
+                 justify-between이 갭을 자동 분배:
+                   컨테이너 560px: 버튼 88px × 5 + 갭 30px × 4 = 560px
+                   컨테이너 343px(min): 버튼 67px × 5 + 갭 2px × 4 = 343px
+                 버튼 너비 보간: clamp(67, 33.81px + 9.68%, 88) */}
+            <div className="flex justify-between w-full max-w-140 mx-auto min-w-[343px]">
                {WEEK_OPTIONS.map(week => (
                   <Button
                      key={week}
                      onClick={() => setSelectedWeek(week)}
                      variant={week === selectedWeek ? 'secondary' : 'tertiary'}
                      className={cn(
-                        'px-4 md:px-5.5 py-2.25 rounded-[10px] text-[16px] md:text-[20px] font-semibold leading-normal',
+                        'w-[clamp(67px,_calc(33.81px_+_9.68%),_88px)] shrink-0 px-5.5 py-2.25 rounded-[10px] text-heading-3-semibold leading-normal h-auto overflow-hidden',
                         week !== selectedWeek && 'shadow-[inset_0_0_0_1px_#161d24] text-[#161d24]',
                      )}
                   >
@@ -134,7 +137,17 @@ export function TeamScheduleTab({ teamName }: Props) {
          <div className="flex flex-col gap-30 items-start w-full">
             {/* 경기 일정 리스트 */}
             <div className="flex flex-col gap-6.25 items-start w-full">
-               <ScheduleList activeTab={TAB_WEEK} filteredData={filteredData} />
+               {loading ? (
+                  <div className="flex h-100 items-center justify-center rounded-[10px] border-border bg-surface w-full">
+                     <p className="text-[18px] text-[#acb4bb]">일정을 불러오는 중...</p>
+                  </div>
+               ) : error ? (
+                  <div className="rounded-[10px] border border-border bg-surface px-5 py-10 text-center text-body-1-medium text-muted-foreground w-full">
+                     경기 일정을 불러오지 못했습니다.
+                  </div>
+               ) : (
+                  <ScheduleList activeTab={TAB_WEEK} filteredData={filteredData} />
+               )}
             </div>
 
             {/* 예매 안내 */}

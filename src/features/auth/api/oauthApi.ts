@@ -14,8 +14,7 @@ export type SocialStateResponse = {
 
 export type SubmitAuthCodeParams = {
   provider: SocialProvider;
-  code: string;
-  redirectUri: string;
+  authCode: string;
   state?: string | null;
 };
 
@@ -25,6 +24,18 @@ export type SubmitAuthCodeResponse = {
 };
 
 const providerToPath = (provider: SocialProvider) => provider.toUpperCase();
+
+const requiresState = (provider: SocialProvider) => {
+  switch (provider) {
+    case "google":
+    case "naver":
+      return true;
+    case "kakao":
+      return false;
+    default:
+      return false;
+  }
+};
 
 export const getOAuthRedirectUri = (provider: SocialProvider): string => {
   switch (provider) {
@@ -69,15 +80,24 @@ export const issueSocialState = async (
 
 export const submitAuthCode = async ({
   provider,
-  code,
-  redirectUri,
+  authCode,
   state,
 }: SubmitAuthCodeParams): Promise<SubmitAuthCodeResponse> => {
+  const requestBody: { authCode: string; state?: string } = { authCode };
+
+  if (requiresState(provider)) {
+    if (!state) {
+      throw new Error("OAuth state is required for this provider.");
+    }
+
+    requestBody.state = state;
+  }
+
   const response = await apiClient.post<
     ApiEnvelope<SubmitAuthCodeResponse> | SubmitAuthCodeResponse
   >(
     `/api/v1/auth/${providerToPath(provider)}/social/verify`,
-    { code, redirectUri, state: state ?? null },
+    requestBody,
   );
 
   const payload =

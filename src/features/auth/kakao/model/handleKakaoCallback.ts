@@ -16,8 +16,7 @@ export const handleKakaoCallback = async (search: string) => {
 
   return submitAuthCode({
     provider: "kakao",
-    code,
+    authCode: code,
     state,
-    redirectUri: KAKAO_REDIRECT_URI,
   });
 };

@@ -16,8 +16,7 @@ export const handleGoogleCallback = async (search: string) => {
 
   return submitAuthCode({
     provider: "google",
-    code,
+    authCode: code,
     state,
-    redirectUri: GOOGLE_REDIRECT_URI,
   });
 };

@@ -16,8 +16,7 @@ export const handleNaverCallback = async (search: string) => {
 
   return submitAuthCode({
     provider: "naver",
-    code,
+    authCode: code,
     state,
-    redirectUri: NAVER_REDIRECT_URI,
   });
 };

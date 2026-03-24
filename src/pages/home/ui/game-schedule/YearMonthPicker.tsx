@@ -54,7 +54,7 @@ function PickerBox({
          {/* 위로 스크롤 */}
          <button
             onClick={onScrollUp}
-            className="flex items-center justify-center w-full py-2 text-[#646f7c] hover:bg-gray-50 rounded-[4px]"
+            className="flex items-center justify-center w-full py-2 text-icon-primary hover:bg-gray-50 rounded-[4px]"
          >
             <ChevronUp className="size-5" />
          </button>
@@ -78,7 +78,7 @@ function PickerBox({
          {/* 아래로 스크롤 */}
          <button
             onClick={onScrollDown}
-            className="flex items-center justify-center w-full py-2 text-[#646f7c] hover:bg-gray-50 rounded-[4px]"
+            className="flex items-center justify-center w-full py-2 text-icon-primary hover:bg-gray-50 rounded-[4px]"
          >
             <ChevronDown className="size-5" />
          </button>

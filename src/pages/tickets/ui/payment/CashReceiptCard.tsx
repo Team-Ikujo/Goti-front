@@ -32,12 +32,12 @@ function NumTypeSelect({ value, onChange }: { value: CashReceiptNumType; onChang
    }, []);
 
    return (
-      <div ref={ref} className="relative flex-1">
+      <div ref={ref} className="relative w-62.5">
          {/* 트리거 */}
          <button
             type="button"
             onClick={() => setOpen(prev => !prev)}
-            className="w-full h-9 px-[13px] py-px flex items-center justify-between border border-border-light rounded-[8px] bg-background"
+            className="w-62.5 h-9 px-[13px] py-px flex items-center justify-between border border-border-light rounded-lg bg-background"
          >
             <span className="text-[14px] font-medium leading-[1.5] text-foreground">{selected.label}</span>
             <ChevronDown className={cn('size-5 text-foreground transition-transform', open && 'rotate-180')} />
@@ -45,7 +45,7 @@ function NumTypeSelect({ value, onChange }: { value: CashReceiptNumType; onChang
 
          {/* 드롭다운 목록 */}
          {open && (
-            <div className="absolute top-[calc(100%+4px)] left-0 right-0 z-10 bg-background border border-border-light rounded-[8px] p-[5px]">
+            <div className="absolute top-[calc(100%+4px)] left-0 right-0 z-10 bg-background border border-border-light rounded-lg p-[5px] w-full">
                {CASH_NUM_OPTIONS.map(opt => (
                   <button
                      key={opt.value}
@@ -107,10 +107,10 @@ export function CashReceiptCard({
 }: CashReceiptCardProps) {
    return (
       <PaymentCard>
-         <h3 className="text-[20px] font-bold leading-[1.5] text-foreground mb-10">현금영수증</h3>
-         <div className="flex flex-col gap-[18px]">
+         <h3 className="text-heading-3-bold leading-normal text-foreground mb-10">현금영수증</h3>
+         <div className="flex flex-col gap-4.5">
             {/* 소득공제용 / 지출증빙용 / 미발행 */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-5">
                {(
                   [
                      { value: 'income', label: '소득공제용' },
@@ -125,7 +125,7 @@ export function CashReceiptCard({
                      className="flex items-center gap-1"
                   >
                      <InlineRadio selected={receiptType === opt.value} />
-                     <span className="text-[16px] font-medium leading-[1.5] text-muted-foreground">{opt.label}</span>
+                     <span className="text-body-1-medium leading-normal text-muted-foreground">{opt.label}</span>
                   </button>
                ))}
             </div>
@@ -136,10 +136,12 @@ export function CashReceiptCard({
                   <NumTypeSelect value={numType} onChange={onChangeNumType} />
                   <input
                      type="text"
+                     inputMode="numeric"
                      value={num}
-                     onChange={e => onChangeNum(e.target.value)}
+                     onChange={e => onChangeNum(e.target.value.replace(/\D/g, '').slice(0, 13))}
                      placeholder="숫자만 입력해 주세요."
-                     className="w-full h-9 px-3 border border-border-light rounded-lg text-[14px] font-medium leading-[1.5] text-foreground flex-1 placeholder:text-disabled-foreground bg-background outline-none"
+                     maxLength={13}
+                     className="w-full h-9 px-3 border border-border-light rounded-lg text-body-2-medium leading-normal text-foreground flex-1 placeholder:text-disabled-foreground bg-background outline-none"
                   />
                </div>
             )}
@@ -148,9 +150,7 @@ export function CashReceiptCard({
             {receiptType !== 'none' && (
                <label className="flex items-center gap-1 cursor-pointer">
                   <Checkbox checked={saveInfo} onCheckedChange={v => onChangeSaveInfo(!!v)} />
-                  <span className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
-                     현금영수증 정보 저장
-                  </span>
+                  <span className="text-body-1-medium leading-normal text-muted-foreground">현금영수증 정보 저장</span>
                </label>
             )}
          </div>

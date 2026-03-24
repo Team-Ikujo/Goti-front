@@ -1,6 +1,7 @@
 // src/pages/home/ui/GameSchedule.tsx
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGameSchedules, mapGamesToDaySchedules } from '@/entities/game/model/schedule';
 
 import {
    AVAILABLE_YEARS,
@@ -10,7 +11,6 @@ import {
    TAB_ALL,
    TAB_TODAY,
    TAB_WEEK,
-   scheduleData,
    tabs,
 } from './game-schedule/constants';
 import AllNavigator from './game-schedule/AllNavigator';
@@ -30,17 +30,45 @@ const GameSchedule = () => {
    const [allYear, setAllYear] = useState(CURRENT_YEAR);
    const [allMonth, setAllMonth] = useState(CURRENT_MONTH);
 
+   const scheduleParams = (() => {
+      switch (activeTab) {
+         case TAB_TODAY:
+            return { today: true };
+         case TAB_WEEK:
+            return {
+               year: weekYear,
+               month: weekMonth,
+               today: false,
+            };
+         default:
+            return {
+               year: allYear,
+               month: allMonth,
+               today: false,
+            };
+      }
+   })();
+
+   const scheduleQuery = useGameSchedules(scheduleParams);
+
+   const scheduleData = useMemo(
+      () => mapGamesToDaySchedules(scheduleQuery.data ?? []),
+      [scheduleQuery.data],
+   );
+
    const filteredData = useMemo(
       () =>
-         filterScheduleData(scheduleData, {
-            activeTab,
-            weekYear,
-            weekMonth,
-            selectedWeek,
-            allYear,
-            allMonth,
-         }),
-      [activeTab, weekYear, weekMonth, selectedWeek, allYear, allMonth],
+         activeTab === TAB_TODAY
+            ? scheduleData.filter(day => day.games.length > 0)
+            : filterScheduleData(scheduleData, {
+                 activeTab,
+                 weekYear,
+                 weekMonth,
+                 selectedWeek,
+                 allYear,
+                 allMonth,
+              }),
+      [activeTab, weekYear, weekMonth, selectedWeek, allYear, allMonth, scheduleData],
    );
 
    const prevWeekMonth = () => {
@@ -129,7 +157,17 @@ const GameSchedule = () => {
                />
             )}
 
-            <ScheduleList activeTab={activeTab} filteredData={filteredData} />
+            {scheduleQuery.isPending ? (
+               <div className="rounded-[10px] border border-border bg-surface px-5 py-10 text-center text-body-1-medium text-muted-foreground">
+                  경기 일정을 불러오는 중입니다.
+               </div>
+            ) : scheduleQuery.isError ? (
+               <div className="rounded-[10px] border border-border bg-surface px-5 py-10 text-center text-body-1-medium text-muted-foreground">
+                  경기 일정을 불러오지 못했습니다.
+               </div>
+            ) : (
+               <ScheduleList activeTab={activeTab} filteredData={filteredData} />
+            )}
          </div>
       </section>
    );
