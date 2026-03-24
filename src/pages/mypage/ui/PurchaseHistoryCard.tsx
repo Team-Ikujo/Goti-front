@@ -41,7 +41,7 @@ interface PurchaseHistoryCardProps {
 
 export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) {
    return (
-      <div className="bg-background border border-border rounded-[14px] flex flex-col gap-[10px] px-px py-[13px]">
+      <div className="bg-background border border-border rounded-[14px] flex flex-col gap-2.5 px-px py-3.25">
          {/* 상단: 주문일자 / 주문상세 링크 */}
          <div className="flex items-center gap-8 px-4 py-1">
             <div className="flex items-center gap-1 text-body-2-regular">
@@ -78,9 +78,9 @@ export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) 
                   <p className="text-foreground text-body-1-bold whitespace-nowrap">{item.game.teams}</p>
                   <div className="flex items-center gap-2 h-4">
                      <span className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">{item.game.venue}</span>
-                     <span className="w-px h-[10px] bg-[#d1d5dc]" />
+                     <span className="w-px h-2.5 bg-[#d1d5dc]" />
                      <span className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">{item.game.datetime}</span>
-                     <span className="w-px h-[10px] bg-[#d1d5dc]" />
+                     <span className="w-px h-2.5 bg-[#d1d5dc]" />
                      <span className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">{item.game.quantity}매</span>
                   </div>
                </div>
@@ -115,8 +115,8 @@ export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) 
             {/* 판매 등록 영역 왼쪽 세로 구분선 */}
             <div className="w-px self-stretch bg-border shrink-0" />
 
-            {/* ⑤ 판매 등록 / - — w-[100px] 고정 */}
-            <div className="flex items-center justify-center w-[100px] shrink-0 px-3">
+            {/* ⑤ 판매 등록 / - — w-25 고정 */}
+            <div className="flex items-center justify-center w-25 shrink-0 px-3">
                {item.canSell ? (
                   <button className="w-full border border-primary rounded-lg px-3 py-1 text-body-2-medium text-primary whitespace-nowrap">
                      판매 등록

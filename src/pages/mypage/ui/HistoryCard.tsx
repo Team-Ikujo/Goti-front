@@ -44,7 +44,7 @@ export default function HistoryCard({ item }: HistoryCardProps) {
    const detailLabel = item.mode === 'purchase' ? '예약 일자' : '판매 상세';
 
    return (
-      <div className="bg-background border border-border rounded-[14px] flex flex-col gap-[10px] px-px py-[13px]">
+      <div className="bg-background border border-border rounded-[14px] flex flex-col gap-2.5 px-px py-3.25">
          {/* 상단 날짜/링크 */}
          <div className="flex items-center gap-8 px-4 py-1">
             <div className="flex items-center gap-1 text-body-2-regular">
@@ -108,7 +108,7 @@ export default function HistoryCard({ item }: HistoryCardProps) {
             </div>
 
             {/* 상태 */}
-            <div className="flex items-center justify-center px-2.5 shrink-0 w-[80px]">
+            <div className="flex items-center justify-center px-2.5 shrink-0 w-20">
                <p className={`text-body-1-semibold whitespace-nowrap ${STATUS_COLOR[item.status]}`}>{item.status}</p>
             </div>
 
@@ -116,7 +116,7 @@ export default function HistoryCard({ item }: HistoryCardProps) {
             <Separator orientation="vertical" className="self-stretch" />
 
             {/* 액션 버튼 */}
-            <div className="flex items-center justify-center px-2.5 shrink-0 w-[99px]">
+            <div className="flex items-center justify-center px-2.5 shrink-0 w-24.75">
                {item.mode === 'purchase' && item.isMobileTicket && item.status === '결제완료' ? (
                   <Button variant={'secondary'} className="text-sm font-medium px-3 py-1 rounded-lg w-full text-center">
                      판매 등록
