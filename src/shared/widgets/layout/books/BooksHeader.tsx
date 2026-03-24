@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, HelpCircle, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getBookingTeamConfig } from '@/pages/books/model/zoneData';
+import { getBookingTeamConfig, getBookingTeamId } from '@/pages/books/model/zoneData';
 import { formatBookingHeaderDateTime } from '@/shared/lib/bookingDateTime';
 import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
@@ -22,6 +22,51 @@ const DEFAULT_MATCH_INFO = {
 } as const;
 
 type ExitDestinationKey = keyof typeof EXIT_DESTINATIONS;
+
+const VENUE_FALLBACK_TOKENS_BY_TEAM = {
+   kia: ['kia', 'kia타이거즈', '기아', '기아타이거즈', '광주'],
+   samsung: ['ss', '삼성', '삼성라이온즈', '대구'],
+} as const;
+
+const normalizeVenueValue = (value: string) => value.trim().toLowerCase().replace(/\s+/g, '');
+
+const resolveHeaderVenue = ({
+   venue,
+   fallbackVenue,
+   teamId,
+   teamDisplayName,
+}: {
+   venue?: string;
+   fallbackVenue?: string;
+   teamId?: string;
+   teamDisplayName: string;
+}) => {
+   if (!venue) {
+      return fallbackVenue;
+   }
+
+   if (!fallbackVenue) {
+      return venue;
+   }
+
+   const normalizedVenue = normalizeVenueValue(venue);
+
+   if (!normalizedVenue) {
+      return fallbackVenue;
+   }
+
+   if (normalizedVenue === normalizeVenueValue(fallbackVenue)) {
+      return fallbackVenue;
+   }
+
+   const bookingTeamId = getBookingTeamId(teamId);
+   const fallbackTokens = new Set([
+      ...VENUE_FALLBACK_TOKENS_BY_TEAM[bookingTeamId],
+      normalizeVenueValue(teamDisplayName),
+   ]);
+
+   return fallbackTokens.has(normalizedVenue) ? fallbackVenue : venue;
+};
 
 export interface BooksHeaderProps {
    matchTitle?: string;
@@ -101,7 +146,12 @@ const BooksHeader = ({
    const currentStepLabel = steps[resolvedCurrentStepIndex] ?? '';
    const resolvedMatchTitle =
       matchTitle ?? bookingEntryState?.matchTitle ?? `${bookingTeamConfig.displayName} 홈경기`;
-   const resolvedVenue = venue ?? bookingEntryState?.venue ?? bookingTeamConfig.stadiumName;
+   const resolvedVenue = resolveHeaderVenue({
+      venue: venue ?? bookingEntryState?.venue,
+      fallbackVenue: bookingTeamConfig.stadiumName,
+      teamId: bookingEntryState?.homeTeamId,
+      teamDisplayName: bookingTeamConfig.displayName,
+   });
    const resolvedDateTime = formatBookingHeaderDateTime(dateTime ?? bookingEntryState?.dateTime ?? DEFAULT_MATCH_INFO.dateTime);
 
    useEffect(() => {
