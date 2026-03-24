@@ -364,7 +364,7 @@ const buildPageResponse = <T>(content: T[], page = 0, size = content.length || 1
 };
 
 export const paymentHandlers = [
-   http.get('/api/v1/stadiums/:stadiumId/seat-grades', async ({ params }) => {
+   http.get('/api/v1/stadium-seats/stadiums/:stadiumId/games/:gameId/seat-grades', async ({ params }) => {
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
@@ -372,7 +372,7 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/stadiums/:stadiumId/seat-sections', async ({ params }) => {
+   http.get('/api/v1/stadium-seats/stadiums/:stadiumId/seat-sections', async ({ params }) => {
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',

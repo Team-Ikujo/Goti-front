@@ -119,8 +119,7 @@ const Header = () => {
                         </button>
                         <button
                            className="flex items-center justify-center size-9.5 rounded-lg hover:bg-(--fill-hover) transition-colors"
-                           // 마이페이지로 연결
-                           onClick={handleLogout}
+                           onClick={() => navigate('/mypage')}
                            title="마이페이지"
                         >
                            <img src="/Icon/Line/Mypage.svg" alt="마이페이지" className="size-4.5" />

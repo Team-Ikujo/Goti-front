@@ -2,13 +2,13 @@
 import { useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
+import { mapGamesToDaySchedules, useGameSchedules } from '@/entities/game/model/schedule';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import ScheduleList from '@/pages/home/ui/game-schedule/ScheduleList';
 import { YearMonthPicker } from '@/pages/home/ui/game-schedule/YearMonthPicker';
 import { WEEK_OPTIONS, TAB_WEEK } from '@/pages/home/ui/game-schedule/constants';
 import { filterScheduleData } from '@/pages/home/ui/game-schedule/utils';
-import { useGameSchedules } from '../api/useGameSchedules';
 import { BookingGuide } from './BookingGuide';
 
 function getCurrentWeek(): number {
@@ -26,12 +26,17 @@ export function TeamScheduleTab({ serverTeamId }: Props) {
    const [selectedWeek, setSelectedWeek] = useState(getCurrentWeek());
    const [showPicker, setShowPicker] = useState(false);
    const pickerContainerRef = useRef<HTMLDivElement>(null);
-   const { schedules, loading, error } = useGameSchedules({
-      serverTeamId,
+   const scheduleQuery = useGameSchedules({
+      teamId: serverTeamId,
       year: weekYear,
       month: weekMonth,
       week: selectedWeek,
+      today: false,
    });
+   const schedules = useMemo(
+      () => mapGamesToDaySchedules(scheduleQuery.data ?? []),
+      [scheduleQuery.data],
+   );
 
    const filteredData = useMemo(() => {
       return filterScheduleData(schedules, {
@@ -112,15 +117,19 @@ export function TeamScheduleTab({ serverTeamId }: Props) {
                </button>
             </div>
 
-            {/* 주차 선택 */}
-            <div className="flex gap-3.75 md:gap-7.5 items-start justify-center w-full flex-wrap">
+            {/* 주차 선택
+                 justify-between이 갭을 자동 분배:
+                   컨테이너 560px: 버튼 88px × 5 + 갭 30px × 4 = 560px
+                   컨테이너 343px(min): 버튼 67px × 5 + 갭 2px × 4 = 343px
+                 버튼 너비 보간: clamp(67, 33.81px + 9.68%, 88) */}
+            <div className="flex justify-between w-full max-w-140 mx-auto min-w-[343px]">
                {WEEK_OPTIONS.map(week => (
                   <Button
                      key={week}
                      onClick={() => setSelectedWeek(week)}
                      variant={week === selectedWeek ? 'secondary' : 'tertiary'}
                      className={cn(
-                        'px-4 md:px-5.5 py-2.25 rounded-[10px] text-[16px] md:text-[20px] font-semibold leading-normal',
+                        'w-[clamp(67px,_calc(33.81px_+_9.68%),_88px)] shrink-0 px-5.5 py-2.25 rounded-[10px] text-heading-3-semibold leading-normal h-auto overflow-hidden',
                         week !== selectedWeek && 'shadow-[inset_0_0_0_1px_#161d24] text-[#161d24]',
                      )}
                   >
@@ -133,11 +142,11 @@ export function TeamScheduleTab({ serverTeamId }: Props) {
          <div className="flex flex-col gap-30 items-start w-full">
             {/* 경기 일정 리스트 */}
             <div className="flex flex-col gap-6.25 items-start w-full">
-               {loading ? (
+               {scheduleQuery.isPending ? (
                   <div className="flex h-100 items-center justify-center rounded-[10px] border-border bg-surface w-full">
                      <p className="text-[18px] text-[#acb4bb]">일정을 불러오는 중...</p>
                   </div>
-               ) : error ? (
+               ) : scheduleQuery.error ? (
                   <div className="rounded-[10px] border border-border bg-surface px-5 py-10 text-center text-body-1-medium text-muted-foreground w-full">
                      경기 일정을 불러오지 못했습니다.
                   </div>

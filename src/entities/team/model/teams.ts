@@ -1,7 +1,7 @@
 import stadiumImgKia from '@/shared/ui/image/image 195.png';
 import mapImgKia from '@/shared/ui/image/스크린샷 2026-02-10 오전 9.48.52 1.png';
-import stadiumImgSamsung from '@/shared/ui/image/image 195.png'; // TODO: 삼성 구장 이미지로 교체
-import mapImgSamsung from '@/shared/ui/image/스크린샷 2026-02-10 오전 9.48.52 1.png'; // TODO: 삼성 지도 이미지로 교체
+const stadiumImgSamsung = '/images/삼성 홈구장 외관.jpeg';
+const mapImgSamsung = '/images/삼성 위치.png';
 import type { Team } from "./types";
 
 export const teams: Team[] = [
@@ -11,6 +11,7 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/samsung.png",
     logoAspectClassName: "aspect-[1280/962]",
     isEnabled: true,
+    serverTeamId: "412cfc77-2c5d-4583-8e79-968339223864",
     teamCode: "SS",
     stadiumName: "대구",
     stadiumGuide: {
@@ -27,22 +28,23 @@ export const teams: Team[] = [
       ],
       busStops: [
         {
-          name: '삼성라이온즈파크 1701',
+          name: '수성알파시티역 5번출구 (경산 방면)',
           buses: [
-            { type: '간선', routes: '349, 509, 618' },
-            { type: '지선', routes: '달서5, 수성3' },
+            { type: '간선', routes: '309, 349, 609, 937' },
+            { type: '지선', routes: '399, 509, 990, 991, 수성3' },
           ],
         },
         {
-          name: '야구전설로입구 1702',
+          name: '수성알파시티역 1번출구 (시내 방면)',
           buses: [
-            { type: '간선', routes: '349, 509' },
+            { type: '간선', routes: '309, 609, 649, 937' },
+            { type: '지선', routes: '399, 509, 991, 수성3' },
           ],
         },
         {
-          name: '수성못역 1625',
+          name: '수성못역 (수성못로)',
           buses: [
-            { type: '간선', routes: '349, 410, 509, 618, 649' },
+            { type: '간선', routes: '349, 618, 649' },
             { type: '지선', routes: '수성1, 수성3' },
           ],
         },
@@ -55,6 +57,7 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/kia.png",
     logoAspectClassName: "aspect-[1280/954]",
     isEnabled: true,
+    serverTeamId: "e5f58f8c-fcde-4017-8033-d8deb34fd4a2",
     teamCode: "KIA",
     stadiumName: "광주",
     stadiumGuide: {
@@ -71,33 +74,25 @@ export const teams: Team[] = [
       ],
       busStops: [
         {
-          name: '제2광천교 4509',
+          name: '광주기아챔피언스필드 (서림로)',
           buses: [
-            { type: '간선', routes: '상무64, 228' },
-            { type: '지선', routes: '매월26, 일곡38, 송암47, 상무64, 228' },
+            { type: '간선', routes: '매월16' },
+            { type: '지선', routes: '일곡38, 운림51, 용전84, 첨단95' },
           ],
         },
         {
-          name: '무등야구장 4439',
+          name: '무등야구장 (무등로)',
           buses: [
-            { type: '간선', routes: '송정98, 228, 임곡89' },
-            { type: '지선', routes: '일곡38' },
+            { type: '간선', routes: '228' },
+            { type: '지선', routes: '일곡38, 임곡89, 송정98' },
           ],
         },
         {
-          name: '광주기아챔피언스필드 4490, 1780048',
+          name: '광주기아챔피언스필드입구 (무등로)',
           buses: [
-            { type: '간선', routes: '매월16, 운림51, 첨단95' },
-            { type: '지선', routes: '일곡38, 녹진100, 마령100, 장성100, 진원100' },
+            { type: '간선', routes: '228' },
+            { type: '지선', routes: '금남58, 임곡89, 송정98' },
           ],
-        },
-        {
-          name: '광주기아챔피언스필드 정문 4491',
-          buses: [{ type: '간선', routes: '매월16' }],
-        },
-        {
-          name: '임동주공아파트 4667',
-          buses: [{ type: '간선', routes: '용전84' }],
         },
       ],
     },
@@ -108,6 +103,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/lg.png",
     logoAspectClassName: "aspect-[1280/1023]",
     isEnabled: false,
+    serverTeamId: "f44d1e89-e2fe-40e7-a587-1157d7a9c80a",
+    teamCode: "LG",
   },
   {
     id: "hanwha",
@@ -115,6 +112,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/hanwha.png",
     logoAspectClassName: "aspect-[1280/1065]",
     isEnabled: false,
+    serverTeamId: "34159d27-2497-44d4-a4a2-c461dc3585c8",
+    teamCode: "HH",
   },
   {
     id: "ssg",
@@ -122,6 +121,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/ssg.png",
     logoAspectClassName: "aspect-[1280/754]",
     isEnabled: false,
+    serverTeamId: "c33af471-d869-4af1-9b68-d085472e4408",
+    teamCode: "SSG",
   },
   {
     id: "nc",
@@ -129,6 +130,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/nc.png",
     logoAspectClassName: "aspect-[1280/862]",
     isEnabled: false,
+    serverTeamId: "72c57b65-9f68-4b6e-b9e3-2ec9074861f6",
+    teamCode: "NC",
   },
   {
     id: "kt",
@@ -136,6 +139,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/kt.png",
     logoAspectClassName: "aspect-[1280/1158]",
     isEnabled: false,
+    serverTeamId: "1e4022c6-3887-44f6-b510-d98aad5a4192",
+    teamCode: "KT",
   },
   {
     id: "lotte",
@@ -143,6 +148,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/lotte.png",
     logoAspectClassName: "aspect-[1280/961]",
     isEnabled: false,
+    serverTeamId: "d7b12b0f-c69d-4a7f-badc-04226daabb5f",
+    teamCode: "LOT",
   },
   {
     id: "doosan",
@@ -150,6 +157,8 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/doosan.png",
     logoAspectClassName: "aspect-[1280/1280]",
     isEnabled: false,
+    serverTeamId: "d64b4220-6479-4e77-986a-f52447a433a6",
+    teamCode: "DO",
   },
   {
     id: "kiwoom",
@@ -157,6 +166,7 @@ export const teams: Team[] = [
     logoSrc: "/baseball/logos/kiwoom.png",
     logoAspectClassName: "aspect-[1280/940]",
     isEnabled: false,
+    serverTeamId: "520af775-e84b-4112-aa02-18ed1a6c8458",
+    teamCode: "KIW",
   },
 ];
-

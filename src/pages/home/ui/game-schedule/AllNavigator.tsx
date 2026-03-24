@@ -85,7 +85,7 @@ function AllNavigator({
          </div>
 
          {/* 월 버튼 — 연도 피커 바로 밑 배치 */}
-         <div className="flex w-full">
+         <div className="flex w-full h-12">
             {SEASON_MONTHS.map((month, index) => {
                const isDisabled = DISABLED_MONTHS.includes(month);
                const isSelected = month === allMonth;

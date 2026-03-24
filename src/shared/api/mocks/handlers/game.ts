@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw';
+import { teams } from '@/entities/team/model/teams';
 
 type MockGameSchedule = {
   gameId: string;
@@ -38,8 +39,8 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameId: 'game-kia-home-yesterday',
     startAt: formatLocalDateTime(-1, 18, 30),
     leagueType: 'REGULAR',
-    homeTeamId: 'team-kia',
-    awayTeamId: 'team-lg',
+    homeTeamId: 'e5f58f8c-fcde-4017-8033-d8deb34fd4a2',
+    awayTeamId: 'f44d1e89-e2fe-40e7-a587-1157d7a9c80a',
     stadiumId: 'stadium-kia-champions-field',
     gameStatus: 'FINISHED',
     homeTeamScore: 6,
@@ -52,8 +53,8 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameId: 'game-samsung-home-today',
     startAt: formatLocalDateTime(0, 18, 30),
     leagueType: 'REGULAR',
-    homeTeamId: 'team-samsung',
-    awayTeamId: 'team-doosan',
+    homeTeamId: '412cfc77-2c5d-4583-8e79-968339223864',
+    awayTeamId: 'd64b4220-6479-4e77-986a-f52447a433a6',
     stadiumId: 'stadium-samsung-lions-park',
     gameStatus: 'SCHEDULED',
     homeTeamScore: 0,
@@ -66,8 +67,8 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameId: 'game-kia-home-tomorrow',
     startAt: formatLocalDateTime(1, 18, 30),
     leagueType: 'REGULAR',
-    homeTeamId: 'team-kia',
-    awayTeamId: 'team-kiwoom',
+    homeTeamId: 'e5f58f8c-fcde-4017-8033-d8deb34fd4a2',
+    awayTeamId: '520af775-e84b-4112-aa02-18ed1a6c8458',
     stadiumId: 'stadium-kia-champions-field',
     gameStatus: 'SCHEDULED',
     homeTeamScore: 0,
@@ -80,8 +81,8 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameId: 'game-samsung-home-this-weekend',
     startAt: formatLocalDateTime(3, 14, 0),
     leagueType: 'REGULAR',
-    homeTeamId: 'team-samsung',
-    awayTeamId: 'team-kt',
+    homeTeamId: '412cfc77-2c5d-4583-8e79-968339223864',
+    awayTeamId: '1e4022c6-3887-44f6-b510-d98aad5a4192',
     stadiumId: 'stadium-samsung-lions-park',
     gameStatus: 'SCHEDULED',
     homeTeamScore: 0,
@@ -94,8 +95,8 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameId: 'game-kia-home-next-week',
     startAt: formatLocalDateTime(8, 18, 30),
     leagueType: 'REGULAR',
-    homeTeamId: 'team-kia',
-    awayTeamId: 'team-doosan',
+    homeTeamId: 'e5f58f8c-fcde-4017-8033-d8deb34fd4a2',
+    awayTeamId: 'd64b4220-6479-4e77-986a-f52447a433a6',
     stadiumId: 'stadium-kia-champions-field',
     gameStatus: 'SCHEDULED',
     homeTeamScore: 0,
@@ -108,8 +109,8 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameId: 'game-samsung-home-next-weekend',
     startAt: formatLocalDateTime(9, 17, 0),
     leagueType: 'REGULAR',
-    homeTeamId: 'team-samsung',
-    awayTeamId: 'team-lg',
+    homeTeamId: '412cfc77-2c5d-4583-8e79-968339223864',
+    awayTeamId: 'f44d1e89-e2fe-40e7-a587-1157d7a9c80a',
     stadiumId: 'stadium-samsung-lions-park',
     gameStatus: 'SCHEDULED',
     homeTeamScore: 0,
@@ -122,8 +123,8 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameId: 'game-kia-home-two-weeks',
     startAt: formatLocalDateTime(14, 18, 30),
     leagueType: 'REGULAR',
-    homeTeamId: 'team-kia',
-    awayTeamId: 'team-hanwha',
+    homeTeamId: 'e5f58f8c-fcde-4017-8033-d8deb34fd4a2',
+    awayTeamId: '34159d27-2497-44d4-a4a2-c461dc3585c8',
     stadiumId: 'stadium-kia-champions-field',
     gameStatus: 'SCHEDULED',
     homeTeamScore: 0,
@@ -172,6 +173,32 @@ export const gameHandlers = [
       code: 'SUCCESS',
       message: 'ok',
       data: filteredGames,
+    });
+  }),
+
+  http.get('/api/v1/baseball-teams/:teamId', async ({ params }) => {
+    const team = teams.find((item) => item.serverTeamId === String(params.teamId));
+
+    if (!team?.serverTeamId || !team.teamCode) {
+      return HttpResponse.json(
+        {
+          code: 'NOT_FOUND',
+          message: 'team not found',
+          data: null,
+        },
+        { status: 404 },
+      );
+    }
+
+    return HttpResponse.json({
+      code: 'SUCCESS',
+      message: 'ok',
+      data: {
+        id: team.serverTeamId,
+        teamCode: team.teamCode,
+        teamName: team.name,
+        homeGround: team.stadiumName,
+      },
     });
   }),
 ];
