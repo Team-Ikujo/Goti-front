@@ -14,6 +14,7 @@ import { getSeatBlocks } from '@/pages/books/model/seatData';
 import type { SeatBlock, SeatItem, ZoneItem } from '@/pages/books/model/types';
 
 const AGGREGATED_SECTION_CODE_PATTERN = /[~,/]/;
+const API_SEAT_SPACING = 20;
 
 type SeatMapDataParams = {
    gameId?: string;
@@ -50,6 +51,16 @@ const sortSectionBundles = (left: ApiSeatSectionBundle, right: ApiSeatSectionBun
       sensitivity: 'base',
    });
 
+const getSectionSeatLayoutMeta = (seats: SeatResponse[]) => {
+   const rowNames = Array.from(new Set(seats.map((seat) => seat.rowName))).sort(sortRowNames);
+
+   return {
+      rowNames,
+      rowIndexByName: Object.fromEntries(rowNames.map((rowName, index) => [rowName, index])),
+      columnCount: seats.length > 0 ? Math.max(...seats.map((seat) => seat.seatNum)) : 0,
+   };
+};
+
 const toSeatItemStatus = (seat: SeatResponse, statuses: Record<string, string>): SeatItem['status'] => {
    const status = statuses[seat.seatId]?.toUpperCase();
 
@@ -76,9 +87,7 @@ const createSeatBlockForLayout = (block: SeatBlock, section: ApiSeatSectionBundl
       };
    }
 
-   const rowNames = Array.from(new Set(section.seats.map((seat) => seat.rowName))).sort(sortRowNames);
-   const rowIndexByName = Object.fromEntries(rowNames.map((rowName, index) => [rowName, index]));
-   const columnCount = Math.max(...section.seats.map((seat) => seat.seatNum));
+   const { rowNames, rowIndexByName, columnCount } = getSectionSeatLayoutMeta(section.seats);
 
    return {
       ...block,
@@ -91,8 +100,7 @@ const createSeatBlockForLayout = (block: SeatBlock, section: ApiSeatSectionBundl
 };
 
 const createSeatItemsForLayout = (block: SeatBlock, zoneId: string, section: ApiSeatSectionBundle): SeatItem[] => {
-   const rowNames = Array.from(new Set(section.seats.map((seat) => seat.rowName))).sort(sortRowNames);
-   const rowIndexByName = Object.fromEntries(rowNames.map((rowName, index) => [rowName, index]));
+   const { rowIndexByName } = getSectionSeatLayoutMeta(section.seats);
    const statusBySeatId = Object.fromEntries(section.statuses.map((seatStatus) => [seatStatus.seatId, seatStatus.status]));
 
    return section.seats.map((seat) => {
@@ -103,8 +111,8 @@ const createSeatItemsForLayout = (block: SeatBlock, zoneId: string, section: Api
          block: block.label,
          rowLabel: `${seat.rowName}열`,
          seatNumber: seat.seatNum,
-         x: block.offsetX + (seat.seatNum - 1) * 20,
-         y: block.offsetY + rowIndex * 20,
+         x: block.offsetX + (seat.seatNum - 1) * API_SEAT_SPACING,
+         y: block.offsetY + rowIndex * API_SEAT_SPACING,
          zoneId,
          status: toSeatItemStatus(seat, statusBySeatId),
       } satisfies SeatItem;
