@@ -61,6 +61,10 @@ const toSeatItemStatus = (seat: SeatResponse, statuses: Record<string, string>):
       return 'held';
    }
 
+   if (status === 'SOLD' || status === 'BLOCKED') {
+      return 'disabled';
+   }
+
    return 'available';
 };
 
