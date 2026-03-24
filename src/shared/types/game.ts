@@ -50,6 +50,7 @@ export interface SeatGradeResponse {
    stadiumId: string;
    name: string;
    displayColorHex: string;
+   availableSeatCount: number;
 }
 
 // GET /api/v1/stadium-seats/stadiums/{stadiumId}/seat-sections 응답 타입

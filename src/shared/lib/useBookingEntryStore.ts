@@ -2,12 +2,16 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { ZoneItem } from '@/pages/books/model/types';
+import type { ApiLeagueType } from '@/shared/types/game';
 
 export type BookingEntryState = {
    requireCaptcha?: boolean;
    homeTeamId?: string;
+   serverHomeTeamId?: string;
    gameId?: string;
    stadiumId?: string;
+   leagueType?: ApiLeagueType;
+   gameDate?: string;
    queueTokenJti?: string;
    userId?: string;
    matchTitle?: string;

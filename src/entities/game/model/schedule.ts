@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { buildMockQueueTokenJti } from '@/shared/config/booking';
+import type { ApiLeagueType } from '@/shared/types/game';
 import {
   fetchBaseballTeamDetails,
   fetchGameSchedules,
@@ -14,6 +15,7 @@ export type NormalizedScheduleGame = {
   id: string;
   serverHomeTeamId: string;
   serverAwayTeamId: string;
+  leagueType: ApiLeagueType;
   homeTeamId?: string;
   awayTeamId?: string;
   homeTeamName: string;
@@ -341,6 +343,7 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
     id: game.gameId,
     serverHomeTeamId: game.homeTeamId,
     serverAwayTeamId: game.awayTeamId,
+    leagueType: game.leagueType as ApiLeagueType,
     homeTeamId: homeTeam?.frontendId,
     awayTeamId: awayTeam?.frontendId,
     homeTeamName: homeTeam?.shortName ?? fallbackHomeName,

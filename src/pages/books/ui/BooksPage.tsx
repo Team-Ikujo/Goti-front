@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
-import { fetchSeatGrades, fetchSeatSections, mapSeatSectionsToZones, mergeBookingZones } from '@/pages/books/api/bookingApi';
+import {
+   fetchSeatGrades,
+   fetchSeatSections,
+   fetchTicketPricingPolicy,
+   mapSeatSectionsToZones,
+   mergeBookingZones,
+   resolvePricingByGradeId,
+} from '@/pages/books/api/bookingApi';
 import { getBookingTeamConfig, getZoneDisplayOrder, getBookingZones } from '@/pages/books/model/zoneData';
 import type { ZoneItem } from '@/pages/books/model/types';
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
@@ -40,18 +47,38 @@ const BooksPage = () => {
       [bookingEntryState?.homeTeamId],
    );
    const { data: apiZones } = useQuery({
-      queryKey: ['booking-zones', bookingEntryState?.stadiumId, bookingEntryState?.homeTeamId],
-      enabled: Boolean(bookingEntryState?.stadiumId),
+      queryKey: [
+         'booking-zones',
+         bookingEntryState?.stadiumId,
+         bookingEntryState?.gameId,
+         bookingEntryState?.serverHomeTeamId,
+         bookingEntryState?.leagueType,
+         bookingEntryState?.gameDate,
+      ],
+      enabled: Boolean(
+         bookingEntryState?.stadiumId &&
+            bookingEntryState?.gameId &&
+            bookingEntryState?.serverHomeTeamId &&
+            bookingEntryState?.leagueType &&
+            bookingEntryState?.gameDate,
+      ),
       queryFn: async () => {
-         const [grades, sections] = await Promise.all([
+         const [grades, sections, pricingPolicy] = await Promise.all([
             fetchSeatGrades(bookingEntryState!.gameId!, bookingEntryState!.stadiumId!),
             fetchSeatSections(bookingEntryState!.stadiumId!),
+            fetchTicketPricingPolicy(bookingEntryState!.serverHomeTeamId!).catch(() => undefined),
          ]);
+         const pricingByGradeId = resolvePricingByGradeId({
+            policy: pricingPolicy,
+            gameDate: bookingEntryState?.gameDate,
+            leagueType: bookingEntryState?.leagueType,
+         });
 
          return mapSeatSectionsToZones({
             sections,
             grades,
             teamId: bookingEntryState?.homeTeamId,
+            pricingByGradeId,
          });
       },
    });

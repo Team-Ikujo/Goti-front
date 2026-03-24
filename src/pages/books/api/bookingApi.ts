@@ -8,6 +8,7 @@ export type SeatGradeResponse = {
    stadiumId: string;
    name: string;
    displayColorHex: string;
+   availableSeatCount: number;
 };
 
 export type SeatSectionResponse = {
@@ -29,6 +30,25 @@ export type SeatResponse = {
 export type SeatStatusResponse = {
    seatId: string;
    status: string;
+};
+
+export type TicketPricingPolicyPriceResponse = {
+   priceId: string;
+   gradeId: string;
+   ticketType: string;
+   dayType: string;
+   leagueType?: string;
+   matchType?: string;
+   price: number;
+};
+
+export type TicketPricingPolicyResponse = {
+   policyId: string;
+   teamId: string;
+   policyStartAt: string;
+   policyEndAt: string;
+   isActive: boolean;
+   prices: TicketPricingPolicyPriceResponse[];
 };
 
 const DEFAULT_ZONE_COLOR = '#64748b';
@@ -106,6 +126,9 @@ const toSeatStatus = (status: string | undefined, available: boolean): SeatStatu
          return 'held';
       case 'SELECTED':
          return 'selected';
+      case 'SOLD':
+      case 'BLOCKED':
+         return 'disabled';
       default:
          return 'available';
    }
@@ -116,6 +139,30 @@ const sortRowNames = (left: string, right: string) =>
       numeric: true,
       sensitivity: 'base',
    });
+
+const normalizePolicyLeagueType = (value?: string) => value?.trim().toUpperCase();
+
+const normalizePolicyDate = (value: string) => {
+   const trimmed = value.trim();
+
+   if (!trimmed) {
+      return '';
+   }
+
+   return trimmed.includes('T') ? trimmed.slice(0, 10) : trimmed.split(' ')[0] ?? trimmed;
+};
+
+export const getPricingDayType = (gameDate: string) => {
+   const [year, month, day] = gameDate.split('-').map(Number);
+
+   if (!year || !month || !day) {
+      return undefined;
+   }
+
+   const dayOfWeek = new Date(year, month - 1, day).getDay();
+
+   return dayOfWeek === 0 || dayOfWeek === 6 ? 'WEEKEND' : 'WEEKDAY';
+};
 
 export const fetchSeatGrades = async (gameId: string, stadiumId: string) => {
    const response = await apiClient.get<ApiEnvelope<SeatGradeResponse[]>>(
@@ -139,23 +186,92 @@ export const fetchSeats = async (sectionId: string) => {
 
 export const fetchSeatStatuses = async (gameId: string, sectionId: string) => {
    const response = await apiClient.get<ApiEnvelope<SeatStatusResponse[]>>(
-      `/api/v1/games/${gameId}/sections/${sectionId}/seat-statuses`,
+      `/api/v1/game-seats/${gameId}/sections/${sectionId}/seat-statuses`,
    );
 
    return response.data.data;
+};
+
+export const fetchTicketPricingPolicy = async (teamId: string) => {
+   const response = await apiClient.get<ApiEnvelope<TicketPricingPolicyResponse>>(
+      `/api/v1/teams/${teamId}/ticket-pricing-policies`,
+   );
+
+   return response.data.data;
+};
+
+const resolveZonePrice = ({
+   fallbackPrice,
+   gradeIds,
+   pricingByGradeId,
+}: {
+   fallbackPrice: number;
+   gradeIds: Iterable<string>;
+   pricingByGradeId: Map<string, number>;
+}) => {
+   const matchedPrices = [...new Set([...gradeIds].map((gradeId) => pricingByGradeId.get(gradeId)).filter((price): price is number => Number.isFinite(price)))];
+
+   if (matchedPrices.length !== 1) {
+      return fallbackPrice;
+   }
+
+   return matchedPrices[0];
+};
+
+export const resolvePricingByGradeId = ({
+   policy,
+   gameDate,
+   leagueType,
+}: {
+   policy?: TicketPricingPolicyResponse;
+   gameDate?: string;
+   leagueType?: string;
+}) => {
+   if (!policy?.isActive || !gameDate || !leagueType) {
+      return new Map<string, number>();
+   }
+
+   const normalizedGameDate = normalizePolicyDate(gameDate);
+   const normalizedLeagueType = normalizePolicyLeagueType(leagueType);
+   const dayType = getPricingDayType(normalizedGameDate);
+   const policyStartAt = normalizePolicyDate(policy.policyStartAt);
+   const policyEndAt = normalizePolicyDate(policy.policyEndAt);
+
+   if (!normalizedGameDate || !normalizedLeagueType || !dayType) {
+      return new Map<string, number>();
+   }
+
+   if ((policyStartAt && normalizedGameDate < policyStartAt) || (policyEndAt && normalizedGameDate > policyEndAt)) {
+      return new Map<string, number>();
+   }
+
+   const filteredPrices = policy.prices.filter((price) => {
+      const normalizedPriceLeagueType = normalizePolicyLeagueType(price.leagueType ?? price.matchType);
+
+      return (
+         normalizePolicyLeagueType(price.ticketType) === 'ADULT' &&
+         normalizePolicyLeagueType(price.dayType) === dayType &&
+         normalizedPriceLeagueType === normalizedLeagueType
+      );
+   });
+
+   return new Map(filteredPrices.map((price) => [price.gradeId, price.price]));
 };
 
 export const mapSeatSectionsToZones = ({
    sections,
    grades,
    teamId,
+   pricingByGradeId,
 }: {
    sections: SeatSectionResponse[];
    grades: SeatGradeResponse[];
    teamId?: string;
+   pricingByGradeId?: Map<string, number>;
 }): ZoneItem[] => {
    const gradeById = Object.fromEntries(grades.map((grade) => [grade.seatGradeId, grade]));
    const aggregatedZones = new Map<string, ZoneItem>();
+   const aggregatedZoneGradeIds = new Map<string, Set<string>>();
    const unmatchedZones: ZoneItem[] = [];
 
    sections.forEach((section) => {
@@ -163,18 +279,34 @@ export const mapSeatSectionsToZones = ({
       const grade = gradeById[section.gradeId];
       if (matchedZone) {
          const existingZone = aggregatedZones.get(matchedZone.id);
+         const zoneGradeIds = aggregatedZoneGradeIds.get(matchedZone.id) ?? new Set<string>();
+         const shouldAddGradeAvailability = Boolean(grade && !zoneGradeIds.has(section.gradeId));
+         zoneGradeIds.add(section.gradeId);
+         aggregatedZoneGradeIds.set(matchedZone.id, zoneGradeIds);
 
          if (existingZone) {
             aggregatedZones.set(matchedZone.id, {
                ...existingZone,
-               remaining: existingZone.remaining + section.capacity,
+               price: resolveZonePrice({
+                  fallbackPrice: matchedZone.price,
+                  gradeIds: zoneGradeIds,
+                  pricingByGradeId: pricingByGradeId ?? new Map<string, number>(),
+               }),
+               remaining: shouldAddGradeAvailability
+                  ? existingZone.remaining + grade.availableSeatCount
+                  : existingZone.remaining,
             });
             return;
          }
 
          aggregatedZones.set(matchedZone.id, {
             ...matchedZone,
-            remaining: section.capacity,
+            price: resolveZonePrice({
+               fallbackPrice: matchedZone.price,
+               gradeIds: zoneGradeIds,
+               pricingByGradeId: pricingByGradeId ?? new Map<string, number>(),
+            }),
+            remaining: grade?.availableSeatCount ?? section.capacity,
             color: grade?.displayColorHex ?? matchedZone.color ?? DEFAULT_ZONE_COLOR,
          });
          return;
@@ -184,8 +316,12 @@ export const mapSeatSectionsToZones = ({
       unmatchedZones.push({
          id: section.sectionId,
          name: displayName,
-         price: 0,
-         remaining: section.capacity,
+         price: resolveZonePrice({
+            fallbackPrice: 0,
+            gradeIds: [section.gradeId],
+            pricingByGradeId: pricingByGradeId ?? new Map<string, number>(),
+         }),
+         remaining: grade?.availableSeatCount ?? section.capacity,
          color: grade?.displayColorHex ?? DEFAULT_ZONE_COLOR,
          hotspot: [],
          sectionCode: section.sectionCode,
@@ -217,6 +353,7 @@ export const mergeBookingZones = ({
 
       return {
          ...localZone,
+         price: apiZone.price,
          remaining: apiZone.remaining,
          color: apiZone.color,
       } satisfies ZoneItem;

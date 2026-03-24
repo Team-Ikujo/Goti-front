@@ -6,6 +6,7 @@ type SeatGrade = {
    stadiumId: string;
    name: string;
    displayColorHex: string;
+   availableSeatCount: number;
 };
 
 type SeatSection = {
@@ -79,6 +80,22 @@ type TicketRecord = {
    qrToken: string;
 };
 
+type TicketPricingPolicy = {
+   policyId: string;
+   teamId: string;
+   policyStartAt: string;
+   policyEndAt: string;
+   isActive: boolean;
+   prices: Array<{
+      priceId: string;
+      gradeId: string;
+      ticketType: 'ADULT';
+      dayType: 'WEEKDAY' | 'WEEKEND';
+      leagueType: 'PRE_SEASON' | 'REGULAR' | 'POSTSEASON';
+      price: number;
+   }>;
+};
+
 type ResaleLedger = {
    id: string;
    orderId: string;
@@ -119,60 +136,70 @@ const seatGradesByStadium: Record<string, SeatGrade[]> = {
          stadiumId: 'stadium-kia-champions-field',
          name: '챔피언석',
          displayColorHex: '#D05150',
+         availableSeatCount: 87,
       },
       {
          seatGradeId: 'grade-kia-center-table',
          stadiumId: 'stadium-kia-champions-field',
          name: '중앙테이블석',
          displayColorHex: '#284785',
+         availableSeatCount: 66,
       },
       {
          seatGradeId: 'grade-kia-k8',
          stadiumId: 'stadium-kia-champions-field',
          name: 'K8석',
          displayColorHex: '#EFBC2E',
+         availableSeatCount: 154,
       },
       {
          seatGradeId: 'grade-kia-k9',
          stadiumId: 'stadium-kia-champions-field',
          name: 'K9석',
          displayColorHex: '#DB58AF',
+         availableSeatCount: 93,
       },
       {
          seatGradeId: 'grade-kia-cheering-special',
          stadiumId: 'stadium-kia-champions-field',
          name: '응원특별석',
          displayColorHex: '#F26D5B',
+         availableSeatCount: 212,
       },
       {
          seatGradeId: 'grade-kia-k5',
          stadiumId: 'stadium-kia-champions-field',
          name: 'K5석',
          displayColorHex: '#93CB3A',
+         availableSeatCount: 305,
       },
       {
          seatGradeId: 'grade-kia-family',
          stadiumId: 'stadium-kia-champions-field',
          name: '훼미리석',
          displayColorHex: '#5F56B3',
+         availableSeatCount: 24,
       },
       {
          seatGradeId: 'grade-kia-party',
          stadiumId: 'stadium-kia-champions-field',
          name: '파티석',
          displayColorHex: '#782E8D',
+         availableSeatCount: 18,
       },
       {
          seatGradeId: 'grade-kia-sky-picnic',
          stadiumId: 'stadium-kia-champions-field',
          name: '스카이피크닉석',
          displayColorHex: '#8B6DE9',
+         availableSeatCount: 29,
       },
       {
          seatGradeId: 'grade-kia-table-table',
          stadiumId: 'stadium-kia-champions-field',
          name: '테이블테이블석',
          displayColorHex: '#4A68D4',
+         availableSeatCount: 47,
       },
    ],
    'stadium-samsung-lions-park': [
@@ -181,14 +208,53 @@ const seatGradesByStadium: Record<string, SeatGrade[]> = {
          stadiumId: 'stadium-samsung-lions-park',
          name: '1루 내야지정석',
          displayColorHex: '#0A58BF',
+         availableSeatCount: 341,
       },
       {
          seatGradeId: 'grade-samsung-blue-zone',
          stadiumId: 'stadium-samsung-lions-park',
          name: '블루존',
          displayColorHex: '#1F4D93',
+         availableSeatCount: 127,
       },
    ],
+};
+
+const pricingPoliciesByTeamId: Record<string, TicketPricingPolicy> = {
+   'e5f58f8c-fcde-4017-8033-d8deb34fd4a2': {
+      policyId: 'policy-kia-2026',
+      teamId: 'e5f58f8c-fcde-4017-8033-d8deb34fd4a2',
+      policyStartAt: '2026-03-01',
+      policyEndAt: '2026-10-31',
+      isActive: true,
+      prices: [
+         { priceId: 'price-kia-champion-weekday', gradeId: 'grade-kia-champion', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 55000 },
+         { priceId: 'price-kia-center-table-weekday', gradeId: 'grade-kia-center-table', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 55000 },
+         { priceId: 'price-kia-k8-weekday', gradeId: 'grade-kia-k8', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 14000 },
+         { priceId: 'price-kia-k9-weekday', gradeId: 'grade-kia-k9', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 16000 },
+         { priceId: 'price-kia-special-weekday', gradeId: 'grade-kia-cheering-special', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 18000 },
+         { priceId: 'price-kia-k5-weekday', gradeId: 'grade-kia-k5', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 12000 },
+         { priceId: 'price-kia-family-weekday', gradeId: 'grade-kia-family', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 25000 },
+         { priceId: 'price-kia-party-weekday', gradeId: 'grade-kia-party', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 55000 },
+         { priceId: 'price-kia-sky-weekday', gradeId: 'grade-kia-sky-picnic', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 45000 },
+         { priceId: 'price-kia-table-weekday', gradeId: 'grade-kia-table-table', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 40000 },
+         { priceId: 'price-kia-champion-weekend', gradeId: 'grade-kia-champion', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 60000 },
+         { priceId: 'price-kia-k8-weekend', gradeId: 'grade-kia-k8', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 16000 },
+      ],
+   },
+   '412cfc77-2c5d-4583-8e79-968339223864': {
+      policyId: 'policy-samsung-2026',
+      teamId: '412cfc77-2c5d-4583-8e79-968339223864',
+      policyStartAt: '2026-03-01',
+      policyEndAt: '2026-10-31',
+      isActive: true,
+      prices: [
+         { priceId: 'price-samsung-first-base-weekday', gradeId: 'grade-samsung-first-base-infield', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 22000 },
+         { priceId: 'price-samsung-blue-weekday', gradeId: 'grade-samsung-blue-zone', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 20000 },
+         { priceId: 'price-samsung-first-base-weekend', gradeId: 'grade-samsung-first-base-infield', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 24000 },
+         { priceId: 'price-samsung-blue-weekend', gradeId: 'grade-samsung-blue-zone', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 22000 },
+      ],
+   },
 };
 
 const seatSectionsByStadium: Record<string, SeatSection[]> = {
@@ -388,7 +454,7 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/games/:gameId/sections/:sectionId/seat-statuses', async ({ params }) => {
+   http.get('/api/v1/game-seats/:gameId/sections/:sectionId/seat-statuses', async ({ params }) => {
       const sectionSeats = buildSectionSeats(String(params.sectionId));
 
       return HttpResponse.json({
@@ -398,6 +464,27 @@ export const paymentHandlers = [
             seatId: seat.seatId,
             status: !seat.available ? 'SOLD' : index % 7 === 0 ? 'HELD' : 'AVAILABLE',
          })),
+      });
+   }),
+
+   http.get('/api/v1/teams/:teamId/ticket-pricing-policies', async ({ params }) => {
+      const policy = pricingPoliciesByTeamId[String(params.teamId)];
+
+      if (!policy) {
+         return HttpResponse.json(
+            {
+               code: 'NOT_FOUND',
+               message: 'pricing policy not found',
+               data: null,
+            },
+            { status: 404 },
+         );
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: policy,
       });
    }),
 
