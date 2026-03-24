@@ -29,10 +29,10 @@ export interface PurchaseHistoryItem {
 }
 
 const STATUS_COLOR: Record<PurchaseStatus, string> = {
-   '결제완료': 'text-foreground',
+   결제완료: 'text-foreground',
    '취소/환불': 'text-destructive',
-   '정산대기': 'text-(--text-tertiary)',
-   '정산완료': 'text-foreground',
+   정산대기: 'text-(--text-tertiary)',
+   정산완료: 'text-foreground',
 };
 
 interface PurchaseHistoryCardProps {
@@ -42,14 +42,14 @@ interface PurchaseHistoryCardProps {
 export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) {
    return (
       <div className="bg-background border border-border rounded-[14px] flex flex-col gap-2.5 px-px py-3.25">
-         {/* 상단: 주문일자 / 주문상세 링크 */}
-         <div className="flex items-center gap-8 px-4 py-1">
-            <div className="flex items-center gap-1 text-body-2-regular">
-               <span className="text-foreground">주문일자:</span>
+         {/* 상단: 구매일자 / 구매상세 링크 */}
+         <div className="flex items-center px-4 py-1">
+            <div className="flex items-center gap-1 text-body-2-regular shrink-0 min-w-40">
+               <span className="text-foreground">구매일자:</span>
                <span className="text-body-2-semibold text-foreground">{item.orderDate}</span>
             </div>
             <button className="flex items-center text-body-2-regular text-foreground">
-               주문상세 <ChevronRight size={16} className="ml-0.5" />
+               구매상세 <ChevronRight size={16} className="ml-0.5" />
             </button>
          </div>
 
@@ -58,7 +58,6 @@ export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) 
 
          {/* 본문 — items-stretch 로 세로 구분선(h-full) 정상 동작 */}
          <div className="flex items-stretch gap-4 p-4">
-
             {/* ① 왼쪽: 뱃지 + 주문번호 + 수령방식 — w-36 고정 */}
             <div className="flex flex-col gap-1.5 items-center w-36 shrink-0 px-1">
                <div className="flex-1 flex flex-col items-start w-full justify-start">
@@ -77,11 +76,17 @@ export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) 
                <div className="flex flex-col gap-1">
                   <p className="text-foreground text-body-1-bold whitespace-nowrap">{item.game.teams}</p>
                   <div className="flex items-center gap-2 h-4">
-                     <span className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">{item.game.venue}</span>
+                     <span className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">
+                        {item.game.venue}
+                     </span>
                      <span className="w-px h-2.5 bg-[#d1d5dc]" />
-                     <span className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">{item.game.datetime}</span>
+                     <span className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">
+                        {item.game.datetime}
+                     </span>
                      <span className="w-px h-2.5 bg-[#d1d5dc]" />
-                     <span className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">{item.game.quantity}매</span>
+                     <span className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">
+                        {item.game.quantity}매
+                     </span>
                   </div>
                </div>
                <div className="flex flex-col gap-1">
@@ -125,7 +130,6 @@ export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) 
                   <span className="text-foreground text-body-1-regular">-</span>
                )}
             </div>
-
          </div>
       </div>
    );

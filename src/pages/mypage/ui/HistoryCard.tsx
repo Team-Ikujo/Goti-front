@@ -1,6 +1,5 @@
 // src/pages/mypage/ui/HistoryCard.tsx
 
-import { Button } from '@/shared/ui/button';
 import { Separator } from '@/shared/ui/separator';
 import { ChevronRight } from 'lucide-react';
 
@@ -19,7 +18,7 @@ export interface HistoryItem {
    };
    price: number;
    paymentMethod: string;
-   status: '결제완료' | '취소/환불' | '정산대기' | '정산완료' | '판매 중' | '판매 완료' | '판매 취소 대기';
+   status: '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
    deliveryType: string;
    isMobileTicket?: boolean;
    mode: 'purchase' | 'sale';
@@ -30,18 +29,16 @@ interface HistoryCardProps {
 }
 
 const STATUS_COLOR: Record<HistoryItem['status'], string> = {
-   결제완료: 'text-foreground',
+   '입금 대기': 'text-destructive',
+   '예매 완료': 'text-primary',
+   '부분 처리': 'text-(--text-tertiary)',
+   '관람 완료': 'text-foreground',
    '취소/환불': 'text-destructive',
-   정산대기: 'text-(--text-tertiary)',
-   정산완료: 'text-foreground',
-   '판매 중': 'text-primary',
-   '판매 완료': 'text-foreground',
-   '판매 취소 대기': 'text-destructive',
 };
 
 export default function HistoryCard({ item }: HistoryCardProps) {
-   const dateLabel = item.mode === 'purchase' ? '예약일자' : '판매일자';
-   const detailLabel = item.mode === 'purchase' ? '예약 일자' : '판매 상세';
+   const dateLabel = item.mode === 'purchase' ? '구매일자' : '판매일자';
+   const detailLabel = item.mode === 'purchase' ? '구매상세' : '판매상세';
 
    return (
       <div className="bg-background border border-border rounded-[14px] flex flex-col gap-2.5 px-px py-3.25">
@@ -116,12 +113,23 @@ export default function HistoryCard({ item }: HistoryCardProps) {
             <Separator orientation="vertical" className="self-stretch" />
 
             {/* 액션 버튼 */}
-            <div className="flex items-center justify-center px-2.5 shrink-0 w-24.75">
-               {item.mode === 'purchase' && item.isMobileTicket && item.status === '결제완료' ? (
-                  <Button variant={'secondary'} className="text-sm font-medium px-3 py-1 rounded-lg w-full text-center">
-                     판매 등록
-                  </Button>
-               ) : (
+            <div className="flex flex-col items-center justify-center gap-[4px] px-[12px] shrink-0 w-[100px]">
+               {item.mode === 'purchase' && item.isMobileTicket && item.status === '예매 완료' && (
+                  <button className="border border-primary flex items-center justify-center px-[12px] py-[4px] rounded-[8px] w-full">
+                     <span className="text-[14px] font-medium leading-[1.45] text-primary whitespace-nowrap">판매 등록</span>
+                  </button>
+               )}
+               {item.mode === 'purchase' && (item.status === '입금 대기' || item.status === '예매 완료') && (
+                  <button className="border border-border flex items-center justify-center px-[12px] py-[4px] rounded-[8px] w-full">
+                     <span className="text-[14px] font-medium leading-[1.45] text-[#374553] whitespace-nowrap">구매 취소</span>
+                  </button>
+               )}
+               {item.mode === 'purchase' && item.status === '예매 완료' && (
+                  <button className="border border-border flex items-center justify-center px-[12px] py-[4px] rounded-[8px] w-full">
+                     <span className="text-[14px] font-medium leading-[1.45] text-[#374553] whitespace-nowrap">QR 확인</span>
+                  </button>
+               )}
+               {item.mode === 'purchase' && item.status !== '입금 대기' && item.status !== '예매 완료' && (
                   <span className="text-(--text-tertiary) text-body-2-regular">-</span>
                )}
             </div>
