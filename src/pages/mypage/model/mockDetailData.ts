@@ -122,8 +122,20 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       orderer: '홍길동',
       cancelDeadline: '2026.03.21 (토) 14:30 까지',
       seatItems: [
-         { orderId: 'ORD2603150001-1', section: '1루 K8석', seatDetail: '109구역 1열 8번', status: '예매완료', price: 15000 },
-         { orderId: 'ORD2603150001-2', section: '1루 K8석', seatDetail: '109구역 1열 9번', status: '예매완료', price: 15000 },
+         {
+            orderId: 'ORD2603150001-1',
+            section: '1루 K8석',
+            seatDetail: '109구역 1열 8번',
+            status: '예매완료',
+            price: 15000,
+         },
+         {
+            orderId: 'ORD2603150001-2',
+            section: '1루 K8석',
+            seatDetail: '109구역 1열 9번',
+            status: '예매완료',
+            price: 15000,
+         },
       ],
       deliveryMethod: '모바일 QR',
       paymentSummary: {
@@ -161,7 +173,13 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       orderer: '홍길동',
       cancelDeadline: '2026.03.22 (일) 10:00 까지',
       seatItems: [
-         { orderId: 'ORD2603160001-1', section: '외야 응원석', seatDetail: '303구역 5열 12번', status: '예매완료', price: 12000 },
+         {
+            orderId: 'ORD2603160001-1',
+            section: '외야 응원석',
+            seatDetail: '303구역 5열 12번',
+            status: '예매완료',
+            price: 12000,
+         },
       ],
       deliveryMethod: '배송',
       deliveryAddress: '서울특별시 서초구 반포동',
@@ -203,9 +221,27 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       orderer: '홍길동',
       cancelDeadline: '2026.03.07 (토) 13:00 까지',
       seatItems: [
-         { orderId: 'ORD2603010001-1', section: '내야 지정석 A', seatDetail: '105구역 3열 7번', status: '예매완료', price: 18000 },
-         { orderId: 'ORD2603010001-2', section: '내야 지정석 A', seatDetail: '105구역 3열 8번', status: '예매완료', price: 18000 },
-         { orderId: 'ORD2603010001-3', section: '내야 지정석 A', seatDetail: '105구역 3열 9번', status: '예매완료', price: 18000 },
+         {
+            orderId: 'ORD2603010001-1',
+            section: '내야 지정석 A',
+            seatDetail: '105구역 3열 7번',
+            status: '예매완료',
+            price: 18000,
+         },
+         {
+            orderId: 'ORD2603010001-2',
+            section: '내야 지정석 A',
+            seatDetail: '105구역 3열 8번',
+            status: '예매완료',
+            price: 18000,
+         },
+         {
+            orderId: 'ORD2603010001-3',
+            section: '내야 지정석 A',
+            seatDetail: '105구역 3열 9번',
+            status: '예매완료',
+            price: 18000,
+         },
       ],
       deliveryMethod: '모바일 QR',
       paymentSummary: {
@@ -243,8 +279,20 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       orderer: '홍길동',
       cancelDeadline: '2026.03.03 (화) 14:30 까지',
       seatItems: [
-         { orderId: 'ORD2602250001-1', section: '1루 K8석', seatDetail: '301구역 2열 5번', status: '예매완료', price: 18000 },
-         { orderId: 'ORD2602250001-2', section: '1루 K8석', seatDetail: '301구역 2열 6번', status: '예매완료', price: 18000 },
+         {
+            orderId: 'ORD2602250001-1',
+            section: '1루 K8석',
+            seatDetail: '301구역 2열 5번',
+            status: '예매완료',
+            price: 18000,
+         },
+         {
+            orderId: 'ORD2602250001-2',
+            section: '1루 K8석',
+            seatDetail: '301구역 2열 6번',
+            status: '예매완료',
+            price: 18000,
+         },
       ],
       deliveryMethod: '현장 수령',
       paymentSummary: {
@@ -282,7 +330,13 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       orderer: '홍길동',
       cancelDeadline: '2026.02.25 (수) 14:30 까지',
       seatItems: [
-         { orderId: 'ORD2602180001-1', section: '내야 지정석 B', seatDetail: '112구역 8열 15번', status: '예매완료', price: 55000 },
+         {
+            orderId: 'ORD2602180001-1',
+            section: '내야 지정석 B',
+            seatDetail: '112구역 8열 15번',
+            status: '예매완료',
+            price: 55000,
+         },
       ],
       deliveryMethod: '모바일 QR',
       paymentSummary: {
@@ -320,8 +374,20 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       orderer: '홍길동',
       cancelDate: '2026.02.12 (목) 23:59',
       seatItems: [
-         { orderId: 'ORD2602100001-1', section: '3루 K9석', seatDetail: '207구역 1열 3번', status: '취소완료', price: 14000 },
-         { orderId: 'ORD2602100001-2', section: '3루 K9석', seatDetail: '207구역 1열 4번', status: '취소완료', price: 14000 },
+         {
+            orderId: 'ORD2602100001-1',
+            section: '3루 K9석',
+            seatDetail: '207구역 1열 3번',
+            status: '취소완료',
+            price: 14000,
+         },
+         {
+            orderId: 'ORD2602100001-2',
+            section: '3루 K9석',
+            seatDetail: '207구역 1열 4번',
+            status: '취소완료',
+            price: 14000,
+         },
       ],
       deliveryMethod: '모바일 QR',
       paymentSummary: {
@@ -353,7 +419,13 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       orderer: '홍길동',
       cancelDate: '2026.02.08 (일) 10:30',
       seatItems: [
-         { orderId: 'ORD2602050001-1', section: '외야 지정석', seatDetail: '401구역 5열 10번', status: '취소완료', price: 12000 },
+         {
+            orderId: 'ORD2602050001-1',
+            section: '외야 지정석',
+            seatDetail: '401구역 5열 10번',
+            status: '취소완료',
+            price: 12000,
+         },
       ],
       deliveryMethod: '현장 수령',
       paymentSummary: {
@@ -387,10 +459,34 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       orderer: '홍길동',
       cancelDeadline: '2026.01.22 (목) 13:00 까지',
       seatItems: [
-         { orderId: 'ORD1710847290001', section: '내야 지정석 A', seatDetail: '108구역 2열 1번', status: '예매완료', price: 16000 },
-         { orderId: 'ORD1710847290002', section: '내야 지정석 A', seatDetail: '108구역 2열 2번', status: '취소완료', price: 16000 },
-         { orderId: 'ORD1710847290003', section: '내야 지정석 A', seatDetail: '108구역 2열 3번', status: '예매완료', price: 16000 },
-         { orderId: 'ORD1710847290004', section: '내야 지정석 A', seatDetail: '108구역 2열 4번', status: '취소완료', price: 16000 },
+         {
+            orderId: 'ORD1710847290001',
+            section: '내야 지정석 A',
+            seatDetail: '108구역 2열 1번',
+            status: '예매완료',
+            price: 16000,
+         },
+         {
+            orderId: 'ORD1710847290002',
+            section: '내야 지정석 A',
+            seatDetail: '108구역 2열 2번',
+            status: '취소완료',
+            price: 16000,
+         },
+         {
+            orderId: 'ORD1710847290003',
+            section: '내야 지정석 A',
+            seatDetail: '108구역 2열 3번',
+            status: '예매완료',
+            price: 16000,
+         },
+         {
+            orderId: 'ORD1710847290004',
+            section: '내야 지정석 A',
+            seatDetail: '108구역 2열 4번',
+            status: '취소완료',
+            price: 16000,
+         },
       ],
       deliveryMethod: '모바일 QR',
       paymentSummary: {
@@ -440,8 +536,20 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       orderer: '홍길동',
       cancelDeadline: '2026.02.03 (화) 14:30 까지',
       seatItems: [
-         { orderId: 'ORD2601280001-1', section: '1루 지정석', seatDetail: '102구역 4열 6번', status: '예매완료', price: 24000 },
-         { orderId: 'ORD2601280001-2', section: '1루 지정석', seatDetail: '102구역 4열 7번', status: '예매완료', price: 24000 },
+         {
+            orderId: 'ORD2601280001-1',
+            section: '1루 지정석',
+            seatDetail: '102구역 4열 6번',
+            status: '예매완료',
+            price: 24000,
+         },
+         {
+            orderId: 'ORD2601280001-2',
+            section: '1루 지정석',
+            seatDetail: '102구역 4열 7번',
+            status: '예매완료',
+            price: 24000,
+         },
       ],
       deliveryMethod: '모바일 QR',
       paymentSummary: {
@@ -479,10 +587,34 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       orderer: '홍길동',
       cancelDeadline: '2026.01.18 (일) 10:00 까지',
       seatItems: [
-         { orderId: 'ORD2601100001-1', section: '3루 K9석', seatDetail: '301구역 2열 5번', status: '예매완료', price: 18000 },
-         { orderId: 'ORD2601100001-2', section: '3루 K9석', seatDetail: '301구역 2열 6번', status: '취소완료', price: 18000 },
-         { orderId: 'ORD2601100001-3', section: '3루 K9석', seatDetail: '301구역 2열 7번', status: '예매완료', price: 18000 },
-         { orderId: 'ORD2601100001-4', section: '3루 K9석', seatDetail: '301구역 2열 8번', status: '취소완료', price: 18000 },
+         {
+            orderId: 'ORD2601100001-1',
+            section: '3루 K9석',
+            seatDetail: '301구역 2열 5번',
+            status: '예매완료',
+            price: 18000,
+         },
+         {
+            orderId: 'ORD2601100001-2',
+            section: '3루 K9석',
+            seatDetail: '301구역 2열 6번',
+            status: '취소완료',
+            price: 18000,
+         },
+         {
+            orderId: 'ORD2601100001-3',
+            section: '3루 K9석',
+            seatDetail: '301구역 2열 7번',
+            status: '예매완료',
+            price: 18000,
+         },
+         {
+            orderId: 'ORD2601100001-4',
+            section: '3루 K9석',
+            seatDetail: '301구역 2열 8번',
+            status: '취소완료',
+            price: 18000,
+         },
       ],
       deliveryMethod: '모바일 QR',
       paymentSummary: {
@@ -531,8 +663,20 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       game: { teams: '삼성 vs KIA', venue: '대구', datetime: '2025.12.27 (토) 14:00' },
       orderer: '홍길동',
       seatItems: [
-         { orderId: 'ORD2512200001-1', section: '1루 K8석', seatDetail: '110구역 3열 5번', status: '예매완료', price: 21000 },
-         { orderId: 'ORD2512200001-2', section: '1루 K8석', seatDetail: '110구역 3열 6번', status: '예매완료', price: 21000 },
+         {
+            orderId: 'ORD2512200001-1',
+            section: '1루 K8석',
+            seatDetail: '110구역 3열 5번',
+            status: '예매완료',
+            price: 21000,
+         },
+         {
+            orderId: 'ORD2512200001-2',
+            section: '1루 K8석',
+            seatDetail: '110구역 3열 6번',
+            status: '예매완료',
+            price: 21000,
+         },
       ],
       deliveryMethod: '모바일 QR',
       paymentSummary: {
@@ -569,8 +713,20 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       game: { teams: '두산 vs 롯데', venue: '잠실', datetime: '2025.11.22 (토) 18:30' },
       orderer: '홍길동',
       seatItems: [
-         { orderId: 'ORD2511150001-1', section: '내야 지정석 B', seatDetail: '206구역 5열 8번', status: '예매완료', price: 16000 },
-         { orderId: 'ORD2511150001-2', section: '내야 지정석 B', seatDetail: '206구역 5열 9번', status: '예매완료', price: 16000 },
+         {
+            orderId: 'ORD2511150001-1',
+            section: '내야 지정석 B',
+            seatDetail: '206구역 5열 8번',
+            status: '예매완료',
+            price: 16000,
+         },
+         {
+            orderId: 'ORD2511150001-2',
+            section: '내야 지정석 B',
+            seatDetail: '206구역 5열 9번',
+            status: '예매완료',
+            price: 16000,
+         },
       ],
       deliveryMethod: '모바일 QR',
       paymentSummary: {
@@ -607,7 +763,13 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       game: { teams: 'SSG vs KT', venue: '인천', datetime: '2025.11.03 (일) 14:00' },
       orderer: '홍길동',
       seatItems: [
-         { orderId: 'ORD2510280001-1', section: '외야 지정석', seatDetail: '402구역 7열 18번', status: '예매완료', price: 14000 },
+         {
+            orderId: 'ORD2510280001-1',
+            section: '외야 지정석',
+            seatDetail: '402구역 7열 18번',
+            status: '예매완료',
+            price: 14000,
+         },
       ],
       deliveryMethod: '모바일 QR',
       paymentSummary: {
@@ -644,8 +806,20 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       game: { teams: '키움 vs KT', venue: '고척', datetime: '2025.10.26 (일) 17:00' },
       orderer: '홍길동',
       seatItems: [
-         { orderId: 'ORD2510200001-1', section: '내야 지정석 B', seatDetail: '112구역 8열 15번', status: '예매완료', price: 27500 },
-         { orderId: 'ORD2510200001-2', section: '내야 지정석 B', seatDetail: '112구역 8열 16번', status: '예매완료', price: 27500 },
+         {
+            orderId: 'ORD2510200001-1',
+            section: '내야 지정석 B',
+            seatDetail: '112구역 8열 15번',
+            status: '예매완료',
+            price: 27500,
+         },
+         {
+            orderId: 'ORD2510200001-2',
+            section: '내야 지정석 B',
+            seatDetail: '112구역 8열 16번',
+            status: '예매완료',
+            price: 27500,
+         },
       ],
       deliveryMethod: '모바일 QR',
       paymentSummary: {
@@ -682,9 +856,27 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
       game: { teams: 'KIA vs NC', venue: '광주', datetime: '2025.10.11 (토) 18:30' },
       orderer: '홍길동',
       seatItems: [
-         { orderId: 'ORD2510050001-1', section: '3루 외야 지정석', seatDetail: '209구역 2열 7번', status: '예매완료', price: 9000 },
-         { orderId: 'ORD2510050001-2', section: '3루 외야 지정석', seatDetail: '209구역 2열 8번', status: '예매완료', price: 9000 },
-         { orderId: 'ORD2510050001-3', section: '3루 외야 지정석', seatDetail: '209구역 2열 9번', status: '예매완료', price: 9000 },
+         {
+            orderId: 'ORD2510050001-1',
+            section: '3루 외야 지정석',
+            seatDetail: '209구역 2열 7번',
+            status: '예매완료',
+            price: 9000,
+         },
+         {
+            orderId: 'ORD2510050001-2',
+            section: '3루 외야 지정석',
+            seatDetail: '209구역 2열 8번',
+            status: '예매완료',
+            price: 9000,
+         },
+         {
+            orderId: 'ORD2510050001-3',
+            section: '3루 외야 지정석',
+            seatDetail: '209구역 2열 9번',
+            status: '예매완료',
+            price: 9000,
+         },
       ],
       deliveryMethod: '모바일 QR',
       paymentSummary: {
@@ -718,14 +910,20 @@ export const PURCHASE_DETAIL_MAP: Record<string, PurchaseDetailData> = {
 // ─── 판매 상세 목 데이터 ────────────────────────────────────────
 
 export const SALE_DETAIL_MAP: Record<string, SaleDetailData> = {
-   's1': {
+   s1: {
       id: 's1',
       orderId: 'RS0921983200001',
       orderDate: '2026.03.18 (수) 14:30',
       overallStatus: '판매 중',
       game: { teams: '삼성 vs LG', venue: '대구', datetime: '2026.03.25 (수) 18:30' },
       seatItems: [
-         { orderId: 'ORD2603180001', section: '1루 K8석', seatDetail: '109구역 1열 10번', status: '판매중', price: 40000 },
+         {
+            orderId: 'ORD2603180001',
+            section: '1루 K8석',
+            seatDetail: '109구역 1열 10번',
+            status: '판매중',
+            price: 40000,
+         },
       ],
       estimatedTicketAmount: 40000,
       estimatedFeeRate: 5,
@@ -735,15 +933,27 @@ export const SALE_DETAIL_MAP: Record<string, SaleDetailData> = {
       settlementDate: '2026.03.26 (목) 09:00',
       canCancel: true,
    },
-   's2': {
+   s2: {
       id: 's2',
       orderId: 'RS0921983200002',
       orderDate: '2026.03.10 (화) 09:20',
       overallStatus: '판매 중',
       game: { teams: '삼성 vs LG', venue: '대구', datetime: '2026.03.21 (토) 18:30' },
       seatItems: [
-         { orderId: 'ORD2603100001', section: '1루 K8석', seatDetail: '109구역 1열 8번', status: '판매중', price: 38000 },
-         { orderId: 'ORD2603100002', section: '1루 K8석', seatDetail: '109구역 1열 9번', status: '판매취소', price: 38000 },
+         {
+            orderId: 'ORD2603100001',
+            section: '1루 K8석',
+            seatDetail: '109구역 1열 8번',
+            status: '판매중',
+            price: 38000,
+         },
+         {
+            orderId: 'ORD2603100002',
+            section: '1루 K8석',
+            seatDetail: '109구역 1열 9번',
+            status: '판매취소',
+            price: 38000,
+         },
       ],
       estimatedTicketAmount: 38000,
       estimatedFeeRate: 5,
@@ -753,14 +963,20 @@ export const SALE_DETAIL_MAP: Record<string, SaleDetailData> = {
       settlementDate: '2026.03.22 (일) 09:00',
       canCancel: true,
    },
-   's3': {
+   s3: {
       id: 's3',
       orderId: 'RS0921983200003',
       orderDate: '2026.03.05 (목) 11:00',
       overallStatus: '판매 완료',
       game: { teams: 'KT vs 두산', venue: '수원', datetime: '2026.03.12 (목) 17:00' },
       seatItems: [
-         { orderId: 'ORD2603050001', section: '내야 지정석 A', seatDetail: '108구역 3열 11번', status: '판매완료', price: 22000 },
+         {
+            orderId: 'ORD2603050001',
+            section: '내야 지정석 A',
+            seatDetail: '108구역 3열 11번',
+            status: '판매완료',
+            price: 22000,
+         },
       ],
       estimatedTicketAmount: 22000,
       estimatedFeeRate: 5,
@@ -771,15 +987,27 @@ export const SALE_DETAIL_MAP: Record<string, SaleDetailData> = {
       settlementCompleteDate: '2026.03.13 (금) 10:00',
       canCancel: false,
    },
-   's4': {
+   s4: {
       id: 's4',
       orderId: 'RS0921983200004',
       orderDate: '2026.02.20 (금) 16:45',
       overallStatus: '판매 완료',
       game: { teams: 'NC vs SSG', venue: '창원', datetime: '2026.02.27 (금) 18:30' },
       seatItems: [
-         { orderId: 'ORD2602200001', section: '3루 K9석', seatDetail: '302구역 1열 7번', status: '판매완료', price: 25000 },
-         { orderId: 'ORD2602200002', section: '3루 K9석', seatDetail: '302구역 1열 8번', status: '판매완료', price: 25000 },
+         {
+            orderId: 'ORD2602200001',
+            section: '3루 K9석',
+            seatDetail: '302구역 1열 7번',
+            status: '판매완료',
+            price: 25000,
+         },
+         {
+            orderId: 'ORD2602200002',
+            section: '3루 K9석',
+            seatDetail: '302구역 1열 8번',
+            status: '판매완료',
+            price: 25000,
+         },
       ],
       estimatedTicketAmount: 50000,
       estimatedFeeRate: 5,
@@ -790,14 +1018,20 @@ export const SALE_DETAIL_MAP: Record<string, SaleDetailData> = {
       settlementCompleteDate: '2026.02.28 (토) 10:00',
       canCancel: false,
    },
-   's5': {
+   s5: {
       id: 's5',
       orderId: 'RS0921983200005',
       orderDate: '2026.02.05 (목) 10:10',
       overallStatus: '판매 완료',
       game: { teams: 'KIA vs 두산', venue: '광주', datetime: '2026.02.12 (목) 17:00' },
       seatItems: [
-         { orderId: 'ORD2602050001', section: '3루 외야 지정석', seatDetail: '208구역 5열 12번', status: '판매완료', price: 30000 },
+         {
+            orderId: 'ORD2602050001',
+            section: '3루 외야 지정석',
+            seatDetail: '208구역 5열 12번',
+            status: '판매완료',
+            price: 30000,
+         },
       ],
       estimatedTicketAmount: 30000,
       estimatedFeeRate: 5,
@@ -808,15 +1042,27 @@ export const SALE_DETAIL_MAP: Record<string, SaleDetailData> = {
       settlementCompleteDate: '2026.02.13 (금) 10:00',
       canCancel: false,
    },
-   's6': {
+   s6: {
       id: 's6',
       orderId: 'RS0921983200006',
       orderDate: '2026.01.25 (일) 13:00',
       overallStatus: '정산 대기',
       game: { teams: '한화 vs 키움', venue: '대전', datetime: '2026.02.01 (일) 14:00' },
       seatItems: [
-         { orderId: 'ORD2601250001', section: '1루 지정석', seatDetail: '103구역 5열 2번', status: '판매완료', price: 17000 },
-         { orderId: 'ORD2601250002', section: '1루 지정석', seatDetail: '103구역 5열 3번', status: '판매완료', price: 17000 },
+         {
+            orderId: 'ORD2601250001',
+            section: '1루 지정석',
+            seatDetail: '103구역 5열 2번',
+            status: '판매완료',
+            price: 17000,
+         },
+         {
+            orderId: 'ORD2601250002',
+            section: '1루 지정석',
+            seatDetail: '103구역 5열 3번',
+            status: '판매완료',
+            price: 17000,
+         },
       ],
       estimatedTicketAmount: 34000,
       estimatedFeeRate: 5,
@@ -826,15 +1072,27 @@ export const SALE_DETAIL_MAP: Record<string, SaleDetailData> = {
       settlementDate: '2026.02.03 (화) 10:00',
       canCancel: false,
    },
-   's7': {
+   s7: {
       id: 's7',
       orderId: 'RS0921983200007',
       orderDate: '2026.01.20 (화) 20:30',
       overallStatus: '정산 대기',
       game: { teams: '롯데 vs SSG', venue: '사직', datetime: '2026.01.28 (수) 18:30' },
       seatItems: [
-         { orderId: 'ORD2601200001', section: '내야 지정석 A', seatDetail: '107구역 4열 9번', status: '판매완료', price: 21000 },
-         { orderId: 'ORD2601200002', section: '내야 지정석 A', seatDetail: '107구역 4열 10번', status: '판매완료', price: 21000 },
+         {
+            orderId: 'ORD2601200001',
+            section: '내야 지정석 A',
+            seatDetail: '107구역 4열 9번',
+            status: '판매완료',
+            price: 21000,
+         },
+         {
+            orderId: 'ORD2601200002',
+            section: '내야 지정석 A',
+            seatDetail: '107구역 4열 10번',
+            status: '판매완료',
+            price: 21000,
+         },
       ],
       estimatedTicketAmount: 42000,
       estimatedFeeRate: 5,
@@ -844,14 +1102,20 @@ export const SALE_DETAIL_MAP: Record<string, SaleDetailData> = {
       settlementDate: '2026.01.30 (금) 10:00',
       canCancel: false,
    },
-   's8': {
+   s8: {
       id: 's8',
       orderId: 'RS0921983200008',
       orderDate: '2026.01.08 (목) 18:20',
       overallStatus: '판매 취소 대기',
       game: { teams: 'LG vs KIA', venue: '잠실', datetime: '2026.01.15 (목) 17:00' },
       seatItems: [
-         { orderId: 'ORD2601080001', section: '외야 지정석', seatDetail: '403구역 9열 5번', status: '취소대기', price: 18000 },
+         {
+            orderId: 'ORD2601080001',
+            section: '외야 지정석',
+            seatDetail: '403구역 9열 5번',
+            status: '취소대기',
+            price: 18000,
+         },
       ],
       estimatedTicketAmount: 18000,
       estimatedFeeRate: 5,
@@ -860,15 +1124,27 @@ export const SALE_DETAIL_MAP: Record<string, SaleDetailData> = {
       cancelDate: '2026.01.09 (금) 10:30',
       canCancel: false,
    },
-   's9': {
+   s9: {
       id: 's9',
       orderId: 'RS0921983200009',
       orderDate: '2025.12.10 (수) 09:00',
       overallStatus: '판매 취소 대기',
       game: { teams: 'NC vs 한화', venue: '창원', datetime: '2025.12.18 (목) 14:00' },
       seatItems: [
-         { orderId: 'ORD2512100001', section: '1루 K8석', seatDetail: '203구역 1열 3번', status: '취소대기', price: 25000 },
-         { orderId: 'ORD2512100002', section: '1루 K8석', seatDetail: '203구역 1열 4번', status: '취소대기', price: 25000 },
+         {
+            orderId: 'ORD2512100001',
+            section: '1루 K8석',
+            seatDetail: '203구역 1열 3번',
+            status: '취소대기',
+            price: 25000,
+         },
+         {
+            orderId: 'ORD2512100002',
+            section: '1루 K8석',
+            seatDetail: '203구역 1열 4번',
+            status: '취소대기',
+            price: 25000,
+         },
       ],
       estimatedTicketAmount: 50000,
       estimatedFeeRate: 5,
@@ -877,15 +1153,27 @@ export const SALE_DETAIL_MAP: Record<string, SaleDetailData> = {
       cancelDate: '2025.12.11 (목) 14:00',
       canCancel: false,
    },
-   's10': {
+   s10: {
       id: 's10',
       orderId: 'RS0921983200010',
       orderDate: '2025.11.20 (목) 22:10',
       overallStatus: '판매 완료',
       game: { teams: '두산 vs 삼성', venue: '잠실', datetime: '2025.11.27 (목) 17:00' },
       seatItems: [
-         { orderId: 'ORD2511200001', section: '3루 K9석', seatDetail: '205구역 3열 14번', status: '판매완료', price: 18000 },
-         { orderId: 'ORD2511200002', section: '3루 K9석', seatDetail: '205구역 3열 15번', status: '판매완료', price: 18000 },
+         {
+            orderId: 'ORD2511200001',
+            section: '3루 K9석',
+            seatDetail: '205구역 3열 14번',
+            status: '판매완료',
+            price: 18000,
+         },
+         {
+            orderId: 'ORD2511200002',
+            section: '3루 K9석',
+            seatDetail: '205구역 3열 15번',
+            status: '판매완료',
+            price: 18000,
+         },
       ],
       estimatedTicketAmount: 36000,
       estimatedFeeRate: 5,
@@ -896,14 +1184,20 @@ export const SALE_DETAIL_MAP: Record<string, SaleDetailData> = {
       settlementCompleteDate: '2025.11.28 (금) 10:00',
       canCancel: false,
    },
-   's11': {
+   s11: {
       id: 's11',
       orderId: 'RS0921983200011',
       orderDate: '2025.10.15 (수) 17:55',
       overallStatus: '판매 완료',
       game: { teams: 'KT vs 롯데', venue: '수원', datetime: '2025.10.22 (수) 18:30' },
       seatItems: [
-         { orderId: 'ORD2510150001', section: '내야 지정석 B', seatDetail: '110구역 6열 3번', status: '판매완료', price: 28000 },
+         {
+            orderId: 'ORD2510150001',
+            section: '내야 지정석 B',
+            seatDetail: '110구역 6열 3번',
+            status: '판매완료',
+            price: 28000,
+         },
       ],
       estimatedTicketAmount: 28000,
       estimatedFeeRate: 5,
@@ -914,14 +1208,20 @@ export const SALE_DETAIL_MAP: Record<string, SaleDetailData> = {
       settlementCompleteDate: '2025.10.23 (목) 10:00',
       canCancel: false,
    },
-   's12': {
+   s12: {
       id: 's12',
       orderId: 'RS0921983200012',
       orderDate: '2025.10.05 (일) 08:40',
       overallStatus: '판매 완료',
       game: { teams: '키움 vs KT', venue: '고척', datetime: '2025.10.12 (일) 17:00' },
       seatItems: [
-         { orderId: 'ORD2510050001', section: '외야 지정석', seatDetail: '401구역 7열 22번', status: '판매완료', price: 20000 },
+         {
+            orderId: 'ORD2510050001',
+            section: '외야 지정석',
+            seatDetail: '401구역 7열 22번',
+            status: '판매완료',
+            price: 20000,
+         },
       ],
       estimatedTicketAmount: 20000,
       estimatedFeeRate: 5,

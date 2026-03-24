@@ -77,7 +77,7 @@ export default function SaleHistoryCard({ item }: SaleHistoryCardProps) {
             </div>
 
             {/* ② 경기 정보 — flex-1 */}
-            <div className="flex flex-1 flex-col gap-2 min-w-0 px-1 justify-center">
+            <div className="flex flex-1 flex-col gap-2 min-w-0 px-1 justify-center min-h-24">
                <div className="flex flex-col gap-1">
                   <p className="text-foreground text-body-1-bold whitespace-nowrap">{item.game.teams}</p>
                   <div className="flex items-center gap-2 h-4">
@@ -129,7 +129,7 @@ export default function SaleHistoryCard({ item }: SaleHistoryCardProps) {
             <div className="flex flex-col items-center justify-center gap-1 px-3 shrink-0 w-25">
                {item.canCancel ? (
                   <button className="border border-border flex items-center justify-center px-3 py-1 rounded-lg w-full">
-                     <span className="text-[14px] font-medium leading-[1.45] text-[#374553] whitespace-nowrap">
+                     <span className="text-[14px] font-medium leading-5 text-[#374553] whitespace-nowrap">
                         판매 취소
                      </span>
                   </button>

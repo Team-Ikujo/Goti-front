@@ -453,7 +453,7 @@ export default function MypagePage() {
                                     ))
                                  )
                               ) : (
-                                 <p className="text-center text-(--text-tertiary) py-12 text-body-2-regular">
+                                 <p className="text-center text-(--text-tertiary) text-body-2-regular h-full">
                                     조건에 맞는 {activeTab === 'purchase' ? '구매' : '판매'} 내역이 없습니다.
                                  </p>
                               )}
