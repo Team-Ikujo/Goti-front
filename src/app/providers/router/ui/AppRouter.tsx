@@ -26,6 +26,8 @@ import PaymentProcessingPage from '@/pages/tickets/ui/payment/PaymentProcessingP
 import PaymentCompletePage from '@/pages/tickets/ui/payment/PaymentCompletePage';
 import BooksPage from '@/pages/books';
 import SeatsPage from '@/pages/books/ui/SeatsPage';
+import { MypagePage, AccountPage } from '@/pages/mypage';
+import MypageLayout from '@/shared/widgets/layout/mypage/MypageLayout';
 import AuthSessionController from './AuthSessionController';
 import BookingFlowStateGuard from './BookingFlowStateGuard';
 import OAuthMessageListener from './OAuthMessageListener';
@@ -57,6 +59,10 @@ const AppRouter = () => {
             <Route path="/tickets/payment/processing" element={<PaymentProcessingPage />} />
             {/* ?delivery=mobile|onsite|delivery */}
             <Route path="/tickets/payment/complete" element={<PaymentCompletePage />} />
+            <Route path="/mypage" element={<MypageLayout />}>
+               <Route index element={<MypagePage />} />
+               <Route path="account" element={<AccountPage />} />
+            </Route>
             <Route path="/books" element={<BooksLayout />}>
                <Route index element={<BooksPage />} />
                <Route path="seats/:zoneId" element={<SeatsPage />} />
