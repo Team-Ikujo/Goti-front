@@ -30,7 +30,6 @@ export function TeamScheduleTab({ serverTeamId }: Props) {
       serverTeamId,
       year: weekYear,
       month: weekMonth,
-      week: selectedWeek,
    });
 
    const filteredData = useMemo(() => {
@@ -112,15 +111,19 @@ export function TeamScheduleTab({ serverTeamId }: Props) {
                </button>
             </div>
 
-            {/* 주차 선택 */}
-            <div className="flex gap-3.75 md:gap-7.5 items-start justify-center w-full flex-wrap">
+            {/* 주차 선택
+                 justify-between이 갭을 자동 분배:
+                   컨테이너 560px: 버튼 88px × 5 + 갭 30px × 4 = 560px
+                   컨테이너 343px(min): 버튼 67px × 5 + 갭 2px × 4 = 343px
+                 버튼 너비 보간: clamp(67, 33.81px + 9.68%, 88) */}
+            <div className="flex justify-between w-full max-w-140 mx-auto min-w-[343px]">
                {WEEK_OPTIONS.map(week => (
                   <Button
                      key={week}
                      onClick={() => setSelectedWeek(week)}
                      variant={week === selectedWeek ? 'secondary' : 'tertiary'}
                      className={cn(
-                        'px-4 md:px-5.5 py-2.25 rounded-[10px] text-[16px] md:text-[20px] font-semibold leading-normal',
+                        'w-[clamp(67px,_calc(33.81px_+_9.68%),_88px)] shrink-0 px-5.5 py-2.25 rounded-[10px] text-heading-3-semibold leading-normal h-auto overflow-hidden',
                         week !== selectedWeek && 'shadow-[inset_0_0_0_1px_#161d24] text-[#161d24]',
                      )}
                   >
