@@ -1,6 +1,5 @@
 import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { useAuthStore } from "@/entities/auth/model/authStore";
-import { isMswEnabled } from "@/shared/config/runtime";
 
 export class ApiError extends Error {
    status?: number;
@@ -15,7 +14,31 @@ export class ApiError extends Error {
 }
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? "").trim();
-const shouldUseRelativeApiBase = isMswEnabled || import.meta.env.DEV;
+// dev 환경에서는 Rsbuild proxy가 /api 요청을 백엔드로 전달한다.
+// preview/build 환경에서는 정적 서버가 /api를 처리하지 않으므로 절대 base URL을 사용한다.
+const shouldUseRelativeApiBase = import.meta.env.DEV;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isHtmlDocument = (value: unknown): value is string =>
+  typeof value === "string" && /^\s*(<!DOCTYPE html>|<html[\s>])/i.test(value);
+
+export const unwrapApiData = <T>(payload: { data: T } | T): T => {
+  if (isHtmlDocument(payload)) {
+    throw new ApiError(
+      "API expected JSON but received HTML. Check PUBLIC_API_BASE_URL, dev proxy, or MSW configuration.",
+      502,
+      payload,
+    );
+  }
+
+  if (isRecord(payload) && "data" in payload) {
+    return payload.data as T;
+  }
+
+  return payload as T;
+};
 
 const getConsoleTargets = (): Console[] => {
   const targets: Console[] = [console];
@@ -125,6 +148,16 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (response) => {
+    if (isHtmlDocument(response.data)) {
+      return Promise.reject(
+        new ApiError(
+          "API expected JSON but received HTML. Check PUBLIC_API_BASE_URL, dev proxy, or MSW configuration.",
+          response.status,
+          response.data,
+        ),
+      );
+    }
+
     logResponse(response);
     return response;
   },
