@@ -37,8 +37,7 @@ export type TicketPricingPolicyPriceResponse = {
    gradeId: string;
    ticketType: string;
    dayType: string;
-   leagueType?: string;
-   matchType?: string;
+   leagueType: string;
    price: number;
 };
 
@@ -246,7 +245,7 @@ export const resolvePricingByGradeId = ({
    }
 
    const filteredPrices = policy.prices.filter((price) => {
-      const normalizedPriceLeagueType = normalizePolicyLeagueType(price.leagueType ?? price.matchType);
+      const normalizedPriceLeagueType = normalizePolicyLeagueType(price.leagueType);
 
       return (
          normalizePolicyLeagueType(price.ticketType) === 'ADULT' &&
