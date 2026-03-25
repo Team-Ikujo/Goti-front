@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/entities/auth/model/authStore';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { Input } from '@/shared/ui/input';
@@ -149,6 +150,7 @@ export default function AccountPage() {
    };
 
    const isAccountSaveEnabled = !!(bank && accountNumber && depositor && agreeOpen && agreeThird && agreePersonal);
+   const clearAuth = useAuthStore(state => state.clearAuth);
 
    /** 계좌 정보 변경 버튼: 계좌 정보 카드로 스크롤 후 은행 드롭다운 오픈 */
    const handleAccountChange = () => {
@@ -162,6 +164,7 @@ export default function AccountPage() {
 
    /** 로그아웃 */
    const handleLogout = () => {
+      clearAuth('manual');
       navigate('/');
    };
 

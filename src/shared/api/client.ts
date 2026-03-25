@@ -52,6 +52,10 @@ const canAttemptTokenReissue = () => {
     return false;
   }
 
+  if (useAuthStore.getState().isManualLogout) {
+    return false;
+  }
+
   return shouldKeepSessionAlivePathPrefixes.some((prefix) =>
     window.location.pathname.startsWith(prefix),
   );
@@ -149,6 +153,10 @@ const apiClient = axios.create({
 let refreshAccessTokenPromise: Promise<string> | null = null;
 
 const reissueAccessTokenFromCookie = async () => {
+  if (useAuthStore.getState().isManualLogout) {
+    throw new ApiError("수동 로그아웃 상태에서는 토큰을 재발급하지 않습니다.", 401);
+  }
+
   if (!refreshAccessTokenPromise) {
     refreshAccessTokenPromise = axios
       .post(
