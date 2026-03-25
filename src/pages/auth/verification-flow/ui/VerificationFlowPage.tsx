@@ -13,6 +13,7 @@ import {
 
 const VerificationFlowPage = () => {
    const navigate = useNavigate();
+   const hasResolvedSession = useAuthStore(state => state.hasResolvedSession);
    const accessToken = useAuthStore(state => state.accessToken);
    const socialVerifyToken = useAuthStore(state => state.socialVerifyToken);
    const agreements = verificationTermsAgreements;
@@ -72,6 +73,10 @@ const VerificationFlowPage = () => {
    };
 
    useEffect(() => {
+      if (!hasResolvedSession) {
+         return;
+      }
+
       if (accessToken) {
          navigate('/', { replace: true });
          return;
@@ -80,7 +85,7 @@ const VerificationFlowPage = () => {
       if (!socialVerifyToken) {
          navigate('/auth/login', { replace: true });
       }
-   }, [accessToken, navigate, socialVerifyToken]);
+   }, [accessToken, hasResolvedSession, navigate, socialVerifyToken]);
 
    return (
       <div className="bg-white text-(--color-foreground) flex flex-col justify-center items-center min-h-screen">
