@@ -18,6 +18,7 @@ import BooksLayout from '@/shared/widgets/layout/books';
 import Chip from '@/pages/components/ui/ChipPage';
 import ListPage from '@/pages/components/ui/ListPage';
 import ErrorPage from '@/pages/error';
+import ErrorTestHubPage from '@/pages/error/ui/ErrorTestHubPage';
 import TeamsPage from '@/pages/teams';
 import TeamDetailPage from '@/pages/teams/ui/TeamDetailPage';
 import TicketsPage from '@/pages/tickets';
@@ -49,6 +50,8 @@ const AppRouter = () => {
             <Route path="/login" element={<Navigate to="/auth/login" replace />} />
             <Route path="/signup" element={<Navigate to="/auth/terms" replace />} />
             <Route path="/auth/verification-flow" element={<Navigate to="/auth/terms" replace />} />
+            <Route path="/error-test" element={<ErrorTestHubPage />} />
+            <Route path="/error-test/:statusCode" element={<ErrorPage />} />
             <Route path="/error/:statusCode" element={<ErrorPage />} />
             <Route path="/" element={<HomeLayout />}>
                <Route index element={<HomePage />} />
