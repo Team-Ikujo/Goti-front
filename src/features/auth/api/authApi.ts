@@ -1,4 +1,4 @@
-import apiClient from "@/shared/api/client";
+import apiClient, { unwrapApiData } from "@/shared/api/client";
 import type { ApiEnvelope } from "./types";
 
 // 로그인 성공 후 서버에서 반환하는 계정 상태
@@ -15,7 +15,7 @@ export type AuthTokenResponse = {
   failCount?: number; // failed_under_5 / failed_over_5 일 때 실패 횟수
 };
 
-export type SignupGender = "MALE" | "FEMALE";
+export type SignupGender = "MALE" | "FEMALE" | "UNKNOWN";
 
 export type SocialSignupParams = {
   socialVerifyToken: string;
@@ -31,41 +31,63 @@ export type SendSignupSmsParams = {
   mobile: string;
 };
 
+export type ReissueAccessTokenResponse = {
+  accessToken: string;
+};
+
 export const loginWithSocialVerifyToken = async (payload: {
   socialVerifyToken: string;
 }): Promise<AuthTokenResponse> => {
   const response = await apiClient.post<ApiEnvelope<AuthTokenResponse>>(
     "/api/v1/auth/login",
     payload,
+    {
+      withCredentials: true,
+    },
   );
 
-  return response.data.data;
+  return unwrapApiData<AuthTokenResponse>(response.data);
 };
 
 export const signupWithSocialVerifyToken = async (
   payload: SocialSignupParams,
 ): Promise<AuthTokenResponse> => {
-  // 회원가입 상세 스펙은 doc/auth-api.md에 아직 비어 있으므로,
-  // 현재 서버와 맞춰진 프론트 payload를 유지하되 응답 형식은 엄격히 검증한다.
   const response = await apiClient.post<ApiEnvelope<AuthTokenResponse>>(
     "/api/v1/auth/signup",
     payload,
+    {
+      withCredentials: true,
+    },
   );
 
-  if (!response.data.data?.accessToken) {
-    throw new Error("회원가입 응답에 accessToken이 없습니다. auth signup 스펙 확인이 필요합니다.");
+  const data = unwrapApiData<AuthTokenResponse>(response.data);
+
+  if (!data?.accessToken) {
+    throw new Error("회원가입 응답에 accessToken이 없습니다.");
   }
 
-  return response.data.data;
+  return data;
 };
 
 export const sendSignupSmsCode = async (
   payload: SendSignupSmsParams,
-): Promise<string> => {
-  const response = await apiClient.post<ApiEnvelope<string>>(
+): Promise<unknown> => {
+  const response = await apiClient.post<ApiEnvelope<unknown>>(
     "/api/v1/auth/signup/sms/send",
     payload,
   );
 
-  return response.data.data;
+  return unwrapApiData<unknown>(response.data);
+};
+
+export const reissueAccessToken = async (): Promise<ReissueAccessTokenResponse> => {
+  const response = await apiClient.post<ApiEnvelope<ReissueAccessTokenResponse>>(
+    "/api/v1/auth/reissue",
+    undefined,
+    {
+      withCredentials: true,
+    },
+  );
+
+  return unwrapApiData<ReissueAccessTokenResponse>(response.data);
 };

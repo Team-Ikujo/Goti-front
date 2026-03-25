@@ -1,6 +1,5 @@
 import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { useAuthStore } from "@/entities/auth/model/authStore";
-import { isMswEnabled } from "@/shared/config/runtime";
 
 export class ApiError extends Error {
    status?: number;
@@ -15,7 +14,47 @@ export class ApiError extends Error {
 }
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? "").trim();
-const shouldUseRelativeApiBase = isMswEnabled || import.meta.env.DEV;
+// dev 환경에서는 Rsbuild proxy가 /api 요청을 백엔드로 전달한다.
+// preview/build 환경에서는 정적 서버가 /api를 처리하지 않으므로 절대 base URL을 사용한다.
+const shouldUseRelativeApiBase = import.meta.env.DEV;
+const tokenReissuePath = "/api/v1/auth/reissue";
+const shouldKeepSessionAlivePathPrefixes = ["/books", "/tickets"];
+
+type RetriableAxiosRequestConfig = AxiosRequestConfig & {
+  _retry?: boolean;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isHtmlDocument = (value: unknown): value is string =>
+  typeof value === "string" && /^\s*(<!DOCTYPE html>|<html[\s>])/i.test(value);
+
+export const unwrapApiData = <T>(payload: { data: T } | T): T => {
+  if (isHtmlDocument(payload)) {
+    throw new ApiError(
+      "API expected JSON but received HTML. Check PUBLIC_API_BASE_URL, dev proxy, or MSW configuration.",
+      502,
+      payload,
+    );
+  }
+
+  if (isRecord(payload) && "data" in payload) {
+    return payload.data as T;
+  }
+
+  return payload as T;
+};
+
+const canAttemptTokenReissue = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return shouldKeepSessionAlivePathPrefixes.some((prefix) =>
+    window.location.pathname.startsWith(prefix),
+  );
+};
 
 const getConsoleTargets = (): Console[] => {
   const targets: Console[] = [console];
@@ -106,6 +145,44 @@ const apiClient = axios.create({
   },
 });
 
+let refreshAccessTokenPromise: Promise<string> | null = null;
+
+const reissueAccessTokenFromCookie = async () => {
+  if (!refreshAccessTokenPromise) {
+    refreshAccessTokenPromise = axios
+      .post(
+        tokenReissuePath,
+        undefined,
+        {
+          baseURL: shouldUseRelativeApiBase ? "" : configuredApiBaseUrl,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          withCredentials: true,
+        },
+      )
+      .then((response) => {
+        const data = unwrapApiData<{ accessToken: string }>(response.data);
+
+        if (!data.accessToken) {
+          throw new ApiError("토큰 재발급 응답에 accessToken이 없습니다.", response.status, response.data);
+        }
+
+        useAuthStore.getState().setAccessToken(data.accessToken);
+        return data.accessToken;
+      })
+      .catch((error: unknown) => {
+        useAuthStore.getState().clearAuth("expired");
+        throw error;
+      })
+      .finally(() => {
+        refreshAccessTokenPromise = null;
+      });
+  }
+
+  return refreshAccessTokenPromise;
+};
+
 apiClient.interceptors.request.use((config) => {
   const accessToken = useAuthStore.getState().accessToken;
 
@@ -125,11 +202,43 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (response) => {
+    if (isHtmlDocument(response.data)) {
+      return Promise.reject(
+        new ApiError(
+          "API expected JSON but received HTML. Check PUBLIC_API_BASE_URL, dev proxy, or MSW configuration.",
+          response.status,
+          response.data,
+        ),
+      );
+    }
+
     logResponse(response);
     return response;
   },
   (error: AxiosError) => {
     logError(error);
+
+    const requestConfig = error.config as RetriableAxiosRequestConfig | undefined;
+    const requestUrl = requestConfig?.url ?? "";
+    const isReissueRequest = requestUrl.includes(tokenReissuePath);
+
+    if (
+      error.response?.status === 401 &&
+      requestConfig &&
+      !requestConfig._retry &&
+      !isReissueRequest &&
+      canAttemptTokenReissue()
+    ) {
+      requestConfig._retry = true;
+
+      return reissueAccessTokenFromCookie().then((accessToken) => {
+        const nextHeaders = AxiosHeaders.from(requestConfig.headers);
+        nextHeaders.set("Authorization", `Bearer ${accessToken}`);
+        requestConfig.headers = nextHeaders;
+
+        return apiClient(requestConfig);
+      });
+    }
 
     if (error.response) {
       const status = error.response.status;
