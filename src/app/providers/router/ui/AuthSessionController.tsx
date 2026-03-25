@@ -9,6 +9,8 @@ const shouldKeepSessionAlivePath = (pathname: string) =>
 const AuthSessionController = () => {
    const { pathname } = useLocation();
    const isReissuingRef = useRef(false);
+   const hasHydrated = useAuthStore(state => state.hasHydrated);
+   const hasResolvedSession = useAuthStore(state => state.hasResolvedSession);
    const accessToken = useAuthStore(state => state.accessToken);
    const authExpiresAt = useAuthStore(state => state.authExpiresAt);
    const sessionRemainingSeconds = useAuthStore(state => state.sessionRemainingSeconds);
@@ -16,13 +18,66 @@ const AuthSessionController = () => {
    const stopAuthSessionTimer = useAuthStore(state => state.stopAuthSessionTimer);
    const syncAuthSession = useAuthStore(state => state.syncAuthSession);
    const setAccessToken = useAuthStore(state => state.setAccessToken);
+   const setHasResolvedSession = useAuthStore(state => state.setHasResolvedSession);
    const clearAuth = useAuthStore(state => state.clearAuth);
 
    useEffect(() => {
-      syncAuthSession();
-   }, [syncAuthSession]);
+      if (!hasHydrated) {
+         return;
+      }
+
+      if (hasResolvedSession) {
+         return;
+      }
+
+      if (accessToken) {
+         setHasResolvedSession(true);
+         return;
+      }
+
+      let cancelled = false;
+
+      reissueAccessToken()
+         .then((response) => {
+            if (cancelled) {
+               return;
+            }
+
+            setAccessToken(response.accessToken);
+         })
+         .catch(() => {
+            if (cancelled) {
+               return;
+            }
+
+            clearAuth('manual');
+         })
+         .finally(() => {
+            if (cancelled) {
+               return;
+            }
+
+            setHasResolvedSession(true);
+         });
+
+      return () => {
+         cancelled = true;
+      };
+   }, [accessToken, clearAuth, hasHydrated, hasResolvedSession, setAccessToken, setHasResolvedSession]);
 
    useEffect(() => {
+      if (!hasHydrated || !hasResolvedSession) {
+         return;
+      }
+
+      syncAuthSession();
+   }, [hasHydrated, hasResolvedSession, syncAuthSession]);
+
+   useEffect(() => {
+      if (!hasHydrated || !hasResolvedSession) {
+         return;
+      }
+
       if (authExpiresAt === null) {
          stopAuthSessionTimer();
          return;
@@ -33,9 +88,13 @@ const AuthSessionController = () => {
       return () => {
          stopAuthSessionTimer();
       };
-   }, [authExpiresAt, startAuthSessionTimer, stopAuthSessionTimer]);
+   }, [authExpiresAt, hasHydrated, hasResolvedSession, startAuthSessionTimer, stopAuthSessionTimer]);
 
    useEffect(() => {
+      if (!hasHydrated || !hasResolvedSession) {
+         return;
+      }
+
       if (!accessToken) {
          return;
       }
@@ -77,7 +136,7 @@ const AuthSessionController = () => {
       return () => {
          cancelled = true;
       };
-   }, [accessToken, clearAuth, pathname, sessionRemainingSeconds, setAccessToken]);
+   }, [accessToken, clearAuth, hasHydrated, hasResolvedSession, pathname, sessionRemainingSeconds, setAccessToken]);
 
    return null;
 };
