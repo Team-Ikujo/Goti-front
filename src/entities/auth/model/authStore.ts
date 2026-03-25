@@ -30,6 +30,7 @@ export type AuthState = {
   sessionRemainingSeconds: number;
   socialVerifyToken: string | null;
   recentLoginProvider: SocialProvider | null;
+  isManualLogout: boolean;
   logoutReason: LogoutReason | null;
   sessionTimerId: number | null;
   loginPopupTimerId: number | null;
@@ -67,6 +68,7 @@ export const useAuthStore = create<AuthState>()(
       sessionRemainingSeconds: 0,
       socialVerifyToken: null,
       recentLoginProvider: null,
+      isManualLogout: false,
       logoutReason: null,
       sessionTimerId: null,
       loginPopupTimerId: null,
@@ -90,6 +92,7 @@ export const useAuthStore = create<AuthState>()(
           authExpiresAt: nextAuthExpiresAt,
           sessionRemainingSeconds: getRemainingSeconds(nextAuthExpiresAt),
           hasResolvedSession: true,
+          isManualLogout: false,
           logoutReason: null,
         });
       },
@@ -113,6 +116,7 @@ export const useAuthStore = create<AuthState>()(
           sessionRemainingSeconds: getRemainingSeconds(nextAuthExpiresAt),
           socialVerifyToken,
           hasResolvedSession: true,
+          isManualLogout: false,
           logoutReason: null,
         });
       },
@@ -129,6 +133,7 @@ export const useAuthStore = create<AuthState>()(
           sessionRemainingSeconds: 0,
           socialVerifyToken: null,
           hasResolvedSession: true,
+          isManualLogout: reason === "manual",
           logoutReason: reason,
           sessionTimerId: null,
         });
@@ -211,7 +216,7 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "auth-store",
       storage: createJSONStorage(() => localStorage),
-      version: 2,
+      version: 3,
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
         state?.setHasResolvedSession(false);
@@ -225,8 +230,9 @@ export const useAuthStore = create<AuthState>()(
             JSON.stringify({
               state: {
                 recentLoginProvider,
+                isManualLogout: state?.isManualLogout ?? false,
               },
-              version: 2,
+              version: 3,
             }),
           );
         }
@@ -238,10 +244,13 @@ export const useAuthStore = create<AuthState>()(
           ...currentState,
           recentLoginProvider:
             persisted?.recentLoginProvider ?? currentState.recentLoginProvider,
+          isManualLogout:
+            persisted?.isManualLogout ?? currentState.isManualLogout,
         };
       },
       partialize: (state) => ({
         recentLoginProvider: state.recentLoginProvider,
+        isManualLogout: state.isManualLogout,
       }),
     },
   ),

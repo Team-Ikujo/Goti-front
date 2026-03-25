@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { useAuthStore } from "@/entities/auth/model/authStore";
+import { redirectToErrorPage } from '@/shared/lib/error-navigation';
 
 export class ApiError extends Error {
    status?: number;
@@ -48,6 +49,10 @@ export const unwrapApiData = <T>(payload: { data: T } | T): T => {
 
 const canAttemptTokenReissue = () => {
   if (typeof window === "undefined") {
+    return false;
+  }
+
+  if (useAuthStore.getState().isManualLogout) {
     return false;
   }
 
@@ -148,6 +153,10 @@ const apiClient = axios.create({
 let refreshAccessTokenPromise: Promise<string> | null = null;
 
 const reissueAccessTokenFromCookie = async () => {
+  if (useAuthStore.getState().isManualLogout) {
+    throw new ApiError("수동 로그아웃 상태에서는 토큰을 재발급하지 않습니다.", 401);
+  }
+
   if (!refreshAccessTokenPromise) {
     refreshAccessTokenPromise = axios
       .post(
@@ -238,6 +247,10 @@ apiClient.interceptors.response.use(
 
         return apiClient(requestConfig);
       });
+    }
+
+    if (error.response?.status === 302 || error.response?.status === 503) {
+      redirectToErrorPage(error.response.status);
     }
 
     if (error.response) {

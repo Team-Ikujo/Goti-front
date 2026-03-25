@@ -14,6 +14,7 @@ const AuthSessionController = () => {
    const accessToken = useAuthStore(state => state.accessToken);
    const authExpiresAt = useAuthStore(state => state.authExpiresAt);
    const sessionRemainingSeconds = useAuthStore(state => state.sessionRemainingSeconds);
+   const isManualLogout = useAuthStore(state => state.isManualLogout);
    const startAuthSessionTimer = useAuthStore(state => state.startAuthSessionTimer);
    const stopAuthSessionTimer = useAuthStore(state => state.stopAuthSessionTimer);
    const syncAuthSession = useAuthStore(state => state.syncAuthSession);
@@ -35,6 +36,11 @@ const AuthSessionController = () => {
          return;
       }
 
+      if (isManualLogout) {
+         setHasResolvedSession(true);
+         return;
+      }
+
       let cancelled = false;
 
       reissueAccessToken()
@@ -46,11 +52,7 @@ const AuthSessionController = () => {
             setAccessToken(response.accessToken);
          })
          .catch(() => {
-            if (cancelled) {
-               return;
-            }
-
-            clearAuth('manual');
+            return;
          })
          .finally(() => {
             if (cancelled) {
@@ -63,7 +65,7 @@ const AuthSessionController = () => {
       return () => {
          cancelled = true;
       };
-   }, [accessToken, clearAuth, hasHydrated, hasResolvedSession, setAccessToken, setHasResolvedSession]);
+   }, [accessToken, hasHydrated, hasResolvedSession, isManualLogout, setAccessToken, setHasResolvedSession]);
 
    useEffect(() => {
       if (!hasHydrated || !hasResolvedSession) {
