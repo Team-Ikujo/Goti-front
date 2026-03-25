@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
-import { releaseSeatReservation, releaseSeatReservationKeepalive } from '@/pages/books/api/seatHoldApi';
-import { useSeatHoldStore } from '@/pages/books/model/useSeatHoldStore';
-import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
+import { releaseSeatReservation, releaseSeatReservationKeepalive } from '@/entities/seat-hold/api/seatHoldApi';
+import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 
 const isSeatHoldManagedPath = (pathname: string) =>
    pathname.startsWith('/books') || pathname.startsWith('/tickets/payment');
@@ -15,7 +15,18 @@ const releaseAllSeatHolds = async () => {
       return;
    }
 
-   await Promise.allSettled(seatHolds.map((seatHold) => releaseSeatReservation(seatHold.holdId)));
+   const releaseResults = await Promise.allSettled(
+      seatHolds.map((seatHold) => releaseSeatReservation(seatHold.holdId)),
+   );
+   const failedReleaseCount = releaseResults.filter((result) => result.status === 'rejected').length;
+
+   if (failedReleaseCount > 0) {
+      console.error('[SeatHoldLifecycleController] failed to release seat holds', {
+         failedReleaseCount,
+         totalReleaseCount: seatHolds.length,
+      });
+   }
+
    useSeatHoldStore.getState().clearSeatHolds();
    useSeatSelectionStore.getState().clearAllSelections();
 };

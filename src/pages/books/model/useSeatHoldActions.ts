@@ -1,24 +1,13 @@
 import { useState } from 'react';
 
-import { ApiError } from '@/shared/api/client';
-import { holdSeatReservation, releaseSeatReservation } from '@/pages/books/api/seatHoldApi';
+import { holdSeatReservation, releaseSeatReservation } from '@/entities/seat-hold/api/seatHoldApi';
+import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { MAX_SELECTED_SEATS } from '@/entities/seat-selection/model/constants';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
-import { MAX_SELECTED_SEATS, useSeatSelectionStore } from './useSeatSelectionStore';
-import { useSeatHoldStore } from './useSeatHoldStore';
+import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import type { SeatItem } from './types';
 import type { SelectedSeatDetail } from './selectedSeats';
-
-const getErrorMessage = (error: unknown, fallbackMessage: string) => {
-   if (error instanceof ApiError) {
-      return error.message;
-   }
-
-   if (error instanceof Error && error.message) {
-      return error.message;
-   }
-
-   return fallbackMessage;
-};
 
 export const useSeatHoldActions = (bookingEntryState: BookingEntryState | null | undefined) => {
    const zonesState = useSeatSelectionStore((state) => state.zones);

@@ -7,8 +7,8 @@ import {
    type ResaleCheckoutRequest,
    type TicketCheckoutRequest,
 } from '@/pages/tickets/api/paymentApi';
-import { useSeatHoldStore } from '@/pages/books/model/useSeatHoldStore';
-import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
+import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { ApiError } from '@/shared/api/client';
 
 import { PaymentHeader } from './_shared';
