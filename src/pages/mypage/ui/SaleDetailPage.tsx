@@ -16,8 +16,8 @@ type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판매 취
 
 const SALE_BADGE: Record<SaleStatus, BadgeVariant> = {
    '판매 중': 'success',
-   '판매 완료': 'success',       // 파랑 (Figma: #f4f7fe + #2563eb)
-   '정산 대기': 'warning',       // 오렌지
+   '판매 완료': 'success', // 파랑 (Figma: #f4f7fe + #2563eb)
+   '정산 대기': 'warning', // 오렌지
    '판매 취소 대기': 'disabled', // 회색
 };
 
@@ -25,9 +25,7 @@ const SALE_BADGE: Record<SaleStatus, BadgeVariant> = {
 
 function SectionCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
    return (
-      <div className={`border border-[#e9ebee] rounded-2xl p-[25px] flex flex-col gap-6 ${className}`}>
-         {children}
-      </div>
+      <div className={`border border-[#e9ebee] rounded-2xl p-[25px] flex flex-col gap-6 ${className}`}>{children}</div>
    );
 }
 
@@ -56,7 +54,6 @@ export default function SaleDetailPage() {
    return (
       <div className="flex flex-col items-center pt-12.5 pb-30 px-4">
          <div className="flex flex-col gap-14 w-full max-w-[760px] min-w-[335px]">
-
             {/* 제목 */}
             <div className="flex items-center gap-4">
                <Button variant="none" className="p-0 [&_svg]:size-6" onClick={() => navigate(-1)}>
@@ -68,13 +65,9 @@ export default function SaleDetailPage() {
             </div>
 
             <div className="flex flex-col gap-12">
-
                {/* 경기 정보 */}
                <SectionCard>
-                  <StatusBadge
-                     label={detail.overallStatus}
-                     variant={SALE_BADGE[detail.overallStatus as SaleStatus]}
-                  />
+                  <StatusBadge label={detail.overallStatus} variant={SALE_BADGE[detail.overallStatus as SaleStatus]} />
                   <div className="flex flex-col gap-4">
                      <p className="text-[32px] font-bold text-[#161d24] tracking-[-0.032px] leading-[1.45]">
                         {detail.game.teams}
@@ -152,16 +145,11 @@ export default function SaleDetailPage() {
                      totalLabel="예상 정산 금액"
                      totalAmount={detail.estimatedTotal}
                      infoRows={[
-                        ...(detail.settlementAccount
-                           ? [{ label: '정산 계좌', value: detail.settlementAccount }]
-                           : []),
-                        ...(detail.settlementDate
-                           ? [{ label: '정산 완료일', value: detail.settlementDate }]
-                           : []),
+                        ...(detail.settlementAccount ? [{ label: '정산 계좌', value: detail.settlementAccount }] : []),
+                        ...(detail.settlementDate ? [{ label: '정산 완료일', value: detail.settlementDate }] : []),
                      ]}
                   />
                )}
-
             </div>
 
             {/* 판매 취소 버튼 — 판매 중일 때만 */}
@@ -188,7 +176,6 @@ export default function SaleDetailPage() {
                   </div>
                </div>
             )}
-
          </div>
       </div>
    );

@@ -3,6 +3,7 @@
 import { ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Separator } from '@/shared/ui/separator';
+import { Button } from '@/shared/ui/button';
 import TicketTypeBadge from './TicketTypeBadge';
 import type { TicketType } from './TicketTypeBadge';
 
@@ -50,12 +51,14 @@ export default function SaleHistoryCard({ item }: SaleHistoryCardProps) {
                <span className="text-foreground">판매일자:</span>
                <span className="text-body-2-semibold text-foreground">{item.orderDate}</span>
             </div>
-            <button
-               className="flex items-center text-body-2-regular text-foreground shrink-0"
+            <Button
+               variant="none"
+               size="xs"
+               className="flex items-center text-body-2-regular text-foreground shrink-0 px-0 hover:text-primary transition-colors"
                onClick={() => navigate(`/mypage/sale/${item.id}`)}
             >
                판매상세 <ChevronRight size={16} className="ml-0.5" />
-            </button>
+            </Button>
          </div>
 
          {/* 가로 구분선 */}
@@ -128,11 +131,9 @@ export default function SaleHistoryCard({ item }: SaleHistoryCardProps) {
             {/* ⑤ 판매 취소 /*/}
             <div className="flex flex-col items-center justify-center gap-1 px-3 shrink-0 w-25">
                {item.canCancel ? (
-                  <button className="border border-border flex items-center justify-center px-3 py-1 rounded-lg w-full">
-                     <span className="text-[14px] font-medium leading-5 text-[#374553] whitespace-nowrap">
-                        판매 취소
-                     </span>
-                  </button>
+                  <Button variant="tertiary" size="xs" className="w-full">
+                     판매 취소
+                  </Button>
                ) : (
                   <span className="text-foreground text-body-1-regular">-</span>
                )}
