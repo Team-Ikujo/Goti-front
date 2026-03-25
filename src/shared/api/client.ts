@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { useAuthStore } from "@/entities/auth/model/authStore";
+import { redirectToErrorPage } from '@/shared/lib/error-navigation';
 
 export class ApiError extends Error {
    status?: number;
@@ -238,6 +239,10 @@ apiClient.interceptors.response.use(
 
         return apiClient(requestConfig);
       });
+    }
+
+    if (error.response?.status === 302 || error.response?.status === 503) {
+      redirectToErrorPage(error.response.status);
     }
 
     if (error.response) {
