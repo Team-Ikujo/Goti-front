@@ -29,6 +29,21 @@ const createZoneState = (seats: SeatSelectionItem[]): ZoneSeatState => ({
 
 const isSelectableStatus = (status: SeatSelectionStatus) => status === 'available' || status === 'selected';
 
+const hasSameSeatOrder = (previousSeatOrder: string[], nextSeatOrder: string[]) =>
+   previousSeatOrder.length === nextSeatOrder.length &&
+   previousSeatOrder.every((seatId, index) => seatId === nextSeatOrder[index]);
+
+const hasSameSelectedSeatIds = (previousSelectedSeatIds: string[], nextSelectedSeatIds: string[]) =>
+   previousSelectedSeatIds.length === nextSelectedSeatIds.length &&
+   previousSelectedSeatIds.every((seatId, index) => seatId === nextSelectedSeatIds[index]);
+
+const hasSameSeatStatuses = (
+   previousSeatMap: Record<string, SeatSelectionItem>,
+   nextSeatMap: Record<string, SeatSelectionItem>,
+   seatOrder: string[],
+) =>
+   seatOrder.every((seatId) => previousSeatMap[seatId]?.status === nextSeatMap[seatId]?.status);
+
 export const useSeatSelectionStore = create<SeatSelectionStore>((set) => ({
    zones: {},
 
@@ -165,6 +180,15 @@ export const useSeatSelectionStore = create<SeatSelectionStore>((set) => ({
             const seat = nextZone.seatMap[seatId];
             return seat ? isSelectableStatus(seat.status) : false;
          });
+
+         const isSameSnapshot =
+            hasSameSeatOrder(previousZone.seatOrder, nextZone.seatOrder) &&
+            hasSameSeatStatuses(previousZone.seatMap, nextZone.seatMap, nextZone.seatOrder) &&
+            hasSameSelectedSeatIds(previousZone.selectedSeatIds, selectedSeatIds);
+
+         if (isSameSnapshot) {
+            return state;
+         }
 
          return {
             zones: {
