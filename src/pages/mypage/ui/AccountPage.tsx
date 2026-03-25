@@ -1,7 +1,7 @@
 // src/pages/mypage/ui/AccountPage.tsx
 
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { Input } from '@/shared/ui/input';
@@ -76,6 +76,7 @@ const HAS_ACTIVE_TICKETS = true;
 
 export default function AccountPage() {
    const navigate = useNavigate();
+   const location = useLocation();
 
    // ── 모달 ──
    const [modal, setModal] = useState<ModalType>(null);
@@ -159,6 +160,16 @@ export default function AccountPage() {
          bankButtonRef.current?.focus();
       }, 400);
    };
+
+   // 계좌 미등록 팝업에서 "등록하기" 클릭 후 진입 시 계좌 섹션으로 자동 포커싱
+   useEffect(() => {
+      if (location.state?.focusAccount) {
+         handleAccountChange();
+         // state 소비 후 히스토리에서 제거 (뒤로가기 시 재실행 방지)
+         window.history.replaceState({}, '');
+      }
+   // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, []);
 
    /** 로그아웃 */
    const handleLogout = () => {

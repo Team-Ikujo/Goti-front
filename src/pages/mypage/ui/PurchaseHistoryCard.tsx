@@ -1,12 +1,16 @@
 // src/pages/mypage/ui/PurchaseHistoryCard.tsx
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { Separator } from '@/shared/ui/separator';
+import { Button } from '@/shared/ui/button';
 import TicketTypeBadge from './TicketTypeBadge';
 import type { TicketType } from './TicketTypeBadge';
 import ResellRegisterDialog from './ResellRegisterDialog';
 import QrViewDialog from './QrViewDialog';
+import CancelBookingDialog from './CancelBookingDialog';
+import NoAccountDialog from './NoAccountDialog';
 
 export type PurchaseStatus = '예매 완료' | '결제완료' | '취소/환불' | '정산대기' | '정산완료';
 
@@ -44,8 +48,22 @@ interface PurchaseHistoryCardProps {
 }
 
 export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) {
+   const navigate = useNavigate();
    const [resellOpen, setResellOpen] = useState(false);
+   const [cancelOpen, setCancelOpen] = useState(false);
+   const [noAccountOpen, setNoAccountOpen] = useState(false);
    const [qrOpen, setQrOpen] = useState(false);
+
+   // TODO: 실제로는 API에서 계좌 등록 여부 수신
+   const MOCK_HAS_ACCOUNT = true;
+
+   const handleCancelClick = () => {
+      if (item.paymentMethod === '무통장 입금' && !MOCK_HAS_ACCOUNT) {
+         setNoAccountOpen(true);
+      } else {
+         setCancelOpen(true);
+      }
+   };
 
    const isBooked = item.paymentStatus === '예매 완료';
    const showSellBtn = isBooked || item.canSell;
@@ -56,6 +74,23 @@ export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) 
    return (
       <>
          {resellOpen && <ResellRegisterDialog open={resellOpen} onClose={() => setResellOpen(false)} item={item} />}
+         {noAccountOpen && <NoAccountDialog open={noAccountOpen} onClose={() => setNoAccountOpen(false)} />}
+         {cancelOpen && (
+            <CancelBookingDialog
+               open={cancelOpen}
+               onClose={() => setCancelOpen(false)}
+               itemId={item.id}
+               game={{ teams: item.game.teams, datetime: item.game.datetime }}
+               isBankTransfer={item.paymentMethod === '무통장 입금'}
+               paymentMethod={item.paymentMethod}
+               seats={item.game.seats.map(seat => ({
+                  orderId: item.orderId,
+                  section: item.game.section,
+                  seatDetail: seat,
+                  price: item.game.seats.length > 0 ? Math.round(item.price / item.game.seats.length) : item.price,
+               }))}
+            />
+         )}
          {qrOpen && (
             <QrViewDialog
                open={qrOpen}
@@ -67,15 +102,20 @@ export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) 
             />
          )}
          <div className="bg-background border border-border rounded-[14px] flex flex-col gap-2.5 px-px py-3.25">
-            {/* 상단: 구매일자 / 구매상세 링크 */}
+            {/* 상단: 예약일자 / 예약상세 링크 */}
             <div className="flex items-center px-4 py-1">
                <div className="flex items-center gap-1 text-body-2-regular shrink-0 min-w-40">
-                  <span className="text-foreground">구매일자:</span>
+                  <span className="text-foreground">예약일자:</span>
                   <span className="text-body-2-semibold text-foreground">{item.orderDate}</span>
                </div>
-               <button className="flex items-center text-body-2-regular text-foreground shrink-0">
-                  구매상세 <ChevronRight size={16} className="ml-0.5" />
-               </button>
+               <Button
+                  variant="none"
+                  size="xs"
+                  className="flex items-center text-body-2-regular text-foreground shrink-0 px-0 hover:text-primary transition-colors"
+                  onClick={() => navigate(`/mypage/purchase/${item.id}`)}
+               >
+                  예약상세 <ChevronRight size={16} className="ml-0.5" />
+               </Button>
             </div>
 
             {/* 가로 구분선 */}
@@ -152,31 +192,19 @@ export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) 
                {/* ⑤ 액션 버튼 — w-[100px] 고정 */}
                <div className="flex flex-col items-center justify-center gap-1 px-3 shrink-0 w-25">
                   {showSellBtn && (
-                     <button
-                        className="border border-border flex items-center justify-center px-3 py-1 rounded-lg w-full"
-                        onClick={() => setResellOpen(true)}
-                     >
-                        <span className="text-[14px] font-medium leading-5 text-primary whitespace-nowrap">
-                           판매 등록
-                        </span>
-                     </button>
+                     <Button variant="secondary" size="xs" className="w-full" onClick={() => setResellOpen(true)}>
+                        판매 등록
+                     </Button>
                   )}
                   {showCancelBtn && (
-                     <button className="border border-border flex items-center justify-center px-3 py-1 rounded-lg w-full">
-                        <span className="text-[14px] font-medium leading-5 text-[#374553] whitespace-nowrap">
-                           예매 취소
-                        </span>
-                     </button>
+                     <Button variant="tertiary" size="xs" className="w-full" onClick={handleCancelClick}>
+                        예매 취소
+                     </Button>
                   )}
                   {showQrBtn && (
-                     <button
-                        className="border border-border flex items-center justify-center px-3 py-1 rounded-lg w-full"
-                        onClick={() => setQrOpen(true)}
-                     >
-                        <span className="text-[14px] font-medium leading-5 text-[#374553] whitespace-nowrap">
-                           QR 확인
-                        </span>
-                     </button>
+                     <Button variant="tertiary" size="xs" className="w-full" onClick={() => setQrOpen(true)}>
+                        QR 확인
+                     </Button>
                   )}
                   {!hasAnyButton && <span className="text-foreground text-body-1-regular">-</span>}
                </div>
