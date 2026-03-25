@@ -9,7 +9,6 @@ import { ChevronLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import { Separator } from '@/shared/ui/separator';
 import { PURCHASE_DETAIL_MAP } from '../model/mockDetailData';
-import type { PaymentEvent } from '../model/mockDetailData';
 import StatusBadge from './StatusBadge';
 import type { BadgeVariant } from './StatusBadge';
 import TicketItem from './TicketItem';
@@ -37,42 +36,6 @@ function SectionCard({ children, className = '' }: { children: React.ReactNode; 
    );
 }
 
-function PaymentEventBlock({ event }: { event: PaymentEvent }) {
-   const isRefund = event.type === '부분 취소 완료';
-   return (
-      <div className="flex flex-col gap-3">
-         <div className="flex items-center gap-2">
-            <span className={`text-[20px] font-bold leading-normal ${isRefund ? 'text-destructive' : 'text-primary'}`}>
-               {event.type}
-            </span>
-            <span className="text-body-2-regular text-muted-foreground leading-normal">{event.date}</span>
-         </div>
-         <div className="bg-surface rounded-xl p-5 flex flex-col gap-3">
-            {event.items.map((item, i) => (
-               <div key={i} className="flex items-start text-body-1-regular gap-3">
-                  <span className="flex-1 text-muted-foreground leading-normal">{item.label}</span>
-                  <span className="text-[#161d24] whitespace-nowrap leading-normal">
-                     {item.amount.toLocaleString()}원
-                  </span>
-               </div>
-            ))}
-            <div className="flex items-center gap-3 font-bold">
-               <span className="flex-1 text-body-1-bold text-[#374553] leading-normal">{event.totalLabel}</span>
-               <span
-                  className={`text-[20px] whitespace-nowrap leading-normal ${isRefund ? 'text-destructive' : 'text-primary'}`}
-               >
-                  {event.totalAmount.toLocaleString()}원
-               </span>
-            </div>
-         </div>
-         <div className="flex items-start text-body-1-regular">
-            <span className="text-muted-foreground w-55 shrink-0 leading-normal">{event.methodLabel}</span>
-            <span className="flex-1 text-[#374553] text-right leading-normal">{event.method}</span>
-         </div>
-      </div>
-   );
-}
-
 // ─── 메인 컴포넌트 ─────────────────────────────────────────────
 
 export default function PurchaseDetailPage() {
@@ -96,6 +59,10 @@ export default function PurchaseDetailPage() {
 
    // TODO: 실제로는 API에서 계좌 등록 여부 수신
    const MOCK_HAS_ACCOUNT = true;
+
+   // 결제/부분취소 이벤트 파생
+   const paymentEvent = detail?.paymentEvents.find(e => e.type === '결제 완료');
+   const partialCancelEvent = detail?.paymentEvents.find(e => e.type === '부분 취소 완료');
 
    const handleCancelClick = () => {
       if (!!detail?.paymentSummary.bankAccount && !MOCK_HAS_ACCOUNT) {
@@ -274,8 +241,8 @@ export default function PurchaseDetailPage() {
                   </SectionCard>
                ) : null}
 
-               {/* 결제 정보 요약 (취소/환불 상태에서는 숨김) */}
-               {!detail.refundInfo && detail.paymentSummary.bankAccount ? (
+               {/* 결제 정보 */}
+               {detail.paymentSummary.bankAccount ? (
                   // 무통장 입금
                   <InfoItem
                      type="payment"
@@ -296,13 +263,13 @@ export default function PurchaseDetailPage() {
                         { label: '입금 기한', value: detail.paymentSummary.bankDeadline ?? '' },
                      ]}
                   />
-               ) : !detail.refundInfo ? (
+               ) : (
                   // 카드 결제 등 일반 결제
                   <InfoItem
                      type="payment"
                      heading="결제 정보"
                      statusText={detail.paymentSummary.status}
-                     statusColor="text-primary"
+                     statusColor={detail.refundInfo ? 'text-muted-foreground' : 'text-primary'}
                      summaryRows={[
                         {
                            label: `티켓 금액 (${detail.paymentSummary.ticketCount}매)`,
@@ -313,33 +280,14 @@ export default function PurchaseDetailPage() {
                      totalLabel="총 결제 금액"
                      totalAmount={detail.paymentSummary.total}
                      infoRows={[
+                        ...(paymentEvent ? [{ label: '결제 수단', value: paymentEvent.method }] : []),
                         { label: '결제 일시', value: detail.paymentSummary.date },
                      ]}
                   />
-               ) : null}
-
-               {/* 결제 이력 (부분 취소 등 복수 이벤트) */}
-               {detail.paymentEvents.length > 1 && (
-                  <SectionCard>
-                     <h2 className="text-[20px] font-bold text-[#161d24] leading-normal">결제 정보</h2>
-                     <div className="flex flex-col gap-8">
-                        {detail.paymentEvents.map((event, i) => (
-                           <div key={i}>
-                              {i > 0 && <Separator className="mb-8" />}
-                              <PaymentEventBlock event={event} />
-                           </div>
-                        ))}
-                     </div>
-                     <div className="bg-surface rounded-xl p-5">
-                        <p className="text-[13px] font-medium text-muted-foreground leading-normal">
-                           • 취소/환불은 영업일 기준 1~3일 이내 처리될 예정입니다. 문의사항은 고객센터로 문의해주세요.
-                        </p>
-                     </div>
-                  </SectionCard>
                )}
 
                {/* 취소/환불 정보 */}
-               {detail.refundInfo && (
+               {detail.refundInfo ? (
                   <InfoItem
                      type="payment"
                      heading="취소/환불 정보"
@@ -364,7 +312,26 @@ export default function PurchaseDetailPage() {
                         '• 취소/환불은 영업일 기준 1~3일 이내 처리될 예정입니다. 문의사항은 고객센터로 문의해주세요.',
                      ]}
                   />
-               )}
+               ) : partialCancelEvent ? (
+                  // 부분 취소 완료 이벤트가 있을 경우 취소/환불 정보 표시
+                  <InfoItem
+                     type="payment"
+                     heading="취소/환불 정보"
+                     statusText={partialCancelEvent.type}
+                     statusColor="text-destructive"
+                     summaryRows={partialCancelEvent.items.map(item => ({ label: item.label, amount: item.amount }))}
+                     totalLabel={partialCancelEvent.totalLabel}
+                     totalAmount={partialCancelEvent.totalAmount}
+                     totalColor="text-destructive"
+                     infoRows={[
+                        { label: partialCancelEvent.methodLabel, value: partialCancelEvent.method },
+                        { label: '환불 일시', value: partialCancelEvent.date },
+                     ]}
+                     helperTexts={[
+                        '• 취소/환불은 영업일 기준 1~3일 이내 처리될 예정입니다. 문의사항은 고객센터로 문의해주세요.',
+                     ]}
+                  />
+               ) : null}
             </div>
 
             {/* 액션 버튼 */}

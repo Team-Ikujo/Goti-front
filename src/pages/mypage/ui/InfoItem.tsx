@@ -40,9 +40,9 @@ export type InfoItemProps = DefaultInfoItemProps | PaymentInfoItemProps;
 
 function InfoRowItem({ label, value, valueBold = false }: InfoRow) {
    return (
-      <div className="flex items-start text-body-1-regular">
-         <span className="text-muted-foreground w-[220px] shrink-0 leading-[1.5]">{label}</span>
-         <span className={`flex-1 text-right leading-[1.5] ${valueBold ? 'font-bold text-[#161d24]' : 'text-[#374553]'}`}>
+      <div className="flex items-start gap-3 text-body-1-regular">
+         <span className="flex-1 min-w-0 text-muted-foreground leading-[1.5]">{label}</span>
+         <span className={`shrink-0 text-right whitespace-nowrap leading-[1.5] ${valueBold ? 'font-bold text-[#161d24]' : 'text-[#374553]'}`}>
             {value}
          </span>
       </div>
