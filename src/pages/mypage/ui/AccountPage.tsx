@@ -195,7 +195,7 @@ export default function AccountPage() {
 
    return (
       <div className="flex-1 bg-background">
-         <div className="mx-auto max-w-300 px-4 pt-12.5 pb-30 flex flex-col gap-7">
+         <div className="mx-auto max-w-300 px-4 pt-7.5 lg:pt-12.5 pb-30 flex flex-col gap-7">
             {/* 뒤로 가기 */}
             <button
                onClick={() => navigate('/mypage')}

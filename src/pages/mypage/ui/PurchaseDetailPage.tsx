@@ -98,7 +98,7 @@ export default function PurchaseDetailPage() {
    const MOCK_HAS_ACCOUNT = true;
 
    const handleCancelClick = () => {
-      if (detail?.paymentSummary.method === '무통장 입금' && !MOCK_HAS_ACCOUNT) {
+      if (!!detail?.paymentSummary.bankAccount && !MOCK_HAS_ACCOUNT) {
          setNoAccountOpen(true);
       } else {
          setCancelOpen(true);
@@ -114,7 +114,7 @@ export default function PurchaseDetailPage() {
    }
 
    return (
-      <div className="flex flex-col items-center pt-12.5 pb-30 px-4">
+      <div className="flex flex-col items-center pt-8 lg:pt-12.5 pb-30 px-4">
          <Snackbar
             open={showCancelSnackbar}
             message="취소가 완료되었습니다."
@@ -127,8 +127,7 @@ export default function PurchaseDetailPage() {
                onClose={() => setCancelOpen(false)}
                itemId={detail.id}
                game={{ teams: detail.game.teams, datetime: detail.game.datetime }}
-               isBankTransfer={detail.paymentSummary.method === '무통장 입금'}
-               paymentMethod={detail.paymentSummary.method}
+               isBankTransfer={!!detail.paymentSummary.bankAccount}
                seats={detail.seatItems
                   .filter(s => s.status === '예매완료')
                   .map(s => ({
@@ -157,7 +156,6 @@ export default function PurchaseDetailPage() {
                      seats: detail.seatItems.map(s => s.seatDetail),
                   },
                   price: detail.paymentSummary.ticketAmount,
-                  paymentMethod: detail.paymentSummary.method,
                   paymentStatus: '예매 완료',
                   deliveryType: detail.deliveryMethod,
                   canSell: detail.canSell,
@@ -315,7 +313,6 @@ export default function PurchaseDetailPage() {
                      totalLabel="총 결제 금액"
                      totalAmount={detail.paymentSummary.total}
                      infoRows={[
-                        { label: '결제 수단', value: detail.paymentSummary.method },
                         { label: '결제 일시', value: detail.paymentSummary.date },
                      ]}
                   />
@@ -371,14 +368,14 @@ export default function PurchaseDetailPage() {
             </div>
 
             {/* 액션 버튼 */}
-            {(detail.canCancel || detail.canSell) && (
+            {(detail.canCancel || detail.overallStatus === '예매 완료' || detail.canSell) && (
                <div className="flex gap-3">
                   {detail.canCancel && (
                      <Button variant="tertiary" className="flex-1 py-3" onClick={handleCancelClick}>
                         예매 취소하기
                      </Button>
                   )}
-                  {detail.canSell && (
+                  {(detail.overallStatus === '예매 완료' || detail.canSell) && (
                      <Button variant="secondary" className="flex-1 py-3" onClick={() => setResellOpen(true)}>
                         판매 등록하기
                      </Button>

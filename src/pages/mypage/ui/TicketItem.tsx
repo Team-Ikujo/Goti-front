@@ -22,17 +22,17 @@ interface TicketItemProps {
 export default function TicketItem({ orderId, section, seatDetail, status, price }: TicketItemProps) {
    const { statusColor, infoColor } = STATUS_STYLE[status];
    return (
-      <div className="flex gap-[60px] items-center w-full">
+      <div className="flex flex-wrap gap-x-[60px] gap-y-3 items-center w-full">
          {/* 좌석 정보 */}
-         <div className={`flex flex-1 flex-col gap-2 min-w-0 ${infoColor}`}>
+         <div className={`flex flex-1 flex-col gap-2 min-w-[200px] ${infoColor}`}>
             <p className="text-[13px] leading-[1.5] tracking-[-0.13px]">{orderId}</p>
             <div className="flex flex-col gap-1">
                <p className="text-[18px] font-bold leading-[1.55]">{section}</p>
                <p className="text-body-1-regular leading-[1.5]">{seatDetail}</p>
             </div>
          </div>
-         {/* 상태 + 가격 — 상태는 w-[90px] 고정, 가격은 우측 정렬 */}
-         <div className="flex items-center w-[186px] shrink-0">
+         {/* 상태 + 가격 — 모바일에서 줄바꿈 시 전체 너비 사용 */}
+         <div className="flex items-center flex-1 min-w-[186px]">
             <p className={`text-body-1-medium ${statusColor} w-[90px] shrink-0`}>{status}</p>
             <p className={`text-body-1-bold ${infoColor} flex-1 text-right`}>{price.toLocaleString()}원</p>
          </div>
