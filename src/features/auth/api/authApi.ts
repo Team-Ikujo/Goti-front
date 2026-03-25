@@ -31,12 +31,19 @@ export type SendSignupSmsParams = {
   mobile: string;
 };
 
+export type ReissueAccessTokenResponse = {
+  accessToken: string;
+};
+
 export const loginWithSocialVerifyToken = async (payload: {
   socialVerifyToken: string;
 }): Promise<AuthTokenResponse> => {
   const response = await apiClient.post<ApiEnvelope<AuthTokenResponse>>(
     "/api/v1/auth/login",
     payload,
+    {
+      withCredentials: true,
+    },
   );
 
   return unwrapApiData<AuthTokenResponse>(response.data);
@@ -48,6 +55,9 @@ export const signupWithSocialVerifyToken = async (
   const response = await apiClient.post<ApiEnvelope<AuthTokenResponse>>(
     "/api/v1/auth/signup",
     payload,
+    {
+      withCredentials: true,
+    },
   );
 
   const data = unwrapApiData<AuthTokenResponse>(response.data);
@@ -68,4 +78,16 @@ export const sendSignupSmsCode = async (
   );
 
   return unwrapApiData<unknown>(response.data);
+};
+
+export const reissueAccessToken = async (): Promise<ReissueAccessTokenResponse> => {
+  const response = await apiClient.post<ApiEnvelope<ReissueAccessTokenResponse>>(
+    "/api/v1/auth/reissue",
+    undefined,
+    {
+      withCredentials: true,
+    },
+  );
+
+  return unwrapApiData<ReissueAccessTokenResponse>(response.data);
 };
