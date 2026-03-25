@@ -39,6 +39,7 @@ export interface PaymentResponse {
 }
 export type TicketCheckoutSeat = {
    seatId: string;
+   holdId: string;
    label: string;
 };
 
@@ -66,15 +67,6 @@ export interface ResaleCheckoutRequest extends CheckoutFormRequest {
    gameDate: string;
    gameVenue: string;
 }
-
-type HoldSeatRequest = {
-   gameId: string;
-   queueTokenJti: string;
-};
-
-type HoldSeatResponse = {
-   holdId: string;
-};
 
 type CreateOrderRequest = {
    gameId: string;
@@ -208,14 +200,6 @@ const toPaymentMethodLabel = (paymentMethod: PaymentMethod) => {
    }
 };
 
-const holdSeat = async (seatId: string, payload: HoldSeatRequest) => {
-   const response = await apiClient.post<ApiEnvelope<HoldSeatResponse>>(
-      `/api/v1/seat-reservations/seats/${encodeURIComponent(seatId)}`,
-      payload,
-   );
-   return response.data.data;
-};
-
 const createOrder = async (payload: CreateOrderRequest) => {
    const response = await apiClient.post<ApiEnvelope<CreateOrderResponse>>('/api/v1/orders', payload);
 
@@ -224,7 +208,7 @@ const createOrder = async (payload: CreateOrderRequest) => {
 
 const createOrderPayment = async (orderId: string, payload: OrderPaymentRequest) => {
    const response = await apiClient.post<ApiEnvelope<OrderPaymentResponse>>(
-      `/api/v1/orders/${orderId}/payments`,
+      `/api/v1/payments/orders/${orderId}`,
       payload,
    );
 
@@ -256,20 +240,15 @@ const createResalePayment = async (payload: ResalePaymentRequest) => {
 };
 
 export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise<PaymentResponse> => {
-   const heldSeats = await Promise.all(
-      payload.selectedSeats.map(async ({ seatId, label }) => {
-         const result = await holdSeat(seatId, {
-            gameId: payload.gameId,
-            queueTokenJti: payload.queueTokenJti,
-         });
+   const heldSeats = payload.selectedSeats.map(({ seatId, holdId, label }) => ({
+      seatId,
+      seatLabel: label,
+      holdId,
+   }));
 
-         return {
-            seatId,
-            seatLabel: label,
-            holdId: result.holdId,
-         };
-      }),
-   );
+   if (heldSeats.some(({ holdId }) => !holdId)) {
+      throw new Error('좌석 점유 정보가 없어 주문을 생성할 수 없습니다.');
+   }
 
    const order = await createOrder({
       gameId: payload.gameId,

@@ -8,6 +8,7 @@ import { useTeamStore } from '@/entities/team/model/teamStore';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
 import SessionStatus from './SessionStatus';
 import TeamSelectModal from './TeamSelectModal';
+import TrafficState from './TrafficState';
 
 const navTabs = [
    { label: '티켓/리셀', to: '/tickets' },
@@ -48,11 +49,7 @@ const Header = () => {
             {/* State bar */}
             <div className="bg-background w-full px-4 py-1">
                <div className="flex items-center justify-between w-full max-w-300 mx-auto">
-                  <div className="flex items-center gap-1.5">
-                     <div className="size-2 rounded-full bg-success" />
-                     <span className="text-caption-2-medium text-(--text-tertiary)">혼잡도:</span>
-                     <span className="text-caption-2-medium text-success">원활</span>
-                  </div>
+                  <TrafficState state="원활" />
                   {isLoggedIn && (
                      <SessionStatus
                         remainingSeconds={sessionRemainingSeconds}
