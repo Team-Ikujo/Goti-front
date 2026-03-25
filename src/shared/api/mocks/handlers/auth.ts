@@ -6,14 +6,23 @@ type MockAuthSession = {
    provider: string;
    isRegistered: boolean;
    userId: string;
+   name?: string;
    mobile?: string;
    smsCode?: string;
    // authCode 패턴으로 로그인 시나리오 결정
    loginScenario?: MockLoginScenario;
 };
 
+type MockRefreshSession = {
+   userId: string;
+   provider: string;
+   name?: string;
+   mobile?: string;
+};
+
 // 팝업 창과 부모 창 간 세션 공유를 위해 localStorage 사용
 const MOCK_AUTH_SESSIONS_KEY = '__mock_auth_sessions__';
+const MOCK_REFRESH_SESSION_KEY = '__mock_refresh_session__';
 
 const mockAuthSessions = {
    get(token: string): MockAuthSession | undefined {
@@ -31,6 +40,31 @@ const mockAuthSessions = {
          const map: Record<string, MockAuthSession> = raw ? JSON.parse(raw) : {};
          map[token] = session;
          localStorage.setItem(MOCK_AUTH_SESSIONS_KEY, JSON.stringify(map));
+      } catch {
+         // ignore
+      }
+   },
+};
+
+const mockRefreshSession = {
+   get(): MockRefreshSession | undefined {
+      try {
+         const raw = localStorage.getItem(MOCK_REFRESH_SESSION_KEY);
+         return raw ? (JSON.parse(raw) as MockRefreshSession) : undefined;
+      } catch {
+         return undefined;
+      }
+   },
+   set(session: MockRefreshSession) {
+      try {
+         localStorage.setItem(MOCK_REFRESH_SESSION_KEY, JSON.stringify(session));
+      } catch {
+         // ignore
+      }
+   },
+   clear() {
+      try {
+         localStorage.removeItem(MOCK_REFRESH_SESSION_KEY);
       } catch {
          // ignore
       }
@@ -138,6 +172,13 @@ export const authHandlers = [
          failed_over_5: 5,
       };
 
+      mockRefreshSession.set({
+         userId: session.userId,
+         provider: session.provider,
+         name: session.name,
+         mobile: session.mobile,
+      });
+
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
@@ -218,6 +259,14 @@ export const authHandlers = [
       mockAuthSessions.set(body.socialVerifyToken, {
          ...session,
          isRegistered: true,
+         name: body.name,
+         mobile: body.mobile,
+      });
+
+      mockRefreshSession.set({
+         userId: session.userId,
+         provider: session.provider,
+         name: body.name,
          mobile: body.mobile,
       });
 
@@ -229,7 +278,29 @@ export const authHandlers = [
                sub: session.userId,
                userId: session.userId,
                mobile: body.mobile,
-               name: body.name,
+            name: body.name,
+            }),
+         },
+      });
+   }),
+
+   http.post('/api/v1/auth/reissue', async () => {
+      const session = mockRefreshSession.get();
+
+      if (!session) {
+         return HttpResponse.json({ message: 'Mock refresh token session is missing.' }, { status: 401 });
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            accessToken: buildMockAccessToken({
+               sub: session.userId,
+               userId: session.userId,
+               provider: session.provider,
+               ...(session.mobile ? { mobile: session.mobile } : {}),
+               ...(session.name ? { name: session.name } : {}),
             }),
          },
       });

@@ -48,6 +48,7 @@ type PendingEntry = {
  */
 export function useBookingEntryFlow() {
   const navigate = useNavigate();
+  const hasResolvedSession = useAuthStore(state => state.hasResolvedSession);
   const accessToken = useAuthStore(state => state.accessToken);
   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
@@ -65,6 +66,10 @@ export function useBookingEntryFlow() {
   };
 
   const openBookingEntry = (options?: OpenBookingEntryOptions) => {
+    if (!hasResolvedSession) {
+      return;
+    }
+
     if (!accessToken) {
       navigate('/auth/login');
       return;
@@ -74,6 +79,10 @@ export function useBookingEntryFlow() {
   };
 
   const openResellEntry = (options?: OpenBookingEntryOptions) => {
+    if (!hasResolvedSession) {
+      return;
+    }
+
     if (!accessToken) {
       navigate('/auth/login');
       return;

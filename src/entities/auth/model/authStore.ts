@@ -12,6 +12,7 @@ export type SocialProvider = "kakao" | "naver" | "google";
 export type LogoutReason = "manual" | "expired";
 
 const AUTH_SESSION_DURATION_MS = 60 * 60 * 1000;
+const AUTH_STORAGE_KEY = "auth-store";
 
 const getRemainingSeconds = (authExpiresAt: number | null) => {
   if (!authExpiresAt) {
@@ -22,16 +23,21 @@ const getRemainingSeconds = (authExpiresAt: number | null) => {
 };
 
 export type AuthState = {
+  hasHydrated: boolean;
+  hasResolvedSession: boolean;
   accessToken: string | null;
   authExpiresAt: number | null;
   sessionRemainingSeconds: number;
   socialVerifyToken: string | null;
   recentLoginProvider: SocialProvider | null;
+  isManualLogout: boolean;
   logoutReason: LogoutReason | null;
   sessionTimerId: number | null;
   loginPopupTimerId: number | null;
   loginTimedOut: boolean;
   loginAlert: LoginAlert | null;
+  setHasHydrated: (hasHydrated: boolean) => void;
+  setHasResolvedSession: (hasResolvedSession: boolean) => void;
   // 인증 단계 응답 처리 시 setAuthTokens 사용(일관된 일괄 업데이트).
   // 토큰 갱신 등 일부 값만 바꿀 때는 setAccessToken 사용.
   setAccessToken: (accessToken: string | null) => void;
@@ -55,16 +61,21 @@ export type AuthState = {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
+      hasHydrated: false,
+      hasResolvedSession: false,
       accessToken: null,
       authExpiresAt: null,
       sessionRemainingSeconds: 0,
       socialVerifyToken: null,
       recentLoginProvider: null,
+      isManualLogout: false,
       logoutReason: null,
       sessionTimerId: null,
       loginPopupTimerId: null,
       loginTimedOut: false,
       loginAlert: null,
+      setHasHydrated: (hasHydrated) => set({ hasHydrated }),
+      setHasResolvedSession: (hasResolvedSession) => set({ hasResolvedSession }),
       setAccessToken: (accessToken) => {
         const previousState = get();
         const nextAuthExpiresAt =
@@ -80,6 +91,8 @@ export const useAuthStore = create<AuthState>()(
           accessToken,
           authExpiresAt: nextAuthExpiresAt,
           sessionRemainingSeconds: getRemainingSeconds(nextAuthExpiresAt),
+          hasResolvedSession: true,
+          isManualLogout: false,
           logoutReason: null,
         });
       },
@@ -102,6 +115,8 @@ export const useAuthStore = create<AuthState>()(
           authExpiresAt: nextAuthExpiresAt,
           sessionRemainingSeconds: getRemainingSeconds(nextAuthExpiresAt),
           socialVerifyToken,
+          hasResolvedSession: true,
+          isManualLogout: false,
           logoutReason: null,
         });
       },
@@ -117,6 +132,8 @@ export const useAuthStore = create<AuthState>()(
           authExpiresAt: null,
           sessionRemainingSeconds: 0,
           socialVerifyToken: null,
+          hasResolvedSession: true,
+          isManualLogout: reason === "manual",
           logoutReason: reason,
           sessionTimerId: null,
         });
@@ -199,24 +216,41 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "auth-store",
       storage: createJSONStorage(() => localStorage),
+      version: 3,
       onRehydrateStorage: () => (state) => {
-        if (!state?.accessToken || !state.authExpiresAt) {
-          state?.stopAuthSessionTimer();
-          return;
-        }
+        state?.setHasHydrated(true);
+        state?.setHasResolvedSession(false);
+        const recentLoginProvider = state?.recentLoginProvider ?? null;
 
-        if (state.authExpiresAt <= Date.now()) {
-          state.clearAuth("expired");
-          return;
-        }
+        state?.stopAuthSessionTimer();
 
-        state.syncAuthSession();
-        state.startAuthSessionTimer();
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(
+            AUTH_STORAGE_KEY,
+            JSON.stringify({
+              state: {
+                recentLoginProvider,
+                isManualLogout: state?.isManualLogout ?? false,
+              },
+              version: 3,
+            }),
+          );
+        }
+      },
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<AuthState> | undefined;
+
+        return {
+          ...currentState,
+          recentLoginProvider:
+            persisted?.recentLoginProvider ?? currentState.recentLoginProvider,
+          isManualLogout:
+            persisted?.isManualLogout ?? currentState.isManualLogout,
+        };
       },
       partialize: (state) => ({
-        accessToken: state.accessToken,
-        authExpiresAt: state.authExpiresAt,
         recentLoginProvider: state.recentLoginProvider,
+        isManualLogout: state.isManualLogout,
       }),
     },
   ),
