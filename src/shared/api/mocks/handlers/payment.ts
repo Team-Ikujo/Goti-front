@@ -595,7 +595,7 @@ export const paymentHandlers = [
       });
    }),
 
-   http.post('/api/v1/orders/:orderId/payments', async ({ params, request }) => {
+   http.post('/api/v1/payments/orders/:orderId', async ({ params, request }) => {
       const body = (await request.json()) as {
          paymentMethod?: string;
          idempotencyKey?: string;

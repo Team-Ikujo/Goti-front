@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import type { SeatItem, SeatStatus } from './types';
 
-const MAX_SELECTED_SEATS = 4;
+export const MAX_SELECTED_SEATS = 4;
 
 type ZoneSeatState = {
    lastSyncedAt: number | null;

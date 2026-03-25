@@ -33,6 +33,7 @@ import MypageLayout from '@/shared/widgets/layout/mypage/MypageLayout';
 import AuthSessionController from './AuthSessionController';
 import BookingFlowStateGuard from './BookingFlowStateGuard';
 import OAuthMessageListener from './OAuthMessageListener';
+import SeatHoldLifecycleController from './SeatHoldLifecycleController';
 
 const AppRouter = () => {
    return (
@@ -40,6 +41,7 @@ const AppRouter = () => {
          <AuthSessionController />
          <OAuthMessageListener />
          <BookingFlowStateGuard />
+         <SeatHoldLifecycleController />
          <Routes>
             <Route path="/auth" element={<AuthLayout />}>
                <Route path="login" element={<LoginPage />} />
