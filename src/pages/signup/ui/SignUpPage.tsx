@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSendSignupSmsCode, useSocialSignup } from '@/features/auth/model/useSubmitAuthCode';
 import { useAuthStore } from '@/entities/auth/model/authStore';
+import type { SignupGender } from '@/features/auth/api/authApi';
 import type { TermSignUpCode } from '@/entities/terms/model/types';
 import {
    getFieldErrorsFromZod,
@@ -194,12 +195,12 @@ const SignUpPage = () => {
       return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
    };
 
-   const mapGender = (value: string) => {
+   const mapGender = (value: string): SignupGender => {
       switch (value) {
          case 'male':
-            return 'MALE' as const;
+            return 'MALE';
          case 'female':
-            return 'FEMALE' as const;
+            return 'FEMALE';
          default:
             throw new Error('성별 값이 올바르지 않습니다.');
       }
