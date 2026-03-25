@@ -197,11 +197,17 @@ const reissueAccessTokenFromCookie = async () => {
           throw new ApiError("토큰 재발급 응답에 accessToken이 없습니다.", response.status, response.data);
         }
 
+        if (useAuthStore.getState().isManualLogout) {
+          throw new ApiError("로그아웃 이후 도착한 토큰 재발급 응답은 무시합니다.", 401, response.data);
+        }
+
         useAuthStore.getState().setAccessToken(data.accessToken);
         return data.accessToken;
       })
       .catch((error: unknown) => {
-        useAuthStore.getState().clearAuth("expired");
+        if (!useAuthStore.getState().isManualLogout) {
+          useAuthStore.getState().clearAuth("expired");
+        }
         throw error;
       })
       .finally(() => {

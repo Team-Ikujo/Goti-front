@@ -133,7 +133,9 @@ export const useAuthStore = create<AuthState>()(
           sessionRemainingSeconds: 0,
           socialVerifyToken: null,
           hasResolvedSession: true,
-          isManualLogout: reason === "manual",
+          // 수동/자동 로그아웃 모두 새로고침 시 자동 reissue 복원을 막는다.
+          // 다음 정상 로그인(setAccessToken/setAuthTokens) 시 false로 초기화된다.
+          isManualLogout: true,
           logoutReason: reason,
           sessionTimerId: null,
         });
