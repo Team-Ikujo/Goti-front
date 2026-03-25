@@ -96,6 +96,26 @@ const toAbsoluteUrl = (config?: AxiosRequestConfig) => {
   }
 };
 
+const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
+  const requestUrl = toAbsoluteUrl(config);
+
+  try {
+    const { pathname } = new URL(requestUrl, window.location.origin);
+
+    switch (true) {
+      // 일정/팀 메타 조회는 비로그인 접근 가능한 공개 조회 API로 운영 중.
+      // 일부 배포 게이트웨이에서 Authorization 헤더가 붙으면 인증 리다이렉트 루프가 발생할 수 있어 제외한다.
+      case pathname === "/api/v1/games/schedules":
+      case /^\/api\/v1\/baseball-teams\/[^/]+$/.test(pathname):
+        return true;
+      default:
+        return false;
+    }
+  } catch {
+    return false;
+  }
+};
+
 const getSerializableData = (value: unknown) => {
   if (value === undefined) {
     return null;
@@ -194,8 +214,9 @@ const reissueAccessTokenFromCookie = async () => {
 
 apiClient.interceptors.request.use((config) => {
   const accessToken = useAuthStore.getState().accessToken;
+  const shouldSkipAuth = shouldSkipAuthorizationHeader(config);
 
-  if (accessToken) {
+  if (accessToken && !shouldSkipAuth) {
     if (config.headers && typeof config.headers.set === "function") {
       config.headers.set("Authorization", `Bearer ${accessToken}`);
     } else {

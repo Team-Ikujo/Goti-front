@@ -28,6 +28,7 @@ import PaymentProcessingPage from '@/pages/tickets/ui/payment/PaymentProcessingP
 import PaymentCompletePage from '@/pages/tickets/ui/payment/PaymentCompletePage';
 import BooksPage from '@/pages/books';
 import SeatsPage from '@/pages/books/ui/SeatsPage';
+import SeatHoldLifecycleController from '@/features/seat-booking/ui/SeatHoldLifecycleController';
 import { MypagePage, AccountPage, PurchaseDetailPage, SaleDetailPage } from '@/pages/mypage';
 import MypageLayout from '@/shared/widgets/layout/mypage/MypageLayout';
 import AuthSessionController from './AuthSessionController';
@@ -40,6 +41,7 @@ const AppRouter = () => {
          <AuthSessionController />
          <OAuthMessageListener />
          <BookingFlowStateGuard />
+         <SeatHoldLifecycleController />
          <Routes>
             <Route path="/auth" element={<AuthLayout />}>
                <Route path="login" element={<LoginPage />} />

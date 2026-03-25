@@ -7,6 +7,8 @@ import {
    type ResaleCheckoutRequest,
    type TicketCheckoutRequest,
 } from '@/pages/tickets/api/paymentApi';
+import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { ApiError } from '@/shared/api/client';
 
 import { PaymentHeader } from './_shared';
@@ -51,6 +53,8 @@ export default function PaymentProcessingPage() {
                new Promise(resolve => setTimeout(resolve, 1000)),
             ]);
             if (isMountedRef.current && isStillOnProcessingPage()) {
+               useSeatHoldStore.getState().clearSeatHolds();
+               useSeatSelectionStore.getState().clearAllSelections();
                navigate(
                   `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}`,
                   { state: { ...result, amount: clientAmount }, replace: true },
