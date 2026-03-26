@@ -86,6 +86,8 @@ function DrawerContent({
    defaultHeight = 320,
    minHeight = 180,
    maxHeight = 560,
+   title = '하단 시트',
+   description = '추가 옵션을 확인하고 선택할 수 있는 하단 시트입니다.',
    ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
    showOverlay?: boolean;
@@ -95,6 +97,8 @@ function DrawerContent({
    defaultHeight?: number;
    minHeight?: number;
    maxHeight?: number;
+   title?: string;
+   description?: string;
 }) {
    const { open, setOpen } = useDrawerContext();
    const touchStartYRef = React.useRef<number | null>(null);
@@ -181,6 +185,8 @@ function DrawerContent({
             }}
             {...props}
          >
+            <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
+            <DialogPrimitive.Description className="sr-only">{description}</DialogPrimitive.Description>
             {showHandle ? (
                <div
                   className={cn('flex justify-center pt-[10px]', resizable ? 'touch-none cursor-row-resize' : '')}

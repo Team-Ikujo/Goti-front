@@ -107,11 +107,6 @@ const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
       // 일부 배포 게이트웨이에서 Authorization 헤더가 붙으면 인증 리다이렉트 루프가 발생할 수 있어 제외한다.
       case pathname === "/api/v1/games/schedules":
       case /^\/api\/v1\/baseball-teams\/[^/]+$/.test(pathname):
-      // 좌석 등급/구역/좌석 메타 조회도 문서상 공개 조회 API다.
-      // dev 게이트웨이에서 일반 사용자 토큰이 붙으면 RBAC 403이 발생할 수 있어 인증 헤더를 제외한다.
-      case /^\/api\/v1\/stadium-seats\/stadiums\/[^/]+\/seat-sections$/.test(pathname):
-      case /^\/api\/v1\/stadium-seats\/stadiums\/[^/]+\/games\/[^/]+\/seat-grades$/.test(pathname):
-      case /^\/api\/v1\/seats\/seat-sections\/[^/]+\/seats$/.test(pathname):
         return true;
       default:
         return false;
