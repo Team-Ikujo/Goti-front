@@ -50,7 +50,8 @@ export default function TicketPaymentPage() {
    const location = useLocation();
    const locationState = location.state as (BookingEntryState & { botData?: TicketCheckoutRequest['botData'] }) | null;
    const routeBookingEntryState = locationState;
-   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
+   const storedBookingEntryState = useBookingEntryStore((state) => state.entry);
+   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
    const zonesState = useSeatSelectionStore((state) => state.zones);
    const holdsBySeatId = useSeatHoldStore((state) => state.holdsBySeatId);

@@ -40,7 +40,8 @@ function SeatsPage() {
    const bookingFlowMode = getBookingFlowMode(location.search);
    const isResellMode = bookingFlowMode === 'resell';
    const routeBookingEntryState = location.state as BookingEntryState | null;
-   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
+   const storedBookingEntryState = useBookingEntryStore((state) => state.entry);
+   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
    const { getBotReport } = useBotDetector();
    const bookingZones = useMemo(
