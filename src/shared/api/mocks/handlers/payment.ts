@@ -91,7 +91,7 @@ type TicketPricingPolicy = {
       gradeId: string;
       ticketType: 'ADULT';
       dayType: 'WEEKDAY' | 'WEEKEND';
-      leagueType: 'EXHIBITION' | 'REGULAR' | 'POST_SEASON';
+      leagueType: 'PRE_SEASON' | 'REGULAR' | 'POSTSEASON';
       price: number;
    }>;
 };
