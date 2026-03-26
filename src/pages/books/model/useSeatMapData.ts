@@ -210,7 +210,7 @@ const fetchAggregatedSeatSections = async ({
 export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) => {
    const defaultSeatBlocks = useMemo(() => getSeatBlocks(zone), [zone]);
 
-   const { data } = useQuery({
+   const { data, error, refetch } = useQuery({
       queryKey: ['booking-seat-map', gameId, stadiumId, zone.id, zone.sectionCode],
       enabled: Boolean(gameId && zone.id && zone.sectionCode),
       queryFn: async (): Promise<SeatMapApiSnapshot | null> => {
@@ -267,5 +267,7 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
       seatBlocks: data?.seatBlocks ?? defaultSeatBlocks,
       apiSeatItems: data?.seatItems ?? [],
       hasApiSeatMap: Boolean(data),
+      seatMapLoadError: error,
+      refetchSeatMap: refetch,
    };
 };
