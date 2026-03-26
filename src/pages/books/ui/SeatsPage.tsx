@@ -19,6 +19,7 @@ import ResellSeatSidebar from './components/ResellSeatSidebar';
 import ResellZonePreviewSheet from './components/ResellZonePreviewSheet';
 import SelectedSeatSummaryList from './components/SelectedSeatSummaryList';
 import { useBotDetector } from '@/shared/lib/useBotDetector';
+import { isMswEnabled } from '@/shared/config/runtime';
 
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
@@ -74,7 +75,7 @@ function SeatsPage() {
          onSeatHoldConflict: async () => {
             await refetchSeatMap();
          },
-         useMockSeatHold: Boolean(seatMapLoadError),
+         useMockSeatHold: isMswEnabled && Boolean(seatMapLoadError),
       },
    );
 
