@@ -113,10 +113,8 @@ export default function PaymentCompletePage() {
    const deliveryMethod = (searchParams.get('delivery') as DeliveryMethod) ?? 'mobile';
    const orderId = searchParams.get('orderId');
    const locationOrder = state as PaymentResponse | null;
-   const storedOrder = readStoredPaymentCompleteState(orderId);
-   const cachedOrder = locationOrder ?? storedOrder;
    const [order, setOrder] = useState<PaymentResponse>(() => {
-      return cachedOrder ?? (MOCK_ORDER as PaymentResponse);
+      return locationOrder ?? readStoredPaymentCompleteState(orderId) ?? (MOCK_ORDER as PaymentResponse);
    });
    const [paymentReloadError, setPaymentReloadError] = useState<string | null>(null);
 
@@ -160,11 +158,6 @@ export default function PaymentCompletePage() {
                return;
             }
 
-            if (cachedOrder) {
-               setPaymentReloadError(null);
-               return;
-            }
-
             setPaymentReloadError(
                error instanceof ApiError ? error.message : '결제 정보를 다시 불러오지 못했습니다.',
             );
@@ -176,7 +169,7 @@ export default function PaymentCompletePage() {
       return () => {
          isCancelled = true;
       };
-   }, [cachedOrder, orderId]);
+   }, [orderId]);
 
    const actionButton =
       deliveryMethod === 'delivery'
