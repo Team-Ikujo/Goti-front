@@ -1,6 +1,7 @@
 // src/pages/tickets/ui/payment/types.ts
 
 export type PaymentMethod = 'card' | 'kakao' | 'naver' | 'toss' | 'bank';
+export type SupportedPaymentMethod = Extract<PaymentMethod, 'card' | 'bank'>;
 
 export type CashReceiptType = 'income' | 'expense' | 'none';
 export type CashReceiptNumType = 'phone' | 'card';
@@ -21,3 +22,7 @@ export const PAYMENT_LABELS: Record<PaymentMethod, string> = {
    toss: '토스페이',
    bank: '무통장 입금',
 };
+
+export const isSupportedPaymentMethod = (
+   paymentMethod: PaymentMethod,
+): paymentMethod is SupportedPaymentMethod => paymentMethod === 'card' || paymentMethod === 'bank';
