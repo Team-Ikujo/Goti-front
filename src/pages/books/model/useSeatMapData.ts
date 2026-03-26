@@ -51,25 +51,6 @@ const sortSectionBundles = (left: ApiSeatSectionBundle, right: ApiSeatSectionBun
       sensitivity: 'base',
    });
 
-const findSectionByCode = async ({
-   stadiumId,
-   sectionCode,
-}: {
-   stadiumId?: string;
-   sectionCode: string;
-}) => {
-   if (!stadiumId) {
-      return null;
-   }
-
-   const sections = await fetchSeatSections(stadiumId);
-   const normalizedTargetSectionCode = normalizeSectionCode(sectionCode);
-
-   return (
-      sections.find((section) => normalizeSectionCode(section.sectionCode) === normalizedTargetSectionCode) ?? null
-   );
-};
-
 const getSectionSeatLayoutMeta = (seats: SeatResponse[]) => {
    const rowNames = Array.from(new Set(seats.map((seat) => seat.rowName))).sort(sortRowNames);
 
@@ -271,19 +252,7 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
          }
 
          if (!isAggregatedSectionCode(zone.sectionCode)) {
-            const resolvedSection =
-               (await findSectionByCode({
-                  stadiumId,
-                  sectionCode: zone.sectionCode,
-               })) ??
-               ({
-                  sectionId: zone.id,
-                  sectionCode: zone.sectionCode,
-               } satisfies Pick<ApiSeatSectionBundle, 'sectionId' | 'sectionCode'>);
-            const [seats, statuses] = await Promise.all([
-               fetchSeats(resolvedSection.sectionId),
-               fetchSeatStatuses(gameId, resolvedSection.sectionId),
-            ]);
+            const [seats, statuses] = await Promise.all([fetchSeats(zone.id), fetchSeatStatuses(gameId, zone.id)]);
             const [seatBlock] = buildSeatBlockFromApiSeats(zone.sectionCode, seats);
 
             if (!seatBlock) {
@@ -294,8 +263,8 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
                seatBlock,
                zone.id,
                {
-                  sectionId: resolvedSection.sectionId,
-                  sectionCode: resolvedSection.sectionCode,
+                  sectionId: zone.id,
+                  sectionCode: zone.sectionCode,
                   seats,
                   statuses,
                },
@@ -304,7 +273,6 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
             console.info('[SeatMapDebug] single section payload', {
                zoneId: zone.id,
                zoneSectionCode: zone.sectionCode,
-               resolvedSectionId: resolvedSection.sectionId,
                seatsCount: seats.length,
                statusesCount: statuses.length,
                statusSummary: summarizeSeatStatuses(statuses),
