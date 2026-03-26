@@ -28,6 +28,7 @@ export interface GameScheduleResponse {
    homeTeamId: string;
    awayTeamId: string;
    stadiumId: string;
+   queueTokenJti?: string;
    gameStatus: ApiGameStatus;
    homeTeamScore: number;
    awayTeamScore: number;

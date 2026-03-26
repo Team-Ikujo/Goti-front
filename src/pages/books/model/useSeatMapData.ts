@@ -119,6 +119,29 @@ const createSeatItemsForLayout = (block: SeatBlock, zoneId: string, section: Api
    });
 };
 
+const summarizeSeatStatuses = (statuses: SeatStatusResponse[]) => {
+   return statuses.reduce<Record<string, number>>((summary, seatStatus) => {
+      const key = seatStatus.status?.toUpperCase?.() ?? 'UNKNOWN';
+      summary[key] = (summary[key] ?? 0) + 1;
+      return summary;
+   }, {});
+};
+
+const summarizeSeatItemStatuses = (seats: SeatItem[]) => {
+   return seats.reduce<Record<SeatItem['status'], number>>(
+      (summary, seat) => {
+         summary[seat.status] += 1;
+         return summary;
+      },
+      {
+         available: 0,
+         selected: 0,
+         held: 0,
+         disabled: 0,
+      },
+   );
+};
+
 const buildAggregatedSeatMapSnapshot = ({
    defaultBlocks,
    sections,
@@ -195,6 +218,16 @@ const fetchAggregatedSeatSections = async ({
             fetchSeatStatuses(gameId, section.sectionId),
          ]);
 
+         console.info('[SeatMapDebug] aggregated section payload', {
+            zoneId: zone.id,
+            zoneSectionCode: zone.sectionCode,
+            sectionId: section.sectionId,
+            sectionCode: section.sectionCode,
+            seatsCount: seats.length,
+            statusesCount: statuses.length,
+            statusSummary: summarizeSeatStatuses(statuses),
+         });
+
          return {
             sectionId: section.sectionId,
             sectionCode: section.sectionCode,
@@ -226,18 +259,29 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
                return null;
             }
 
+            const seatItems = createSeatItemsForLayout(
+               seatBlock,
+               zone.id,
+               {
+                  sectionId: zone.id,
+                  sectionCode: zone.sectionCode,
+                  seats,
+                  statuses,
+               },
+            );
+
+            console.info('[SeatMapDebug] single section payload', {
+               zoneId: zone.id,
+               zoneSectionCode: zone.sectionCode,
+               seatsCount: seats.length,
+               statusesCount: statuses.length,
+               statusSummary: summarizeSeatStatuses(statuses),
+               mappedStatusSummary: summarizeSeatItemStatuses(seatItems),
+            });
+
             return {
                seatBlocks: [seatBlock],
-               seatItems: createSeatItemsForLayout(
-                  seatBlock,
-                  zone.id,
-                  {
-                     sectionId: zone.id,
-                     sectionCode: zone.sectionCode,
-                     seats,
-                     statuses,
-                  },
-               ),
+               seatItems,
             };
          }
 
@@ -255,11 +299,21 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
             return null;
          }
 
-         return buildAggregatedSeatMapSnapshot({
+         const snapshot = buildAggregatedSeatMapSnapshot({
             defaultBlocks: defaultSeatBlocks,
             sections: sectionBundles,
             zoneId: zone.id,
          });
+
+         console.info('[SeatMapDebug] aggregated snapshot', {
+            zoneId: zone.id,
+            zoneSectionCode: zone.sectionCode,
+            seatBlockCount: snapshot.seatBlocks.length,
+            seatItemCount: snapshot.seatItems.length,
+            mappedStatusSummary: summarizeSeatItemStatuses(snapshot.seatItems),
+         });
+
+         return snapshot;
       },
    });
 

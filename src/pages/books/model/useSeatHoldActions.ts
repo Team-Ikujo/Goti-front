@@ -122,6 +122,12 @@ export const useSeatHoldActions = (
       }
 
       if (!bookingEntryState?.gameId || !bookingEntryState.queueTokenJti) {
+         console.warn('[SeatMapDebug] hold blocked: missing booking token', {
+            zoneId,
+            seatId: seat.id,
+            hasGameId: Boolean(bookingEntryState?.gameId),
+            hasQueueTokenJti: Boolean(bookingEntryState?.queueTokenJti),
+         });
          window.alert('예매 정보가 없어 좌석 점유를 진행할 수 없습니다.');
          return;
       }
@@ -161,6 +167,16 @@ export const useSeatHoldActions = (
          applyServerSeatPatch(zoneId, seat.id, 'selected');
          toggleSelectedSeat(zoneId, seat.id);
       } catch (error) {
+         if (error instanceof ApiError && error.status === 404) {
+            console.error('[useSeatHoldActions] 좌석 점유 404', {
+               zoneId,
+               seatId: seat.id,
+               gameId: bookingEntryState.gameId,
+               queueTokenJti: bookingEntryState.queueTokenJti,
+               errorData: error.data,
+            });
+         }
+
          if (isSeatAlreadyHeldConflict(error)) {
             window.alert('해당 좌석은 이미 선점된 좌석입니다.');
             await options?.onSeatHoldConflict?.();
