@@ -144,8 +144,6 @@ type ResalePaymentRequest = {
 type ApiPaymentMethodCode = 'CARD' | 'ACCOUNT_TRANSFER';
 
 const UNSUPPORTED_PAYMENT_METHOD_MESSAGE = '아직 지원하지 않는 결제수단입니다.';
-const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
-const shouldUseRelativeApiBase = import.meta.env.DEV;
 
 const formatOrderedAt = (date: Date) => {
    return date.toLocaleString('ko-KR', {
@@ -164,16 +162,6 @@ const createClientTransactionId = (prefix: string) => {
    }
 
    return `${prefix}-${Date.now()}`;
-};
-
-const getResaleHoldReleaseUrl = (holdId: string) => {
-   const path = `/api/v1/resales/holds/${encodeURIComponent(holdId)}/release`;
-
-   if (shouldUseRelativeApiBase || !configuredApiBaseUrl) {
-      return path;
-   }
-
-   return new URL(path, configuredApiBaseUrl).toString();
 };
 
 const assertNever = (value: never): never => {
@@ -237,29 +225,6 @@ const createResaleHold = async (payload: ResaleHoldRequest) => {
    const response = await apiClient.post<ApiEnvelope<ResaleHoldResponse>>('/api/v1/resales/holds', payload);
 
    return response.data.data;
-};
-
-export const releaseResaleHold = async (holdId: string) => {
-   const response = await apiClient.patch<ApiEnvelope<ResaleHoldResponse>>(
-      `/api/v1/resales/holds/${encodeURIComponent(holdId)}/release`,
-   );
-
-   return response.data.data;
-};
-
-export const releaseResaleHoldKeepalive = (holdId: string) => {
-   if (typeof window === 'undefined') {
-      return;
-   }
-
-   void fetch(getResaleHoldReleaseUrl(holdId), {
-      method: 'PATCH',
-      headers: {
-         'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      keepalive: true,
-   });
 };
 
 const createResaleOrder = async (payload: ResaleOrderRequest) => {
@@ -371,68 +336,45 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
    });
 };
 
-export const submitResaleOrder = async (
-   payload: ResaleCheckoutRequest,
-   options?: { onHoldCreated?: (holdId: string) => void; onHoldReleased?: () => void },
-): Promise<PaymentResponse> => {
-   let resaleHoldId: string | null = null;
+export const submitResaleOrder = async (payload: ResaleCheckoutRequest): Promise<PaymentResponse> => {
+   const hold = await createResaleHold({
+      listingId: payload.listingId,
+      queueTokenJti: payload.queueTokenJti,
+   });
 
-   try {
-      const hold = await createResaleHold({
-         listingId: payload.listingId,
-         queueTokenJti: payload.queueTokenJti,
-      });
-      resaleHoldId = hold.holdId;
-      options?.onHoldCreated?.(hold.holdId);
+   const order = await createResaleOrder({
+      holdIds: [hold.holdId],
+   });
 
-      const order = await createResaleOrder({
-         holdIds: [hold.holdId],
-      });
+   const transactionIds = await getResaleTransactions(order.orderId);
 
-      const transactionIds = await getResaleTransactions(order.orderId);
-
-      if (transactionIds.length === 0) {
-         throw new Error('리셀 거래 정보가 없어 결제를 진행할 수 없습니다.');
-      }
-
-      const payment = await createResalePayment({
-         orderId: order.orderId,
-         buyerId: payload.buyerId,
-         totalAmount: payload.totalAmount,
-         totalBuyerFee: payload.totalBuyerFee,
-         totalSellerFee: payload.totalSellerFee,
-         items: transactionIds.map((transactionId) => ({
-            transactionId,
-            sellerId: payload.sellerId,
-            settlementAmount: payload.settlementAmount,
-         })),
-         paymentMethod: toPaymentMethodCode(payload.paymentMethod),
-         idempotencyKey: createClientTransactionId('resale-idempotency'),
-      });
-
-      return buildPaymentResponse({
-         amount: payment.paymentAmount,
-         order,
-         payment,
-         paymentMethod: payload.paymentMethod,
-         gameTitle: payload.matchTitle,
-         gameDate: payload.gameDate,
-         gameVenue: payload.gameVenue,
-         seats: [payload.seatInfo],
-      });
-   } catch (error) {
-      if (resaleHoldId) {
-         try {
-            await releaseResaleHold(resaleHoldId);
-            options?.onHoldReleased?.();
-         } catch (releaseError) {
-            console.error('[submitResaleOrder] failed to release resale hold after payment failure', {
-               holdId: resaleHoldId,
-               releaseError,
-            });
-         }
-      }
-
-      throw error;
+   if (transactionIds.length === 0) {
+      throw new Error('리셀 거래 정보가 없어 결제를 진행할 수 없습니다.');
    }
+
+   const payment = await createResalePayment({
+      orderId: order.orderId,
+      buyerId: payload.buyerId,
+      totalAmount: payload.totalAmount,
+      totalBuyerFee: payload.totalBuyerFee,
+      totalSellerFee: payload.totalSellerFee,
+      items: transactionIds.map((transactionId) => ({
+         transactionId,
+         sellerId: payload.sellerId,
+         settlementAmount: payload.settlementAmount,
+      })),
+      paymentMethod: toPaymentMethodCode(payload.paymentMethod),
+      idempotencyKey: createClientTransactionId('resale-idempotency'),
+   });
+
+   return buildPaymentResponse({
+      amount: payment.paymentAmount,
+      order,
+      payment,
+      paymentMethod: payload.paymentMethod,
+      gameTitle: payload.matchTitle,
+      gameDate: payload.gameDate,
+      gameVenue: payload.gameVenue,
+      seats: [payload.seatInfo],
+   });
 };
