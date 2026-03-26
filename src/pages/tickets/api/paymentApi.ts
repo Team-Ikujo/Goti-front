@@ -86,20 +86,20 @@ type CreateOrderResponse = {
 };
 
 type OrderPaymentRequest = {
-   paymentMethod: ApiPaymentMethodCode;
+   paymentMethod: string;
    idempotencyKey: string;
 };
 
-export type OrderPaymentResponse = {
+type OrderPaymentResponse = {
    paymentId: string;
    orderId: string;
    paymentType: string;
-   paymentMethod: ApiPaymentMethodCode;
+   paymentMethod: string;
    paymentAmount: number;
    pgProvider: string;
    pgTid: string;
    paymentStatus: string;
-   paidAt?: string | null;
+   paidAt: string;
    failedReason?: string | null;
 };
 
@@ -137,13 +137,11 @@ type ResalePaymentRequest = {
    totalBuyerFee: number;
    totalSellerFee: number;
    items: ResalePaymentItem[];
-   paymentMethod: ApiPaymentMethodCode;
+   paymentMethod: string;
    idempotencyKey: string;
 };
 
-type ApiPaymentMethodCode = 'CARD' | 'ACCOUNT_TRANSFER';
-
-const UNSUPPORTED_PAYMENT_METHOD_MESSAGE = '아직 지원하지 않는 결제수단입니다.';
+type PaymentMethodCode = 'CARD' | 'KAKAO_PAY' | 'NAVER_PAY' | 'TOSS_PAY' | 'ACCOUNT_TRANSFER';
 
 const formatOrderedAt = (date: Date) => {
    return date.toLocaleString('ko-KR', {
@@ -168,16 +166,18 @@ const assertNever = (value: never): never => {
    throw new Error(`지원하지 않는 결제 수단입니다: ${String(value)}`);
 };
 
-const toPaymentMethodCode = (paymentMethod: PaymentMethod): ApiPaymentMethodCode => {
+const toPaymentMethodCode = (paymentMethod: PaymentMethod): PaymentMethodCode => {
    switch (paymentMethod) {
       case 'card':
          return 'CARD';
+      case 'kakao':
+         return 'KAKAO_PAY';
+      case 'naver':
+         return 'NAVER_PAY';
+      case 'toss':
+         return 'TOSS_PAY';
       case 'bank':
          return 'ACCOUNT_TRANSFER';
-      case 'kakao':
-      case 'naver':
-      case 'toss':
-         throw new Error(UNSUPPORTED_PAYMENT_METHOD_MESSAGE);
       default:
          return assertNever(paymentMethod);
    }
@@ -202,12 +202,6 @@ const toPaymentMethodLabel = (paymentMethod: PaymentMethod) => {
 
 const createOrder = async (payload: CreateOrderRequest) => {
    const response = await apiClient.post<ApiEnvelope<CreateOrderResponse>>('/api/v1/orders', payload);
-
-   return response.data.data;
-};
-
-export const getOrderPayment = async (orderId: string) => {
-   const response = await apiClient.get<ApiEnvelope<OrderPaymentResponse>>(`/api/v1/payments/orders/${orderId}`);
 
    return response.data.data;
 };
@@ -245,53 +239,6 @@ const createResalePayment = async (payload: ResalePaymentRequest) => {
    return response.data.data;
 };
 
-const buildPaymentResponse = ({
-   amount,
-   order,
-   payment,
-   paymentMethod,
-   gameTitle,
-   gameDate,
-   gameVenue,
-   seats,
-   recipient,
-}: {
-   amount: number;
-   order: CreateOrderResponse | ResaleOrderResponse;
-   payment: OrderPaymentResponse;
-   paymentMethod: PaymentMethod;
-   gameTitle: string;
-   gameDate: string;
-   gameVenue: string;
-   seats: string[];
-   recipient?: {
-      name: string;
-      phone: string;
-      address: string;
-   };
-}): PaymentResponse => {
-   return {
-      orderId: order.orderId,
-      orderNumber: order.orderNumber,
-      orderStatus: order.orderStatus,
-      paymentStatus: payment.paymentStatus,
-      paidAt: payment.paidAt ?? undefined,
-      gameTitle,
-      gameDate,
-      gameVenue,
-      quantity: order.totalQuantity,
-      seats,
-      paymentMethod: toPaymentMethodLabel(paymentMethod),
-      orderedAt: formatOrderedAt(new Date()),
-      amount,
-      ...(recipient && {
-         recipientName: recipient.name,
-         recipientPhone: recipient.phone,
-         recipientAddress: recipient.address,
-      }),
-   };
-};
-
 export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise<PaymentResponse> => {
    const heldSeats = payload.selectedSeats.map(({ seatId, holdId, label }) => ({
       seatId,
@@ -316,24 +263,26 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       idempotencyKey: createClientTransactionId('idempotency'),
    });
 
-   return buildPaymentResponse({
-      amount: payment.paymentAmount,
-      order,
-      payment,
-      paymentMethod: payload.paymentMethod,
+   return {
+      orderId: order.orderId,
+      orderNumber: order.orderNumber,
+      orderStatus: order.orderStatus,
+      paymentStatus: payment.paymentStatus,
+      paidAt: payment.paidAt,
       gameTitle: payload.matchTitle,
       gameDate: payload.gameDate,
       gameVenue: payload.gameVenue,
+      quantity: order.totalQuantity,
       seats: heldSeats.map(({ seatLabel }) => seatLabel),
-      recipient:
-         payload.deliveryMethod === 'delivery'
-            ? {
-                 name: payload.ordererName,
-                 phone: payload.ordererPhone,
-                 address: `${payload.address ?? ''} ${payload.addressDetail ?? ''}`.trim(),
-              }
-            : undefined,
-   });
+      paymentMethod: toPaymentMethodLabel(payload.paymentMethod),
+      orderedAt: formatOrderedAt(new Date()),
+      amount: payload.amount,
+      ...(payload.deliveryMethod === 'delivery' && {
+         recipientName: payload.ordererName,
+         recipientPhone: payload.ordererPhone,
+         recipientAddress: `${payload.address ?? ''} ${payload.addressDetail ?? ''}`.trim(),
+      }),
+   };
 };
 
 export const submitResaleOrder = async (payload: ResaleCheckoutRequest): Promise<PaymentResponse> => {
@@ -367,14 +316,19 @@ export const submitResaleOrder = async (payload: ResaleCheckoutRequest): Promise
       idempotencyKey: createClientTransactionId('resale-idempotency'),
    });
 
-   return buildPaymentResponse({
-      amount: payment.paymentAmount,
-      order,
-      payment,
-      paymentMethod: payload.paymentMethod,
+   return {
+      orderId: order.orderId,
+      orderNumber: order.orderNumber,
+      orderStatus: order.orderStatus,
+      paymentStatus: payment.paymentStatus,
+      paidAt: payment.paidAt,
       gameTitle: payload.matchTitle,
       gameDate: payload.gameDate,
       gameVenue: payload.gameVenue,
+      quantity: order.totalQuantity,
       seats: [payload.seatInfo],
-   });
+      paymentMethod: toPaymentMethodLabel(payload.paymentMethod),
+      orderedAt: formatOrderedAt(new Date()),
+      amount: payload.totalAmount,
+   };
 };
