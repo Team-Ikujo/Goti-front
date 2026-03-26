@@ -66,8 +66,6 @@ function BookingZoneMobileLayout({
                   defaultHeight={360}
                   minHeight={232}
                   maxHeight={488}
-                  title={bookingFlowMode === 'resell' ? '리셀 좌석 구역 목록' : '좌석 등급과 잔여석 목록'}
-                  description={bookingFlowMode === 'resell' ? '리셀 예매 가능한 좌석 구역 목록입니다.' : '예매 가능한 좌석 등급과 잔여석을 확인할 수 있습니다.'}
                   className="overflow-hidden border-none p-0"
                >
                   <div className="h-full overflow-y-auto">

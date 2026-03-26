@@ -7,9 +7,6 @@ import {
    fetchSeats,
    fetchSeatStatuses,
    matchesSectionExpression,
-   mapApiSeatsToSeatItems,
-   normalizeSectionCode,
-   resolveSeatSectionByCode,
    type SeatResponse,
    type SeatStatusResponse,
 } from '@/pages/books/api/bookingApi';
@@ -17,8 +14,7 @@ import { getSeatBlocks } from '@/pages/books/model/seatData';
 import type { SeatBlock, SeatItem, ZoneItem } from '@/pages/books/model/types';
 
 const AGGREGATED_SECTION_CODE_PATTERN = /[~,/]/;
-const API_SEAT_BASE_OFFSET_X = 120;
-const API_SEAT_BASE_OFFSET_Y = 160;
+const API_SEAT_SPACING = 20;
 
 type SeatMapDataParams = {
    gameId?: string;
@@ -38,6 +34,14 @@ type SeatMapApiSnapshot = {
    seatItems: SeatItem[];
 };
 
+const sortRowNames = (left: string, right: string) =>
+   left.localeCompare(right, 'ko-KR', {
+      numeric: true,
+      sensitivity: 'base',
+   });
+
+const normalizeSectionCode = (value: string) => value.replace(/\s+/g, '').toUpperCase();
+
 const isAggregatedSectionCode = (sectionCode?: string) =>
    Boolean(sectionCode && AGGREGATED_SECTION_CODE_PATTERN.test(sectionCode));
 
@@ -47,6 +51,34 @@ const sortSectionBundles = (left: ApiSeatSectionBundle, right: ApiSeatSectionBun
       sensitivity: 'base',
    });
 
+const getSectionSeatLayoutMeta = (seats: SeatResponse[]) => {
+   const rowNames = Array.from(new Set(seats.map((seat) => seat.rowName))).sort(sortRowNames);
+
+   return {
+      rowNames,
+      rowIndexByName: Object.fromEntries(rowNames.map((rowName, index) => [rowName, index])),
+      columnCount: seats.length > 0 ? Math.max(...seats.map((seat) => seat.seatNum)) : 0,
+   };
+};
+
+const toSeatItemStatus = (seat: SeatResponse, statuses: Record<string, string>): SeatItem['status'] => {
+   const status = statuses[seat.seatId]?.toUpperCase();
+
+   if (!seat.available) {
+      return 'disabled';
+   }
+
+   if (status === 'HELD') {
+      return 'held';
+   }
+
+   if (status === 'SOLD' || status === 'BLOCKED') {
+      return 'disabled';
+   }
+
+   return 'available';
+};
+
 const createSeatBlockForLayout = (block: SeatBlock, section: ApiSeatSectionBundle): SeatBlock => {
    if (section.seats.length === 0) {
       return {
@@ -54,14 +86,8 @@ const createSeatBlockForLayout = (block: SeatBlock, section: ApiSeatSectionBundl
          activeSeats: [],
       };
    }
-   const rowNames = Array.from(new Set(section.seats.map((seat) => seat.rowName))).sort((left, right) =>
-      left.localeCompare(right, 'ko-KR', {
-         numeric: true,
-         sensitivity: 'base',
-      }),
-   );
-   const rowIndexByName = Object.fromEntries(rowNames.map((rowName, index) => [rowName, index]));
-   const columnCount = Math.max(...section.seats.map((seat) => seat.seatNum));
+
+   const { rowNames, rowIndexByName, columnCount } = getSectionSeatLayoutMeta(section.seats);
 
    return {
       ...block,
@@ -74,39 +100,23 @@ const createSeatBlockForLayout = (block: SeatBlock, section: ApiSeatSectionBundl
 };
 
 const createSeatItemsForLayout = (block: SeatBlock, zoneId: string, section: ApiSeatSectionBundle): SeatItem[] => {
-   return mapApiSeatsToSeatItems({
-      sectionId: zoneId,
-      sectionCode: block.label,
-      seats: section.seats,
-      statuses: section.statuses,
-   }).map((seat) => ({
-      ...seat,
-      x: seat.x - API_SEAT_BASE_OFFSET_X + block.offsetX,
-      y: seat.y - API_SEAT_BASE_OFFSET_Y + block.offsetY,
-   }));
-};
+   const { rowIndexByName } = getSectionSeatLayoutMeta(section.seats);
+   const statusBySeatId = Object.fromEntries(section.statuses.map((seatStatus) => [seatStatus.seatId, seatStatus.status]));
 
-const summarizeSeatStatuses = (statuses: SeatStatusResponse[]) => {
-   return statuses.reduce<Record<string, number>>((summary, seatStatus) => {
-      const key = seatStatus.status?.toUpperCase?.() ?? 'UNKNOWN';
-      summary[key] = (summary[key] ?? 0) + 1;
-      return summary;
-   }, {});
-};
+   return section.seats.map((seat) => {
+      const rowIndex = rowIndexByName[seat.rowName] ?? 0;
 
-const summarizeSeatItemStatuses = (seats: SeatItem[]) => {
-   return seats.reduce<Record<SeatItem['status'], number>>(
-      (summary, seat) => {
-         summary[seat.status] += 1;
-         return summary;
-      },
-      {
-         available: 0,
-         selected: 0,
-         held: 0,
-         disabled: 0,
-      },
-   );
+      return {
+         id: seat.seatId,
+         block: block.label,
+         rowLabel: `${seat.rowName}열`,
+         seatNumber: seat.seatNum,
+         x: block.offsetX + (seat.seatNum - 1) * API_SEAT_SPACING,
+         y: block.offsetY + rowIndex * API_SEAT_SPACING,
+         zoneId,
+         status: toSeatItemStatus(seat, statusBySeatId),
+      } satisfies SeatItem;
+   });
 };
 
 const buildAggregatedSeatMapSnapshot = ({
@@ -185,16 +195,6 @@ const fetchAggregatedSeatSections = async ({
             fetchSeatStatuses(gameId, section.sectionId),
          ]);
 
-         console.info('[SeatMapDebug] aggregated section payload', {
-            zoneId: zone.id,
-            zoneSectionCode: zone.sectionCode,
-            sectionId: section.sectionId,
-            sectionCode: section.sectionCode,
-            seatsCount: seats.length,
-            statusesCount: statuses.length,
-            statusSummary: summarizeSeatStatuses(statuses),
-         });
-
          return {
             sectionId: section.sectionId,
             sectionCode: section.sectionCode,
@@ -219,49 +219,25 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
          }
 
          if (!isAggregatedSectionCode(zone.sectionCode)) {
-            const resolvedSection =
-               (await resolveSeatSectionByCode({
-                  stadiumId,
-                  sectionCode: zone.sectionCode,
-               })) ??
-               ({
-                  sectionId: zone.id,
-                  sectionCode: zone.sectionCode,
-               } satisfies Pick<ApiSeatSectionBundle, 'sectionId' | 'sectionCode'>);
-            const [seats, statuses] = await Promise.all([
-               fetchSeats(resolvedSection.sectionId),
-               fetchSeatStatuses(gameId, resolvedSection.sectionId),
-            ]);
+            const [seats, statuses] = await Promise.all([fetchSeats(zone.id), fetchSeatStatuses(gameId, zone.id)]);
             const [seatBlock] = buildSeatBlockFromApiSeats(zone.sectionCode, seats);
 
             if (!seatBlock) {
                return null;
             }
 
-            const seatItems = createSeatItemsForLayout(
-               seatBlock,
-               zone.id,
-               {
-                  sectionId: resolvedSection.sectionId,
-                  sectionCode: resolvedSection.sectionCode,
-                  seats,
-                  statuses,
-               },
-            );
-
-            console.info('[SeatMapDebug] single section payload', {
-               zoneId: zone.id,
-               zoneSectionCode: zone.sectionCode,
-               resolvedSectionId: resolvedSection.sectionId,
-               seatsCount: seats.length,
-               statusesCount: statuses.length,
-               statusSummary: summarizeSeatStatuses(statuses),
-               mappedStatusSummary: summarizeSeatItemStatuses(seatItems),
-            });
-
             return {
                seatBlocks: [seatBlock],
-               seatItems,
+               seatItems: createSeatItemsForLayout(
+                  seatBlock,
+                  zone.id,
+                  {
+                     sectionId: zone.id,
+                     sectionCode: zone.sectionCode,
+                     seats,
+                     statuses,
+                  },
+               ),
             };
          }
 
@@ -279,21 +255,11 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
             return null;
          }
 
-         const snapshot = buildAggregatedSeatMapSnapshot({
+         return buildAggregatedSeatMapSnapshot({
             defaultBlocks: defaultSeatBlocks,
             sections: sectionBundles,
             zoneId: zone.id,
          });
-
-         console.info('[SeatMapDebug] aggregated snapshot', {
-            zoneId: zone.id,
-            zoneSectionCode: zone.sectionCode,
-            seatBlockCount: snapshot.seatBlocks.length,
-            seatItemCount: snapshot.seatItems.length,
-            mappedStatusSummary: summarizeSeatItemStatuses(snapshot.seatItems),
-         });
-
-         return snapshot;
       },
    });
 
