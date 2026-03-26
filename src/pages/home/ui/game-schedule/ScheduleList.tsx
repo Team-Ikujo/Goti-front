@@ -181,8 +181,8 @@ function ActionButtons({
    const resellNowOpen = resellOpenTime !== null && now >= resellOpenTime;
 
    // API가 판매예정이라도 오전 11시 지났으면 예매하기로 전환
-   const effectiveTicket = (game.ticket === '판매예정' && saleNowOpen) ? '예매하기' : game.ticket;
-   const effectiveResell = (game.resell === '리셀예정' && resellNowOpen) ? '리셀예매' : game.resell;
+   const effectiveTicket = game.ticket === '판매예정' && saleNowOpen ? '예매하기' : game.ticket;
+   const effectiveResell = game.resell === '리셀예정' && resellNowOpen ? '리셀예매' : game.resell;
 
    const canBook = effectiveTicket === '예매하기';
    const canResellBook = effectiveResell === '리셀예매';
