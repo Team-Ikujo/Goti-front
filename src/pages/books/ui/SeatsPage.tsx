@@ -56,7 +56,7 @@ function SeatsPage() {
    const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
-   const { apiSeatItems, seatBlocks, hasApiSeatMap } = useSeatMapData({
+   const { apiSeatItems, seatBlocks, hasApiSeatMap, refetchSeatMap } = useSeatMapData({
       gameId: bookingEntryState?.gameId,
       stadiumId: bookingEntryState?.stadiumId,
       zone,
@@ -68,7 +68,14 @@ function SeatsPage() {
    const toggleSelectedSeat = useSeatSelectionStore((state) => state.toggleSelectedSeat);
    const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
    const holdsBySeatId = useSeatHoldStore((state) => state.holdsBySeatId);
-   const { clearSelectedSeats, holdSeat, pendingSeatIds, releaseSeat, syncHeldSeatsIntoZone } = useSeatHoldActions(bookingEntryState);
+   const { clearSelectedSeats, holdSeat, pendingSeatIds, releaseSeat, syncHeldSeatsIntoZone } = useSeatHoldActions(
+      bookingEntryState,
+      {
+         onSeatHoldConflict: async () => {
+            await refetchSeatMap();
+         },
+      },
+   );
 
    const [seatMapScale, setSeatMapScale] = useState(1);
    const [seatMapOffset, setSeatMapOffset] = useState({ x: 0, y: 0 });
@@ -152,6 +159,7 @@ function SeatsPage() {
    }, [initialSeats, zoneSeatState]);
 
    const selectedSeatIds = zoneSeatState?.selectedSeatIds ?? [];
+   const selectedSeatIdSet = useMemo(() => new Set(selectedSeatIds), [selectedSeatIds]);
 
    const selectedSeats = useMemo(
       () => getSelectedSeatDetails(zonesState, bookingZones),
@@ -480,7 +488,7 @@ function SeatsPage() {
                      seatMapOffset={seatMapOffset}
                      seatMapScale={seatMapScale}
                      seats={displaySeats}
-                     selectedSeatIds={selectedSeatIds}
+                     selectedSeatIdSet={selectedSeatIdSet}
                      zoneColor={zone.color}
                      zoneName={zone.name}
                      onMapPointerDown={handleMapPointerDown}

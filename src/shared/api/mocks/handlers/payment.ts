@@ -123,7 +123,7 @@ type TicketPricingPolicy = {
       gradeId: string;
       ticketType: 'ADULT';
       dayType: 'WEEKDAY' | 'WEEKEND';
-      leagueType: 'PRE_SEASON' | 'REGULAR' | 'POSTSEASON';
+      leagueType: 'EXHIBITION' | 'REGULAR' | 'POST_SEASON';
       price: number;
    }>;
 };
@@ -509,9 +509,6 @@ const parseJsonBody = async <T>(request: Request): Promise<T | null> => {
 const buildPaymentMethodDisplay = (paymentMethod: string): string => {
    switch (paymentMethod) {
       case 'CARD': return '카드 결제(신한카드 1234)';
-      case 'KAKAO_PAY': return '카카오페이';
-      case 'NAVER_PAY': return '네이버페이';
-      case 'TOSS_PAY': return '토스페이';
       case 'ACCOUNT_TRANSFER': return '무통장 입금';
       default: return paymentMethod;
    }
@@ -520,9 +517,6 @@ const buildPaymentMethodDisplay = (paymentMethod: string): string => {
 const isTicketPaymentMethod = (paymentMethod: unknown) => {
    return (
       paymentMethod === 'CARD' ||
-      paymentMethod === 'KAKAO_PAY' ||
-      paymentMethod === 'NAVER_PAY' ||
-      paymentMethod === 'TOSS_PAY' ||
       paymentMethod === 'ACCOUNT_TRANSFER'
    );
 };

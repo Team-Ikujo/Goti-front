@@ -15,11 +15,28 @@ type SeatBlockGridProps = {
    block: SeatBlock;
    blockIndex: number;
    seats: SeatItem[];
-   selectedSeatIds: string[];
+   selectedSeatIdSet: Set<string>;
    onToggleSeat: (seat: SeatItem) => void;
 };
 
-function SeatBlockGrid({ block, blockIndex, seats, selectedSeatIds, onToggleSeat }: SeatBlockGridProps) {
+type SeatVisualState = 'disabled' | 'enabled' | 'selected';
+
+function getSeatVisualState(seat: SeatItem, isSelected: boolean): SeatVisualState {
+   if (isSelected) {
+      return 'selected';
+   }
+
+   switch (seat.status) {
+      case 'disabled':
+      case 'held':
+         return 'disabled';
+      case 'available':
+      case 'selected':
+         return 'enabled';
+   }
+}
+
+function SeatBlockGrid({ block, blockIndex, seats, selectedSeatIdSet, onToggleSeat }: SeatBlockGridProps) {
    const blockWidth = block.cols * (SEAT_SIZE + SEAT_GAP) - SEAT_GAP;
    const blockHeight = block.rows * (SEAT_SIZE + SEAT_GAP) - SEAT_GAP;
    const cardWidth = blockWidth + CARD_PADDING_X * 2;
@@ -53,7 +70,9 @@ function SeatBlockGrid({ block, blockIndex, seats, selectedSeatIds, onToggleSeat
             {seats.map((seat) => {
                const columnIndex = Math.round((seat.x - block.offsetX) / (SEAT_SIZE + SEAT_GAP));
                const rowIndex = Math.round((seat.y - block.offsetY) / (SEAT_SIZE + SEAT_GAP));
-               const isSelected = selectedSeatIds.includes(seat.id);
+               const isSelected = selectedSeatIdSet.has(seat.id);
+               const visualState = getSeatVisualState(seat, isSelected);
+               const isDisabled = visualState === 'disabled';
 
                return (
                   <button
@@ -61,37 +80,41 @@ function SeatBlockGrid({ block, blockIndex, seats, selectedSeatIds, onToggleSeat
                      type="button"
                      onClick={() => onToggleSeat(seat)}
                      className={[
-                        'absolute transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                        seat.status === 'disabled'
-                           ? 'rounded-[4px] border border-transparent bg-[#e5e7eb]'
-                           : seat.status === 'held'
-                             ? 'rounded-[4px] border border-[#c9c4ff] bg-[#eceaff]'
-                           : isSelected
+                        'group absolute size-[18px] transition-[transform,box-shadow] duration-150 ease-out focus-visible:outline-none',
+                        'focus-visible:ring-2 focus-visible:ring-[#7c68ed] focus-visible:ring-offset-2',
+                        isDisabled
+                           ? 'cursor-not-allowed'
+                           : visualState === 'selected'
                              ? 'rounded-[6px] bg-[rgba(124,104,237,0.4)]'
-                             : 'rounded-[4px] border border-[#6d63ff] bg-[#f4f3ff]',
+                             : 'rounded-[4px] hover:scale-[1.03] focus-visible:scale-[1.03]',
                      ].join(' ')}
                      style={{
                         left: `${columnIndex * (SEAT_SIZE + SEAT_GAP)}px`,
                         top: `${rowIndex * (SEAT_SIZE + SEAT_GAP)}px`,
-                        width: `${SEAT_SIZE}px`,
-                        height: `${SEAT_SIZE}px`,
                      }}
-                     disabled={seat.status === 'disabled' || seat.status === 'held'}
+                     disabled={isDisabled}
                      aria-label={`${seat.block}구역 ${seat.rowLabel} ${seat.seatNumber}번 좌석`}
                      aria-pressed={isSelected}
+                     data-seat-state={visualState}
                   >
-                     {isSelected ? (
-                        <>
-                           <span
-                              aria-hidden="true"
-                              className="absolute inset-[11.11%] rounded-[4px] bg-[#7c68ed]"
-                           />
-                           <Check
-                              aria-hidden="true"
-                              className="absolute inset-[30%] h-[40%] w-[40%] text-white"
-                              strokeWidth={3}
-                           />
-                        </>
+                     <span
+                        aria-hidden="true"
+                        className={[
+                           'absolute inset-[11.11%] rounded-[4px]',
+                           'transition-[background-color,border-color,box-shadow] duration-150 ease-out',
+                           visualState === 'disabled'
+                              ? 'bg-[#f1f2f4]'
+                              : visualState === 'selected'
+                                ? 'bg-[#7c68ed]'
+                                : 'border border-[#867eed] bg-[rgba(124,104,237,0.12)] group-hover:border-[1.5px] group-hover:border-[#7c68ed] group-hover:bg-[#7c68ed] group-focus-visible:border-[1.5px] group-focus-visible:border-[#7c68ed] group-focus-visible:bg-[#7c68ed]',
+                        ].join(' ')}
+                     />
+                     {visualState === 'selected' ? (
+                        <Check
+                           aria-hidden="true"
+                           className="absolute inset-[30%] h-[40%] w-[40%] text-white"
+                           strokeWidth={3}
+                        />
                      ) : null}
                   </button>
                );

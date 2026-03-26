@@ -19,7 +19,7 @@ export type ApiTicketingStatus =
 
 export type ApiGameResult = 'NONE' | 'HOME_WIN' | 'AWAY_WIN' | 'DRAW' | 'CANCELLED';
 
-export type ApiLeagueType = 'PRE_SEASON' | 'REGULAR' | 'POSTSEASON';
+export type ApiLeagueType = 'EXHIBITION' | 'REGULAR' | 'POST_SEASON';
 
 export interface GameScheduleResponse {
    gameId: string;

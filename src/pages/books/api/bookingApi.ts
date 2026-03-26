@@ -37,8 +37,7 @@ export type TicketPricingPolicyPriceResponse = {
    gradeId: string;
    ticketType: string;
    dayType: string;
-   leagueType?: string;
-   matchType?: string;
+   leagueType: string;
    price: number;
 };
 
@@ -55,6 +54,50 @@ const DEFAULT_ZONE_COLOR = '#64748b';
 const API_BLOCK_OFFSET_X = 120;
 const API_BLOCK_OFFSET_Y = 160;
 const SEAT_STEP = 20;
+
+type RawSeatResponse = Partial<SeatResponse> & {
+   id?: string;
+   seatNumber?: number;
+   row?: string;
+   isAvailable?: boolean;
+};
+
+const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
+
+const toOptionalFiniteNumber = (value: unknown) => {
+   if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+   }
+
+   if (typeof value === 'string' && value.trim()) {
+      const parsedValue = Number(value);
+
+      if (Number.isFinite(parsedValue)) {
+         return parsedValue;
+      }
+   }
+
+   return undefined;
+};
+
+const normalizeSeatResponse = (seat: RawSeatResponse): SeatResponse | null => {
+   const seatId = isNonEmptyString(seat.seatId) ? seat.seatId : isNonEmptyString(seat.id) ? seat.id : undefined;
+   const sectionId = isNonEmptyString(seat.sectionId) ? seat.sectionId : undefined;
+   const rowName = isNonEmptyString(seat.rowName) ? seat.rowName : isNonEmptyString(seat.row) ? seat.row : undefined;
+   const seatNum = toOptionalFiniteNumber(seat.seatNum) ?? toOptionalFiniteNumber(seat.seatNumber);
+
+   if (!seatId || !sectionId || !rowName || seatNum === undefined) {
+      return null;
+   }
+
+   return {
+      seatId,
+      sectionId,
+      rowName,
+      seatNum,
+      available: typeof seat.available === 'boolean' ? seat.available : typeof seat.isAvailable === 'boolean' ? seat.isAvailable : true,
+   };
+};
 
 const normalizeSectionCode = (value: string) => value.replace(/\s+/g, '').toUpperCase();
 
@@ -178,10 +221,40 @@ export const fetchSeatSections = async (stadiumId: string) => {
    return response.data.data;
 };
 
-export const fetchSeats = async (sectionId: string) => {
-   const response = await apiClient.get<ApiEnvelope<SeatResponse[]>>(`/api/v1/seats/seat-sections/${sectionId}/seats`);
+export const resolveSeatSectionByCode = async ({
+   stadiumId,
+   sectionCode,
+}: {
+   stadiumId?: string;
+   sectionCode: string;
+}) => {
+   if (!stadiumId) {
+      return null;
+   }
 
-   return response.data.data;
+   const sections = await fetchSeatSections(stadiumId);
+   const normalizedTargetSectionCode = normalizeSectionCode(sectionCode);
+
+   return sections.find((section) => normalizeSectionCode(section.sectionCode) === normalizedTargetSectionCode) ?? null;
+};
+
+export const fetchSeats = async (sectionId: string) => {
+   const response = await apiClient.get<ApiEnvelope<RawSeatResponse[]>>(`/api/v1/seats/seat-sections/${sectionId}/seats`);
+
+   return (response.data.data ?? []).flatMap((seat) => {
+      const normalizedSeat = normalizeSeatResponse(seat);
+
+      if (normalizedSeat) {
+         return [normalizedSeat];
+      }
+
+      console.error('[bookingApi] 좌석 응답 정규화 실패', {
+         sectionId,
+         seat,
+      });
+
+      return [];
+   });
 };
 
 export const fetchSeatStatuses = async (gameId: string, sectionId: string) => {
@@ -190,6 +263,16 @@ export const fetchSeatStatuses = async (gameId: string, sectionId: string) => {
    );
 
    return response.data.data;
+};
+
+export const summarizeSeatStatusSnapshot = (statuses: SeatStatusResponse[]) => {
+   return statuses.reduce<Record<string, number>>((summary, seatStatus) => {
+      const key = seatStatus.status?.toUpperCase?.() || 'UNKNOWN';
+
+      summary[key] = (summary[key] ?? 0) + 1;
+
+      return summary;
+   }, {});
 };
 
 export const fetchTicketPricingPolicy = async (teamId: string) => {
@@ -246,7 +329,7 @@ export const resolvePricingByGradeId = ({
    }
 
    const filteredPrices = policy.prices.filter((price) => {
-      const normalizedPriceLeagueType = normalizePolicyLeagueType(price.leagueType ?? price.matchType);
+      const normalizedPriceLeagueType = normalizePolicyLeagueType(price.leagueType);
 
       return (
          normalizePolicyLeagueType(price.ticketType) === 'ADULT' &&
