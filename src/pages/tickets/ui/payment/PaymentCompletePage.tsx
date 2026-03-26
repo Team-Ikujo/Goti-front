@@ -91,7 +91,7 @@ export default function PaymentCompletePage() {
       <div className="min-h-screen flex flex-col bg-background">
          {/* 데스크톱 헤더 */}
          <div className="hidden lg:block">
-            <BooksHeader />
+            <BooksHeader confirmBeforeExit={false} showTimer={false} />
          </div>
 
          {/* 모바일 헤더 */}

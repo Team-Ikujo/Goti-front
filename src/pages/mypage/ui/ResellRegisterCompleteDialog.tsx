@@ -7,14 +7,23 @@ import { Button } from '@/shared/ui/button';
 interface Props {
    open: boolean;
    onClose: () => void;
+   onConfirm?: () => void;
    /** 판매 내역 상세로 이동할 판매 ID (API 응답값으로 대체 예정) */
    saleId: string;
 }
 
-export default function ResellRegisterCompleteDialog({ open, onClose, saleId }: Props) {
+export default function ResellRegisterCompleteDialog({ open, onClose, onConfirm, saleId }: Props) {
    const navigate = useNavigate();
 
    if (!open) return null;
+
+   const handleConfirm = () => {
+      if (onConfirm) {
+         onConfirm();
+      } else {
+         onClose();
+      }
+   };
 
    return createPortal(
       <div
@@ -42,7 +51,7 @@ export default function ResellRegisterCompleteDialog({ open, onClose, saleId }: 
                >
                   내역 보기
                </Button>
-               <Button className="flex-1 py-3" onClick={onClose}>
+               <Button className="flex-1 py-3" onClick={handleConfirm}>
                   확인
                </Button>
             </div>
