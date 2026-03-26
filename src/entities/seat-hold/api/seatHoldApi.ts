@@ -17,8 +17,6 @@ export type ReleaseSeatHoldResponse = {
    holdId: string;
 };
 
-export const isMockSeatHoldId = (holdId: string) => holdId.startsWith('mock-hold-');
-
 const getSeatHoldReleaseUrl = (holdId: string) => {
    const path = `/api/v1/seat-reservations/${encodeURIComponent(holdId)}`;
 
@@ -39,10 +37,6 @@ export const holdSeatReservation = async (seatId: string, payload: HoldSeatReque
 };
 
 export const releaseSeatReservation = async (holdId: string) => {
-   if (isMockSeatHoldId(holdId)) {
-      return { holdId };
-   }
-
    const response = await apiClient.post<ApiEnvelope<ReleaseSeatHoldResponse>>(
       `/api/v1/seat-reservations/${encodeURIComponent(holdId)}`,
    );
@@ -51,7 +45,7 @@ export const releaseSeatReservation = async (holdId: string) => {
 };
 
 export const releaseSeatReservationKeepalive = (holdId: string) => {
-   if (typeof window === 'undefined' || isMockSeatHoldId(holdId)) {
+   if (typeof window === 'undefined') {
       return;
    }
 
