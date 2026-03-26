@@ -108,9 +108,9 @@ const Header = () => {
                      </div>
                   </div>
 
-                  {/* 로그인 후 아이콘 — 데스크톱 전용 */}
+                  {/* 로그인 후 아이콘 — 모바일 + 데스크톱 */}
                   {isLoggedIn && (
-                     <div className="hidden lg:flex items-center gap-1.5 shrink-0">
+                     <div className="flex items-center gap-1.5 shrink-0">
                         <button className="flex items-center justify-center size-9.5 rounded-lg hover:bg-(--fill-hover) transition-colors">
                            <img src="/Icon/Line/Bell.svg" alt="알림" className="size-4.5" />
                         </button>

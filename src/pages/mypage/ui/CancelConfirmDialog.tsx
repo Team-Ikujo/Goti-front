@@ -84,7 +84,7 @@ export default function CancelConfirmDialog({
                      </>
                   ) : (
                      <p className="text-[14px] text-[#374553] leading-normal w-[260px]">
-                        기존 결제 수단<span className="font-bold">({paymentMethod})</span>으로 환불되며,{' '}
+                        기존 결제 수단{paymentMethod && <span className="font-bold">({paymentMethod})</span>}으로 환불되며,{' '}
                         은행 영업일 기준 1~3일 정도 소요됩니다.
                      </p>
                   )}
