@@ -61,16 +61,14 @@ function SeatBlockGrid({ block, blockIndex, seats, selectedSeatIdSet, onToggleSe
                      type="button"
                      onClick={() => onToggleSeat(seat)}
                      className={[
-                        'group absolute focus-visible:outline-none',
-                        'transition-[transform,box-shadow] duration-150 ease-out',
-                        'focus-visible:ring-2 focus-visible:ring-[#7c68ed] focus-visible:ring-offset-2',
+                        'absolute transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                         seat.status === 'disabled'
-                           ? 'cursor-not-allowed'
+                           ? 'rounded-[4px] border border-transparent bg-[#e5e7eb]'
                            : seat.status === 'held'
-                             ? 'cursor-not-allowed'
+                             ? 'rounded-[4px] border border-[#c9c4ff] bg-[#eceaff]'
                            : isSelected
                              ? 'rounded-[6px] bg-[rgba(124,104,237,0.4)]'
-                             : 'rounded-[4px] hover:scale-[1.03] focus-visible:scale-[1.03]',
+                             : 'rounded-[4px] border border-[#6d63ff] bg-[#f4f3ff]',
                      ].join(' ')}
                      style={{
                         left: `${columnIndex * (SEAT_SIZE + SEAT_GAP)}px`,
@@ -82,26 +80,18 @@ function SeatBlockGrid({ block, blockIndex, seats, selectedSeatIdSet, onToggleSe
                      aria-label={`${seat.block}구역 ${seat.rowLabel} ${seat.seatNumber}번 좌석`}
                      aria-pressed={isSelected}
                   >
-                     <span
-                        aria-hidden="true"
-                        className={[
-                           'absolute inset-[11.11%] rounded-[4px]',
-                           'transition-[background-color,border-color,box-shadow] duration-150 ease-out',
-                           seat.status === 'disabled'
-                              ? 'bg-[#f1f2f4]'
-                              : seat.status === 'held'
-                                ? 'border-[1.5px] border-[#7c68ed] bg-[#7c68ed]'
-                                : isSelected
-                                  ? 'bg-[#7c68ed]'
-                                  : 'border border-[#867eed] bg-[rgba(124,104,237,0.12)] group-hover:border-[1.5px] group-hover:border-[#7c68ed] group-hover:bg-[#7c68ed] group-focus-visible:border-[1.5px] group-focus-visible:border-[#7c68ed] group-focus-visible:bg-[#7c68ed]',
-                        ].join(' ')}
-                     />
                      {isSelected ? (
-                        <Check
-                           aria-hidden="true"
-                           className="absolute inset-[30%] h-[40%] w-[40%] text-white"
-                           strokeWidth={3}
-                        />
+                        <>
+                           <span
+                              aria-hidden="true"
+                              className="absolute inset-[11.11%] rounded-[4px] bg-[#7c68ed]"
+                           />
+                           <Check
+                              aria-hidden="true"
+                              className="absolute inset-[30%] h-[40%] w-[40%] text-white"
+                              strokeWidth={3}
+                           />
+                        </>
                      ) : null}
                   </button>
                );

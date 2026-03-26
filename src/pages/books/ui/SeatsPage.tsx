@@ -56,7 +56,7 @@ function SeatsPage() {
    const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
-   const { apiSeatItems, seatBlocks, hasApiSeatMap, seatMapLoadError, refetchSeatMap } = useSeatMapData({
+   const { apiSeatItems, seatBlocks, hasApiSeatMap, refetchSeatMap } = useSeatMapData({
       gameId: bookingEntryState?.gameId,
       stadiumId: bookingEntryState?.stadiumId,
       zone,
@@ -74,7 +74,6 @@ function SeatsPage() {
          onSeatHoldConflict: async () => {
             await refetchSeatMap();
          },
-         useMockSeatHold: Boolean(seatMapLoadError),
       },
    );
 
