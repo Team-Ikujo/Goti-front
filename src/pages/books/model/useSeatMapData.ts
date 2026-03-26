@@ -8,6 +8,7 @@ import {
    fetchSeatStatuses,
    matchesSectionExpression,
    resolveSeatSectionByCode,
+   summarizeSeatStatusSnapshot,
    type SeatResponse,
    type SeatStatusResponse,
 } from '@/pages/books/api/bookingApi';
@@ -233,6 +234,21 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
                fetchSeats(resolvedSection.sectionId),
                fetchSeatStatuses(gameId, resolvedSection.sectionId),
             ]);
+
+            console.info('[SeatMapDebug] single section snapshot', {
+               gameId,
+               stadiumId,
+               zoneId: zone.id,
+               zoneSectionCode: zone.sectionCode,
+               resolvedSectionId: resolvedSection.sectionId,
+               resolvedSectionCode: resolvedSection.sectionCode,
+               seatsCount: seats.length,
+               statusesCount: statuses.length,
+               statusSummary: summarizeSeatStatusSnapshot(statuses),
+               seatIdsPreview: seats.slice(0, 10).map((seat) => seat.seatId),
+               statusSeatIdsPreview: statuses.slice(0, 10).map((seatStatus) => seatStatus.seatId),
+            });
+
             const [seatBlock] = buildSeatBlockFromApiSeats(zone.sectionCode, seats);
 
             if (!seatBlock) {

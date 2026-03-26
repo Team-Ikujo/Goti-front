@@ -117,6 +117,16 @@ export const useSeatHoldActions = (
       markPending(seat.id, true);
 
       try {
+         console.info('[SeatHoldDebug] request', {
+            zoneId,
+            seatId: seat.id,
+            seatRowLabel: seat.rowLabel,
+            seatNumber: seat.seatNumber,
+            seatStatus: seat.status,
+            bookingGameId: bookingEntryState.gameId,
+            bookingQueueTokenJti: bookingEntryState.queueTokenJti,
+         });
+
          const hold = await holdSeatReservation(seat.id, {
             gameId: bookingEntryState.gameId,
             queueTokenJti: bookingEntryState.queueTokenJti,
@@ -133,6 +143,17 @@ export const useSeatHoldActions = (
          applyServerSeatPatch(zoneId, seat.id, 'selected');
          toggleSelectedSeat(zoneId, seat.id);
       } catch (error) {
+         console.error('[SeatHoldDebug] request failed', {
+            zoneId,
+            seatId: seat.id,
+            seatRowLabel: seat.rowLabel,
+            seatNumber: seat.seatNumber,
+            seatStatus: seat.status,
+            bookingGameId: bookingEntryState.gameId,
+            bookingQueueTokenJti: bookingEntryState.queueTokenJti,
+            error,
+         });
+
          if (isSeatAlreadyHeldConflict(error)) {
             window.alert('해당 좌석은 이미 선점된 좌석입니다.');
             await options?.onSeatHoldConflict?.();
