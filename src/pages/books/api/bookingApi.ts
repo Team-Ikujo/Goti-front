@@ -265,6 +265,16 @@ export const fetchSeatStatuses = async (gameId: string, sectionId: string) => {
    return response.data.data;
 };
 
+export const summarizeSeatStatusSnapshot = (statuses: SeatStatusResponse[]) => {
+   return statuses.reduce<Record<string, number>>((summary, seatStatus) => {
+      const key = seatStatus.status?.toUpperCase?.() || 'UNKNOWN';
+
+      summary[key] = (summary[key] ?? 0) + 1;
+
+      return summary;
+   }, {});
+};
+
 export const fetchTicketPricingPolicy = async (teamId: string) => {
    const response = await apiClient.get<ApiEnvelope<TicketPricingPolicyResponse>>(
       `/api/v1/teams/${teamId}/ticket-pricing-policies`,
