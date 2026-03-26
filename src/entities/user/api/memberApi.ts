@@ -5,7 +5,10 @@ import type { ApiEnvelope } from '@/features/auth/api/types';
 
 export interface MemberProfile {
    name?: string;
+   email?: string;
    mobile?: string;
+   gender?: 'MALE' | 'FEMALE' | 'UNKNOWN';
+   birthDate?: string;
 }
 
 export const fetchMyProfile = async (): Promise<MemberProfile> => {

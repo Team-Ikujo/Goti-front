@@ -57,7 +57,9 @@ export interface SaleHistoryItem {
    canCancel: boolean;
 }
 
-type HistoryCardProps = { mode: 'purchase'; item: PurchaseHistoryItem } | { mode: 'sale'; item: SaleHistoryItem };
+type HistoryCardProps = ({ mode: 'purchase'; item: PurchaseHistoryItem } | { mode: 'sale'; item: SaleHistoryItem }) & {
+   onResellCompleteConfirm?: () => void;
+};
 
 // ── 유틸 ─────────────────────────────────────────────────────────────
 
@@ -129,7 +131,12 @@ export default function HistoryCard(props: HistoryCardProps) {
       <>
          {/* 구매 전용 다이얼로그 */}
          {isPurchase && resellOpen && purchaseItem && (
-            <ResellRegisterDialog open={resellOpen} onClose={() => setResellOpen(false)} item={purchaseItem} />
+            <ResellRegisterDialog
+               open={resellOpen}
+               onClose={() => setResellOpen(false)}
+               onCompleteConfirm={props.onResellCompleteConfirm}
+               item={purchaseItem}
+            />
          )}
          {isPurchase && noAccountOpen && (
             <NoAccountDialog open={noAccountOpen} onClose={() => setNoAccountOpen(false)} />

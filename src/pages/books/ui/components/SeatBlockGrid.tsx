@@ -15,11 +15,11 @@ type SeatBlockGridProps = {
    block: SeatBlock;
    blockIndex: number;
    seats: SeatItem[];
-   selectedSeatIdSet: Set<string>;
+   selectedSeatIds: string[];
    onToggleSeat: (seat: SeatItem) => void;
 };
 
-function SeatBlockGrid({ block, blockIndex, seats, selectedSeatIdSet, onToggleSeat }: SeatBlockGridProps) {
+function SeatBlockGrid({ block, blockIndex, seats, selectedSeatIds, onToggleSeat }: SeatBlockGridProps) {
    const blockWidth = block.cols * (SEAT_SIZE + SEAT_GAP) - SEAT_GAP;
    const blockHeight = block.rows * (SEAT_SIZE + SEAT_GAP) - SEAT_GAP;
    const cardWidth = blockWidth + CARD_PADDING_X * 2;
@@ -53,7 +53,7 @@ function SeatBlockGrid({ block, blockIndex, seats, selectedSeatIdSet, onToggleSe
             {seats.map((seat) => {
                const columnIndex = Math.round((seat.x - block.offsetX) / (SEAT_SIZE + SEAT_GAP));
                const rowIndex = Math.round((seat.y - block.offsetY) / (SEAT_SIZE + SEAT_GAP));
-               const isSelected = selectedSeatIdSet.has(seat.id);
+               const isSelected = selectedSeatIds.includes(seat.id);
 
                return (
                   <button
