@@ -132,9 +132,9 @@ export default function PurchaseDetailPage() {
          <div className="flex flex-col gap-14 w-full max-w-190 min-w-83.75">
             {/* 제목 */}
             <div className="flex items-center gap-4">
-               <Button variant="none" className="p-0 [&_svg]:size-6" onClick={() => navigate(-1)}>
+               {/* <Button variant="none" className="p-0 [&_svg]:size-6" onClick={() => navigate(-1)}>
                   <ChevronLeft size={24} />
-               </Button>
+               </Button> */}
                <h1 className="text-[32px] font-bold text-[#111827] tracking-[-0.032px] leading-[1.45]">
                   예매내역 상세
                </h1>
@@ -248,7 +248,9 @@ export default function PurchaseDetailPage() {
                      type="payment"
                      heading="결제 정보"
                      statusText={detail.paymentSummary.status}
-                     statusColor={detail.paymentSummary.status === '결제 완료' ? 'text-primary' : 'text-muted-foreground'}
+                     statusColor={
+                        detail.paymentSummary.status === '결제 완료' ? 'text-primary' : 'text-muted-foreground'
+                     }
                      summaryRows={[
                         {
                            label: `티켓 금액 (${detail.paymentSummary.ticketCount}매)`,
@@ -282,7 +284,7 @@ export default function PurchaseDetailPage() {
                      totalLabel="총 결제 금액"
                      totalAmount={detail.paymentSummary.total}
                      infoRows={[
-                        ...(paymentEvent ? [{ label: '결제 수단', value: paymentEvent.method }] : []),
+                        { label: '결제 수단', value: paymentEvent?.method ?? detail.refundInfo?.method ?? '-' },
                         { label: '결제 일시', value: detail.paymentSummary.date },
                      ]}
                   />
