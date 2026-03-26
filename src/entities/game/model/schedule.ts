@@ -358,7 +358,7 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
     time,
     venue: resolveVenueNameFromGame(game, homeTeam?.shortName ?? fallbackHomeName),
     stadiumId: game.stadiumId,
-    queueTokenJti: game.queueTokenJti ?? buildMockQueueTokenJti(game.gameId),
+    queueTokenJti: buildMockQueueTokenJti(game.gameId),
     score: status === '종료' ? `${game.awayTeamScore}:${game.homeTeamScore}` : null,
     status,
     ticket,
