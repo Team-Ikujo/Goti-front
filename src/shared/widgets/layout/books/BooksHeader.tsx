@@ -102,7 +102,8 @@ const BooksHeader = ({
    const navigate = useNavigate();
    const { pathname, state } = useLocation();
    const routeBookingEntryState = state as BookingEntryState | null;
-   const bookingEntryState = useBookingEntryStore((store) => store.entry) ?? routeBookingEntryState;
+   const storedBookingEntryState = useBookingEntryStore((store) => store.entry);
+   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const clearBookingEntry = useBookingEntryStore((store) => store.clearEntry);
    const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
    const resolvedCurrentStepIndex = currentStepIndex ?? (pathname.includes('/books/seats/') ? 1 : 0);
