@@ -99,7 +99,7 @@ const normalizeSeatResponse = (seat: RawSeatResponse): SeatResponse | null => {
    };
 };
 
-const normalizeSectionCode = (value: string) => value.replace(/\s+/g, '').toUpperCase();
+export const normalizeSectionCode = (value: string) => value.replace(/\s+/g, '').toUpperCase();
 
 const parseTokenRange = (value: string) => {
    const match = value.match(/^(.*?)(\d+)$/);
@@ -157,7 +157,7 @@ const resolveZoneTemplate = (teamId: string | undefined, sectionCode: string) =>
    return getBookingZones(teamId).find((zone) => matchesSectionExpression(zone.sectionCode, sectionCode));
 };
 
-const toSeatStatus = (status: string | undefined, available: boolean): SeatStatus => {
+export const toSeatStatus = (status: string | undefined, available: boolean): SeatStatus => {
    if (!available) {
       return 'disabled';
    }
@@ -219,6 +219,23 @@ export const fetchSeatSections = async (stadiumId: string) => {
    const response = await apiClient.get<ApiEnvelope<SeatSectionResponse[]>>(`/api/v1/stadium-seats/stadiums/${stadiumId}/seat-sections`);
 
    return response.data.data;
+};
+
+export const resolveSeatSectionByCode = async ({
+   stadiumId,
+   sectionCode,
+}: {
+   stadiumId?: string;
+   sectionCode: string;
+}) => {
+   if (!stadiumId) {
+      return null;
+   }
+
+   const sections = await fetchSeatSections(stadiumId);
+   const normalizedTargetSectionCode = normalizeSectionCode(sectionCode);
+
+   return sections.find((section) => normalizeSectionCode(section.sectionCode) === normalizedTargetSectionCode) ?? null;
 };
 
 export const fetchSeats = async (sectionId: string) => {
