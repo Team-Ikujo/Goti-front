@@ -16,6 +16,7 @@ export type GameScheduleResponse = {
   homeTeamId: string;
   awayTeamId: string;
   stadiumId: string;
+  queueTokenJti?: string;
   gameStatus: string;
   homeTeamScore: number;
   awayTeamScore: number;
