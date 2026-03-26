@@ -9,10 +9,13 @@ import ResellRegisterCompleteDialog from './ResellRegisterCompleteDialog';
 import type { ResellZoneInsights } from '@/pages/books/model/resellData';
 import ResellPriceChart from '@/pages/books/ui/components/ResellPriceChart';
 import { formatPrice } from '@/pages/books/model/zoneData';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createResaleListing } from '@/entities/resale/api/resaleApi';
 
 interface Props {
    open: boolean;
    onClose: () => void;
+   onCompleteConfirm?: () => void;
    item: PurchaseHistoryItem;
 }
 
@@ -95,12 +98,25 @@ function PriceInput({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 // ─── 메인 컴포넌트 ─────────────────────────────────────────────────
-export default function ResellRegisterDialog({ open, onClose, item }: Props) {
+export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm, item }: Props) {
    const [checkedSeats, setCheckedSeats] = useState<Set<number>>(new Set());
    const [prices, setPrices] = useState<Record<number, string>>({});
    const [bulkPrice, setBulkPrice] = useState('');
    const [bulkToggle, setBulkToggle] = useState(false);
    const [completeOpen, setCompleteOpen] = useState(false);
+
+   const queryClient = useQueryClient();
+   const mutation = useMutation({
+      mutationFn: createResaleListing,
+      onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: ['myResales'] });
+         setCompleteOpen(true);
+      },
+      onError: (error) => {
+         alert('판매 등록에 실패했습니다. 다시 시도해주세요.');
+         console.error('Resale listing failed:', error);
+      }
+   });
 
    // 열릴 때마다 상태 초기화
    useEffect(() => {
@@ -135,6 +151,26 @@ export default function ResellRegisterDialog({ open, onClose, item }: Props) {
       });
    };
 
+   const handleRegister = async () => {
+      if (checkedSeats.size === 0) {
+         alert('판매할 좌석을 선택해주세요.');
+         return;
+      }
+
+      const firstIdx = Array.from(checkedSeats)[0];
+      const listingPrice = bulkToggle ? Number(bulkPrice) : Number(prices[firstIdx]);
+
+      if (!listingPrice || isNaN(listingPrice)) {
+         alert('판매 가격을 올바르게 입력해주세요.');
+         return;
+      }
+
+      mutation.mutate({
+         ticketId: item.id,
+         listingPrice
+      });
+   };
+
    return createPortal(
       <>
          {/* 판매 등록 완료 팝업 */}
@@ -143,6 +179,11 @@ export default function ResellRegisterDialog({ open, onClose, item }: Props) {
             onClose={() => {
                setCompleteOpen(false);
                onClose();
+            }}
+            onConfirm={() => {
+               setCompleteOpen(false);
+               onClose();
+               onCompleteConfirm?.();
             }}
             saleId={item.id}
          />
@@ -329,10 +370,11 @@ export default function ResellRegisterDialog({ open, onClose, item }: Props) {
                   </Button>
                   <Button
                      variant="none"
-                     className="flex-1 bg-primary rounded-lg py-3 text-[16px] font-bold text-white leading-normal hover:bg-primary/90 transition-colors"
-                     onClick={() => setCompleteOpen(true)}
+                     className="flex-1 bg-primary rounded-lg py-3 text-[16px] font-bold text-white leading-normal hover:bg-primary/90 transition-colors disabled:opacity-50"
+                     onClick={handleRegister}
+                     disabled={mutation.isPending}
                   >
-                     판매 등록하기
+                     {mutation.isPending ? '등록 중...' : '판매 등록하기'}
                   </Button>
                </div>
             </div>

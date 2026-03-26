@@ -1,13 +1,13 @@
 // src/pages/mypage/ui/MypagePage.tsx
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, Settings, Check, SlidersHorizontal } from 'lucide-react';
 import HistoryCard from './HistoryCard';
 import { Button } from '@/shared/ui/button';
 import { DatePicker } from '@/shared/ui/date-picker';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/shared/ui/drawer';
-import { PURCHASE_ITEMS, SALE_ITEMS } from '../model/mockData';
+import { useMyProfileData, useMyOrdersData, useMyResaleListData } from '../model/useMypageData';
 
 type HistoryTab = 'purchase' | 'sale';
 type PurchaseStatusFilter = '전체' | '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
@@ -34,13 +34,10 @@ const toDisplay = (s: string) => s.replace(/-/g, '.');
 // Date → YYYY-MM-DD
 const toInput = (d: Date) => d.toISOString().slice(0, 10);
 
-// 전체 내역 기간의 시작일: 데이터 중 가장 이른 날짜
-const DATA_MIN_DATE = [...PURCHASE_ITEMS, ...SALE_ITEMS].map(i => toISODate(i.orderDate)).sort()[0];
-
-const calcPeriodDates = (period: PeriodFilter) => {
+const calcPeriodDates = (period: PeriodFilter, dataMinDate?: string) => {
    const today = new Date();
    if (period === '직접설정') return { start: '', end: '' };
-   if (period === '전체 내역') return { start: DATA_MIN_DATE, end: toInput(today) };
+   if (period === '전체 내역') return { start: dataMinDate || toInput(new Date(2025, 0, 1)), end: toInput(today) };
    const months = period === '1개월' ? 1 : period === '3개월' ? 3 : 6;
    const start = new Date(today);
    start.setMonth(start.getMonth() - months);
@@ -49,7 +46,20 @@ const calcPeriodDates = (period: PeriodFilter) => {
 
 export default function MypagePage() {
    const navigate = useNavigate();
-   const [activeTab, setActiveTab] = useState<HistoryTab>('purchase');
+   const location = useLocation();
+   const [activeTab, setActiveTab] = useState<HistoryTab>(
+      (location.state as { activeTab?: HistoryTab } | null)?.activeTab || 'purchase',
+   );
+
+   const { data: profile } = useMyProfileData();
+   const { data: purchaseItems = [] } = useMyOrdersData();
+   const { data: saleItems = [] } = useMyResaleListData();
+
+   // 전체 내역 기간의 시작일: 데이터 중 가장 이른 날짜
+   const DATA_MIN_DATE = useMemo(() => {
+      const dates = [...purchaseItems, ...saleItems].map(i => toISODate(i.orderDate)).sort();
+      return dates[0] || toInput(new Date(2025, 0, 1));
+   }, [purchaseItems, saleItems]);
 
    // ── 상태 칩 필터 (즉시 반영) ──
    const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatusFilter>('전체');
@@ -57,8 +67,8 @@ export default function MypagePage() {
 
    // ── 필터 바 Pending 상태 (조회 버튼 클릭 시 반영) ──
    const [pendingPeriod, setPendingPeriod] = useState<PeriodFilter>('전체 내역');
-   const [pendingStartDate, setPendingStartDate] = useState(() => calcPeriodDates('전체 내역').start);
-   const [pendingEndDate, setPendingEndDate] = useState(() => calcPeriodDates('전체 내역').end);
+   const [pendingStartDate, setPendingStartDate] = useState(() => calcPeriodDates('전체 내역', DATA_MIN_DATE).start);
+   const [pendingEndDate, setPendingEndDate] = useState(() => calcPeriodDates('전체 내역', DATA_MIN_DATE).end);
    const [pendingPurchaseType, setPendingPurchaseType] = useState<PurchaseTypeFilter>('전체 내역');
    const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
    const [showTypeDropdown, setShowTypeDropdown] = useState(false);
@@ -105,7 +115,7 @@ export default function MypagePage() {
       setPendingPeriod(period);
       setShowPeriodDropdown(false);
       if (period !== '직접설정') {
-         const { start, end } = calcPeriodDates(period);
+         const { start, end } = calcPeriodDates(period, DATA_MIN_DATE);
          setPendingStartDate(start);
          setPendingEndDate(end);
       }
@@ -125,8 +135,8 @@ export default function MypagePage() {
       setPurchaseStatus('전체');
       setSaleStatus('전체');
       setPendingPeriod('전체 내역');
-      setPendingStartDate(calcPeriodDates('전체 내역').start);
-      setPendingEndDate(calcPeriodDates('전체 내역').end);
+      setPendingStartDate(calcPeriodDates('전체 내역', DATA_MIN_DATE).start);
+      setPendingEndDate(calcPeriodDates('전체 내역', DATA_MIN_DATE).end);
       setPendingPurchaseType('전체 내역');
       setAppliedStartDate('');
       setAppliedEndDate('');
@@ -144,7 +154,7 @@ export default function MypagePage() {
 
    const filteredPurchaseItems = useMemo(
       () =>
-         PURCHASE_ITEMS.filter(item => {
+         purchaseItems.filter(item => {
             if (purchaseStatus !== '전체' && item.paymentStatus !== purchaseStatus) return false;
             if (appliedPurchaseType !== '전체 내역') {
                const target = appliedPurchaseType === '예매' ? '티켓' : '리셀';
@@ -152,16 +162,16 @@ export default function MypagePage() {
             }
             return matchesDate(item.orderDate);
          }),
-      [purchaseStatus, appliedPurchaseType, appliedStartDate, appliedEndDate],
+      [purchaseItems, purchaseStatus, appliedPurchaseType, appliedStartDate, appliedEndDate],
    );
 
    const filteredSaleItems = useMemo(
       () =>
-         SALE_ITEMS.filter(item => {
+         saleItems.filter(item => {
             if (saleStatus !== '전체' && item.saleStatus !== saleStatus) return false;
             return matchesDate(item.orderDate);
          }),
-      [saleStatus, appliedStartDate, appliedEndDate],
+      [saleItems, saleStatus, appliedStartDate, appliedEndDate],
    );
 
    return (
@@ -176,13 +186,13 @@ export default function MypagePage() {
                      <div className="flex items-center gap-4 lg:gap-5">
                         <div className="size-16 lg:size-21 rounded-full border border-border flex items-center justify-center shrink-0">
                            <span className="text-heading-1-bold text-foreground">
-                              홍
+                              {profile?.name?.[0] || '유'}
                            </span>
                         </div>
                         <div className="flex flex-col">
-                           <p className="text-heading-1-bold text-foreground">홍길동</p>
-                           <p className="text-body-1-regular text-muted-foreground">hong@example.com</p>
-                           <p className="text-body-1-regular text-muted-foreground">010-1234-5678</p>
+                           <p className="text-heading-1-bold text-foreground">{profile?.name || '로딩 중...'}</p>
+                           <p className="text-body-1-regular text-muted-foreground">{profile?.email || 'goti1234@google.com'}</p>
+                           <p className="text-body-1-regular text-muted-foreground">{profile?.mobile || '010-0000-0000'}</p>
                         </div>
                      </div>
                      <Button
@@ -199,10 +209,10 @@ export default function MypagePage() {
 
                {/* 티켓 현황 카드 */}
                {(() => {
-                  const totalHeld = PURCHASE_ITEMS.filter(i => i.paymentStatus === '예매 완료').length;
-                  const onSale = SALE_ITEMS.filter(i => i.saleStatus === '판매 중').length;
-                  const soldCount = SALE_ITEMS.filter(i => i.saleStatus === '판매 완료').length;
-                  const unsettledAmount = SALE_ITEMS.filter(i => i.saleStatus === '정산 대기').reduce(
+                  const totalHeld = purchaseItems.filter(i => i.paymentStatus === '예매 완료').length;
+                  const onSale = saleItems.filter(i => i.saleStatus === '판매 중').length;
+                  const soldCount = saleItems.filter(i => i.saleStatus === '판매 완료').length;
+                  const unsettledAmount = saleItems.filter(i => i.saleStatus === '정산 대기').reduce(
                      (sum, i) => sum + i.salePrice,
                      0,
                   );
@@ -614,11 +624,19 @@ export default function MypagePage() {
                                  {pageItems.length > 0 ? (
                                     activeTab === 'purchase' ? (
                                        (pageItems as typeof filteredPurchaseItems).map(item => (
-                                          <HistoryCard key={item.id} mode="purchase" item={item} />
+                                          <HistoryCard
+                                             key={item.id}
+                                             mode="purchase"
+                                             item={item}
+                                          />
                                        ))
                                     ) : (
                                        (pageItems as typeof filteredSaleItems).map(item => (
-                                          <HistoryCard key={item.id} mode="sale" item={item} />
+                                          <HistoryCard
+                                             key={item.id}
+                                             mode="sale"
+                                             item={item}
+                                          />
                                        ))
                                     )
                                  ) : (

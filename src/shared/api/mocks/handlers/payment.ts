@@ -1,5 +1,11 @@
 import { http, HttpResponse } from 'msw';
+import { teams } from '@/entities/team/model/teams';
 import { mockGameSchedules } from './game';
+
+// serverTeamId → 팀 단축명 조회 맵
+const teamNameByServerId = Object.fromEntries(
+   teams.filter(t => t.serverTeamId).map(t => [t.serverTeamId, t.name]),
+);
 
 type SeatGrade = {
    seatGradeId: string;
@@ -34,6 +40,15 @@ type TicketOrder = {
    totalAmount: number;
    holdIds: string[];
    orderedAt: string;
+   // 게임/좌석 확장 정보
+   homeTeamName?: string;
+   awayTeamName?: string;
+   stadiumName?: string;
+   gameStartAt?: string;
+   seatGradeName?: string;
+   ticketIds?: string[];
+   seatInfos?: string[];
+   ordererName?: string;
 };
 
 type TicketPayment = {
@@ -74,10 +89,27 @@ type ResalePayment = {
 
 type TicketRecord = {
    ticketId: string;
+   ticketNumber: string;
+   orderItemId: string;
    orderId: string;
    gameId: string;
    seatId: string;
    qrToken: string;
+   // TicketDetail 전체 필드
+   gameTitle: string;
+   gameDate: string;
+   stadiumName?: string;
+   seatInfo: string;
+   ticketPrice: number;
+   serviceFee: number;
+   paymentMethod?: string;
+   paymentMethodDisplay?: string;
+   ticketStatus: 'ISSUED' | 'USED' | 'INVALID';
+   resaleEnabledStatus: 'ENABLED' | 'DISABLED';
+   issuedAt: string;
+   orderedAt: string;
+   cancelableUntil?: string;
+   ordererName?: string;
 };
 
 type TicketPricingPolicy = {
@@ -341,10 +373,50 @@ const seatSectionsByStadium: Record<string, SeatSection[]> = {
    ],
 };
 
-const seatReservationHolds = new Map<string, SeatReservationHold>();
-const ticketOrders = new Map<string, TicketOrder>();
+// 스토리지 버전 — 구조 변경 시 올려서 stale 데이터 자동 초기화
+const MSW_STORAGE_VERSION = '4';
+const MSW_VERSION_KEY = '__msw_storage_version__';
+const MSW_STORAGE_KEYS = ['__msw_ticket_orders__', '__msw_ticket_records__', '__msw_seat_holds__'];
+
+(function migrateStorage() {
+   try {
+      if (localStorage.getItem(MSW_VERSION_KEY) !== MSW_STORAGE_VERSION) {
+         MSW_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
+         localStorage.setItem(MSW_VERSION_KEY, MSW_STORAGE_VERSION);
+      }
+   } catch {}
+})();
+
+/** 새로고침 후에도 데이터를 유지하는 localStorage 기반 Map */
+function createPersistedMap<V>(storageKey: string) {
+   const load = (): Map<string, V> => {
+      try {
+         const raw = localStorage.getItem(storageKey);
+         return raw ? new Map<string, V>(JSON.parse(raw) as [string, V][]) : new Map();
+      } catch {
+         return new Map();
+      }
+   };
+   const save = (map: Map<string, V>) => {
+      try {
+         localStorage.setItem(storageKey, JSON.stringify([...map.entries()]));
+      } catch {}
+   };
+   const map = load();
+   return {
+      get: (k: string) => map.get(k),
+      set: (k: string, v: V) => { map.set(k, v); save(map); },
+      has: (k: string) => map.has(k),
+      delete: (k: string) => { const r = map.delete(k); save(map); return r; },
+      values: () => map.values(),
+   };
+}
+
+// seatReservationHolds도 localStorage에 유지 — 새로고침 후에도 결제 처리 가능
+const seatReservationHolds = createPersistedMap<SeatReservationHold>('__msw_seat_holds__');
+const ticketOrders = createPersistedMap<TicketOrder>('__msw_ticket_orders__');
 const ticketPayments = new Map<string, TicketPayment>();
-const ticketRecords = new Map<string, TicketRecord>();
+const ticketRecords = createPersistedMap<TicketRecord>('__msw_ticket_records__');
 const resaleHolds = new Map<string, ResaleHold>();
 const resaleOrders = new Map<string, ResaleOrder>();
 const resalePayments = new Map<string, ResalePayment>();
@@ -356,6 +428,58 @@ const createId = (prefix: string) => {
    }
 
    return `${prefix}-${Date.now()}`;
+};
+
+/** 게임 시작일 → WEEKDAY | WEEKEND */
+const getDayType = (startAt: string): 'WEEKDAY' | 'WEEKEND' => {
+   const d = new Date(startAt);
+   const day = d.getDay(); // 0=일, 6=토
+   return day === 0 || day === 6 ? 'WEEKEND' : 'WEEKDAY';
+};
+
+/** seatId → 해당 좌석의 단가 (pricing policy 기준) */
+const resolveSeatPrice = (homeTeamId: string, seatId: string, startAt: string): number => {
+   const sectionId = seatId.replace(/-[A-F]-\d+$/, '');
+   const section = Object.values(seatSectionsByStadium).flat().find(s => s.sectionId === sectionId);
+   if (!section) return 12000;
+   const policy = pricingPoliciesByTeamId[homeTeamId];
+   if (!policy) return 12000;
+   const dayType = getDayType(startAt);
+   const entry = policy.prices.find(
+      p => p.gradeId === section.gradeId && p.dayType === dayType && p.leagueType === 'REGULAR',
+   );
+   return entry?.price ?? 12000;
+};
+
+/** seatId에서 구역 ID 추출: ${sectionId}-${rowName(1자)}-${seatNum} 형식 */
+const extractSectionId = (seatId: string): string => {
+   return seatId.replace(/-[A-F]-\d+$/, '');
+};
+
+/** seatId → 등급명 조회 */
+const resolveSeatGradeName = (seatId: string): string | undefined => {
+   const sectionId = extractSectionId(seatId);
+   const allSections = Object.values(seatSectionsByStadium).flat();
+   const section = allSections.find((s) => s.sectionId === sectionId);
+   if (!section) return undefined;
+   const allGrades = Object.values(seatGradesByStadium).flat();
+   return allGrades.find((g) => g.seatGradeId === section.gradeId)?.name;
+};
+
+/** seatId → "등급명 구역코드구역 X열 N번" 형식의 좌석 정보 문자열 */
+const buildSeatInfoStr = (seatId: string): string => {
+   const sectionId = extractSectionId(seatId);
+   const allSections = Object.values(seatSectionsByStadium).flat();
+   const section = allSections.find((s) => s.sectionId === sectionId);
+   const allGrades = Object.values(seatGradesByStadium).flat();
+   const gradeName = section ? (allGrades.find((g) => g.seatGradeId === section.gradeId)?.name ?? '좌석') : '좌석';
+   const sectionCode = section?.sectionCode ?? sectionId.split('-').slice(-1)[0];
+   const match = seatId.match(/-([A-F])-(\d+)$/);
+   const rowName = match?.[1];
+   const seatNum = match?.[2];
+   return [gradeName, `${sectionCode}구역`, rowName ? `${rowName}열` : null, seatNum ? `${seatNum}번` : null]
+      .filter(Boolean)
+      .join(' ');
 };
 
 const buildSectionSeats = (sectionId: string) => {
@@ -379,6 +503,17 @@ const parseJsonBody = async <T>(request: Request): Promise<T | null> => {
       return (await request.json()) as T;
    } catch {
       return null;
+   }
+};
+
+const buildPaymentMethodDisplay = (paymentMethod: string): string => {
+   switch (paymentMethod) {
+      case 'CARD': return '카드 결제(신한카드 1234)';
+      case 'KAKAO_PAY': return '카카오페이';
+      case 'NAVER_PAY': return '네이버페이';
+      case 'TOSS_PAY': return '토스페이';
+      case 'ACCOUNT_TRANSFER': return '무통장 입금';
+      default: return paymentMethod;
    }
 };
 
@@ -430,6 +565,31 @@ const buildPageResponse = <T>(content: T[], page = 0, size = content.length || 1
 };
 
 export const paymentHandlers = [
+   http.get('/api/v1/resales/listings', async () => {
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: [],
+      });
+   }),
+
+   http.post('/api/v1/resales/listings', async ({ request }) => {
+      const body = (await request.json()) as { ticketId: string; listingPrice: number };
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            listingId: 'resale-listing-new',
+            ticketId: body.ticketId,
+            listingPrice: body.listingPrice,
+            listingStatus: 'LISTING',
+            listedAt: new Date().toISOString(),
+            isCancelable: true,
+            isPurchasable: true,
+         },
+      });
+   }),
+
    http.get('/api/v1/stadium-seats/stadiums/:stadiumId/games/:gameId/seat-grades', async ({ params }) => {
       return HttpResponse.json({
          code: 'SUCCESS',
@@ -541,6 +701,14 @@ export const paymentHandlers = [
             orderedAt: order.orderedAt,
             gameId: order.gameId,
             stadiumId: order.stadiumId,
+            homeTeamName: order.homeTeamName,
+            awayTeamName: order.awayTeamName,
+            stadiumName: order.stadiumName,
+            gameStartAt: order.gameStartAt,
+            seatGradeName: order.seatGradeName,
+            seatInfos: order.seatInfos,
+            // 첫 번째 티켓 ID (예약 상세 페이지 라우팅용)
+            ticketId: order.ticketIds?.[0],
          })),
       });
    }),
@@ -567,6 +735,20 @@ export const paymentHandlers = [
       const orderId = createId('order');
       const orderedAt = new Date().toISOString();
       const matchedGame = mockGameSchedules.find((game) => game.gameId === body.gameId);
+
+      // 첫 번째 hold의 seatId로 좌석 등급명 및 단가 조회
+      const firstSeatId = seatReservationHolds.get(body.holdIds[0])?.seatId;
+      const seatGradeName = firstSeatId ? resolveSeatGradeName(firstSeatId) : undefined;
+      const pricePerSeat =
+         firstSeatId && matchedGame
+            ? resolveSeatPrice(matchedGame.homeTeamId, firstSeatId, matchedGame.startAt)
+            : 12000;
+
+      const STADIUM_NAME_MAP: Record<string, string> = {
+         'stadium-kia-champions-field': '기아 챔피언스필드',
+         'stadium-samsung-lions-park': '대구 삼성 라이온즈 파크',
+      };
+
       const order: TicketOrder = {
          orderId,
          orderNumber: `ORD-${Date.now()}`,
@@ -574,9 +756,15 @@ export const paymentHandlers = [
          stadiumId: matchedGame?.stadiumId ?? 'stadium-kia-champions-field',
          orderStatus: 'PENDING',
          totalQuantity: body.holdIds.length,
-         totalAmount: body.holdIds.length * 12000,
+         totalAmount: body.holdIds.length * pricePerSeat,
          holdIds: body.holdIds,
          orderedAt,
+         homeTeamName: matchedGame ? teamNameByServerId[matchedGame.homeTeamId] : undefined,
+         awayTeamName: matchedGame ? teamNameByServerId[matchedGame.awayTeamId] : undefined,
+         stadiumName: matchedGame?.stadiumId ? (STADIUM_NAME_MAP[matchedGame.stadiumId] ?? matchedGame.stadiumId) : undefined,
+         gameStartAt: matchedGame?.startAt,
+         seatGradeName,
+         ordererName: body.ordererName,
       };
 
       ticketOrders.set(orderId, order);
@@ -611,6 +799,7 @@ export const paymentHandlers = [
          return buildErrorResponse('Missing payment fields.');
       }
 
+      const paidAt = new Date().toISOString();
       const paymentId = createId('payment');
       const payment: TicketPayment = {
          paymentId,
@@ -619,10 +808,60 @@ export const paymentHandlers = [
          paymentAmount: order.totalAmount,
          pgTid: createId('mock-pg-tid'),
          paymentStatus: 'SUCCESS',
-         paidAt: new Date().toISOString(),
+         paidAt,
       };
 
       ticketPayments.set(paymentId, payment);
+
+      // 결제 완료 시 티켓 발행 + 주문 상태 CONFIRMED 갱신
+      const SERVICE_FEE = 1000;
+      const pricePerTicket = order.totalQuantity > 0 ? Math.round(order.totalAmount / order.totalQuantity) : order.totalAmount;
+      const ticketIds: string[] = [];
+      const seatInfos: string[] = [];
+      const gameTitle = order.homeTeamName && order.awayTeamName
+         ? `${order.awayTeamName} vs ${order.homeTeamName}`
+         : order.homeTeamName
+            ? `${order.homeTeamName} 홈경기`
+            : 'KBO 리그 경기';
+      // 취소 가능 기한: 예매 당일 23:59:00
+      const orderedDate = new Date(order.orderedAt);
+      const cancelableUntil = new Date(
+         orderedDate.getFullYear(), orderedDate.getMonth(), orderedDate.getDate(), 23, 59, 0,
+      ).toISOString();
+      order.holdIds.forEach((holdId, idx) => {
+         const ticketId = createId('ticket');
+         const seatId = seatReservationHolds.get(holdId)?.seatId ?? `unknown-seat-${idx}`;
+         const seatInfo = buildSeatInfoStr(seatId);
+
+         seatInfos.push(seatInfo);
+         ticketRecords.set(ticketId, {
+            ticketId,
+            ticketNumber: `TKT-${Date.now()}-${idx}`,
+            orderItemId: createId('order-item'),
+            orderId: order.orderId,
+            gameId: order.gameId,
+            seatId,
+            qrToken: createId('qr'),
+            gameTitle,
+            gameDate: order.gameStartAt ?? order.orderedAt,
+            stadiumName: order.stadiumName,
+            seatInfo,
+            ticketPrice: pricePerTicket,
+            serviceFee: SERVICE_FEE,
+            paymentMethod: body.paymentMethod,
+            paymentMethodDisplay: body.paymentMethod ? buildPaymentMethodDisplay(body.paymentMethod) : undefined,
+            ticketStatus: 'ISSUED',
+            resaleEnabledStatus: 'ENABLED',
+            issuedAt: paidAt,
+            orderedAt: order.orderedAt,
+            cancelableUntil,
+            ordererName: order.ordererName,
+         });
+         ticketIds.push(ticketId);
+      });
+
+      // 주문 상태 업데이트 (ticketIds + seatInfos 저장)
+      ticketOrders.set(order.orderId, { ...order, orderStatus: 'CONFIRMED', ticketIds, seatInfos });
 
       return HttpResponse.json({
          code: 'SUCCESS',
@@ -846,11 +1085,42 @@ export const paymentHandlers = [
          message: 'ok',
          data: {
             ticketId: ticket.ticketId,
+            ticketNumber: ticket.ticketNumber,
+            orderItemId: ticket.orderItemId,
             orderId: ticket.orderId,
             gameId: ticket.gameId,
-            seatId: ticket.seatId,
-            ticketStatus: 'ISSUED',
+            gameTitle: ticket.gameTitle,
+            gameDate: ticket.gameDate,
+            stadiumName: ticket.stadiumName,
+            seatInfo: ticket.seatInfo,
+            ticketPrice: ticket.ticketPrice,
+            serviceFee: ticket.serviceFee ?? 1000,
+            ticketStatus: ticket.ticketStatus,
+            resaleEnabledStatus: ticket.resaleEnabledStatus,
+            issuedAt: ticket.issuedAt,
+            orderedAt: ticket.orderedAt,
+            cancelableUntil: ticket.cancelableUntil,
+            ordererName: ticket.ordererName,
+            paymentMethod: ticket.paymentMethod,
+            paymentMethodDisplay: ticket.paymentMethodDisplay,
          },
+      });
+   }),
+
+   http.get('/api/v1/orders/:orderId/tickets', async ({ params }) => {
+      const orderId = String(params.orderId);
+      const tickets = Array.from(ticketRecords.values()).filter((t) => t.orderId === orderId);
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: tickets.map((t) => ({
+            ticketId: t.ticketId,
+            ticketNumber: t.ticketNumber,
+            seatInfo: t.seatInfo,
+            ticketPrice: t.ticketPrice,
+            serviceFee: t.serviceFee ?? 1000,
+            ticketStatus: t.ticketStatus,
+         })),
       });
    }),
 

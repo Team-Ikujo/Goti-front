@@ -10,6 +10,7 @@ import { AccountModals } from './AccountModals';
 import type { ModalType } from './AccountModals';
 import { AccountTermsDialogs } from './AccountTermsDialogs';
 import type { TermsType } from './AccountTermsDialogs';
+import { useMyProfileData } from '../model/useMypageData';
 
 const BANKS = [
    '국민은행',
@@ -78,6 +79,7 @@ const HAS_ACTIVE_TICKETS = true;
 export default function AccountPage() {
    const navigate = useNavigate();
    const location = useLocation();
+   const { data: profile } = useMyProfileData();
 
    // ── 모달 ──
    const [modal, setModal] = useState<ModalType>(null);
@@ -218,7 +220,7 @@ export default function AccountPage() {
                      <div className="flex items-center justify-between">
                         <p className="text-body-1-bold text-(--text-tertiary)">아이디</p>
                         <div className="flex items-center gap-2">
-                           <p className="text-body-1-regular text-foreground">goti1234@google.com</p>
+                           <p className="text-body-1-regular text-foreground">{profile?.email || 'goti1234@google.com'}</p>
                            <div className="border border-border-light rounded-full p-0.5">
                               <img src="/Icon/Logo/Google.svg" alt="Google" className="size-6" />
                            </div>
@@ -226,12 +228,12 @@ export default function AccountPage() {
                      </div>
                      <div className="flex items-center justify-between">
                         <p className="text-body-1-bold text-(--text-tertiary)">이메일</p>
-                        <p className="text-body-1-regular text-foreground">goti1234@google.com</p>
+                        <p className="text-body-1-regular text-foreground">{profile?.email || 'goti1234@google.com'}</p>
                      </div>
                      <div className="flex items-center justify-between">
                         <p className="text-body-1-bold text-(--text-tertiary)">이름</p>
                         <div className="flex items-center gap-2">
-                           <p className="text-body-1-regular text-foreground">김고티</p>
+                           <p className="text-body-1-regular text-foreground">{profile?.name || '로딩 중...'}</p>
                            <button
                               onClick={() => setModal('identity')}
                               className="border-b border-muted-foreground text-body-2-regular text-(--text-tertiary)"
@@ -243,7 +245,7 @@ export default function AccountPage() {
                      <div className="flex items-center justify-between">
                         <p className="text-body-1-bold text-(--text-tertiary)">휴대폰 번호</p>
                         <div className="flex items-center gap-2">
-                           <p className="text-body-1-regular text-foreground">010-1234-5678</p>
+                           <p className="text-body-1-regular text-foreground">{profile?.mobile || '010-0000-0000'}</p>
                            <button
                               onClick={() => setModal('identity')}
                               className="border-b border-muted-foreground text-body-2-regular text-(--text-tertiary)"
