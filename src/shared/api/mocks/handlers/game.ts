@@ -12,7 +12,7 @@ type MockGameSchedule = {
   homeTeamScore: number;
   awayTeamScore: number;
   gameResult: 'HOME_WIN' | 'AWAY_WIN' | 'DRAW';
-  ticketingStatus: 'AVAILABLE' | 'SCHEDULED' | 'TERMINATED';
+  ticketingStatus: 'AVAILABLE' | 'SCHEDULED' | 'CLOSED';
   ticketingOpenedAt: string;
 };
 
@@ -46,7 +46,7 @@ export const mockGameSchedules: MockGameSchedule[] = [
     homeTeamScore: 6,
     awayTeamScore: 2,
     gameResult: 'HOME_WIN',
-    ticketingStatus: 'TERMINATED',
+    ticketingStatus: 'CLOSED',
     ticketingOpenedAt: '2026-03-11 11:00',
   },
   {
