@@ -2,11 +2,15 @@ import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
+   releaseResaleHold,
+   releaseResaleHoldKeepalive,
    submitResaleOrder,
    submitTicketOrder,
    type ResaleCheckoutRequest,
+   type PaymentResponse,
    type TicketCheckoutRequest,
 } from '@/pages/tickets/api/paymentApi';
+import { releaseSeatReservation, releaseSeatReservationKeepalive } from '@/entities/seat-hold/api/seatHoldApi';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { ApiError } from '@/shared/api/client';
@@ -20,15 +24,69 @@ const MOCK_GAME = {
    dateTime: '3.21 (토) 오후 18:30',
 };
 
+const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
+
+const savePaymentCompleteState = (order: PaymentResponse) => {
+   if (typeof window === 'undefined' || !order.orderId) {
+      return;
+   }
+
+   window.sessionStorage.setItem(
+      `${PAYMENT_COMPLETE_STORAGE_KEY}:${order.orderId}`,
+      JSON.stringify(order),
+   );
+};
+
+const releasePendingTicketSeatHolds = async () => {
+   const seatHolds = Object.values(useSeatHoldStore.getState().holdsBySeatId);
+
+   if (seatHolds.length === 0) {
+      return;
+   }
+
+   const releaseResults = await Promise.allSettled(
+      seatHolds.map((seatHold) => releaseSeatReservation(seatHold.holdId)),
+   );
+   const failedReleaseCount = releaseResults.filter((result) => result.status === 'rejected').length;
+
+   if (failedReleaseCount > 0) {
+      console.error('[PaymentProcessingPage] failed to release ticket seat holds', {
+         failedReleaseCount,
+         totalReleaseCount: seatHolds.length,
+      });
+   }
+
+   useSeatHoldStore.getState().clearSeatHolds();
+   useSeatSelectionStore.getState().clearAllSelections();
+};
+
+const releasePendingTicketSeatHoldsKeepalive = () => {
+   const seatHolds = Object.values(useSeatHoldStore.getState().holdsBySeatId);
+
+   if (seatHolds.length === 0) {
+      return;
+   }
+
+   seatHolds.forEach((seatHold) => {
+      releaseSeatReservationKeepalive(seatHold.holdId);
+   });
+
+   useSeatHoldStore.getState().clearSeatHolds();
+   useSeatSelectionStore.getState().clearAllSelections();
+};
+
 export default function PaymentProcessingPage() {
    const navigate = useNavigate();
    const { state } = useLocation();
    const locationState = state as { request: TicketCheckoutRequest | ResaleCheckoutRequest; amount: number } | null;
    const hasStartedRef = useRef(false);
    const isMountedRef = useRef(false);
+   const hasCompletedRef = useRef(false);
+   const resaleHoldIdRef = useRef<string | null>(null);
 
    useEffect(() => {
       isMountedRef.current = true;
+      hasCompletedRef.current = false;
 
       if (!locationState?.request) {
          navigate('/tickets/payment', { replace: true });
@@ -43,25 +101,58 @@ export default function PaymentProcessingPage() {
 
       const { request: paymentRequest, amount: clientAmount } = locationState;
       const isStillOnProcessingPage = () => window.location.pathname === '/tickets/payment/processing';
+      const isResaleRequest = 'listingId' in paymentRequest;
+
+      const releasePendingHolds = async () => {
+         if (isResaleRequest) {
+            const resaleHoldId = resaleHoldIdRef.current;
+
+            if (!resaleHoldId) {
+               return;
+            }
+
+            resaleHoldIdRef.current = null;
+            await releaseResaleHold(resaleHoldId);
+            return;
+         }
+
+         await releasePendingTicketSeatHolds();
+      };
 
       const process = async () => {
          try {
-            const submitOrder =
-               'gameId' in paymentRequest && 'selectedSeats' in paymentRequest ? submitTicketOrder : submitResaleOrder;
+            const submitOrder = 'gameId' in paymentRequest && 'selectedSeats' in paymentRequest
+               ? () => submitTicketOrder(paymentRequest)
+               : () =>
+                    submitResaleOrder(paymentRequest, {
+                       onHoldCreated: (holdId) => {
+                          resaleHoldIdRef.current = holdId;
+                       },
+                       onHoldReleased: () => {
+                          resaleHoldIdRef.current = null;
+                       },
+                    });
             const [result] = await Promise.all([
-               submitOrder(paymentRequest),
+               submitOrder(),
                new Promise(resolve => setTimeout(resolve, 1000)),
             ]);
             if (isMountedRef.current && isStillOnProcessingPage()) {
+               hasCompletedRef.current = true;
+               resaleHoldIdRef.current = null;
+               savePaymentCompleteState({ ...result, amount: clientAmount });
                useSeatHoldStore.getState().clearSeatHolds();
                useSeatSelectionStore.getState().clearAllSelections();
                navigate(
-                  `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}`,
+                  `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}&orderId=${encodeURIComponent(result.orderId ?? '')}`,
                   { state: { ...result, amount: clientAmount }, replace: true },
                );
             }
          } catch (error) {
             if (isMountedRef.current && isStillOnProcessingPage()) {
+               if (!isResaleRequest) {
+                  await releasePendingHolds();
+               }
+
                const message =
                   error instanceof ApiError
                      ? error.message
@@ -74,7 +165,30 @@ export default function PaymentProcessingPage() {
 
       process();
 
+      const handlePageHide = () => {
+         if (hasCompletedRef.current) {
+            return;
+         }
+
+         if (isResaleRequest) {
+            const resaleHoldId = resaleHoldIdRef.current;
+
+            if (!resaleHoldId) {
+               return;
+            }
+
+            releaseResaleHoldKeepalive(resaleHoldId);
+            resaleHoldIdRef.current = null;
+            return;
+         }
+
+         releasePendingTicketSeatHoldsKeepalive();
+      };
+
+      window.addEventListener('pagehide', handlePageHide);
+
       return () => {
+         window.removeEventListener('pagehide', handlePageHide);
          isMountedRef.current = false;
       };
    }, [locationState, navigate]);
