@@ -32,9 +32,6 @@ const MOCK_GAME = {
    dateTime: '3.21 (토) 오후 18:30',
 };
 
-const SUPPORTED_PAYMENT_METHODS: PaymentMethod[] = ['card', 'bank'];
-const UNSUPPORTED_PAYMENT_METHOD_MESSAGE = '아직 지원하지 않는 결제수단입니다.';
-
 const MOCK_RESALE_ENTRY = {
    buyerId: '8df84c70-833e-4374-85ad-fa52f92f939e',
    listingId: '2df84c70-833e-4374-85ad-fa52f92f939e',
@@ -121,15 +118,6 @@ export default function ResellPaymentPage() {
    const totalPayment = resaleEntry.totalAmount;
    const ticketPrice = Math.max(totalPayment - fee, 0);
 
-   const handleSelectPaymentMethod = (method: PaymentMethod) => {
-      if (!SUPPORTED_PAYMENT_METHODS.includes(method)) {
-         window.alert(UNSUPPORTED_PAYMENT_METHOD_MESSAGE);
-         return;
-      }
-
-      setPaymentMethod(method);
-   };
-
    const handlePay = () => {
       if (!resolvedBuyerId) {
          window.alert('구매자 정보를 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.');
@@ -210,7 +198,7 @@ export default function ResellPaymentPage() {
                         <DiscountCard />
 
                         {/* 결제 방법 */}
-                        <PaymentMethodCard selected={paymentMethod} onSelect={handleSelectPaymentMethod} />
+                        <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
 
                         {/* 현금영수증 (무통장 입금 선택 시에만 표시) */}
                         {paymentMethod === 'bank' && (

@@ -1,5 +1,5 @@
 import { Button } from '@/shared/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 
 type BookingGuideDialogProps = {
   open: boolean;
@@ -21,9 +21,6 @@ function BookingGuideDialog({ open, onOpenChange, onConfirm }: BookingGuideDialo
           <DialogTitle align="center" className="text-[18px] font-bold leading-[1.55]">
             예매안내
           </DialogTitle>
-          <DialogDescription className="sr-only" align="center">
-            예매 진행 전에 확인해야 할 주요 유의사항을 안내하는 대화상자입니다.
-          </DialogDescription>
         </DialogHeader>
 
         <div className="px-5 pb-5">

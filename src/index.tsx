@@ -27,10 +27,7 @@ const waitForServiceWorkerControl = async () => {
 };
 
 const startMocks = async () => {
-  if (!import.meta.env.DEV || !isMswEnabled) {
-    return;
-  }
-
+  if (!isMswEnabled) return;
   const { worker } = await import('@/shared/api/mocks/browser');
   await worker.start({
     onUnhandledRequest: 'bypass',

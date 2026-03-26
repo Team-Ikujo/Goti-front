@@ -19,7 +19,6 @@ import ResellSeatSidebar from './components/ResellSeatSidebar';
 import ResellZonePreviewSheet from './components/ResellZonePreviewSheet';
 import SelectedSeatSummaryList from './components/SelectedSeatSummaryList';
 import { useBotDetector } from '@/shared/lib/useBotDetector';
-import { isMswEnabled } from '@/shared/config/runtime';
 
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
@@ -75,7 +74,7 @@ function SeatsPage() {
          onSeatHoldConflict: async () => {
             await refetchSeatMap();
          },
-         useMockSeatHold: isMswEnabled && Boolean(seatMapLoadError),
+         useMockSeatHold: Boolean(seatMapLoadError),
       },
    );
 
@@ -532,8 +531,6 @@ function SeatsPage() {
                      defaultHeight={isResellMode ? 488 : 280}
                      minHeight={isResellMode ? 280 : 152}
                      maxHeight={560}
-                     title={isResellMode ? '리셀 예매 하단 패널' : '선택 좌석 하단 패널'}
-                     description={isResellMode ? '리셀 좌석 정보를 확인하고 예매를 진행할 수 있습니다.' : '선택한 좌석과 결제 금액을 확인할 수 있습니다.'}
                      className="overflow-hidden border-none p-0 xl:hidden"
                   >
                      <div className="h-full overflow-y-auto">

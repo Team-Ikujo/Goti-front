@@ -90,7 +90,7 @@ function SeatBlockGrid({ block, blockIndex, seats, selectedSeatIdSet, onToggleSe
                            seat.status === 'disabled'
                               ? 'bg-[#f1f2f4]'
                               : seat.status === 'held'
-                                ? 'bg-[#f1f2f4]'
+                                ? 'border-[1.5px] border-[#7c68ed] bg-[#7c68ed]'
                                 : isSelected
                                   ? 'bg-[#7c68ed]'
                                   : 'border border-[#867eed] bg-[rgba(124,104,237,0.12)] group-hover:border-[1.5px] group-hover:border-[#7c68ed] group-hover:bg-[#7c68ed] group-focus-visible:border-[1.5px] group-focus-visible:border-[#7c68ed] group-focus-visible:bg-[#7c68ed]',
