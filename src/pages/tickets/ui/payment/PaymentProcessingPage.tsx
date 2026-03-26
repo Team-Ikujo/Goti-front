@@ -10,7 +10,7 @@ import {
    type PaymentResponse,
    type TicketCheckoutRequest,
 } from '@/pages/tickets/api/paymentApi';
-import { releaseSeatReservation, releaseSeatReservationKeepalive } from '@/entities/seat-hold/api/seatHoldApi';
+import { isMockSeatHoldId, releaseSeatReservation, releaseSeatReservationKeepalive } from '@/entities/seat-hold/api/seatHoldApi';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { ApiError } from '@/shared/api/client';
@@ -45,7 +45,9 @@ const releasePendingTicketSeatHolds = async () => {
    }
 
    const releaseResults = await Promise.allSettled(
-      seatHolds.map((seatHold) => releaseSeatReservation(seatHold.holdId)),
+      seatHolds
+         .filter((seatHold) => !isMockSeatHoldId(seatHold.holdId))
+         .map((seatHold) => releaseSeatReservation(seatHold.holdId)),
    );
    const failedReleaseCount = releaseResults.filter((result) => result.status === 'rejected').length;
 
@@ -67,9 +69,11 @@ const releasePendingTicketSeatHoldsKeepalive = () => {
       return;
    }
 
-   seatHolds.forEach((seatHold) => {
+   seatHolds
+      .filter((seatHold) => !isMockSeatHoldId(seatHold.holdId))
+      .forEach((seatHold) => {
       releaseSeatReservationKeepalive(seatHold.holdId);
-   });
+      });
 
    useSeatHoldStore.getState().clearSeatHolds();
    useSeatSelectionStore.getState().clearAllSelections();
