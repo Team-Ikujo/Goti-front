@@ -159,7 +159,6 @@ function SeatsPage() {
    }, [initialSeats, zoneSeatState]);
 
    const selectedSeatIds = zoneSeatState?.selectedSeatIds ?? [];
-   const selectedSeatIdSet = useMemo(() => new Set(selectedSeatIds), [selectedSeatIds]);
 
    const selectedSeats = useMemo(
       () => getSelectedSeatDetails(zonesState, bookingZones),
@@ -367,7 +366,7 @@ function SeatsPage() {
             return;
          }
 
-         const isAlreadySelected = selectedSeatIdSet.has(seat.id);
+         const isAlreadySelected = selectedSeatIds.includes(seat.id);
 
          if (!isAlreadySelected) {
             clearAllSelections();
@@ -395,7 +394,7 @@ function SeatsPage() {
    };
 
    const handleSelectResellListing = (listing: ResellListingItem) => {
-      const isAlreadySelected = selectedSeatIdSet.has(listing.seatId);
+      const isAlreadySelected = selectedSeatIds.includes(listing.seatId);
 
       if (!isAlreadySelected) {
          clearAllSelections();
@@ -488,7 +487,7 @@ function SeatsPage() {
                      seatMapOffset={seatMapOffset}
                      seatMapScale={seatMapScale}
                      seats={displaySeats}
-                     selectedSeatIdSet={selectedSeatIdSet}
+                     selectedSeatIds={selectedSeatIds}
                      zoneColor={zone.color}
                      zoneName={zone.name}
                      onMapPointerDown={handleMapPointerDown}

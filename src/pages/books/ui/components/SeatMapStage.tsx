@@ -1,4 +1,4 @@
-import { useMemo, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
+import type { PointerEvent as ReactPointerEvent, ReactNode, RefObject } from 'react';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
 
 import type { SeatBlock, SeatItem } from '@/pages/books/model/types';
@@ -45,7 +45,7 @@ type SeatMapStageProps = {
    };
    seatMapScale: number;
    seats: SeatItem[];
-   selectedSeatIdSet: Set<string>;
+   selectedSeatIds: string[];
    zoneColor: string;
    onMapPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
    onMapPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -65,7 +65,7 @@ function SeatMapStage({
    seatMapOffset,
    seatMapScale,
    seats,
-   selectedSeatIdSet,
+   selectedSeatIds,
    zoneColor,
    onMapPointerDown,
    onMapPointerMove,
@@ -75,21 +75,6 @@ function SeatMapStage({
    onUpdateSeatMapScale,
    zoneName,
 }: SeatMapStageProps) {
-   const seatsByBlock = useMemo(() => {
-      return seats.reduce<Record<string, SeatItem[]>>((groups, seat) => {
-         const key = seat.block;
-         const currentSeats = groups[key];
-
-         if (currentSeats) {
-            currentSeats.push(seat);
-         } else {
-            groups[key] = [seat];
-         }
-
-         return groups;
-      }, {});
-   }, [seats]);
-
    return (
       <div className="relative h-full min-h-[516px] overflow-hidden bg-[#eef0f3] lg:min-h-[560px] lg:rounded-[24px]">
          <div ref={mapViewportRef} className="absolute inset-0 overflow-hidden">
@@ -126,8 +111,8 @@ function SeatMapStage({
                      key={block.id}
                      block={block}
                      blockIndex={index}
-                     seats={seatsByBlock[block.id] ?? seatsByBlock[block.label] ?? []}
-                     selectedSeatIdSet={selectedSeatIdSet}
+                     seats={seats.filter((seat) => seat.block === block.id || seat.block === block.label)}
+                     selectedSeatIds={selectedSeatIds}
                      onToggleSeat={onToggleSeat}
                   />
                ))}
