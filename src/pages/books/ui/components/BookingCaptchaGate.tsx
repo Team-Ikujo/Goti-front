@@ -1,7 +1,7 @@
 import { RefreshCcw, Volume2 } from 'lucide-react';
 
 import { Button } from '@/shared/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
 
 type BookingCaptchaGateProps = {
@@ -35,6 +35,9 @@ function BookingCaptchaGate({
                <DialogTitle align="center" className="text-[18px] font-bold leading-[1.55]">
                   문자 인증 후 예매를 진행할 수 있어요
                </DialogTitle>
+               <DialogDescription className="sr-only" align="center">
+                  화면에 표시된 보안 문자를 입력해 예매를 진행하는 인증 단계입니다.
+               </DialogDescription>
             </DialogHeader>
 
             <div className="px-5 pb-5">
