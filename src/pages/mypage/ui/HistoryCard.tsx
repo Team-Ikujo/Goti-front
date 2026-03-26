@@ -59,6 +59,29 @@ export interface SaleHistoryItem {
 
 type HistoryCardProps = { mode: 'purchase'; item: PurchaseHistoryItem } | { mode: 'sale'; item: SaleHistoryItem };
 
+// ── 유틸 ─────────────────────────────────────────────────────────────
+
+
+/** 경기 일자 기준으로 판매 오픈 시각 계산: 해당월 1일 11:00 */
+const getSaleOpenTime = (datetime: string): Date => {
+   const parts = datetime.split('.');
+   const year = parts[0];
+   const month = parts[1];
+   return new Date(`${year}-${month}-01T11:00:00`);
+};
+
+/** 리셀 오픈 시각: 판매 오픈 + 2시간 */
+const getResellOpenTime = (datetime: string): Date => {
+   const t = getSaleOpenTime(datetime);
+   return new Date(t.getTime() + 2 * 60 * 60 * 1000);
+};
+
+/** 판매예정 서브텍스트용 레이블: 'N월 1일 오전 11시 오픈' */
+const getSaleOpenLabel = (datetime: string): string => {
+   const month = parseInt(datetime.split('.')[1], 10);
+   return `${month}월 1일 오전 11시 오픈`;
+};
+
 // ── 컴포넌트 ─────────────────────────────────────────────────────────
 
 export default function HistoryCard(props: HistoryCardProps) {
@@ -87,6 +110,13 @@ export default function HistoryCard(props: HistoryCardProps) {
    const showCancelBtn = isBooked || purchaseItem?.paymentStatus === '입금 대기';
    const showQrBtn = isBooked && item.deliveryType === '모바일 티켓';
    const hasAnyPurchaseBtn = showSellBtn || showCancelBtn || showQrBtn;
+
+   // 판매 오픈 여부: 해당월 1일 11:00 이전 → 판매예정, ~13:00 이전 → 리셀예정
+   const now = new Date();
+   const saleOpenTime = getSaleOpenTime(item.game.datetime);
+   const resellOpenTime = getResellOpenTime(item.game.datetime);
+   const isSaleNotOpen = showSellBtn && now < saleOpenTime;
+   const isResellNotOpen = showSellBtn && !isSaleNotOpen && now < resellOpenTime;
    // 취소/환불·관람완료는 버튼 없이 '-' 표시
    const showDash =
       isPurchase && (purchaseItem?.paymentStatus === '취소/환불' || purchaseItem?.paymentStatus === '관람 완료');
@@ -265,23 +295,40 @@ export default function HistoryCard(props: HistoryCardProps) {
                <div className="hidden lg:block w-px self-stretch bg-border shrink-0" />
 
                {/* ⑤ 액션 버튼 — 데스크톱 전용 (항상 3행 높이 유지) */}
-               <div className="hidden lg:flex flex-col items-center justify-center gap-1 px-3 shrink-0 w-25  h-28.25">
+               <div className="hidden lg:flex flex-col items-center justify-center gap-1 px-3 shrink-0 w-25 min-h-28.25">
                   {isPurchase ? (
                      showDash ? (
                         <span className="text-body-1-regular text-muted-foreground">-</span>
                      ) : (
                         <>
+                           {/* 판매 등록 / 판매예정 / 리셀예정 */}
                            {showSellBtn ? (
-                              <Button
-                                 variant="secondary"
-                                 size="sm"
-                                 className="w-full"
-                                 onClick={() => setResellOpen(true)}
-                              >
-                                 판매 등록
-                              </Button>
+                              isSaleNotOpen ? (
+                                 <div className="w-full bg-[#e9ebee] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
+                                    <p className="text-[16px] font-medium text-(--text-disabled) leading-[1.5] whitespace-nowrap">판매예정</p>
+                                    <p className="text-[11px] text-(--text-disabled) text-center leading-[1.2] whitespace-nowrap">
+                                       {getSaleOpenLabel(item.game.datetime)}
+                                    </p>
+                                 </div>
+                              ) : isResellNotOpen ? (
+                                 <div className="w-full border border-[#d0d6db] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
+                                    <p className="text-[16px] font-medium text-(--text-disabled) leading-[1.5] whitespace-nowrap">리셀예정</p>
+                                    <p className="text-[11px] text-(--text-disabled) text-center leading-[1.2] whitespace-nowrap">
+                                       정식 예매 오픈<br />2시간 후
+                                    </p>
+                                 </div>
+                              ) : (
+                                 <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={() => setResellOpen(true)}
+                                 >
+                                    판매 등록
+                                 </Button>
+                              )
                            ) : (
-                              <div className="h-28.25 w-full" />
+                              <div className="h-8.25 w-full" />
                            )}
                            {showCancelBtn ? (
                               <Button
@@ -293,14 +340,14 @@ export default function HistoryCard(props: HistoryCardProps) {
                                  예매 취소
                               </Button>
                            ) : (
-                              <div className="h-28.25 w-full" />
+                              <div className="h-8.25 w-full" />
                            )}
                            {showQrBtn ? (
                               <Button variant="tertiary" size="sm" className="w-full" onClick={() => setQrOpen(true)}>
                                  QR 확인
                               </Button>
                            ) : (
-                              <div className="h-28.25 w-full" />
+                              <div className="h-8.25 w-full" />
                            )}
                         </>
                      )
@@ -321,14 +368,30 @@ export default function HistoryCard(props: HistoryCardProps) {
                      {!showDash && (
                         <>
                            {showSellBtn && (
-                              <Button
-                                 variant="secondary"
-                                 size="sm"
-                                 className="flex-1"
-                                 onClick={() => setResellOpen(true)}
-                              >
-                                 판매 등록
-                              </Button>
+                              isSaleNotOpen ? (
+                                 <div className="flex-1 bg-[#e9ebee] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
+                                    <p className="text-[16px] font-medium text-(--text-disabled) leading-[1.5] whitespace-nowrap">판매예정</p>
+                                    <p className="text-[11px] text-(--text-disabled) text-center leading-[1.2] whitespace-nowrap">
+                                       {getSaleOpenLabel(item.game.datetime)}
+                                    </p>
+                                 </div>
+                              ) : isResellNotOpen ? (
+                                 <div className="flex-1 border border-[#d0d6db] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
+                                    <p className="text-[16px] font-medium text-(--text-disabled) leading-[1.5] whitespace-nowrap">리셀예정</p>
+                                    <p className="text-[11px] text-(--text-disabled) text-center leading-[1.2] whitespace-nowrap">
+                                       정식 예매 오픈<br />2시간 후
+                                    </p>
+                                 </div>
+                              ) : (
+                                 <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => setResellOpen(true)}
+                                 >
+                                    판매 등록
+                                 </Button>
+                              )
                            )}
                            {showCancelBtn && (
                               <Button

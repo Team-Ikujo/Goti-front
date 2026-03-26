@@ -51,10 +51,15 @@ const GameSchedule = () => {
 
    const scheduleQuery = useGameSchedules(scheduleParams);
 
-   const scheduleData = useMemo(
-      () => mapGamesToDaySchedules(scheduleQuery.data ?? []),
-      [scheduleQuery.data],
-   );
+   const scheduleData = useMemo(() => {
+      const TARGET_TEAMS = ['kia', 'samsung'];
+      const filtered = (scheduleQuery.data ?? []).filter(
+         (game) =>
+            TARGET_TEAMS.includes(game.homeTeamId ?? '') ||
+            TARGET_TEAMS.includes(game.awayTeamId ?? ''),
+      );
+      return mapGamesToDaySchedules(filtered);
+   }, [scheduleQuery.data]);
 
    const filteredData = useMemo(
       () =>
