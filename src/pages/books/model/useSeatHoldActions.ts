@@ -12,6 +12,7 @@ import type { SelectedSeatDetail } from './selectedSeats';
 
 type UseSeatHoldActionsOptions = {
    onSeatHoldConflict?: () => void | Promise<void>;
+   useMockSeatHold?: boolean;
 };
 
 const HOLD_CONFLICT_MESSAGE = '좌석 점유 가능 상태에서만 점유 상태로 변경할 수 있습니다.';
@@ -27,6 +28,8 @@ const isSeatAlreadyHeldConflict = (error: unknown) => {
 
    return error.message.includes(HOLD_CONFLICT_MESSAGE);
 };
+
+const createMockHoldId = (seatId: string) => `mock-hold-${seatId}-${Date.now()}`;
 
 export const useSeatHoldActions = (
    bookingEntryState: BookingEntryState | null | undefined,
@@ -66,7 +69,7 @@ export const useSeatHoldActions = (
       markPending(seatId, true);
 
       try {
-         if (holdId) {
+         if (holdId && !options?.useMockSeatHold) {
             await releaseSeatReservation(holdId);
          }
 
@@ -117,6 +120,22 @@ export const useSeatHoldActions = (
       markPending(seat.id, true);
 
       try {
+         if (options?.useMockSeatHold) {
+            const holdId = createMockHoldId(seat.id);
+
+            setSeatHold({
+               holdId,
+               seatId: seat.id,
+               zoneId,
+               gameId: bookingEntryState.gameId,
+               queueTokenJti: bookingEntryState.queueTokenJti,
+               heldAt: Date.now(),
+            });
+            applyServerSeatPatch(zoneId, seat.id, 'selected');
+            toggleSelectedSeat(zoneId, seat.id);
+            return;
+         }
+
          const hold = await holdSeatReservation(seat.id, {
             gameId: bookingEntryState.gameId,
             queueTokenJti: bookingEntryState.queueTokenJti,
