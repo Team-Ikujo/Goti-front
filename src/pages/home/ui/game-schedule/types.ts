@@ -8,6 +8,7 @@ export type GameRow = {
    awayTeamId?: string;
    stadiumId?: string;
    queueTokenJti?: string;
+   rawDate?: string; // YYYY-MM-DD — 시간 기반 상태 전환용
    time: string;
    venue: string;
    away: string;
