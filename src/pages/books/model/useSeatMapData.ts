@@ -7,6 +7,7 @@ import {
    fetchSeats,
    fetchSeatStatuses,
    matchesSectionExpression,
+   resolveSeatSectionByCode,
    type SeatResponse,
    type SeatStatusResponse,
 } from '@/pages/books/api/bookingApi';
@@ -210,7 +211,7 @@ const fetchAggregatedSeatSections = async ({
 export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) => {
    const defaultSeatBlocks = useMemo(() => getSeatBlocks(zone), [zone]);
 
-   const { data } = useQuery({
+   const { data, refetch } = useQuery({
       queryKey: ['booking-seat-map', gameId, stadiumId, zone.id, zone.sectionCode],
       enabled: Boolean(gameId && zone.id && zone.sectionCode),
       queryFn: async (): Promise<SeatMapApiSnapshot | null> => {
@@ -219,7 +220,19 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
          }
 
          if (!isAggregatedSectionCode(zone.sectionCode)) {
-            const [seats, statuses] = await Promise.all([fetchSeats(zone.id), fetchSeatStatuses(gameId, zone.id)]);
+            const resolvedSection =
+               (await resolveSeatSectionByCode({
+                  stadiumId,
+                  sectionCode: zone.sectionCode,
+               })) ??
+               ({
+                  sectionId: zone.id,
+                  sectionCode: zone.sectionCode,
+               } satisfies Pick<ApiSeatSectionBundle, 'sectionId' | 'sectionCode'>);
+            const [seats, statuses] = await Promise.all([
+               fetchSeats(resolvedSection.sectionId),
+               fetchSeatStatuses(gameId, resolvedSection.sectionId),
+            ]);
             const [seatBlock] = buildSeatBlockFromApiSeats(zone.sectionCode, seats);
 
             if (!seatBlock) {
@@ -232,8 +245,8 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
                   seatBlock,
                   zone.id,
                   {
-                     sectionId: zone.id,
-                     sectionCode: zone.sectionCode,
+                     sectionId: resolvedSection.sectionId,
+                     sectionCode: resolvedSection.sectionCode,
                      seats,
                      statuses,
                   },
@@ -267,5 +280,6 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
       seatBlocks: data?.seatBlocks ?? defaultSeatBlocks,
       apiSeatItems: data?.seatItems ?? [],
       hasApiSeatMap: Boolean(data),
+      refetchSeatMap: refetch,
    };
 };

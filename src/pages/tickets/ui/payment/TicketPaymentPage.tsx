@@ -27,6 +27,7 @@ import {
    type CashReceiptNumType,
    type CashReceiptType,
    type PaymentMethod,
+   isSupportedPaymentMethod,
 } from './_shared';
 
 type DeliveryMethod = 'mobile' | 'onsite' | 'delivery';
@@ -111,6 +112,15 @@ export default function TicketPaymentPage() {
    const handleZipResult = (zip: string, addr: string) => {
       setZipCode(zip);
       setAddress(addr);
+   };
+
+   const handleSelectPaymentMethod = (method: PaymentMethod) => {
+      if (!isSupportedPaymentMethod(method)) {
+         window.alert('아직 지원하지 않는 결제수단입니다.');
+         return;
+      }
+
+      setPaymentMethod(method);
    };
 
    const orderInfo = {
@@ -275,7 +285,7 @@ export default function TicketPaymentPage() {
                         <DiscountCard />
 
                         {/* 결제 방법 */}
-                        <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
+                        <PaymentMethodCard selected={paymentMethod} onSelect={handleSelectPaymentMethod} />
 
                         {/* 현금영수증 (무통장 입금 선택 시에만 표시) */}
                         {paymentMethod === 'bank' && (
