@@ -4,34 +4,12 @@ import { holdSeatReservation, releaseSeatReservation } from '@/entities/seat-hol
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { MAX_SELECTED_SEATS } from '@/entities/seat-selection/model/constants';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
-import { ApiError } from '@/shared/api/client';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import type { SeatItem } from './types';
 import type { SelectedSeatDetail } from './selectedSeats';
 
-type UseSeatHoldActionsOptions = {
-   onSeatHoldConflict?: () => void | Promise<void>;
-};
-
-const HOLD_CONFLICT_MESSAGE = '좌석 점유 가능 상태에서만 점유 상태로 변경할 수 있습니다.';
-
-const isSeatAlreadyHeldConflict = (error: unknown) => {
-   if (!(error instanceof ApiError)) {
-      return false;
-   }
-
-   if (error.status !== 400) {
-      return false;
-   }
-
-   return error.message.includes(HOLD_CONFLICT_MESSAGE);
-};
-
-export const useSeatHoldActions = (
-   bookingEntryState: BookingEntryState | null | undefined,
-   options?: UseSeatHoldActionsOptions,
-) => {
+export const useSeatHoldActions = (bookingEntryState: BookingEntryState | null | undefined) => {
    const zonesState = useSeatSelectionStore((state) => state.zones);
    const toggleSelectedSeat = useSeatSelectionStore((state) => state.toggleSelectedSeat);
    const applyServerSeatPatch = useSeatSelectionStore((state) => state.applyServerSeatPatch);
@@ -133,12 +111,6 @@ export const useSeatHoldActions = (
          applyServerSeatPatch(zoneId, seat.id, 'selected');
          toggleSelectedSeat(zoneId, seat.id);
       } catch (error) {
-         if (isSeatAlreadyHeldConflict(error)) {
-            window.alert('해당 좌석은 이미 선점된 좌석입니다.');
-            await options?.onSeatHoldConflict?.();
-            return;
-         }
-
          window.alert(getErrorMessage(error, '좌석 점유 중 오류가 발생했습니다.'));
       } finally {
          markPending(seat.id, false);
