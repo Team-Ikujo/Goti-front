@@ -286,8 +286,9 @@ const mapTicketStatus = (value: string): TicketStatus => {
     case 'AVAILABLE':
     case 'OPEN':
       return '예매하기';
+    case 'EXHAUSTED':
     case 'SOLD_OUT':
-    case 'CLOSED':
+    case 'TERMINATED':
     case 'ENDED':
       return '매진';
     default:

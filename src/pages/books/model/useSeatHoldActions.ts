@@ -90,6 +90,15 @@ export const useSeatHoldActions = (
    };
 
    const holdSeat = async (zoneId: string, seat: SeatItem) => {
+      if (!seat.id?.trim()) {
+         console.error('[useSeatHoldActions] seatId 없이 좌석 점유를 시도했습니다.', {
+            zoneId,
+            seat,
+         });
+         window.alert('좌석 정보를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.');
+         return;
+      }
+
       const currentZone = zonesState[zoneId];
       const isAlreadySelected = currentZone?.selectedSeatIds.includes(seat.id) ?? false;
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
-import type { PurchaseHistoryItem } from './PurchaseHistoryCard';
+import type { PurchaseHistoryItem } from './HistoryCard';
 import ResellRegisterCompleteDialog from './ResellRegisterCompleteDialog';
 import type { ResellZoneInsights } from '@/pages/books/model/resellData';
 import ResellPriceChart from '@/pages/books/ui/components/ResellPriceChart';
@@ -148,10 +148,10 @@ export default function ResellRegisterDialog({ open, onClose, item }: Props) {
          />
 
          {/* 스크림 */}
-         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50" onClick={onClose}>
             {/* 모달 */}
             <div
-               className="bg-background rounded-xl w-147 max-h-190 flex flex-col shadow-xl overflow-hidden"
+               className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
                onClick={e => e.stopPropagation()}
             >
                {/* 헤더 */}

@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import type { PaymentResponse } from '@/pages/tickets/api/paymentApi';
+import { getOrderPayment, type PaymentResponse } from '@/pages/tickets/api/paymentApi';
 import { Calendar, CheckCircle, ChevronLeft, MapPin } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
+import { ApiError } from '@/shared/api/client';
 
 function useTimerStr() {
    const [now, setNow] = useState(Date.now());
@@ -29,6 +30,37 @@ const DELIVERY_LABELS: Record<DeliveryMethod, string> = {
    mobile: '모바일 티켓',
    onsite: '현장 수령',
    delivery: '배송 수령',
+};
+
+const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
+
+const readStoredPaymentCompleteState = (orderId: string | null) => {
+   if (typeof window === 'undefined' || !orderId) {
+      return null;
+   }
+
+   const storedValue = window.sessionStorage.getItem(`${PAYMENT_COMPLETE_STORAGE_KEY}:${orderId}`);
+
+   if (!storedValue) {
+      return null;
+   }
+
+   try {
+      return JSON.parse(storedValue) as PaymentResponse;
+   } catch {
+      return null;
+   }
+};
+
+const writeStoredPaymentCompleteState = (order: PaymentResponse) => {
+   if (typeof window === 'undefined' || !order.orderId) {
+      return;
+   }
+
+   window.sessionStorage.setItem(
+      `${PAYMENT_COMPLETE_STORAGE_KEY}:${order.orderId}`,
+      JSON.stringify(order),
+   );
 };
 
 const ENTRANCE_GUIDES: Record<DeliveryMethod, string[]> = {
@@ -79,8 +111,65 @@ export default function PaymentCompletePage() {
    const { state } = useLocation();
    const timeStr = useTimerStr();
    const deliveryMethod = (searchParams.get('delivery') as DeliveryMethod) ?? 'mobile';
-   // API 응답이 있으면 사용, 없으면 MOCK_ORDER로 폴백
-   const order = (state as PaymentResponse | null) ?? (MOCK_ORDER as PaymentResponse);
+   const orderId = searchParams.get('orderId');
+   const locationOrder = state as PaymentResponse | null;
+   const [order, setOrder] = useState<PaymentResponse>(() => {
+      return locationOrder ?? readStoredPaymentCompleteState(orderId) ?? (MOCK_ORDER as PaymentResponse);
+   });
+   const [paymentReloadError, setPaymentReloadError] = useState<string | null>(null);
+
+   useEffect(() => {
+      if (locationOrder?.orderId) {
+         writeStoredPaymentCompleteState(locationOrder);
+      }
+   }, [locationOrder]);
+
+   useEffect(() => {
+      let isCancelled = false;
+
+      if (!orderId) {
+         return;
+      }
+
+      const restorePayment = async () => {
+         try {
+            const payment = await getOrderPayment(orderId);
+
+            if (isCancelled) {
+               return;
+            }
+
+            setPaymentReloadError(null);
+            setOrder((currentOrder) => {
+               const nextOrder: PaymentResponse = {
+                  ...currentOrder,
+                  orderId: payment.orderId,
+                  paymentStatus: payment.paymentStatus,
+                  paidAt: payment.paidAt ?? currentOrder.paidAt,
+                  amount: payment.paymentAmount,
+                  orderStatus: payment.paymentStatus === 'SUCCESS' ? 'CONFIRMED' : currentOrder.orderStatus,
+               };
+
+               writeStoredPaymentCompleteState(nextOrder);
+               return nextOrder;
+            });
+         } catch (error) {
+            if (isCancelled) {
+               return;
+            }
+
+            setPaymentReloadError(
+               error instanceof ApiError ? error.message : '결제 정보를 다시 불러오지 못했습니다.',
+            );
+         }
+      };
+
+      restorePayment();
+
+      return () => {
+         isCancelled = true;
+      };
+   }, [orderId]);
 
    const actionButton =
       deliveryMethod === 'delivery'
@@ -136,6 +225,12 @@ export default function PaymentCompletePage() {
                      티켓이 성공적으로 발급되었습니다
                   </p>
                </div>
+
+               {paymentReloadError ? (
+                  <div className="w-full rounded-[14px] border border-destructive/20 bg-destructive/5 px-5 py-4 text-[14px] text-destructive">
+                     {paymentReloadError}
+                  </div>
+               ) : null}
 
                {/* 예매 정보 카드 */}
                <div className="w-full border-2 border-border-light rounded-[14px] p-[26px] flex flex-col gap-6 bg-background">

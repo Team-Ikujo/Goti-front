@@ -56,9 +56,9 @@ export default function SaleDetailPage() {
          <div className="flex flex-col gap-14 w-full max-w-[760px] min-w-[335px]">
             {/* 제목 */}
             <div className="flex items-center gap-4">
-               <Button variant="none" className="p-0 [&_svg]:size-6" onClick={() => navigate(-1)}>
+               {/* <Button variant="none" className="p-0 [&_svg]:size-6" onClick={() => navigate(-1)}>
                   <ChevronLeft size={24} />
-               </Button>
+               </Button> */}
                <h1 className="text-[32px] font-bold text-[#111827] tracking-[-0.032px] leading-[1.45]">
                   판매내역 상세
                </h1>

@@ -91,7 +91,7 @@ type TicketPricingPolicy = {
       gradeId: string;
       ticketType: 'ADULT';
       dayType: 'WEEKDAY' | 'WEEKEND';
-      leagueType: 'PRE_SEASON' | 'REGULAR' | 'POSTSEASON';
+      leagueType: 'EXHIBITION' | 'REGULAR' | 'POST_SEASON';
       price: number;
    }>;
 };
@@ -383,13 +383,7 @@ const parseJsonBody = async <T>(request: Request): Promise<T | null> => {
 };
 
 const isTicketPaymentMethod = (paymentMethod: unknown) => {
-   return (
-      paymentMethod === 'CARD' ||
-      paymentMethod === 'KAKAO_PAY' ||
-      paymentMethod === 'NAVER_PAY' ||
-      paymentMethod === 'TOSS_PAY' ||
-      paymentMethod === 'ACCOUNT_TRANSFER'
-   );
+   return paymentMethod === 'CARD' || paymentMethod === 'ACCOUNT_TRANSFER';
 };
 
 const buildPageResponse = <T>(content: T[], page = 0, size = content.length || 10) => {
@@ -642,6 +636,32 @@ export const paymentHandlers = [
       });
    }),
 
+   http.get('/api/v1/payments/orders/:orderId', async ({ params }) => {
+      const orderId = String(params.orderId);
+      const payment = Array.from(ticketPayments.values()).find((item) => item.orderId === orderId);
+
+      if (!payment) {
+         return buildErrorResponse('Payment not found.', 404);
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            paymentId: payment.paymentId,
+            orderId: payment.orderId,
+            paymentType: 'PAYMENT',
+            paymentMethod: payment.paymentMethod,
+            paymentAmount: payment.paymentAmount,
+            pgProvider: 'MOCK',
+            pgTid: payment.pgTid,
+            paymentStatus: payment.paymentStatus,
+            paidAt: payment.paidAt,
+            failedReason: null,
+         },
+      });
+   }),
+
    http.post('/api/v1/resales/holds', async ({ request }) => {
       const body = (await request.json()) as {
          listingId?: string;
@@ -658,6 +678,22 @@ export const paymentHandlers = [
          listingId: body.listingId,
          queueTokenJti: body.queueTokenJti,
       });
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: { holdId },
+      });
+   }),
+
+   http.patch('/api/v1/resales/holds/:holdId/release', async ({ params }) => {
+      const holdId = String(params.holdId);
+
+      if (!resaleHolds.has(holdId)) {
+         return buildErrorResponse('Resale hold not found.', 404);
+      }
+
+      resaleHolds.delete(holdId);
 
       return HttpResponse.json({
          code: 'SUCCESS',
