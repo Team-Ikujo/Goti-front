@@ -146,6 +146,8 @@ export const authHandlers = [
                sub: session.userId,
                userId: session.userId,
                provider: session.provider,
+               name: '테스트 유저',
+               mobile: '010-0000-0000',
             }),
             ...(scenario !== 'normal' && { accountStatus: scenario }),
             ...(failCountByScenario[scenario] !== undefined && { failCount: failCountByScenario[scenario] }),

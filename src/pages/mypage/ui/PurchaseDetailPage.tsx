@@ -136,7 +136,7 @@ export default function PurchaseDetailPage() {
                   <ChevronLeft size={24} />
                </Button>
                <h1 className="text-[32px] font-bold text-[#111827] tracking-[-0.032px] leading-[1.45]">
-                  구매내역 상세
+                  예매내역 상세
                </h1>
             </div>
 
@@ -248,7 +248,7 @@ export default function PurchaseDetailPage() {
                      type="payment"
                      heading="결제 정보"
                      statusText={detail.paymentSummary.status}
-                     statusColor="text-muted-foreground"
+                     statusColor={detail.paymentSummary.status === '결제 완료' ? 'text-primary' : 'text-muted-foreground'}
                      summaryRows={[
                         {
                            label: `티켓 금액 (${detail.paymentSummary.ticketCount}매)`,
@@ -260,7 +260,9 @@ export default function PurchaseDetailPage() {
                      totalAmount={detail.paymentSummary.total}
                      infoRows={[
                         { label: '입금 계좌', value: detail.paymentSummary.bankAccount, valueBold: true },
-                        { label: '입금 기한', value: detail.paymentSummary.bankDeadline ?? '' },
+                        detail.paymentSummary.status === '입금 대기'
+                           ? { label: '입금 기한', value: detail.paymentSummary.bankDeadline ?? '' }
+                           : { label: '결제 일시', value: detail.paymentSummary.date },
                      ]}
                   />
                ) : (
@@ -339,12 +341,12 @@ export default function PurchaseDetailPage() {
                <div className="flex gap-3">
                   {detail.canCancel && (
                      <Button variant="tertiary" className="flex-1 py-3" onClick={handleCancelClick}>
-                        예매 취소하기
+                        예매 취소
                      </Button>
                   )}
                   {(detail.overallStatus === '예매 완료' || detail.canSell) && (
                      <Button variant="secondary" className="flex-1 py-3" onClick={() => setResellOpen(true)}>
-                        판매 등록하기
+                        판매 등록
                      </Button>
                   )}
                </div>

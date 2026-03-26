@@ -2,9 +2,8 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ChevronDown, ChevronLeft, ChevronRight, Settings, Check, SlidersHorizontal } from 'lucide-react';
-import PurchaseHistoryCard from './PurchaseHistoryCard';
-import SaleHistoryCard from './SaleHistoryCard';
+import { ChevronDown, ChevronLeft, ChevronRight, Settings, Check, SlidersHorizontal } from 'lucide-react';
+import HistoryCard from './HistoryCard';
 import { Button } from '@/shared/ui/button';
 import { DatePicker } from '@/shared/ui/date-picker';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/shared/ui/drawer';
@@ -98,7 +97,6 @@ export default function MypagePage() {
    const [appliedEndDate, setAppliedEndDate] = useState('');
    const [appliedPurchaseType, setAppliedPurchaseType] = useState<PurchaseTypeFilter>('전체 내역');
 
-   const [searchQuery, setSearchQuery] = useState('');
    const [currentPage, setCurrentPage] = useState(1);
    const ITEMS_PER_PAGE = 5;
 
@@ -144,17 +142,6 @@ export default function MypagePage() {
       return true;
    };
 
-   const searchLower = searchQuery.toLowerCase();
-
-   const matchesSearch = (item: { orderId: string; game: { teams: string; section: string } }) => {
-      if (!searchLower) return true;
-      return (
-         item.orderId.toLowerCase().includes(searchLower) ||
-         item.game.teams.toLowerCase().includes(searchLower) ||
-         item.game.section.toLowerCase().includes(searchLower)
-      );
-   };
-
    const filteredPurchaseItems = useMemo(
       () =>
          PURCHASE_ITEMS.filter(item => {
@@ -163,20 +150,18 @@ export default function MypagePage() {
                const target = appliedPurchaseType === '예매' ? '티켓' : '리셀';
                if (item.type !== target) return false;
             }
-            if (!matchesSearch(item)) return false;
             return matchesDate(item.orderDate);
          }),
-      [purchaseStatus, appliedPurchaseType, appliedStartDate, appliedEndDate, searchLower],
+      [purchaseStatus, appliedPurchaseType, appliedStartDate, appliedEndDate],
    );
 
    const filteredSaleItems = useMemo(
       () =>
          SALE_ITEMS.filter(item => {
             if (saleStatus !== '전체' && item.saleStatus !== saleStatus) return false;
-            if (!matchesSearch(item)) return false;
             return matchesDate(item.orderDate);
          }),
-      [saleStatus, appliedStartDate, appliedEndDate, searchLower],
+      [saleStatus, appliedStartDate, appliedEndDate],
    );
 
    return (
@@ -190,7 +175,9 @@ export default function MypagePage() {
                   <div className="flex items-start justify-between gap-3">
                      <div className="flex items-center gap-4 lg:gap-5">
                         <div className="size-16 lg:size-21 rounded-full border border-border flex items-center justify-center shrink-0">
-                           <span className="text-heading-1-bold text-foreground">홍</span>
+                           <span className="text-heading-1-bold text-foreground">
+                              홍
+                           </span>
                         </div>
                         <div className="flex flex-col">
                            <p className="text-heading-1-bold text-foreground">홍길동</p>
@@ -348,21 +335,8 @@ export default function MypagePage() {
                               )}
                            </div>
 
-                           {/* 검색 + 종류 + 조회 */}
+                           {/* 종류 + 조회 */}
                            <div className="flex items-center gap-3 overflow-x-auto">
-                              <div className="flex items-center border border-border rounded-lg overflow-hidden">
-                                 <input
-                                    type="text"
-                                    placeholder="Search"
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    className="px-3 py-1.5 text-body-2-regular outline-none w-44.5"
-                                 />
-                                 <Button variant="none" className="px-2 py-1.5 text-(--text-tertiary) [&_svg]:size-4">
-                                    <Search size={16} />
-                                 </Button>
-                              </div>
-
                               {/* 종류 드롭다운 */}
                               <div className="flex items-center gap-1">
                                  <span className="text-body-2-regular text-foreground whitespace-nowrap">종류:</span>
@@ -584,26 +558,6 @@ export default function MypagePage() {
                                  </div>
                               </div>
 
-                              {/* 검색어 */}
-                              <div className="flex flex-col gap-2">
-                                 <span className="text-body-2-medium text-foreground">검색어:</span>
-                                 <div className="flex items-center border border-border rounded-full overflow-hidden h-9">
-                                    <input
-                                       type="text"
-                                       placeholder="Search"
-                                       value={searchQuery}
-                                       onChange={e => setSearchQuery(e.target.value)}
-                                       className="flex-1 px-3 py-1.5 text-body-2-regular outline-none bg-transparent"
-                                    />
-                                    <Button
-                                       variant="none"
-                                       className="px-3 py-1.5 text-(--text-tertiary) [&_svg]:size-4 shrink-0"
-                                    >
-                                       <Search size={16} />
-                                    </Button>
-                                 </div>
-                              </div>
-
                               {/* 조회 버튼 */}
                               <Button
                                  variant="tertiary"
@@ -660,11 +614,11 @@ export default function MypagePage() {
                                  {pageItems.length > 0 ? (
                                     activeTab === 'purchase' ? (
                                        (pageItems as typeof filteredPurchaseItems).map(item => (
-                                          <PurchaseHistoryCard key={item.id} item={item} />
+                                          <HistoryCard key={item.id} mode="purchase" item={item} />
                                        ))
                                     ) : (
                                        (pageItems as typeof filteredSaleItems).map(item => (
-                                          <SaleHistoryCard key={item.id} item={item} />
+                                          <HistoryCard key={item.id} mode="sale" item={item} />
                                        ))
                                     )
                                  ) : (

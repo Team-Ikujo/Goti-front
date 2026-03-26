@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
-import type { PurchaseHistoryItem } from './PurchaseHistoryCard';
+import type { PurchaseHistoryItem } from './HistoryCard';
 import ResellRegisterCompleteDialog from './ResellRegisterCompleteDialog';
 import type { ResellZoneInsights } from '@/pages/books/model/resellData';
 import ResellPriceChart from '@/pages/books/ui/components/ResellPriceChart';

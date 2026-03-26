@@ -32,9 +32,9 @@ export default function TicketItem({ orderId, section, seatDetail, status, price
             </div>
          </div>
          {/* 상태 + 가격 — 모바일에서 줄바꿈 시 전체 너비 사용 */}
-         <div className="flex items-center min-w-[186px] gap-15 ">
-            <p className={`text-body-1-medium ${statusColor} w-[90px] shrink-0  text-center`}>{status}</p>
-            <p className={`text-body-1-bold ${infoColor} text-right `}>{price.toLocaleString()}원</p>
+         <div className="flex flex-1 items-center justify-between min-w-[186px]">
+            <p className={`text-body-1-medium ${statusColor}`}>{status}</p>
+            <p className={`text-body-1-bold ${infoColor}`}>{price.toLocaleString()}원</p>
          </div>
       </div>
    );
