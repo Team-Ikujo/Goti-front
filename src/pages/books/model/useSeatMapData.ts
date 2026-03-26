@@ -7,6 +7,9 @@ import {
    fetchSeats,
    fetchSeatStatuses,
    matchesSectionExpression,
+   mapApiSeatsToSeatItems,
+   normalizeSectionCode,
+   resolveSeatSectionByCode,
    type SeatResponse,
    type SeatStatusResponse,
 } from '@/pages/books/api/bookingApi';
@@ -14,7 +17,8 @@ import { getSeatBlocks } from '@/pages/books/model/seatData';
 import type { SeatBlock, SeatItem, ZoneItem } from '@/pages/books/model/types';
 
 const AGGREGATED_SECTION_CODE_PATTERN = /[~,/]/;
-const API_SEAT_SPACING = 20;
+const API_SEAT_BASE_OFFSET_X = 120;
+const API_SEAT_BASE_OFFSET_Y = 160;
 
 type SeatMapDataParams = {
    gameId?: string;
@@ -34,14 +38,6 @@ type SeatMapApiSnapshot = {
    seatItems: SeatItem[];
 };
 
-const sortRowNames = (left: string, right: string) =>
-   left.localeCompare(right, 'ko-KR', {
-      numeric: true,
-      sensitivity: 'base',
-   });
-
-const normalizeSectionCode = (value: string) => value.replace(/\s+/g, '').toUpperCase();
-
 const isAggregatedSectionCode = (sectionCode?: string) =>
    Boolean(sectionCode && AGGREGATED_SECTION_CODE_PATTERN.test(sectionCode));
 
@@ -51,34 +47,6 @@ const sortSectionBundles = (left: ApiSeatSectionBundle, right: ApiSeatSectionBun
       sensitivity: 'base',
    });
 
-const getSectionSeatLayoutMeta = (seats: SeatResponse[]) => {
-   const rowNames = Array.from(new Set(seats.map((seat) => seat.rowName))).sort(sortRowNames);
-
-   return {
-      rowNames,
-      rowIndexByName: Object.fromEntries(rowNames.map((rowName, index) => [rowName, index])),
-      columnCount: seats.length > 0 ? Math.max(...seats.map((seat) => seat.seatNum)) : 0,
-   };
-};
-
-const toSeatItemStatus = (seat: SeatResponse, statuses: Record<string, string>): SeatItem['status'] => {
-   const status = statuses[seat.seatId]?.toUpperCase();
-
-   if (!seat.available) {
-      return 'disabled';
-   }
-
-   if (status === 'HELD') {
-      return 'held';
-   }
-
-   if (status === 'SOLD' || status === 'BLOCKED') {
-      return 'disabled';
-   }
-
-   return 'available';
-};
-
 const createSeatBlockForLayout = (block: SeatBlock, section: ApiSeatSectionBundle): SeatBlock => {
    if (section.seats.length === 0) {
       return {
@@ -86,8 +54,14 @@ const createSeatBlockForLayout = (block: SeatBlock, section: ApiSeatSectionBundl
          activeSeats: [],
       };
    }
-
-   const { rowNames, rowIndexByName, columnCount } = getSectionSeatLayoutMeta(section.seats);
+   const rowNames = Array.from(new Set(section.seats.map((seat) => seat.rowName))).sort((left, right) =>
+      left.localeCompare(right, 'ko-KR', {
+         numeric: true,
+         sensitivity: 'base',
+      }),
+   );
+   const rowIndexByName = Object.fromEntries(rowNames.map((rowName, index) => [rowName, index]));
+   const columnCount = Math.max(...section.seats.map((seat) => seat.seatNum));
 
    return {
       ...block,
@@ -100,23 +74,16 @@ const createSeatBlockForLayout = (block: SeatBlock, section: ApiSeatSectionBundl
 };
 
 const createSeatItemsForLayout = (block: SeatBlock, zoneId: string, section: ApiSeatSectionBundle): SeatItem[] => {
-   const { rowIndexByName } = getSectionSeatLayoutMeta(section.seats);
-   const statusBySeatId = Object.fromEntries(section.statuses.map((seatStatus) => [seatStatus.seatId, seatStatus.status]));
-
-   return section.seats.map((seat) => {
-      const rowIndex = rowIndexByName[seat.rowName] ?? 0;
-
-      return {
-         id: seat.seatId,
-         block: block.label,
-         rowLabel: `${seat.rowName}열`,
-         seatNumber: seat.seatNum,
-         x: block.offsetX + (seat.seatNum - 1) * API_SEAT_SPACING,
-         y: block.offsetY + rowIndex * API_SEAT_SPACING,
-         zoneId,
-         status: toSeatItemStatus(seat, statusBySeatId),
-      } satisfies SeatItem;
-   });
+   return mapApiSeatsToSeatItems({
+      sectionId: zoneId,
+      sectionCode: block.label,
+      seats: section.seats,
+      statuses: section.statuses,
+   }).map((seat) => ({
+      ...seat,
+      x: seat.x - API_SEAT_BASE_OFFSET_X + block.offsetX,
+      y: seat.y - API_SEAT_BASE_OFFSET_Y + block.offsetY,
+   }));
 };
 
 const summarizeSeatStatuses = (statuses: SeatStatusResponse[]) => {
@@ -252,7 +219,19 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
          }
 
          if (!isAggregatedSectionCode(zone.sectionCode)) {
-            const [seats, statuses] = await Promise.all([fetchSeats(zone.id), fetchSeatStatuses(gameId, zone.id)]);
+            const resolvedSection =
+               (await resolveSeatSectionByCode({
+                  stadiumId,
+                  sectionCode: zone.sectionCode,
+               })) ??
+               ({
+                  sectionId: zone.id,
+                  sectionCode: zone.sectionCode,
+               } satisfies Pick<ApiSeatSectionBundle, 'sectionId' | 'sectionCode'>);
+            const [seats, statuses] = await Promise.all([
+               fetchSeats(resolvedSection.sectionId),
+               fetchSeatStatuses(gameId, resolvedSection.sectionId),
+            ]);
             const [seatBlock] = buildSeatBlockFromApiSeats(zone.sectionCode, seats);
 
             if (!seatBlock) {
@@ -263,8 +242,8 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
                seatBlock,
                zone.id,
                {
-                  sectionId: zone.id,
-                  sectionCode: zone.sectionCode,
+                  sectionId: resolvedSection.sectionId,
+                  sectionCode: resolvedSection.sectionCode,
                   seats,
                   statuses,
                },
@@ -273,6 +252,7 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
             console.info('[SeatMapDebug] single section payload', {
                zoneId: zone.id,
                zoneSectionCode: zone.sectionCode,
+               resolvedSectionId: resolvedSection.sectionId,
                seatsCount: seats.length,
                statusesCount: statuses.length,
                statusSummary: summarizeSeatStatuses(statuses),
