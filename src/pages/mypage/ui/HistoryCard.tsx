@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, ChevronDown } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { cancelResaleListing } from '@/entities/resale/api/resaleApi';
 import { Separator } from '@/shared/ui/separator';
 import { Button } from '@/shared/ui/button';
 import TicketTypeBadge from './TicketTypeBadge';
@@ -15,7 +17,7 @@ import NoAccountDialog from './NoAccountDialog';
 // ── 타입 ────────────────────────────────────────────────────────────
 
 export type PurchaseStatus = '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
-export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판매 취소 대기';
+export type SaleStatus = '판매 중' | '정산 대기' | '판매 완료' | '취소 대기' | '취소 완료';
 
 export interface PurchaseHistoryItem {
    id: string;
@@ -35,6 +37,8 @@ export interface PurchaseHistoryItem {
    deliveryType: string;
    /** 모바일 티켓이고 판매 등록 가능한 경우 */
    canSell: boolean;
+   /** 좌석별 티켓 ID (다매 구매 시 판매 등록에 사용) */
+   ticketIds?: string[];
 }
 
 export interface SaleHistoryItem {
@@ -86,10 +90,19 @@ export default function HistoryCard(props: HistoryCardProps) {
    const showSellBtn = isBooked || (purchaseItem?.canSell ?? false);
    const showCancelBtn = isBooked || purchaseItem?.paymentStatus === '입금 대기';
    const showQrBtn = isBooked && item.deliveryType === '모바일 티켓';
-   const hasAnyPurchaseBtn = showSellBtn || showCancelBtn || showQrBtn;
    // 취소/환불·관람완료는 버튼 없이 '-' 표시
    const showDash =
       isPurchase && (purchaseItem?.paymentStatus === '취소/환불' || purchaseItem?.paymentStatus === '관람 완료');
+
+   // 판매 취소 mutation
+   const queryClient = useQueryClient();
+   const { mutate: cancelSale, isPending: isCancelingSale } = useMutation({
+      mutationFn: () => cancelResaleListing(item.id),
+      onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: ['myResales'] });
+         queryClient.invalidateQueries({ queryKey: ['myOrders'] });
+      },
+   });
 
    // 판매 버튼 노출 조건 — '판매 중'에만 취소 버튼, 그 외 '-' 표시
    const canCancelSale = !isPurchase && (item as SaleHistoryItem).canCancel;
@@ -125,7 +138,8 @@ export default function HistoryCard(props: HistoryCardProps) {
             <QrViewDialog
                open={qrOpen}
                onClose={() => setQrOpen(false)}
-               seats={item.game.seats.map(seat => ({
+               seats={item.game.seats.map((seat, i) => ({
+                  ticketId: (item as PurchaseHistoryItem).ticketIds?.[i],
                   section: item.game.section,
                   seatDetail: seat,
                }))}
@@ -307,8 +321,8 @@ export default function HistoryCard(props: HistoryCardProps) {
                   ) : showSaleDash ? (
                      <span className="text-body-1-regular text-muted-foreground">-</span>
                   ) : (
-                     <Button variant="tertiary" size="sm" className="w-full">
-                        판매 취소
+                     <Button variant="tertiary" size="sm" className="w-full" disabled={isCancelingSale} onClick={() => cancelSale()}>
+                        {isCancelingSale ? '처리 중...' : '판매 취소'}
                      </Button>
                   )}
                </div>
@@ -349,8 +363,8 @@ export default function HistoryCard(props: HistoryCardProps) {
                      )}
                   </>
                ) : !showSaleDash ? (
-                  <Button variant="tertiary" size="sm" className="flex-1">
-                     판매 취소
+                  <Button variant="tertiary" size="sm" className="flex-1" disabled={isCancelingSale} onClick={() => cancelSale()}>
+                     {isCancelingSale ? '처리 중...' : '판매 취소'}
                   </Button>
                ) : null}
             </div>

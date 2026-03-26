@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuthStore } from '@/entities/auth/model/authStore';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { Input } from '@/shared/ui/input';
@@ -9,6 +10,7 @@ import { AccountModals } from './AccountModals';
 import type { ModalType } from './AccountModals';
 import { AccountTermsDialogs } from './AccountTermsDialogs';
 import type { TermsType } from './AccountTermsDialogs';
+import { useMyProfileData, useMyOrdersData, useMyResaleListData } from '../model/useMypageData';
 
 const BANKS = [
    '국민은행',
@@ -69,14 +71,20 @@ function loadDaumPostcodeAndOpen(onComplete: (zipCode: string, address: string) 
 }
 
 
-/** 미정산 금액 존재 여부 (실제 연동 시 API로 대체) */
-const HAS_UNPAID_AMOUNT = false;
-/** 예약 또는 판매 중인 티켓 존재 여부 (실제 연동 시 API로 대체) */
-const HAS_ACTIVE_TICKETS = true;
 
 export default function AccountPage() {
    const navigate = useNavigate();
    const location = useLocation();
+   const { data: profile } = useMyProfileData();
+   const { data: purchaseItems = [] } = useMyOrdersData();
+   const { data: saleItems = [] } = useMyResaleListData();
+
+   // 미정산 금액 존재 여부: 판매 완료 후 정산 대기 중인 항목
+   const hasUnpaidAmount = saleItems.some(i => i.saleStatus === '정산 대기');
+   // 예매 완료 또는 판매 중인 티켓 존재 여부
+   const hasActiveTickets =
+      purchaseItems.some(i => i.paymentStatus === '예매 완료') ||
+      saleItems.some(i => i.saleStatus === '판매 중');
 
    // ── 모달 ──
    const [modal, setModal] = useState<ModalType>(null);
@@ -150,6 +158,7 @@ export default function AccountPage() {
    };
 
    const isAccountSaveEnabled = !!(bank && accountNumber && depositor && agreeOpen && agreeThird && agreePersonal);
+   const clearAuth = useAuthStore(state => state.clearAuth);
 
    /** 계좌 정보 변경 버튼: 계좌 정보 카드로 스크롤 후 은행 드롭다운 오픈 */
    const handleAccountChange = () => {
@@ -173,14 +182,15 @@ export default function AccountPage() {
 
    /** 로그아웃 */
    const handleLogout = () => {
+      clearAuth('manual');
       navigate('/');
    };
 
    /** 회원 탈퇴 버튼 클릭 */
    const handleWithdrawClick = () => {
-      if (HAS_UNPAID_AMOUNT) {
+      if (hasUnpaidAmount) {
          setModal('withdrawBlocked');
-      } else if (HAS_ACTIVE_TICKETS) {
+      } else if (hasActiveTickets) {
          setModal('withdrawHasActiveTickets');
       } else {
          setModal('withdraw');
@@ -215,7 +225,7 @@ export default function AccountPage() {
                      <div className="flex items-center justify-between">
                         <p className="text-body-1-bold text-(--text-tertiary)">아이디</p>
                         <div className="flex items-center gap-2">
-                           <p className="text-body-1-regular text-foreground">goti1234@google.com</p>
+                           <p className="text-body-1-regular text-foreground">{profile?.email || '아이디 정보 없음'}</p>
                            <div className="border border-border-light rounded-full p-0.5">
                               <img src="/Icon/Logo/Google.svg" alt="Google" className="size-6" />
                            </div>
@@ -223,12 +233,12 @@ export default function AccountPage() {
                      </div>
                      <div className="flex items-center justify-between">
                         <p className="text-body-1-bold text-(--text-tertiary)">이메일</p>
-                        <p className="text-body-1-regular text-foreground">goti1234@google.com</p>
+                        <p className="text-body-1-regular text-foreground">{profile?.email || '이메일 정보 없음'}</p>
                      </div>
                      <div className="flex items-center justify-between">
                         <p className="text-body-1-bold text-(--text-tertiary)">이름</p>
                         <div className="flex items-center gap-2">
-                           <p className="text-body-1-regular text-foreground">김고티</p>
+                           <p className="text-body-1-regular text-foreground">{profile?.name || '로딩 중...'}</p>
                            <button
                               onClick={() => setModal('identity')}
                               className="border-b border-muted-foreground text-body-2-regular text-(--text-tertiary)"
@@ -240,7 +250,7 @@ export default function AccountPage() {
                      <div className="flex items-center justify-between">
                         <p className="text-body-1-bold text-(--text-tertiary)">휴대폰 번호</p>
                         <div className="flex items-center gap-2">
-                           <p className="text-body-1-regular text-foreground">010-1234-5678</p>
+                           <p className="text-body-1-regular text-foreground">{profile?.mobile || '전화번호 정보 없음'}</p>
                            <button
                               onClick={() => setModal('identity')}
                               className="border-b border-muted-foreground text-body-2-regular text-(--text-tertiary)"

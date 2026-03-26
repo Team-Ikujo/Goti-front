@@ -9,10 +9,13 @@ import ResellRegisterCompleteDialog from './ResellRegisterCompleteDialog';
 import type { ResellZoneInsights } from '@/pages/books/model/resellData';
 import ResellPriceChart from '@/pages/books/ui/components/ResellPriceChart';
 import { formatPrice } from '@/pages/books/model/zoneData';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createResaleListing } from '@/entities/resale/api/resaleApi';
 
 interface Props {
    open: boolean;
    onClose: () => void;
+   onCompleteConfirm?: () => void;
    item: PurchaseHistoryItem;
 }
 
@@ -95,12 +98,15 @@ function PriceInput({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 // ─── 메인 컴포넌트 ─────────────────────────────────────────────────
-export default function ResellRegisterDialog({ open, onClose, item }: Props) {
+export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm, item }: Props) {
    const [checkedSeats, setCheckedSeats] = useState<Set<number>>(new Set());
    const [prices, setPrices] = useState<Record<number, string>>({});
    const [bulkPrice, setBulkPrice] = useState('');
    const [bulkToggle, setBulkToggle] = useState(false);
    const [completeOpen, setCompleteOpen] = useState(false);
+
+   const [isSubmitting, setIsSubmitting] = useState(false);
+   const queryClient = useQueryClient();
 
    // 열릴 때마다 상태 초기화
    useEffect(() => {
@@ -135,6 +141,38 @@ export default function ResellRegisterDialog({ open, onClose, item }: Props) {
       });
    };
 
+   const handleRegister = async () => {
+      const indices = Array.from(checkedSeats);
+      if (indices.length === 0) {
+         alert('판매할 좌석을 선택해주세요.');
+         return;
+      }
+
+      // 좌석별 ticketId 매핑 (ticketIds 배열 우선, 없으면 item.id로 fallback)
+      const ticketIds = item.ticketIds ?? [item.id];
+
+      const requests = indices.map(idx => ({
+         ticketId: ticketIds[idx] ?? item.id,
+         listingPrice: bulkToggle ? Number(bulkPrice) : Number(prices[idx]),
+      }));
+
+      if (requests.some(r => !r.listingPrice || isNaN(r.listingPrice))) {
+         alert('판매 가격을 올바르게 입력해주세요.');
+         return;
+      }
+
+      setIsSubmitting(true);
+      try {
+         await Promise.all(requests.map(r => createResaleListing(r)));
+         queryClient.invalidateQueries({ queryKey: ['myResales'] });
+         setCompleteOpen(true);
+      } catch {
+         alert('판매 등록에 실패했습니다. 다시 시도해주세요.');
+      } finally {
+         setIsSubmitting(false);
+      }
+   };
+
    return createPortal(
       <>
          {/* 판매 등록 완료 팝업 */}
@@ -143,6 +181,7 @@ export default function ResellRegisterDialog({ open, onClose, item }: Props) {
             onClose={() => {
                setCompleteOpen(false);
                onClose();
+               onCompleteConfirm?.();
             }}
             saleId={item.id}
          />
@@ -329,10 +368,11 @@ export default function ResellRegisterDialog({ open, onClose, item }: Props) {
                   </Button>
                   <Button
                      variant="none"
-                     className="flex-1 bg-primary rounded-lg py-3 text-[16px] font-bold text-white leading-normal hover:bg-primary/90 transition-colors"
-                     onClick={() => setCompleteOpen(true)}
+                     className="flex-1 bg-primary rounded-lg py-3 text-[16px] font-bold text-white leading-normal hover:bg-primary/90 transition-colors disabled:opacity-50"
+                     onClick={handleRegister}
+                     disabled={isSubmitting}
                   >
-                     판매 등록하기
+                     {isSubmitting ? '등록 중...' : '판매 등록하기'}
                   </Button>
                </div>
             </div>

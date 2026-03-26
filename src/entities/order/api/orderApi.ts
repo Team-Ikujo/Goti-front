@@ -1,0 +1,29 @@
+// src/entities/order/api/orderApi.ts
+
+import apiClient from '@/shared/api/client';
+import type { ApiEnvelope } from '@/features/auth/api/types';
+
+export interface OrderListItem {
+   orderId: string;
+   orderNumber: string;
+   orderStatus: 'PENDING' | 'CONFIRMED' | 'CANCELED' | 'PARTIALLY_CANCELED';
+   totalQuantity: number;
+   totalAmount: number;
+   orderedAt: string;
+   gameId: string;
+   stadiumId: string;
+   // 확장 필드 (MSW에서 추가 제공)
+   homeTeamName?: string;
+   awayTeamName?: string;
+   stadiumName?: string;
+   gameStartAt?: string;
+   seatGradeName?: string;
+   seatInfos?: string[];
+   ticketId?: string;
+   ticketIds?: string[];
+}
+
+export const fetchMyOrders = async (): Promise<OrderListItem[]> => {
+   const response = await apiClient.get<ApiEnvelope<OrderListItem[]>>('/api/v1/orders');
+   return response.data.data;
+};

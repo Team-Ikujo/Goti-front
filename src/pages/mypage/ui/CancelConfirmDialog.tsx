@@ -1,9 +1,12 @@
 // src/pages/mypage/ui/CancelConfirmDialog.tsx
 
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui/button';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { cancelTicket } from '@/entities/ticket/api/ticketApi';
 
 interface Props {
    open: boolean;
@@ -35,6 +38,21 @@ export default function CancelConfirmDialog({
    cancelFee,
 }: Props) {
    const navigate = useNavigate();
+   const queryClient = useQueryClient();
+   const [isLoading, setIsLoading] = useState(false);
+
+   const { mutate: cancel } = useMutation({
+      mutationFn: () => cancelTicket(itemId),
+      onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: ['ticketDetail', itemId] });
+         queryClient.invalidateQueries({ queryKey: ['myOrders'] });
+         onClose();
+         navigate(`/mypage/purchase/${itemId}`, { state: { showCancelSuccess: true } });
+      },
+      onError: () => {
+         setIsLoading(false);
+      },
+   });
 
    if (!open) return null;
 
@@ -118,13 +136,13 @@ export default function CancelConfirmDialog({
                </Button>
                <Button
                   className="flex-1 py-3"
+                  disabled={isLoading}
                   onClick={() => {
-                     // TODO: 실제 예매 취소 API 호출
-                     onClose();
-                     navigate(`/mypage/purchase/${itemId}`, { state: { showCancelSuccess: true } });
+                     setIsLoading(true);
+                     cancel();
                   }}
                >
-                  취소하기
+                  {isLoading ? '처리 중...' : '취소하기'}
                </Button>
             </div>
          </div>

@@ -236,4 +236,45 @@ export const authHandlers = [
          },
       });
    }),
+
+   // 내 프로필 조회 — Authorization 헤더의 JWT에서 유저 정보 파싱
+   http.get('/api/v1/members/me', async ({ request }) => {
+      const authHeader = request.headers.get('Authorization') ?? '';
+      const token = authHeader.replace(/^Bearer\s+/i, '');
+
+      let name = '테스트 유저';
+      let mobile = '010-0000-0000';
+      let email = '';
+
+      if (token) {
+         try {
+            const payloadB64 = token.split('.')[1] ?? '';
+            const decoded = JSON.parse(
+               decodeURIComponent(
+                  atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'))
+                     .split('')
+                     .map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
+                     .join(''),
+               ),
+            ) as Record<string, string>;
+            if (decoded.name) name = decoded.name;
+            if (decoded.mobile) mobile = decoded.mobile;
+            if (decoded.email) email = decoded.email;
+         } catch {
+            // 파싱 실패 시 기본값 사용
+         }
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            name,
+            email: email || undefined,
+            mobile,
+            gender: 'UNKNOWN',
+            birthDate: undefined,
+         },
+      });
+   }),
 ];
