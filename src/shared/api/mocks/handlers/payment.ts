@@ -1158,6 +1158,21 @@ export const paymentHandlers = [
       });
    }),
 
+   http.patch('/api/v1/resales/holds/:holdId/release', async ({ params }) => {
+      const holdId = String(params.holdId);
+
+      if (!resaleHolds.has(holdId)) {
+         return buildErrorResponse(`Resale hold not found: ${holdId}`, 404);
+      }
+
+      resaleHolds.delete(holdId);
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: { holdId },
+      });
+   }),
 
    http.post('/api/v1/resales/orders', async ({ request }) => {
       const body = (await request.json()) as {
