@@ -19,6 +19,7 @@ export interface GameItem {
    dateTime: string;  // 표시용 "2026.07.03 (금) 18:30"
    venue: string;
    remainingSeats: number;
+   resellRemainingSeats?: number;
    minPrice: number;
    maxPrice: number;
    bookingStatus: BookingStatus;

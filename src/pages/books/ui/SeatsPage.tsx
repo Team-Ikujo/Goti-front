@@ -3,12 +3,13 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { createSeatsForZone } from '@/pages/books/model/seatData';
-import { getResellZoneInsights, type ResellListingItem } from '@/pages/books/model/resellData';
+import type { ResellListingItem } from '@/pages/books/model/resellData';
 import { getSelectedSeatDetails } from '@/pages/books/model/selectedSeats';
 import { useSeatHoldActions } from '@/pages/books/model/useSeatHoldActions';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { useSeatMapData } from '@/pages/books/model/useSeatMapData';
+import { useResellZoneInsights } from '@/pages/books/model/useResellZoneInsights';
 import { formatPrice, getBookingZones, getZoneOverviewImage, getStadiumName } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
@@ -168,16 +169,13 @@ function SeatsPage() {
    );
 
    const selectedPrice = selectedSeats.reduce((total, item) => total + item.price, 0);
-   const resellInsights = useMemo(
-      () =>
-         isResellMode
-            ? getResellZoneInsights({
-                 zone,
-                 seats,
-              })
-            : null,
-      [isResellMode, seats, zone],
-   );
+   const resellInsightsQuery = useResellZoneInsights({
+      enabled: isResellMode,
+      gameId: bookingEntryState?.gameId,
+      zone,
+      seats,
+   });
+   const resellInsights = resellInsightsQuery.data ?? null;
    const resellListingBySeatId = useMemo(
       () => new Map((resellInsights?.listings ?? []).map((listing) => [listing.seatId, listing])),
       [resellInsights?.listings],
@@ -534,7 +532,15 @@ function SeatsPage() {
                      className="overflow-hidden border-none p-0 xl:hidden"
                   >
                      <div className="h-full overflow-y-auto">
-                        {isResellMode && resellInsights ? (
+                        {isResellMode && resellInsightsQuery.isPending ? (
+                           <div className="flex h-full min-h-[240px] items-center justify-center px-5 text-center text-body-1-medium text-muted-foreground">
+                              리셀 좌석 정보를 불러오는 중입니다.
+                           </div>
+                        ) : isResellMode && resellInsightsQuery.isError ? (
+                           <div className="flex h-full min-h-[240px] items-center justify-center px-5 text-center text-body-1-medium text-muted-foreground">
+                              리셀 좌석 정보를 불러오지 못했습니다.
+                           </div>
+                        ) : isResellMode && resellInsights ? (
                            <ResellZonePreviewSheet
                               insights={resellInsights}
                               zone={zone}
@@ -596,7 +602,11 @@ function SeatsPage() {
                </Drawer>
             </section>
 
-            {isResellMode && resellInsights ? (
+            {isResellMode && resellInsightsQuery.isPending ? (
+               <aside className="hidden w-full shrink-0 items-center justify-center border-l border-border-light bg-background px-5 text-center text-body-1-medium text-muted-foreground xl:flex xl:w-[420px]">
+                  리셀 좌석 정보를 불러오는 중입니다.
+               </aside>
+            ) : isResellMode && resellInsights ? (
                <ResellSeatSidebar
                   insights={resellInsights}
                   selectedListingId={selectedResellListing?.listingId}
@@ -606,6 +616,10 @@ function SeatsPage() {
                   onSelectListing={handleSelectResellListing}
                   onSubmit={handleProceedToPayment}
                />
+            ) : isResellMode && resellInsightsQuery.isError ? (
+               <aside className="hidden w-full shrink-0 items-center justify-center border-l border-border-light bg-background px-5 text-center text-body-1-medium text-muted-foreground xl:flex xl:w-[420px]">
+                  리셀 좌석 정보를 불러오지 못했습니다.
+               </aside>
             ) : (
                <aside className="hidden w-full shrink-0 flex-col border-l border-border-light bg-background xl:flex xl:w-[420px]">
                   <div className="relative h-[220px] overflow-hidden border-b border-border-light bg-[#e9ebee] px-5 py-4">

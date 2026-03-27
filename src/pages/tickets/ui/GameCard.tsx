@@ -64,6 +64,7 @@ export function GameCard({ game, activeTab, onActionClick }: GameCardProps) {
    const { label: buttonLabel, isActive } = getButtonConfig(status, activeTab);
    const showPrice = game.minPrice > 0;
    const formattedDateTime = formatBookingCardDateTime(game.dateTime);
+   const remainingSeats = activeTab === '리셀' ? (game.resellRemainingSeats ?? 0) : game.remainingSeats;
 
    const [, gameMonth, gameDay] = game.date.split('-').map(Number);
 
@@ -101,7 +102,7 @@ export function GameCard({ game, activeTab, onActionClick }: GameCardProps) {
             <div className="flex items-center gap-2 h-5">
                <Ticket className="size-5 text-primary shrink-0" />
                <span className="text-body-2-bold text-primary whitespace-nowrap">
-                  잔여 {game.remainingSeats.toLocaleString('ko-KR')}석
+                  잔여 {remainingSeats.toLocaleString('ko-KR')}석
                </span>
             </div>
          </div>

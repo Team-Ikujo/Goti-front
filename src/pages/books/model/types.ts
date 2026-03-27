@@ -11,6 +11,8 @@ export type ZoneItem = {
    color: string;
    hotspot: ZoneHotspot[];
    sectionCode: string;
+   sectionIds?: string[];
+   gradeIds?: string[];
 };
 
 export type SeatStatus = 'available' | 'selected' | 'held' | 'disabled';
