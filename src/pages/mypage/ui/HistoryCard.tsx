@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, ChevronDown } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { cancelResaleListing } from '@/entities/resale/api/resaleApi';
 import { Separator } from '@/shared/ui/separator';
 import { Button } from '@/shared/ui/button';
 import TicketTypeBadge from './TicketTypeBadge';
@@ -17,7 +15,7 @@ import NoAccountDialog from './NoAccountDialog';
 // ── 타입 ────────────────────────────────────────────────────────────
 
 export type PurchaseStatus = '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
-export type SaleStatus = '판매 중' | '정산 대기' | '판매 완료' | '취소 대기' | '취소 완료';
+export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판매 취소 대기';
 
 export interface PurchaseHistoryItem {
    id: string;
@@ -37,8 +35,6 @@ export interface PurchaseHistoryItem {
    deliveryType: string;
    /** 모바일 티켓이고 판매 등록 가능한 경우 */
    canSell: boolean;
-   /** 좌석별 티켓 ID (다매 구매 시 판매 등록에 사용) */
-   ticketIds?: string[];
 }
 
 export interface SaleHistoryItem {
@@ -90,19 +86,10 @@ export default function HistoryCard(props: HistoryCardProps) {
    const showSellBtn = isBooked || (purchaseItem?.canSell ?? false);
    const showCancelBtn = isBooked || purchaseItem?.paymentStatus === '입금 대기';
    const showQrBtn = isBooked && item.deliveryType === '모바일 티켓';
+   const hasAnyPurchaseBtn = showSellBtn || showCancelBtn || showQrBtn;
    // 취소/환불·관람완료는 버튼 없이 '-' 표시
    const showDash =
       isPurchase && (purchaseItem?.paymentStatus === '취소/환불' || purchaseItem?.paymentStatus === '관람 완료');
-
-   // 판매 취소 mutation
-   const queryClient = useQueryClient();
-   const { mutate: cancelSale, isPending: isCancelingSale } = useMutation({
-      mutationFn: () => cancelResaleListing(item.id),
-      onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['myResales'] });
-         queryClient.invalidateQueries({ queryKey: ['myOrders'] });
-      },
-   });
 
    // 판매 버튼 노출 조건 — '판매 중'에만 취소 버튼, 그 외 '-' 표시
    const canCancelSale = !isPurchase && (item as SaleHistoryItem).canCancel;
@@ -138,15 +125,21 @@ export default function HistoryCard(props: HistoryCardProps) {
             <QrViewDialog
                open={qrOpen}
                onClose={() => setQrOpen(false)}
-               seats={item.game.seats.map((seat, i) => ({
-                  ticketId: (item as PurchaseHistoryItem).ticketIds?.[i],
+               seats={item.game.seats.map(seat => ({
                   section: item.game.section,
                   seatDetail: seat,
                }))}
             />
          )}
 
-         <div className="bg-background border border-border rounded-[14px] flex flex-col gap-2.5 px-px py-3.25">
+         <div
+            className="bg-background border border-border rounded-[14px] flex flex-col gap-2.5 px-px py-3.25 cursor-pointer hover:border-primary/40 transition-colors"
+            onClick={() => navigate(detailRoute)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') navigate(detailRoute); }}
+            aria-label={`${item.game.teams} ${detailLabel}`}
+         >
             {/* 상단: 일자 / 상세 링크 */}
             <div className="flex items-center justify-between lg:justify-start lg:gap-8 px-4 py-1">
                <div className="flex items-center gap-1 text-body-2-regular shrink-0 w-33">
@@ -157,7 +150,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                   variant="none"
                   size="xs"
                   className="flex items-center text-body-2-regular text-foreground shrink-0 px-0 hover:text-primary transition-colors gap-0"
-                  onClick={() => navigate(detailRoute)}
+                  onClick={e => { e.stopPropagation(); navigate(detailRoute); }}
                >
                   {detailLabel} <ChevronRight size={16} />
                </Button>
@@ -209,7 +202,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                         <span className="text-caption-1-regular text-(--text-tertiary) w-10.5 shrink-0">좌석</span>
                         <button
                            className="flex items-center gap-1 text-left"
-                           onClick={() => setExpanded(v => !v)}
+                           onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
                            aria-expanded={expanded}
                         >
                            <span className="text-body-2-medium text-foreground whitespace-nowrap">
@@ -224,7 +217,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                      {/* 데스크톱: 좌석 토글 */}
                      <button
                         className="hidden lg:flex items-center gap-1 text-left"
-                        onClick={() => setExpanded(v => !v)}
+                        onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
                         aria-expanded={expanded}
                      >
                         <span className="text-foreground text-body-2-medium whitespace-nowrap">
@@ -290,7 +283,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                                  variant="secondary"
                                  size="sm"
                                  className="w-full"
-                                 onClick={() => setResellOpen(true)}
+                                 onClick={e => { e.stopPropagation(); setResellOpen(true); }}
                               >
                                  판매 등록
                               </Button>
@@ -302,7 +295,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                                  variant="tertiary"
                                  size="sm"
                                  className="w-full"
-                                 onClick={() => setCancelOpen(true)}
+                                 onClick={e => { e.stopPropagation(); setCancelOpen(true); }}
                               >
                                  예매 취소
                               </Button>
@@ -310,7 +303,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                               <div className="h-28.25 w-full" />
                            )}
                            {showQrBtn ? (
-                              <Button variant="tertiary" size="sm" className="w-full" onClick={() => setQrOpen(true)}>
+                              <Button variant="tertiary" size="sm" className="w-full" onClick={e => { e.stopPropagation(); setQrOpen(true); }}>
                                  QR 확인
                               </Button>
                            ) : (
@@ -321,8 +314,8 @@ export default function HistoryCard(props: HistoryCardProps) {
                   ) : showSaleDash ? (
                      <span className="text-body-1-regular text-muted-foreground">-</span>
                   ) : (
-                     <Button variant="tertiary" size="sm" className="w-full" disabled={isCancelingSale} onClick={() => cancelSale()}>
-                        {isCancelingSale ? '처리 중...' : '판매 취소'}
+                     <Button variant="tertiary" size="sm" className="w-full" onClick={e => e.stopPropagation()}>
+                        판매 취소
                      </Button>
                   )}
                </div>
@@ -332,14 +325,16 @@ export default function HistoryCard(props: HistoryCardProps) {
             <div className="flex lg:hidden gap-2 px-4 pb-1">
                {isPurchase ? (
                   <>
-                     {!showDash && (
+                     {showDash ? (
+                        <div className="h-8.25" />
+                     ) : (
                         <>
                            {showSellBtn && (
                               <Button
                                  variant="secondary"
                                  size="sm"
                                  className="flex-1"
-                                 onClick={() => setResellOpen(true)}
+                                 onClick={e => { e.stopPropagation(); setResellOpen(true); }}
                               >
                                  판매 등록
                               </Button>
@@ -349,24 +344,27 @@ export default function HistoryCard(props: HistoryCardProps) {
                                  variant="tertiary"
                                  size="sm"
                                  className="flex-1"
-                                 onClick={() => setCancelOpen(true)}
+                                 onClick={e => { e.stopPropagation(); setCancelOpen(true); }}
                               >
                                  예매 취소
                               </Button>
                            )}
                            {showQrBtn && (
-                              <Button variant="tertiary" size="sm" className="flex-1" onClick={() => setQrOpen(true)}>
+                              <Button variant="tertiary" size="sm" className="flex-1" onClick={e => { e.stopPropagation(); setQrOpen(true); }}>
                                  QR 확인
                               </Button>
                            )}
+                           {!hasAnyPurchaseBtn && <div className="h-8.25" />}
                         </>
                      )}
                   </>
-               ) : !showSaleDash ? (
-                  <Button variant="tertiary" size="sm" className="flex-1" disabled={isCancelingSale} onClick={() => cancelSale()}>
-                     {isCancelingSale ? '처리 중...' : '판매 취소'}
+               ) : showSaleDash ? (
+                  <div className="h-8.25" />
+               ) : (
+                  <Button variant="tertiary" size="sm" className="flex-1" onClick={e => e.stopPropagation()}>
+                     판매 취소
                   </Button>
-               ) : null}
+               )}
             </div>
          </div>
       </>

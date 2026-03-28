@@ -85,7 +85,7 @@ export default function PaymentCompletePage() {
    const actionButton =
       deliveryMethod === 'delivery'
          ? { label: '예매내역 확인하기', onClick: () => navigate('/') }
-         : { label: 'QR 코드 확인하기', onClick: () => {} };
+         : { label: 'QR 코드 확인하기', onClick: () => navigate('/mypage', { state: { activeTab: 'purchase' } }) };
 
    return (
       <div className="min-h-screen flex flex-col bg-background">

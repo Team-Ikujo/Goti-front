@@ -5,7 +5,7 @@ import { Heart, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTeamStore } from '@/entities/team/model/teamStore';
-import SessionTimeoutDialog from './SessionTimeoutDialog';
+import SessionWarningDialog from './SessionWarningDialog';
 import SessionStatus from './SessionStatus';
 import TeamSelectModal from './TeamSelectModal';
 
@@ -18,32 +18,52 @@ const Header = () => {
    const accessToken = useAuthStore(state => state.accessToken);
    const sessionRemainingSeconds = useAuthStore(state => state.sessionRemainingSeconds);
    const clearAuth = useAuthStore(state => state.clearAuth);
+   const extendAuthSession = useAuthStore(state => state.extendAuthSession);
    const logoutReason = useAuthStore(state => state.logoutReason);
    const clearLogoutReason = useAuthStore(state => state.clearLogoutReason);
    const isLoggedIn = !!accessToken;
    const navigate = useNavigate();
 
    const [teamModalOpen, setTeamModalOpen] = useState(false);
-   const [isSessionTimeoutDialogOpen, setIsSessionTimeoutDialogOpen] = useState(false);
+   const [isWarningDismissed, setIsWarningDismissed] = useState(false);
    const { selectedTeam, setSelectedTeam } = useTeamStore();
 
    const handleLogout = () => clearAuth();
-   const handleSessionTimeoutDialogClose = () => {
-      setIsSessionTimeoutDialogOpen(false);
-      clearLogoutReason();
+
+   // 59분 경고: 남은 시간이 60초 이하이고 아직 로그인 중일 때 표시
+   const showWarning = isLoggedIn && sessionRemainingSeconds > 0 && sessionRemainingSeconds <= 60 && !isWarningDismissed;
+
+   const handleWarningClose = () => setIsWarningDismissed(true);
+   const handleExtend = () => {
+      extendAuthSession();
+      setIsWarningDismissed(false);
    };
 
+   // 경고 팝업: 세션이 연장되거나 새로 시작되면 dismissed 상태 초기화
+   useEffect(() => {
+      if (sessionRemainingSeconds > 60) {
+         setIsWarningDismissed(false);
+      }
+   }, [sessionRemainingSeconds]);
+
+   // 60분 만료: 세션 만료 페이지로 이동
    useEffect(() => {
       if (logoutReason !== 'expired') {
          return;
       }
-
-      setIsSessionTimeoutDialogOpen(true);
-   }, [logoutReason]);
+      clearLogoutReason();
+      navigate('/session-expired', { replace: true });
+   }, [logoutReason, clearLogoutReason, navigate]);
 
    return (
       <>
-         <SessionTimeoutDialog open={isSessionTimeoutDialogOpen} onConfirm={handleSessionTimeoutDialogClose} />
+         {showWarning && (
+            <SessionWarningDialog
+               remainingSeconds={sessionRemainingSeconds}
+               onClose={handleWarningClose}
+               onExtend={handleExtend}
+            />
+         )}
          <header className="flex flex-col w-full">
             {/* State bar */}
             <div className="bg-background w-full px-4 py-1">

@@ -32,21 +32,31 @@ const PURCHASE_BADGE: Record<PurchaseStatus, BadgeVariant> = {
 
 const mapOverallStatus = (status: string): PurchaseStatus => {
    switch (status) {
-      case 'ISSUED': return '예매 완료';
-      case 'USED': return '관람 완료';
-      case 'INVALID': return '취소/환불';
-      case 'RESALE_ISSUED': return '예매 완료';
-      default: return '예매 완료';
+      case 'ISSUED':
+         return '예매 완료';
+      case 'USED':
+         return '관람 완료';
+      case 'INVALID':
+         return '취소/환불';
+      case 'RESALE_ISSUED':
+         return '예매 완료';
+      default:
+         return '예매 완료';
    }
 };
 
 const mapTicketItemStatus = (status: string): TicketItemStatus => {
    switch (status) {
-      case 'ISSUED': return '예매완료';
-      case 'USED': return '취소대기';
-      case 'INVALID': return '취소완료';
-      case 'RESALE_ISSUED': return '예매완료';
-      default: return '예매완료';
+      case 'ISSUED':
+         return '예매완료';
+      case 'USED':
+         return '취소대기';
+      case 'INVALID':
+         return '취소완료';
+      case 'RESALE_ISSUED':
+         return '예매완료';
+      default:
+         return '예매완료';
    }
 };
 
@@ -70,7 +80,11 @@ export default function PurchaseDetailPage() {
    const [noAccountOpen, setNoAccountOpen] = useState(false);
    const [resellOpen, setResellOpen] = useState(false);
 
-   const { data: apiDetail, isLoading, isError } = useQuery({
+   const {
+      data: apiDetail,
+      isLoading,
+      isError,
+   } = useQuery({
       queryKey: ['ticketDetail', id],
       queryFn: () => fetchTicketDetail(id!),
       enabled: !!id,
@@ -100,29 +114,33 @@ export default function PurchaseDetailPage() {
       const isInvalid = apiDetail.ticketStatus === 'INVALID';
 
       // 좌석 아이템 목록 구성 (orderTickets 우선, 없으면 단일 apiDetail 사용)
-      const seatItems = orderTickets.length > 0
-         ? orderTickets.map(t => ({
-              ticketId: t.ticketId,
-              orderId: t.ticketNumber,
-              section: t.seatInfo.split(' ')[0] ?? '',
-              seatDetail: t.seatInfo,
-              status: mapTicketItemStatus(t.ticketStatus),
-              price: t.ticketPrice,
-           }))
-         : [{
-              ticketId: apiDetail.ticketId,
-              orderId: apiDetail.ticketNumber,
-              section: apiDetail.seatInfo.split(' ')[0] ?? '',
-              seatDetail: apiDetail.seatInfo,
-              status: mapTicketItemStatus(apiDetail.ticketStatus),
-              price: apiDetail.ticketPrice,
-           }];
+      const seatItems =
+         orderTickets.length > 0
+            ? orderTickets.map(t => ({
+                 ticketId: t.ticketId,
+                 orderId: t.ticketNumber,
+                 section: t.seatInfo.split(' ')[0] ?? '',
+                 seatDetail: t.seatInfo,
+                 status: mapTicketItemStatus(t.ticketStatus),
+                 price: t.ticketPrice,
+              }))
+            : [
+                 {
+                    ticketId: apiDetail.ticketId,
+                    orderId: apiDetail.ticketNumber,
+                    section: apiDetail.seatInfo.split(' ')[0] ?? '',
+                    seatDetail: apiDetail.seatInfo,
+                    status: mapTicketItemStatus(apiDetail.ticketStatus),
+                    price: apiDetail.ticketPrice,
+                 },
+              ];
 
       const ticketCount = seatItems.length;
       const ticketAmount = seatItems.reduce((sum, s) => sum + s.price, 0);
-      const fee = orderTickets.length > 0
-         ? orderTickets.reduce((sum, t) => sum + (t.serviceFee ?? 0), 0)
-         : (apiDetail.serviceFee ?? 0);
+      const fee =
+         orderTickets.length > 0
+            ? orderTickets.reduce((sum, t) => sum + (t.serviceFee ?? 0), 0)
+            : (apiDetail.serviceFee ?? 0);
       const total = ticketAmount + fee;
 
       const paymentMethodDisplay = apiDetail.paymentMethodDisplay ?? apiDetail.paymentMethod ?? '-';
@@ -151,9 +169,7 @@ export default function PurchaseDetailPage() {
             bankAccount: undefined as string | undefined,
             bankDeadline: undefined as string | undefined,
          },
-         paymentEvents: [
-            { type: '결제 완료' as const, method: paymentMethodDisplay },
-         ],
+         paymentEvents: [{ type: '결제 완료' as const, method: paymentMethodDisplay }],
          refundInfo: isInvalid
             ? {
                  ticketAmount,
@@ -190,7 +206,9 @@ export default function PurchaseDetailPage() {
       return (
          <div className="flex flex-col items-center justify-center py-24 gap-4">
             <p className="text-body-1-regular text-muted-foreground">내역을 찾을 수 없습니다.</p>
-            <Button variant="tertiary" onClick={() => navigate('/mypage')}>마이페이지로 돌아가기</Button>
+            <Button variant="tertiary" onClick={() => navigate('/mypage')}>
+               마이페이지로 돌아가기
+            </Button>
          </div>
       );
    }
