@@ -299,6 +299,14 @@ const mapResellStatus = (ticketStatus: TicketStatus): ReselStatus => {
   }
 };
 
+const closeTicketStatusForUnavailableGame = (ticketStatus: TicketStatus, gameStatus: GameStatus): TicketStatus => {
+  if (gameStatus !== '예정') {
+    return '매진';
+  }
+
+  return ticketStatus;
+};
+
 const resolveVenueNameFromGame = (game: GameScheduleResponse, homeTeamName: string) => {
   const stadiumById = STADIUM_REFERENCES[game.stadiumId];
 
@@ -337,7 +345,7 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
   const gameDateTime = date && time ? new Date(`${date}T${time}`) : null;
   const status: GameStatus = (apiStatus !== '종료' && gameDateTime && gameDateTime < new Date()) ? '종료' : apiStatus;
 
-  const ticket = mapTicketStatus(game.ticketingStatus);
+  const ticket = closeTicketStatusForUnavailableGame(mapTicketStatus(game.ticketingStatus), status);
   const fallbackHomeName = game.homeTeamDisplayName ?? game.homeTeamName ?? game.homeTeamCode ?? game.homeTeamId;
   const fallbackAwayName = game.awayTeamDisplayName ?? game.awayTeamName ?? game.awayTeamCode ?? game.awayTeamId;
 
@@ -383,7 +391,9 @@ export const mapGamesToDaySchedules = (games: NormalizedScheduleGame[]): DaySche
       gameId: game.id,
       homeTeamId: game.homeTeamId,
       awayTeamId: game.awayTeamId,
+      serverHomeTeamId: game.serverHomeTeamId,
       stadiumId: game.stadiumId,
+      leagueType: game.leagueType,
       queueTokenJti: game.queueTokenJti,
       rawDate: game.date,
       time: game.time,

@@ -48,14 +48,7 @@ function applyFilters(games: GameItem[], filters: FilterState, activeTab: TabTyp
    });
 }
 
-function getResellStatus(date: string, resaleCount: number | undefined, fallbackStatus: ResellStatus): ResellStatus {
-   const now = new Date();
-   const resaleOpenTime = new Date(`${date}T13:00:00`);
-
-   if (now < resaleOpenTime) {
-      return '리셀 예정';
-   }
-
+function getResellStatus(resaleCount: number | undefined, fallbackStatus: ResellStatus): ResellStatus {
    if (typeof resaleCount === 'number') {
       return resaleCount > 0 ? '리셀 가능' : '매진';
    }
@@ -104,7 +97,7 @@ const TicketsPage = () => {
                minPrice: resaleMarket?.minPrice ?? 0,
                maxPrice: resaleMarket?.maxPrice ?? 0,
                bookingStatus: game.ticket === '예매하기' ? '예매 가능' : game.ticket === '판매예정' ? '판매 예정' : '매진',
-               resellStatus: getResellStatus(game.date, resaleCount, fallbackResellStatus),
+               resellStatus: getResellStatus(resaleCount, fallbackResellStatus),
             };
          });
    }, [resaleCountsQuery.data, resaleListingMarketQuery.data, scheduleQuery.data]);
@@ -235,7 +228,7 @@ const TicketsPage = () => {
       <div className="w-full px-4 py-12.5 pb-30 flex justify-center bg-white h-full">
          <div className="flex items-start justify-between max-w-300 w-full gap-5 ">
             <div className="hidden md:block">
-               <FilterSidebar activeTab={activeTab} onApply={handleApply} />
+               <FilterSidebar activeTab={activeTab} filters={appliedFilters} onApply={handleApply} />
             </div>
 
             <div className="flex flex-1 flex-col gap-5 max-w-210 min-w-0 h-full">
@@ -301,6 +294,7 @@ const TicketsPage = () => {
                <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[14px] p-6 max-h-[90vh] overflow-y-auto w-full">
                   <FilterSidebar
                      activeTab={activeTab}
+                     filters={appliedFilters}
                      onApply={handleApply}
                      className="border-0 rounded-none p-0 self-auto w-full"
                      sheetMode

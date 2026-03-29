@@ -21,18 +21,7 @@ import WeekNavigator from './game-schedule/WeekNavigator';
 import { filterScheduleData } from './game-schedule/utils';
 import type { DaySchedule, ReselStatus } from './game-schedule/types';
 
-const getResellStatus = (rawDate: string | undefined, resaleCount: number | undefined, fallbackStatus: ReselStatus): ReselStatus => {
-   if (!rawDate) {
-      return fallbackStatus;
-   }
-
-   const now = new Date();
-   const resaleOpenTime = new Date(`${rawDate}T13:00:00`);
-
-   if (now < resaleOpenTime) {
-      return '리셀예정';
-   }
-
+const getResellStatus = (resaleCount: number | undefined, fallbackStatus: ReselStatus): ReselStatus => {
    if (typeof resaleCount === 'number') {
       return resaleCount > 0 ? '리셀예매' : '리셀매진';
    }
@@ -87,7 +76,7 @@ const GameSchedule = () => {
          ...day,
          games: day.games.map((game) => {
             const resaleCount = game.gameId ? resaleCountsQuery.data?.get(game.gameId) : undefined;
-            const resell = getResellStatus(game.rawDate, resaleCount, game.resell);
+            const resell = getResellStatus(resaleCount, game.resell);
 
             return {
                ...game,

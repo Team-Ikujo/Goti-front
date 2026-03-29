@@ -50,15 +50,8 @@ function getButtonConfig(status: string, activeTab: TabType): { label: string; i
 }
 
 export function GameCard({ game, activeTab, onActionClick }: GameCardProps) {
-   // game.date(YYYY-MM-DD) 기준 오전 11시→예매, 오후 1시→리셀 전환
-   const now = new Date();
-   const saleOpenTime = new Date(`${game.date}T11:00:00`);
-   const resellOpenTime = new Date(`${game.date}T13:00:00`);
-
-   const effectiveBookingStatus =
-      game.bookingStatus === '판매 예정' && now >= saleOpenTime ? '예매 가능' : game.bookingStatus;
-   const effectiveResellStatus =
-      game.resellStatus === '리셀 예정' && now >= resellOpenTime ? '리셀 가능' : game.resellStatus;
+   const effectiveBookingStatus = game.bookingStatus;
+   const effectiveResellStatus = game.resellStatus;
 
    const status = activeTab === '예매' ? effectiveBookingStatus : effectiveResellStatus;
    const { label: buttonLabel, isActive } = getButtonConfig(status, activeTab);
