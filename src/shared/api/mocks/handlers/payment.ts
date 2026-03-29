@@ -263,6 +263,13 @@ const seatGradesByStadium: Record<string, SeatGrade[]> = {
          displayColorHex: '#2FA84F',
          availableSeatCount: 20,
       },
+      {
+         seatGradeId: 'grade-samsung-outfield',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '외야 지정석',
+         displayColorHex: '#3AA66B',
+         availableSeatCount: 218,
+      },
    ],
 };
 
@@ -300,9 +307,11 @@ const pricingPoliciesByTeamId: Record<string, TicketPricingPolicy> = {
          { priceId: 'price-samsung-first-base-weekday', gradeId: 'grade-samsung-first-base-infield', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 22000 },
          { priceId: 'price-samsung-blue-weekday', gradeId: 'grade-samsung-blue-zone', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 20000 },
          { priceId: 'price-samsung-wheelchair-weekday', gradeId: 'grade-samsung-wheelchair', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 10000 },
+         { priceId: 'price-samsung-outfield-weekday', gradeId: 'grade-samsung-outfield', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 12000 },
          { priceId: 'price-samsung-first-base-weekend', gradeId: 'grade-samsung-first-base-infield', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 24000 },
          { priceId: 'price-samsung-blue-weekend', gradeId: 'grade-samsung-blue-zone', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 22000 },
          { priceId: 'price-samsung-wheelchair-weekend', gradeId: 'grade-samsung-wheelchair', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 10000 },
+         { priceId: 'price-samsung-outfield-weekend', gradeId: 'grade-samsung-outfield', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 14000 },
       ],
    },
 };
@@ -400,6 +409,20 @@ const seatSectionsByStadium: Record<string, SeatSection[]> = {
          codes: ['W-1', 'W-2'],
          capacity: 12,
       }),
+      {
+         sectionId: 'section-samsung-lf-1',
+         gradeId: 'grade-samsung-outfield',
+         stadiumId: 'stadium-samsung-lions-park',
+         sectionCode: 'LF-1',
+         capacity: 220,
+      },
+      {
+         sectionId: 'section-samsung-rf-1',
+         gradeId: 'grade-samsung-outfield',
+         stadiumId: 'stadium-samsung-lions-park',
+         sectionCode: 'RF-1',
+         capacity: 220,
+      },
    ],
 };
 
