@@ -64,7 +64,7 @@ const getSectionSeatLayoutMeta = (seats: SeatResponse[]) => {
 };
 
 const toSeatItemStatus = (seat: SeatResponse, statuses: Record<string, string>): SeatItem['status'] => {
-   const status = statuses[seat.seatId]?.toUpperCase();
+   const status = (statuses[seat.apiSeatId] ?? statuses[seat.seatId])?.toUpperCase();
 
    if (!seat.available) {
       return 'disabled';
@@ -110,6 +110,7 @@ const createSeatItemsForLayout = (block: SeatBlock, zoneId: string, section: Api
 
       return {
          id: seat.seatId,
+         apiSeatId: seat.apiSeatId,
          block: block.label,
          rowLabel: `${seat.rowName}열`,
          seatNumber: seat.seatNum,
@@ -212,7 +213,7 @@ const fetchAggregatedSeatSections = async ({
 export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) => {
    const defaultSeatBlocks = useMemo(() => getSeatBlocks(zone), [zone]);
 
-   const { data, refetch } = useQuery({
+   const { data, isFetching, isLoading, refetch } = useQuery({
       queryKey: ['booking-seat-map', gameId, stadiumId, zone.id, zone.sectionCode],
       enabled: Boolean(gameId && zone.id && zone.sectionCode),
       queryFn: async (): Promise<SeatMapApiSnapshot | null> => {
@@ -296,6 +297,7 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
       seatBlocks: data?.seatBlocks ?? defaultSeatBlocks,
       apiSeatItems: data?.seatItems ?? [],
       hasApiSeatMap: Boolean(data),
+      isSeatMapLoading: isLoading || isFetching,
       refetchSeatMap: refetch,
    };
 };

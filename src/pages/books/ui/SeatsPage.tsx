@@ -58,7 +58,7 @@ function SeatsPage() {
    const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
-   const { apiSeatItems, seatBlocks, hasApiSeatMap, refetchSeatMap } = useSeatMapData({
+   const { apiSeatItems, seatBlocks, hasApiSeatMap, isSeatMapLoading, refetchSeatMap } = useSeatMapData({
       gameId: bookingEntryState?.gameId,
       stadiumId: bookingEntryState?.stadiumId,
       zone,
@@ -169,6 +169,7 @@ function SeatsPage() {
    );
 
    const selectedPrice = selectedSeats.reduce((total, item) => total + item.price, 0);
+   const isSeatInteractionLocked = isSeatMapLoading && !hasApiSeatMap && Boolean(bookingEntryState?.gameId);
    const resellInsightsQuery = useResellZoneInsights({
       enabled: isResellMode,
       gameId: bookingEntryState?.gameId,
@@ -195,6 +196,13 @@ function SeatsPage() {
    const allSelectedSeatsAreHeld = selectedSeats.every((selectedSeat) => Boolean(holdsBySeatId[selectedSeat.seat.id]?.holdId));
    const bookingButtonLabel = isResellMode ? '예매하기' : `${selectedSeats.length}매 예매하기`;
    const displaySeats = useMemo(() => {
+      if (isSeatInteractionLocked) {
+         return seats.map((seat) => ({
+            ...seat,
+            status: 'disabled',
+         } satisfies SeatItem));
+      }
+
       if (!isResellMode) {
          return seats;
       }
@@ -209,7 +217,7 @@ function SeatsPage() {
             status: 'disabled',
          } satisfies SeatItem;
       });
-   }, [isResellMode, resellListingBySeatId, seats]);
+   }, [isResellMode, isSeatInteractionLocked, resellListingBySeatId, seats]);
 
    const handleProceedToPayment = () => {
       const botData = getBotReport();
@@ -353,6 +361,10 @@ function SeatsPage() {
    };
 
    const toggleSeat = (seat: SeatItem) => {
+      if (isSeatInteractionLocked) {
+         return;
+      }
+
       if (pendingSeatIds.includes(seat.id)) {
          return;
       }

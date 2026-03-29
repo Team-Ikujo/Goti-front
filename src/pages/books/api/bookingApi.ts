@@ -21,6 +21,7 @@ export type SeatSectionResponse = {
 
 export type SeatResponse = {
    seatId: string;
+   apiSeatId: string;
    sectionId: string;
    rowName: string;
    seatNum: number;
@@ -81,17 +82,21 @@ const toOptionalFiniteNumber = (value: unknown) => {
 };
 
 const normalizeSeatResponse = (seat: RawSeatResponse): SeatResponse | null => {
-   const seatId = isNonEmptyString(seat.seatId) ? seat.seatId : isNonEmptyString(seat.id) ? seat.id : undefined;
+   const rawSeatId = isNonEmptyString(seat.seatId) ? seat.seatId : undefined;
+   const rawId = isNonEmptyString(seat.id) ? seat.id : undefined;
+   const seatId = rawSeatId ?? rawId;
+   const apiSeatId = rawId ?? rawSeatId;
    const sectionId = isNonEmptyString(seat.sectionId) ? seat.sectionId : undefined;
    const rowName = isNonEmptyString(seat.rowName) ? seat.rowName : isNonEmptyString(seat.row) ? seat.row : undefined;
    const seatNum = toOptionalFiniteNumber(seat.seatNum) ?? toOptionalFiniteNumber(seat.seatNumber);
 
-   if (!seatId || !sectionId || !rowName || seatNum === undefined) {
+   if (!seatId || !apiSeatId || !sectionId || !rowName || seatNum === undefined) {
       return null;
    }
 
    return {
       seatId,
+      apiSeatId,
       sectionId,
       rowName,
       seatNum,
@@ -500,16 +505,18 @@ export const mapApiSeatsToSeatItems = ({
 
    return seats.map((seat) => {
       const rowIndex = rowIndexByName[seat.rowName] ?? 0;
+      const status = statusBySeatId[seat.apiSeatId] ?? statusBySeatId[seat.seatId];
 
       return {
          id: seat.seatId,
+         apiSeatId: seat.apiSeatId,
          zoneId: sectionId,
          block: sectionCode,
          rowLabel: `${seat.rowName}열`,
          seatNumber: seat.seatNum,
          x: API_BLOCK_OFFSET_X + (seat.seatNum - 1) * SEAT_STEP,
          y: API_BLOCK_OFFSET_Y + rowIndex * SEAT_STEP,
-         status: toSeatStatus(statusBySeatId[seat.seatId], seat.available),
+         status: toSeatStatus(status, seat.available),
       } satisfies SeatItem;
    });
 };

@@ -19,6 +19,7 @@ export type SeatStatus = 'available' | 'selected' | 'held' | 'disabled';
 
 export type SeatItem = {
    id: string;
+   apiSeatId: string;
    zoneId: string;
    block: string;
    rowLabel: string;

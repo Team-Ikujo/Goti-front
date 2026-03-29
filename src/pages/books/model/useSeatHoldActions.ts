@@ -120,6 +120,7 @@ export const useSeatHoldActions = (
          console.info('[SeatHoldDebug] request', {
             zoneId,
             seatId: seat.id,
+            apiSeatId: seat.apiSeatId,
             seatRowLabel: seat.rowLabel,
             seatNumber: seat.seatNumber,
             seatStatus: seat.status,
@@ -127,7 +128,7 @@ export const useSeatHoldActions = (
             bookingQueueTokenJti: bookingEntryState.queueTokenJti,
          });
 
-         const hold = await holdSeatReservation(seat.id, {
+         const hold = await holdSeatReservation(seat.apiSeatId, {
             gameId: bookingEntryState.gameId,
             queueTokenJti: bookingEntryState.queueTokenJti,
          });
@@ -146,6 +147,7 @@ export const useSeatHoldActions = (
          console.error('[SeatHoldDebug] request failed', {
             zoneId,
             seatId: seat.id,
+            apiSeatId: seat.apiSeatId,
             seatRowLabel: seat.rowLabel,
             seatNumber: seat.seatNumber,
             seatStatus: seat.status,
