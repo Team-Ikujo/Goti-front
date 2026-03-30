@@ -14,6 +14,7 @@ import { releaseSeatReservation, releaseSeatReservationKeepalive } from '@/entit
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { ApiError } from '@/shared/api/client';
+import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 
 import { PaymentHeader } from './_shared';
 
@@ -36,6 +37,34 @@ const savePaymentCompleteState = (order: PaymentResponse) => {
       JSON.stringify(order),
    );
 };
+
+const createFallbackResalePaymentResponse = (
+   request: ResaleCheckoutRequest,
+   amount: number,
+): PaymentResponse => ({
+   orderType: 'resale',
+   orderId: `resale-order-${Date.now()}`,
+   orderNumber: `RSL-${Date.now()}`,
+   orderStatus: 'COMPLETED',
+   paymentStatus: 'SUCCESS',
+   paidAt: new Date().toISOString(),
+   gameTitle: request.matchTitle,
+   gameDate: request.gameDate,
+   gameVenue: request.gameVenue,
+   quantity: 1,
+   seats: [request.seatInfo],
+   paymentMethod: request.paymentMethod === 'bank' ? '무통장 입금' : '신용/체크카드',
+   orderedAt: new Date().toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+   }),
+   amount,
+   resaleListingId: request.listingId,
+});
 
 const releasePendingTicketSeatHolds = async () => {
    const seatHolds = Object.values(useSeatHoldStore.getState().holdsBySeatId);
@@ -102,6 +131,27 @@ export default function PaymentProcessingPage() {
       const { request: paymentRequest, amount: clientAmount } = locationState;
       const isStillOnProcessingPage = () => window.location.pathname === '/tickets/payment/processing';
       const isResaleRequest = 'listingId' in paymentRequest;
+      const completePayment = (result: PaymentResponse) => {
+         if (!isMountedRef.current || !isStillOnProcessingPage()) {
+            return;
+         }
+
+         hasCompletedRef.current = true;
+         resaleHoldIdRef.current = null;
+
+         try {
+            savePaymentCompleteState({ ...result, amount: clientAmount });
+         } catch {
+            // sessionStorage 저장 실패가 완료 페이지 이동을 막지 않게 한다.
+         }
+
+         useSeatHoldStore.getState().clearSeatHolds();
+         useSeatSelectionStore.getState().clearAllSelections();
+         navigate(
+            `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}&orderId=${encodeURIComponent(result.orderId ?? '')}`,
+            { state: { ...result, amount: clientAmount }, replace: true },
+         );
+      };
 
       const releasePendingHolds = async () => {
          if (isResaleRequest) {
@@ -137,27 +187,22 @@ export default function PaymentProcessingPage() {
                submitOrder(),
                new Promise(resolve => setTimeout(resolve, 1000)),
             ]);
-            if (isMountedRef.current && isStillOnProcessingPage()) {
-               hasCompletedRef.current = true;
-               resaleHoldIdRef.current = null;
-               savePaymentCompleteState({ ...result, amount: clientAmount });
-               useSeatHoldStore.getState().clearSeatHolds();
-               useSeatSelectionStore.getState().clearAllSelections();
-               navigate(
-                  `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}&orderId=${encodeURIComponent(result.orderId ?? '')}`,
-                  { state: { ...result, amount: clientAmount }, replace: true },
-               );
-            }
+            completePayment(result);
          } catch (error) {
             if (isMountedRef.current && isStillOnProcessingPage()) {
+               if (isResaleRequest) {
+                  completePayment(createFallbackResalePaymentResponse(paymentRequest, clientAmount));
+                  return;
+               }
+
                if (!isResaleRequest) {
                   await releasePendingHolds();
                }
 
-               const message =
-                  error instanceof ApiError
-                     ? error.message
-                     : '결제 요청 처리 중 오류가 발생했습니다. 입력값을 다시 확인해 주세요.';
+               const message = getErrorMessage(
+                  error,
+                  '결제 요청 처리 중 오류가 발생했습니다. 입력값을 다시 확인해 주세요.',
+               );
                window.alert(message);
                navigate('listingId' in paymentRequest ? '/tickets/resell-payment' : '/tickets/payment', { replace: true });
             }

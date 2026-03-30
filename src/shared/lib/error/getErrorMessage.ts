@@ -7,6 +7,9 @@ export const getErrorMessage = (error: unknown, fallbackMessage: string) => {
       // 백엔드 JWT 설정/인증 예외 문구는 사용자에게 그대로 노출하지 않는다.
       if (
          error.status === 401 ||
+         error.status === 403 ||
+         normalizedMessage.includes('rbac') ||
+         normalizedMessage.includes('access denied') ||
          normalizedMessage.includes('jwt issuer') ||
          normalizedMessage.includes('issuer is not configured') ||
          normalizedMessage.includes('unauthorized') ||

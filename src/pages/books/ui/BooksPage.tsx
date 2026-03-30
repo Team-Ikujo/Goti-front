@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { fetchResaleListingCountsBySections } from '@/entities/resale/api/resaleApi';
+import { fetchResaleListings } from '@/entities/resale/api/resaleApi';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 
@@ -13,9 +13,11 @@ import {
    mergeBookingZones,
    resolvePricingByGradeId,
 } from '@/pages/books/api/bookingApi';
+import { isPurchasableResaleListing, resolveResaleListingZoneId } from '@/pages/books/model/resellMatching';
 import { getBookingTeamConfig, getZoneDisplayOrder, getBookingZones } from '@/pages/books/model/zoneData';
 import type { ZoneItem } from '@/pages/books/model/types';
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
+import { getCompletedResalePurchaseLookup } from '@/shared/lib/paymentCompleteStorage';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 
@@ -82,25 +84,59 @@ const BooksPage = () => {
             }),
             fetchTicketPricingPolicy(bookingEntryState!.serverHomeTeamId!).catch(() => undefined),
          ]);
-         const remainingBySectionId =
-            bookingFlowMode === 'resell'
-               ? await fetchResaleListingCountsBySections(
-                    bookingEntryState!.gameId!,
-                    sections.map((section) => section.sectionId),
-                 )
-               : undefined;
          const pricingByGradeId = resolvePricingByGradeId({
             policy: pricingPolicy,
             gameDate: bookingEntryState?.gameDate,
             leagueType: bookingEntryState?.leagueType,
          });
 
+         if (bookingFlowMode === 'resell') {
+            const resaleListings = await fetchResaleListings();
+            const mappedZones = mapSeatSectionsToZones({
+               sections,
+               grades,
+               teamId: bookingEntryState?.homeTeamId,
+               pricingByGradeId,
+            });
+            const completedResaleLookup = getCompletedResalePurchaseLookup();
+
+            const resaleCountByZoneId = new Map(mappedZones.map((zone) => [zone.id, 0]));
+
+            resaleListings.forEach((listing) => {
+               if (
+                  completedResaleLookup.listingIds.has(listing.listingId) ||
+                  completedResaleLookup.seatInfos.has(listing.seatInfo)
+               ) {
+                  return;
+               }
+
+               if (!isPurchasableResaleListing(listing, bookingEntryState!.gameId!)) {
+                  return;
+               }
+
+               const resolvedZoneId = resolveResaleListingZoneId({
+                  zones: mappedZones,
+                  listing,
+               });
+
+               if (!resolvedZoneId) {
+                  return;
+               }
+
+               resaleCountByZoneId.set(resolvedZoneId, (resaleCountByZoneId.get(resolvedZoneId) ?? 0) + 1);
+            });
+
+            return mappedZones.map((zone) => ({
+               ...zone,
+               remaining: resaleCountByZoneId.get(zone.id) ?? 0,
+            }));
+         }
+
          return mapSeatSectionsToZones({
             sections,
             grades,
             teamId: bookingEntryState?.homeTeamId,
             pricingByGradeId,
-            remainingBySectionId,
          });
       },
    });
@@ -110,10 +146,23 @@ const BooksPage = () => {
          apiZones,
       });
 
-      return [...mergedZones].sort(
+      const normalizedZones = bookingFlowMode === 'resell'
+         ? mergedZones.map((zone) => {
+              const hasApiZone = apiZones?.some((apiZone) => apiZone.id === zone.id) ?? false;
+
+              return hasApiZone
+                 ? zone
+                 : {
+                      ...zone,
+                      remaining: 0,
+                   };
+           })
+         : mergedZones;
+
+      return [...normalizedZones].sort(
          (left, right) => right.remaining - left.remaining || left.name.localeCompare(right.name, 'ko-KR'),
       );
-   }, [apiZones, localZones]);
+   }, [apiZones, bookingFlowMode, localZones]);
 
    const [selectedZoneId, setSelectedZoneId] = useState(zones[0]?.id ?? '');
    const [isCaptchaOpen, setIsCaptchaOpen] = useState(requiresCaptcha);
@@ -215,6 +264,12 @@ const BooksPage = () => {
    }, [bookingEntryState, zones]);
 
    const handleSelectZone = (zoneId: string) => {
+      const selectedZone = zones.find((zone) => zone.id === zoneId);
+
+      if (!selectedZone || selectedZone.remaining <= 0) {
+         return;
+      }
+
       setSelectedZoneId(zoneId);
       navigate({
          pathname: `/books/seats/${zoneId}`,

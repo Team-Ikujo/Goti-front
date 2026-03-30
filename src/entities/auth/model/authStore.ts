@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { LoginAccountStatus } from "@/features/auth/api/authApi";
+import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 
 export type LoginAlert =
   | { type: 'failed_under_5'; failCount: number; redirectPath: string }
@@ -29,6 +30,7 @@ export type AuthState = {
   hasHydrated: boolean;
   hasResolvedSession: boolean;
   accessToken: string | null;
+  currentUserId: string | null;
   authExpiresAt: number | null;
   sessionRemainingSeconds: number;
   socialVerifyToken: string | null;
@@ -68,6 +70,7 @@ export const useAuthStore = create<AuthState>()(
       hasHydrated: false,
       hasResolvedSession: false,
       accessToken: null,
+      currentUserId: null,
       authExpiresAt: null,
       sessionRemainingSeconds: 0,
       socialVerifyToken: null,
@@ -82,9 +85,11 @@ export const useAuthStore = create<AuthState>()(
       setHasResolvedSession: (hasResolvedSession) => set({ hasResolvedSession }),
       setAccessToken: (accessToken) => {
         const nextAuthExpiresAt = getNextAuthExpiresAt(accessToken);
+        const nextCurrentUserId = resolveUserIdFromJwt(accessToken);
 
         set({
           accessToken,
+          currentUserId: nextCurrentUserId,
           authExpiresAt: nextAuthExpiresAt,
           sessionRemainingSeconds: getRemainingSeconds(nextAuthExpiresAt),
           hasResolvedSession: true,
@@ -97,9 +102,11 @@ export const useAuthStore = create<AuthState>()(
         set({ recentLoginProvider }),
       setAuthTokens: ({ accessToken, socialVerifyToken }) => {
         const nextAuthExpiresAt = getNextAuthExpiresAt(accessToken);
+        const nextCurrentUserId = resolveUserIdFromJwt(accessToken);
 
         set({
           accessToken,
+          currentUserId: nextCurrentUserId,
           authExpiresAt: nextAuthExpiresAt,
           sessionRemainingSeconds: getRemainingSeconds(nextAuthExpiresAt),
           socialVerifyToken,
@@ -117,6 +124,7 @@ export const useAuthStore = create<AuthState>()(
 
         set({
           accessToken: null,
+          currentUserId: null,
           authExpiresAt: null,
           sessionRemainingSeconds: 0,
           socialVerifyToken: null,
@@ -219,6 +227,7 @@ export const useAuthStore = create<AuthState>()(
         state?.setHasHydrated(true);
         state?.setHasResolvedSession(false);
         const recentLoginProvider = state?.recentLoginProvider ?? null;
+        const currentUserId = state?.currentUserId ?? null;
 
         state?.stopAuthSessionTimer();
 
@@ -228,6 +237,7 @@ export const useAuthStore = create<AuthState>()(
             JSON.stringify({
               state: {
                 recentLoginProvider,
+                currentUserId,
                 isManualLogout: state?.isManualLogout ?? false,
               },
               version: 3,
@@ -242,12 +252,15 @@ export const useAuthStore = create<AuthState>()(
           ...currentState,
           recentLoginProvider:
             persisted?.recentLoginProvider ?? currentState.recentLoginProvider,
+          currentUserId:
+            persisted?.currentUserId ?? currentState.currentUserId,
           isManualLogout:
             persisted?.isManualLogout ?? currentState.isManualLogout,
         };
       },
       partialize: (state) => ({
         recentLoginProvider: state.recentLoginProvider,
+        currentUserId: state.currentUserId,
         isManualLogout: state.isManualLogout,
       }),
     },
