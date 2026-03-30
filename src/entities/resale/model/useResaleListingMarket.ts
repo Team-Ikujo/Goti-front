@@ -8,12 +8,12 @@ type ResaleGameMarketSnapshot = {
    maxPrice: number;
 };
 
-export const useResaleListingMarket = (gameIds: string[]) => {
+export const useResaleListingMarket = (gameIds: string[], enabled = true) => {
    const normalizedGameIds = [...new Set(gameIds.filter(Boolean))].sort();
 
    return useQuery({
       queryKey: ['resales', 'listing-market', normalizedGameIds],
-      enabled: normalizedGameIds.length > 0,
+      enabled: enabled && normalizedGameIds.length > 0,
       queryFn: async () => {
          const listings = await fetchResaleListings();
          const gameIdSet = new Set(normalizedGameIds);

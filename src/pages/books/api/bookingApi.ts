@@ -64,7 +64,6 @@ type RawSeatResponse = Partial<SeatResponse> & {
 };
 
 const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
-
 const toOptionalFiniteNumber = (value: unknown) => {
    if (typeof value === 'number' && Number.isFinite(value)) {
       return value;
@@ -85,7 +84,7 @@ const normalizeSeatResponse = (seat: RawSeatResponse): SeatResponse | null => {
    const rawSeatId = isNonEmptyString(seat.seatId) ? seat.seatId : undefined;
    const rawId = isNonEmptyString(seat.id) ? seat.id : undefined;
    const seatId = rawSeatId ?? rawId;
-   const apiSeatId = rawId ?? rawSeatId;
+   const apiSeatId = rawSeatId ?? rawId;
    const sectionId = isNonEmptyString(seat.sectionId) ? seat.sectionId : undefined;
    const rowName = isNonEmptyString(seat.rowName) ? seat.rowName : isNonEmptyString(seat.row) ? seat.row : undefined;
    const seatNum = toOptionalFiniteNumber(seat.seatNum) ?? toOptionalFiniteNumber(seat.seatNumber);

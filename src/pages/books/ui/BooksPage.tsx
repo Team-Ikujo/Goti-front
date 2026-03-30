@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchResaleListingCountsBySections } from '@/entities/resale/api/resaleApi';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
+import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 
 import {
    fetchSeatGrades,
@@ -14,11 +16,13 @@ import {
 import { getBookingTeamConfig, getZoneDisplayOrder, getBookingZones } from '@/pages/books/model/zoneData';
 import type { ZoneItem } from '@/pages/books/model/types';
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
+import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 
 import BookingCaptchaGate from './components/BookingCaptchaGate';
 import BookingZoneDesktopLayout from './components/BookingZoneDesktopLayout';
 import BookingZoneMobileLayout from './components/BookingZoneMobileLayout';
+import BooksExitDialog from '@/shared/widgets/layout/books/BooksExitDialog';
 
 const CAPTCHA_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -37,6 +41,10 @@ const BooksPage = () => {
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
    const patchBookingEntry = useBookingEntryStore((state) => state.patchEntry);
+   const clearBookingEntry = useBookingEntryStore((state) => state.clearEntry);
+   const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
+   const clearSeatHolds = useSeatHoldStore((state) => state.clearSeatHolds);
+   const clearTimer = useBookingFlowTimerStore((state) => state.clearTimer);
    const bookingTeamConfig = useMemo(() => getBookingTeamConfig(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
    const requiresCaptcha = Boolean(bookingEntryState?.requireCaptcha);
    const localZones = useMemo(
@@ -110,8 +118,18 @@ const BooksPage = () => {
    const [captchaError, setCaptchaError] = useState('');
    const [captchaSeed, setCaptchaSeed] = useState(0);
    const [isZoneDrawerOpen, setIsZoneDrawerOpen] = useState(true);
+   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
+   const shouldRestoreHistoryRef = useRef(false);
 
    const captchaCode = useMemo(() => createMockCaptcha(), [captchaSeed]);
+
+   const exitBookingFlow = () => {
+      clearTimer();
+      clearSeatHolds();
+      clearAllSelections();
+      clearBookingEntry();
+      navigate('/', { replace: true });
+   };
 
    useEffect(() => {
       if (routeBookingEntryState) {
@@ -166,6 +184,21 @@ const BooksPage = () => {
       }
    }, [isCaptchaOpen]);
 
+   useEffect(() => {
+      window.history.pushState({ bookingExitGuard: true }, '', window.location.href);
+
+      const handlePopState = () => {
+         shouldRestoreHistoryRef.current = true;
+         setIsExitDialogOpen(true);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+
+      return () => {
+         window.removeEventListener('popstate', handlePopState);
+      };
+   }, []);
+
    const resolvedBookingEntryState = useMemo<BookingEntryState | undefined>(() => {
       if (!bookingEntryState) {
          return undefined;
@@ -213,6 +246,22 @@ const BooksPage = () => {
 
    return (
       <div className="w-full bg-background text-foreground">
+         <BooksExitDialog
+            open={isExitDialogOpen}
+            onOpenChange={(open) => {
+               setIsExitDialogOpen(open);
+
+               if (!open && shouldRestoreHistoryRef.current) {
+                  window.history.pushState({ bookingExitGuard: true }, '', window.location.href);
+                  shouldRestoreHistoryRef.current = false;
+               }
+            }}
+            onConfirm={() => {
+               shouldRestoreHistoryRef.current = false;
+               setIsExitDialogOpen(false);
+               exitBookingFlow();
+            }}
+         />
          <BookingCaptchaGate
             open={isCaptchaOpen}
             captchaCode={captchaCode}
