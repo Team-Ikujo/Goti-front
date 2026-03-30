@@ -237,14 +237,6 @@ const TicketsPage = () => {
                      <div className="flex items-center justify-center py-20 bg-surface rounded-[14px] h-full text-body-1-medium text-muted-foreground">
                         경기 일정을 불러오지 못했습니다.
                      </div>
-                  ) : isResellTab && resaleCountsQuery.isError ? (
-                     <div className="flex items-center justify-center h-full bg-surface rounded-[14px] text-body-1-medium text-muted-foreground">
-                        리셀 경기 정보를 불러오지 못했습니다.
-                     </div>
-                  ) : isResellTab && resaleListingMarketQuery.isError ? (
-                     <div className="flex items-center justify-center h-full bg-surface rounded-[14px] text-body-1-medium text-muted-foreground">
-                        리셀 목록 정보를 불러오지 못했습니다.
-                     </div>
                   ) : gamesToRender.length > 0 ? (
                      <>
                         {gamesToRender.map((game) => (

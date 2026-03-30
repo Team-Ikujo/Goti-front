@@ -196,10 +196,6 @@ const GameSchedule = () => {
                <div className="rounded-[10px] border border-border bg-surface px-5 py-10 text-center text-body-1-medium text-muted-foreground">
                   경기 일정을 불러오지 못했습니다.
                </div>
-            ) : resaleCountsQuery.isError ? (
-               <div className="rounded-[10px] border border-border bg-surface px-5 py-10 text-center text-body-1-medium text-muted-foreground">
-                  리셀 경기 정보를 불러오지 못했습니다.
-               </div>
             ) : (
                <ScheduleList activeTab={activeTab} filteredData={filteredData} />
             )}
