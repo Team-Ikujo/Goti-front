@@ -88,17 +88,6 @@ const mapTicketItemStatus = (status: string): TicketItemStatus => {
 // ─── 로컬 서브 컴포넌트 ────────────────────────────────────────
 const formatPrice = (amount: number): string => `${amount.toLocaleString()}원`;
 
-const formatPaymentMethod = (method?: string): string => {
-   switch (method) {
-      case 'CARD': return '카드 결제';
-      case 'KAKAO_PAY': return '카카오페이';
-      case 'NAVER_PAY': return '네이버페이';
-      case 'TOSS_PAY': return '토스페이';
-      case 'ACCOUNT_TRANSFER': return '무통장 입금';
-      default: return '카드 결제';
-   }
-};
-
 // ─── 서브 컴포넌트 ──────────────────────────────────────────────
 
 function SectionCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {

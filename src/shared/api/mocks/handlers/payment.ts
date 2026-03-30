@@ -1,7 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { teams } from '@/entities/team/model/teams';
 import { mockGameSchedules } from './game';
-import { teams } from '@/entities/team/model/teams';
 
 // serverTeamId → 팀 단축명 조회 맵
 const teamNameByServerId = Object.fromEntries(
@@ -452,72 +451,6 @@ function createPersistedMap<V>(storageKey: string): Map<string, V> {
    }) as Map<string, V>;
 }
 
-// ── 경기/팀/좌석 헬퍼 ─────────────────────────────────────────────
-
-const STADIUM_NAME_MAP: Record<string, string> = {
-   'stadium-kia-champions-field': '광주 기아 챔피언스 필드',
-   'stadium-samsung-lions-park': '대구 삼성 라이온즈 파크',
-};
-
-const teamNameByServerId = Object.fromEntries(
-   teams.filter((t) => t.serverTeamId).map((t) => [t.serverTeamId, t.name]),
-);
-
-const getDayType = (startAt: string): 'WEEKDAY' | 'WEEKEND' => {
-   const day = new Date(startAt).getDay();
-   return day === 0 || day === 6 ? 'WEEKEND' : 'WEEKDAY';
-};
-
-const extractSectionId = (seatId: string): string => seatId.replace(/-[A-F]-\d+$/, '');
-
-const resolveSeatGradeName = (seatId: string): string | undefined => {
-   const sectionId = extractSectionId(seatId);
-   const allSections = Object.values(seatSectionsByStadium).flat();
-   const section = allSections.find((s) => s.sectionId === sectionId);
-   if (!section) return undefined;
-   const allGrades = Object.values(seatGradesByStadium).flat();
-   return allGrades.find((g) => g.seatGradeId === section.gradeId)?.name;
-};
-
-const resolveSeatPrice = (homeTeamId: string, seatId: string, startAt: string): number => {
-   const sectionId = extractSectionId(seatId);
-   const section = Object.values(seatSectionsByStadium).flat().find((s) => s.sectionId === sectionId);
-   if (!section) return 12000;
-   const policy = pricingPoliciesByTeamId[homeTeamId];
-   if (!policy) return 12000;
-   const dayType = getDayType(startAt);
-   const entry = policy.prices.find(
-      (p) => p.gradeId === section.gradeId && p.dayType === dayType && p.leagueType === 'REGULAR',
-   );
-   return entry?.price ?? 12000;
-};
-
-const buildSeatInfoStr = (seatId: string): string => {
-   const sectionId = extractSectionId(seatId);
-   const allSections = Object.values(seatSectionsByStadium).flat();
-   const section = allSections.find((s) => s.sectionId === sectionId);
-   const allGrades = Object.values(seatGradesByStadium).flat();
-   const gradeName = section ? (allGrades.find((g) => g.seatGradeId === section.gradeId)?.name ?? '좌석') : '좌석';
-   const sectionCode = section?.sectionCode ?? sectionId.split('-').slice(-1)[0];
-   const match = seatId.match(/-([A-F])-(\d+)$/);
-   const rowName = match?.[1];
-   const seatNum = match?.[2];
-   return [gradeName, `${sectionCode}구역`, rowName ? `${rowName}열` : null, seatNum ? `${seatNum}번` : null]
-      .filter(Boolean)
-      .join(' ');
-};
-
-const buildPaymentMethodDisplay = (paymentMethod: string): string => {
-   switch (paymentMethod) {
-      case 'CARD': return '카드 결제(신한카드 1234)';
-      case 'KAKAO_PAY': return '카카오페이';
-      case 'NAVER_PAY': return '네이버페이';
-      case 'TOSS_PAY': return '토스페이';
-      case 'ACCOUNT_TRANSFER': return '무통장 입금';
-      default: return paymentMethod;
-   }
-};
-
 // ── 영속 Map ──────────────────────────────────────────────────────
 
 const seatReservationHolds = createPersistedMap<SeatReservationHold>('__msw_seat_holds__');
@@ -934,7 +867,6 @@ export const paymentHandlers = [
 
       const paidAt = new Date().toISOString();
       const paymentId = createId('payment');
-      const paidAt = new Date().toISOString();
       const payment: TicketPayment = {
          paymentId,
          orderId: order.orderId,
@@ -950,8 +882,6 @@ export const paymentHandlers = [
       // 결제 완료 시 티켓 발행 + 주문 상태 CONFIRMED 갱신
       const SERVICE_FEE = 1000;
       const pricePerTicket = order.totalQuantity > 0 ? Math.round(order.totalAmount / order.totalQuantity) : order.totalAmount;
-      const ticketIds: string[] = [];
-      const seatInfos: string[] = [];
       const gameTitle = order.homeTeamName && order.awayTeamName
          ? `${order.awayTeamName} vs ${order.homeTeamName}`
          : order.homeTeamName
