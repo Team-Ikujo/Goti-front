@@ -23,6 +23,11 @@ export type GameScheduleResponse = {
   ticketingStatus: string;
   ticketingOpenedAt?: string;
   ticketingEndAt?: string;
+  // 실서버 응답 필드
+  homeTeamDisplayName?: string;
+  awayTeamDisplayName?: string;
+  stadiumLocation?: string;
+  // MSW 모의 응답 호환 필드 (실서버에는 없음)
   homeTeamCode?: string;
   awayTeamCode?: string;
   homeTeamName?: string;

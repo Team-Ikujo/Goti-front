@@ -17,6 +17,8 @@ import HomeLayout from '@/shared/widgets/layout/home';
 import BooksLayout from '@/shared/widgets/layout/books';
 import Chip from '@/pages/components/ui/ChipPage';
 import ListPage from '@/pages/components/ui/ListPage';
+import ErrorPage from '@/pages/error';
+import ErrorTestHubPage from '@/pages/error/ui/ErrorTestHubPage';
 import TeamsPage from '@/pages/teams';
 import TeamDetailPage from '@/pages/teams/ui/TeamDetailPage';
 import TicketsPage from '@/pages/tickets';
@@ -26,6 +28,7 @@ import PaymentProcessingPage from '@/pages/tickets/ui/payment/PaymentProcessingP
 import PaymentCompletePage from '@/pages/tickets/ui/payment/PaymentCompletePage';
 import BooksPage from '@/pages/books';
 import SeatsPage from '@/pages/books/ui/SeatsPage';
+import SeatHoldLifecycleController from '@/features/seat-booking/ui/SeatHoldLifecycleController';
 import { MypagePage, AccountPage, PurchaseDetailPage, SaleDetailPage } from '@/pages/mypage';
 import MypageLayout from '@/shared/widgets/layout/mypage/MypageLayout';
 import AuthSessionController from './AuthSessionController';
@@ -39,6 +42,7 @@ const AppRouter = () => {
          <AuthSessionController />
          <OAuthMessageListener />
          <BookingFlowStateGuard />
+         <SeatHoldLifecycleController />
          <Routes>
             <Route path="/auth" element={<AuthLayout />}>
                <Route path="login" element={<LoginPage />} />
@@ -49,6 +53,9 @@ const AppRouter = () => {
             <Route path="/login" element={<Navigate to="/auth/login" replace />} />
             <Route path="/signup" element={<Navigate to="/auth/terms" replace />} />
             <Route path="/auth/verification-flow" element={<Navigate to="/auth/terms" replace />} />
+            <Route path="/error-test" element={<ErrorTestHubPage />} />
+            <Route path="/error-test/:statusCode" element={<ErrorPage />} />
+            <Route path="/error/:statusCode" element={<ErrorPage />} />
             <Route path="/" element={<HomeLayout />}>
                <Route index element={<HomePage />} />
                <Route path="tickets" element={<TicketsPage />} />
@@ -81,7 +88,7 @@ const AppRouter = () => {
             <Route path="/list" element={<ListPage />} />
             <Route path="/chip" element={<Chip />} />
             <Route path="/session-expired" element={<SessionExpiredPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/error/404" replace />} />
          </Routes>
       </BrowserRouter>
    );

@@ -20,6 +20,7 @@ import {
    type CashReceiptNumType,
    type CashReceiptType,
    type PaymentMethod,
+   isSupportedPaymentMethod,
 } from './_shared';
 
 import { ResellNotesCard } from './ResellNotesCard';
@@ -118,6 +119,15 @@ export default function ResellPaymentPage() {
    const totalPayment = resaleEntry.totalAmount;
    const ticketPrice = Math.max(totalPayment - fee, 0);
 
+   const handleSelectPaymentMethod = (method: PaymentMethod) => {
+      if (!isSupportedPaymentMethod(method)) {
+         window.alert('아직 지원하지 않는 결제수단입니다.');
+         return;
+      }
+
+      setPaymentMethod(method);
+   };
+
    const handlePay = () => {
       if (!resolvedBuyerId) {
          window.alert('구매자 정보를 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.');
@@ -198,7 +208,7 @@ export default function ResellPaymentPage() {
                         <DiscountCard />
 
                         {/* 결제 방법 */}
-                        <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
+                        <PaymentMethodCard selected={paymentMethod} onSelect={handleSelectPaymentMethod} />
 
                         {/* 현금영수증 (무통장 입금 선택 시에만 표시) */}
                         {paymentMethod === 'bank' && (

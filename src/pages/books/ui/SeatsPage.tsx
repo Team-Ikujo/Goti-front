@@ -5,8 +5,10 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { createSeatsForZone } from '@/pages/books/model/seatData';
 import { getResellZoneInsights, type ResellListingItem } from '@/pages/books/model/resellData';
 import { getSelectedSeatDetails } from '@/pages/books/model/selectedSeats';
+import { useSeatHoldActions } from '@/pages/books/model/useSeatHoldActions';
+import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { useSeatMapData } from '@/pages/books/model/useSeatMapData';
-import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { formatPrice, getBookingZones, getZoneOverviewImage, getStadiumName } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
@@ -38,7 +40,8 @@ function SeatsPage() {
    const bookingFlowMode = getBookingFlowMode(location.search);
    const isResellMode = bookingFlowMode === 'resell';
    const routeBookingEntryState = location.state as BookingEntryState | null;
-   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
+   const storedBookingEntryState = useBookingEntryStore((state) => state.entry);
+   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
    const { getBotReport } = useBotDetector();
    const bookingZones = useMemo(
@@ -54,7 +57,7 @@ function SeatsPage() {
    const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
-   const { apiSeatItems, seatBlocks, hasApiSeatMap } = useSeatMapData({
+   const { apiSeatItems, seatBlocks, hasApiSeatMap, refetchSeatMap } = useSeatMapData({
       gameId: bookingEntryState?.gameId,
       stadiumId: bookingEntryState?.stadiumId,
       zone,
@@ -65,6 +68,15 @@ function SeatsPage() {
    const applyServerSeatSnapshot = useSeatSelectionStore((state) => state.applyServerSeatSnapshot);
    const toggleSelectedSeat = useSeatSelectionStore((state) => state.toggleSelectedSeat);
    const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
+   const holdsBySeatId = useSeatHoldStore((state) => state.holdsBySeatId);
+   const { clearSelectedSeats, holdSeat, pendingSeatIds, releaseSeat, syncHeldSeatsIntoZone } = useSeatHoldActions(
+      bookingEntryState,
+      {
+         onSeatHoldConflict: async () => {
+            await refetchSeatMap();
+         },
+      },
+   );
 
    const [seatMapScale, setSeatMapScale] = useState(1);
    const [seatMapOffset, setSeatMapOffset] = useState({ x: 0, y: 0 });
@@ -81,13 +93,15 @@ function SeatsPage() {
    }, [routeBookingEntryState, setBookingEntry]);
 
    useEffect(() => {
+      const syncedInitialSeats = syncHeldSeatsIntoZone(zone.id, initialSeats);
+
       if (hasApiSeatMap && apiSeatItems.length > 0) {
-         applyServerSeatSnapshot(zone.id, apiSeatItems);
+         applyServerSeatSnapshot(zone.id, syncHeldSeatsIntoZone(zone.id, apiSeatItems));
          return;
       }
 
-      initializeZone(zone.id, initialSeats);
-   }, [apiSeatItems, applyServerSeatSnapshot, hasApiSeatMap, initialSeats, initializeZone, zone.id]);
+      initializeZone(zone.id, syncedInitialSeats);
+   }, [apiSeatItems, applyServerSeatSnapshot, hasApiSeatMap, initialSeats, initializeZone, syncHeldSeatsIntoZone, zone.id]);
 
    useEffect(() => {
       const updateViewportSize = () => {
@@ -146,6 +160,7 @@ function SeatsPage() {
    }, [initialSeats, zoneSeatState]);
 
    const selectedSeatIds = zoneSeatState?.selectedSeatIds ?? [];
+   const selectedSeatIdSet = useMemo(() => new Set(selectedSeatIds), [selectedSeatIds]);
 
    const selectedSeats = useMemo(
       () => getSelectedSeatDetails(zonesState, bookingZones),
@@ -179,6 +194,7 @@ function SeatsPage() {
    const summaryPrice = isResellMode
       ? (selectedResellListing?.totalAmount ?? selectedResellListing?.listingPrice ?? 0)
       : selectedPrice;
+   const allSelectedSeatsAreHeld = selectedSeats.every((selectedSeat) => Boolean(holdsBySeatId[selectedSeat.seat.id]?.holdId));
    const bookingButtonLabel = isResellMode ? '예매하기' : `${selectedSeats.length}매 예매하기`;
    const displaySeats = useMemo(() => {
       if (!isResellMode) {
@@ -339,6 +355,10 @@ function SeatsPage() {
    };
 
    const toggleSeat = (seat: SeatItem) => {
+      if (pendingSeatIds.includes(seat.id)) {
+         return;
+      }
+
       if (seat.status === 'disabled' || seat.status === 'held') {
          return;
       }
@@ -358,7 +378,21 @@ function SeatsPage() {
          return;
       }
 
-      toggleSelectedSeat(zone.id, seat.id);
+      void holdSeat(zone.id, seat);
+   };
+
+   const handleRemoveSelectedSeat = (selectedZoneId: string, seatId: string) => {
+      const seatHold = holdsBySeatId[seatId];
+
+      void releaseSeat({
+         zoneId: selectedZoneId,
+         seatId,
+         holdId: seatHold?.holdId,
+      });
+   };
+
+   const handleClearSelectedSeats = () => {
+      void clearSelectedSeats(selectedSeats);
    };
 
    const handleSelectResellListing = (listing: ResellListingItem) => {
@@ -455,7 +489,7 @@ function SeatsPage() {
                      seatMapOffset={seatMapOffset}
                      seatMapScale={seatMapScale}
                      seats={displaySeats}
-                     selectedSeatIds={selectedSeatIds}
+                     selectedSeatIdSet={selectedSeatIdSet}
                      zoneColor={zone.color}
                      zoneName={zone.name}
                      onMapPointerDown={handleMapPointerDown}
@@ -513,17 +547,17 @@ function SeatsPage() {
                         ) : (
                            <>
                               <div className="flex items-center justify-between gap-3 px-5 py-4">
-                                 <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
-                                    <h2>선택 좌석</h2>
-                                    <span className="text-primary">{selectedSeats.length}</span>
-                                 </div>
-                                 {selectedSeats.length > 0 ? (
-                                    <button
-                                       type="button"
-                                       onClick={clearAllSelections}
-                                       className="text-body-1-medium text-tertiary transition-colors hover:text-foreground"
-                                    >
-                                       전체 삭제
+                              <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
+                                 <h2>선택 좌석</h2>
+                                 <span className="text-primary">{selectedSeats.length}</span>
+                              </div>
+                              {selectedSeats.length > 0 ? (
+                                 <button
+                                    type="button"
+                                    onClick={handleClearSelectedSeats}
+                                    className="text-body-1-medium text-tertiary transition-colors hover:text-foreground"
+                                 >
+                                    전체 삭제
                                     </button>
                                  ) : null}
                               </div>
@@ -531,7 +565,7 @@ function SeatsPage() {
                               <div className="px-5 pb-4">
                                  <SelectedSeatSummaryList
                                     items={selectedSeats}
-                                    onRemove={toggleSelectedSeat}
+                                    onRemove={handleRemoveSelectedSeat}
                                     emptyClassName="h-full min-h-[220px] bg-transparent"
                                  />
                               </div>
@@ -543,11 +577,11 @@ function SeatsPage() {
                                  </div>
                                  <button
                                     type="button"
-                                    disabled={selectedSeats.length === 0}
+                                    disabled={selectedSeats.length === 0 || !allSelectedSeatsAreHeld}
                                     onClick={handleProceedToPayment}
                                     className={[
                                        'h-12 w-full rounded-[8px] text-label-1-bold transition-colors',
-                                       selectedSeats.length === 0
+                                       selectedSeats.length === 0 || !allSelectedSeatsAreHeld
                                           ? 'bg-fill-disabled text-disabled-foreground'
                                           : 'bg-primary text-white hover:bg-primary-strong',
                                     ].join(' ')}
@@ -595,7 +629,7 @@ function SeatsPage() {
                      {selectedSeats.length > 0 ? (
                         <button
                            type="button"
-                           onClick={clearAllSelections}
+                           onClick={handleClearSelectedSeats}
                            className="text-body-2-medium text-muted-foreground transition-colors hover:text-foreground"
                         >
                            전체 삭제
@@ -603,14 +637,14 @@ function SeatsPage() {
                      ) : null}
                   </div>
 
-                  <div className="flex flex-1 flex-col px-5 pb-5">
-                     <div className="flex-1 overflow-y-auto rounded-2xl bg-background">
-                        <SelectedSeatSummaryList
-                           items={selectedSeats}
-                           onRemove={toggleSelectedSeat}
-                           emptyClassName="h-full min-h-[220px] bg-transparent"
-                        />
-                     </div>
+                     <div className="flex flex-1 flex-col px-5 pb-5">
+                        <div className="flex-1 overflow-y-auto rounded-2xl bg-background">
+                           <SelectedSeatSummaryList
+                              items={selectedSeats}
+                              onRemove={handleRemoveSelectedSeat}
+                              emptyClassName="h-full min-h-[220px] bg-transparent"
+                           />
+                        </div>
 
                      <div className="flex items-center justify-between gap-3 px-1 pb-5 pt-6 text-heading-4-medium text-secondary">
                         <span>총 결제 금액</span>
@@ -619,11 +653,11 @@ function SeatsPage() {
 
                      <button
                         type="button"
-                        disabled={selectedSeats.length === 0}
+                        disabled={selectedSeats.length === 0 || !allSelectedSeatsAreHeld}
                         onClick={handleProceedToPayment}
                         className={[
                            'h-[56px] w-full rounded-[8px] text-label-1-bold transition-colors',
-                           selectedSeats.length === 0
+                           selectedSeats.length === 0 || !allSelectedSeatsAreHeld
                               ? 'bg-fill-disabled text-disabled-foreground'
                               : 'bg-primary text-white hover:bg-primary-strong',
                         ].join(' ')}

@@ -1,6 +1,12 @@
 import { http, HttpResponse } from 'msw';
+import { teams } from '@/entities/team/model/teams';
 import { mockGameSchedules } from './game';
 import { teams } from '@/entities/team/model/teams';
+
+// serverTeamId → 팀 단축명 조회 맵
+const teamNameByServerId = Object.fromEntries(
+   teams.filter(t => t.serverTeamId).map(t => [t.serverTeamId, t.name]),
+);
 
 type SeatGrade = {
    seatGradeId: string;
@@ -118,7 +124,7 @@ type TicketPricingPolicy = {
       gradeId: string;
       ticketType: 'ADULT';
       dayType: 'WEEKDAY' | 'WEEKEND';
-      leagueType: 'PRE_SEASON' | 'REGULAR' | 'POSTSEASON';
+      leagueType: 'EXHIBITION' | 'REGULAR' | 'POST_SEASON';
       price: number;
    }>;
 };
@@ -547,6 +553,58 @@ const createId = (prefix: string) => {
    return `${prefix}-${Date.now()}`;
 };
 
+/** 게임 시작일 → WEEKDAY | WEEKEND */
+const getDayType = (startAt: string): 'WEEKDAY' | 'WEEKEND' => {
+   const d = new Date(startAt);
+   const day = d.getDay(); // 0=일, 6=토
+   return day === 0 || day === 6 ? 'WEEKEND' : 'WEEKDAY';
+};
+
+/** seatId → 해당 좌석의 단가 (pricing policy 기준) */
+const resolveSeatPrice = (homeTeamId: string, seatId: string, startAt: string): number => {
+   const sectionId = seatId.replace(/-[A-F]-\d+$/, '');
+   const section = Object.values(seatSectionsByStadium).flat().find(s => s.sectionId === sectionId);
+   if (!section) return 12000;
+   const policy = pricingPoliciesByTeamId[homeTeamId];
+   if (!policy) return 12000;
+   const dayType = getDayType(startAt);
+   const entry = policy.prices.find(
+      p => p.gradeId === section.gradeId && p.dayType === dayType && p.leagueType === 'REGULAR',
+   );
+   return entry?.price ?? 12000;
+};
+
+/** seatId에서 구역 ID 추출: ${sectionId}-${rowName(1자)}-${seatNum} 형식 */
+const extractSectionId = (seatId: string): string => {
+   return seatId.replace(/-[A-F]-\d+$/, '');
+};
+
+/** seatId → 등급명 조회 */
+const resolveSeatGradeName = (seatId: string): string | undefined => {
+   const sectionId = extractSectionId(seatId);
+   const allSections = Object.values(seatSectionsByStadium).flat();
+   const section = allSections.find((s) => s.sectionId === sectionId);
+   if (!section) return undefined;
+   const allGrades = Object.values(seatGradesByStadium).flat();
+   return allGrades.find((g) => g.seatGradeId === section.gradeId)?.name;
+};
+
+/** seatId → "등급명 구역코드구역 X열 N번" 형식의 좌석 정보 문자열 */
+const buildSeatInfoStr = (seatId: string): string => {
+   const sectionId = extractSectionId(seatId);
+   const allSections = Object.values(seatSectionsByStadium).flat();
+   const section = allSections.find((s) => s.sectionId === sectionId);
+   const allGrades = Object.values(seatGradesByStadium).flat();
+   const gradeName = section ? (allGrades.find((g) => g.seatGradeId === section.gradeId)?.name ?? '좌석') : '좌석';
+   const sectionCode = section?.sectionCode ?? sectionId.split('-').slice(-1)[0];
+   const match = seatId.match(/-([A-F])-(\d+)$/);
+   const rowName = match?.[1];
+   const seatNum = match?.[2];
+   return [gradeName, `${sectionCode}구역`, rowName ? `${rowName}열` : null, seatNum ? `${seatNum}번` : null]
+      .filter(Boolean)
+      .join(' ');
+};
+
 const buildSectionSeats = (sectionId: string) => {
    return ['A', 'B', 'C', 'D', 'E', 'F'].flatMap((rowName) =>
       Array.from({ length: 12 }, (_, index) => ({
@@ -571,12 +629,17 @@ const parseJsonBody = async <T>(request: Request): Promise<T | null> => {
    }
 };
 
+const buildPaymentMethodDisplay = (paymentMethod: string): string => {
+   switch (paymentMethod) {
+      case 'CARD': return '카드 결제(신한카드 1234)';
+      case 'ACCOUNT_TRANSFER': return '무통장 입금';
+      default: return paymentMethod;
+   }
+};
+
 const isTicketPaymentMethod = (paymentMethod: unknown) => {
    return (
       paymentMethod === 'CARD' ||
-      paymentMethod === 'KAKAO_PAY' ||
-      paymentMethod === 'NAVER_PAY' ||
-      paymentMethod === 'TOSS_PAY' ||
       paymentMethod === 'ACCOUNT_TRANSFER'
    );
 };
@@ -619,6 +682,31 @@ const buildPageResponse = <T>(content: T[], page = 0, size = content.length || 1
 };
 
 export const paymentHandlers = [
+   http.get('/api/v1/resales/listings', async () => {
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: [],
+      });
+   }),
+
+   http.post('/api/v1/resales/listings', async ({ request }) => {
+      const body = (await request.json()) as { ticketId: string; listingPrice: number };
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            listingId: 'resale-listing-new',
+            ticketId: body.ticketId,
+            listingPrice: body.listingPrice,
+            listingStatus: 'LISTING',
+            listedAt: new Date().toISOString(),
+            isCancelable: true,
+            isPurchasable: true,
+         },
+      });
+   }),
+
    http.get('/api/v1/stadium-seats/stadiums/:stadiumId/games/:gameId/seat-grades', async ({ params }) => {
       return HttpResponse.json({
          code: 'SUCCESS',
@@ -784,9 +872,15 @@ export const paymentHandlers = [
       // 첫 번째 hold의 seatId로 좌석 등급명 및 단가 조회
       const firstSeatId = seatReservationHolds.get(body.holdIds[0])?.seatId;
       const seatGradeName = firstSeatId ? resolveSeatGradeName(firstSeatId) : undefined;
-      const pricePerSeat = firstSeatId && matchedGame
-         ? resolveSeatPrice(matchedGame.homeTeamId, firstSeatId, matchedGame.startAt)
-         : 12000;
+      const pricePerSeat =
+         firstSeatId && matchedGame
+            ? resolveSeatPrice(matchedGame.homeTeamId, firstSeatId, matchedGame.startAt)
+            : 12000;
+
+      const STADIUM_NAME_MAP: Record<string, string> = {
+         'stadium-kia-champions-field': '기아 챔피언스필드',
+         'stadium-samsung-lions-park': '대구 삼성 라이온즈 파크',
+      };
 
       const order: TicketOrder = {
          orderId,
@@ -822,7 +916,7 @@ export const paymentHandlers = [
       });
    }),
 
-   http.post('/api/v1/orders/:orderId/payments', async ({ params, request }) => {
+   http.post('/api/v1/payments/orders/:orderId', async ({ params, request }) => {
       const body = (await request.json()) as {
          paymentMethod?: string;
          idempotencyKey?: string;
@@ -838,6 +932,7 @@ export const paymentHandlers = [
          return buildErrorResponse('Missing payment fields.');
       }
 
+      const paidAt = new Date().toISOString();
       const paymentId = createId('payment');
       const paidAt = new Date().toISOString();
       const payment: TicketPayment = {
@@ -852,9 +947,11 @@ export const paymentHandlers = [
 
       ticketPayments.set(paymentId, payment);
 
-      // ── 티켓 레코드 생성 ──────────────────────────────────────
+      // 결제 완료 시 티켓 발행 + 주문 상태 CONFIRMED 갱신
       const SERVICE_FEE = 1000;
       const pricePerTicket = order.totalQuantity > 0 ? Math.round(order.totalAmount / order.totalQuantity) : order.totalAmount;
+      const ticketIds: string[] = [];
+      const seatInfos: string[] = [];
       const gameTitle = order.homeTeamName && order.awayTeamName
          ? `${order.awayTeamName} vs ${order.homeTeamName}`
          : order.homeTeamName

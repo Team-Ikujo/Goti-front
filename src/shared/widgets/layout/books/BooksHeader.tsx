@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { ChevronLeft, HelpCircle, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getBookingTeamConfig, getBookingTeamId } from '@/pages/books/model/zoneData';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { formatBookingHeaderDateTime } from '@/shared/lib/bookingDateTime';
-import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { DEFAULT_BOOKING_TIMER_SECONDS, useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 
@@ -102,7 +102,8 @@ const BooksHeader = ({
    const navigate = useNavigate();
    const { pathname, state } = useLocation();
    const routeBookingEntryState = state as BookingEntryState | null;
-   const bookingEntryState = useBookingEntryStore((store) => store.entry) ?? routeBookingEntryState;
+   const storedBookingEntryState = useBookingEntryStore((store) => store.entry);
+   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const clearBookingEntry = useBookingEntryStore((store) => store.clearEntry);
    const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
    const resolvedCurrentStepIndex = currentStepIndex ?? (pathname.includes('/books/seats/') ? 1 : 0);

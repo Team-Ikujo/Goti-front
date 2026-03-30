@@ -2,10 +2,11 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronDown, Settings, Check, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Settings, Check, SlidersHorizontal, Search, X } from 'lucide-react';
 import HistoryCard from './HistoryCard';
 import { Button } from '@/shared/ui/button';
 import { DatePicker } from '@/shared/ui/date-picker';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/shared/ui/drawer';
 import { useMyProfileData, useMyOrdersData, useMyResaleListData } from '../model/useMypageData';
 
 type HistoryTab = 'purchase' | 'sale';
@@ -52,6 +53,7 @@ export default function MypagePage() {
    const { data: purchaseItems = [] } = useMyOrdersData();
    const { data: saleItems = [] } = useMyResaleListData();
 
+   // 전체 내역 기간의 시작일: 데이터 중 가장 이른 날짜
    const DATA_MIN_DATE = useMemo(() => {
       const dates = [...purchaseItems, ...saleItems].map(i => toISODate(i.orderDate)).sort();
       return dates[0] || toInput(new Date(2025, 0, 1));
@@ -126,6 +128,15 @@ export default function MypagePage() {
 
    const handleTabChange = (tab: HistoryTab) => {
       setActiveTab(tab);
+      setPurchaseStatus('전체');
+      setSaleStatus('전체');
+      setPendingPeriod('전체 내역');
+      setPendingStartDate(calcPeriodDates('전체 내역', DATA_MIN_DATE).start);
+      setPendingEndDate(calcPeriodDates('전체 내역', DATA_MIN_DATE).end);
+      setPendingPurchaseType('전체 내역');
+      setAppliedStartDate('');
+      setAppliedEndDate('');
+      setAppliedPurchaseType('전체 내역');
       setCurrentPage(1);
    };
 
@@ -530,17 +541,65 @@ export default function MypagePage() {
                         const pageItems = items.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
                         return (
-                           <div className="flex flex-col gap-5">
-                              {pageItems.length > 0 ? (
-                                 pageItems.map(item => (
-                                    <HistoryCard key={item.id} mode={activeTab as any} item={item as any} />
-                                 ))
-                              ) : (
-                                 <p className="text-center text-(--text-tertiary) text-body-2-regular py-10">
-                                    {appliedSearchQuery
-                                       ? '검색어를 찾을 수 없습니다.'
-                                       : `조건에 맞는 ${activeTab === 'purchase' ? '구매' : '판매'} 내역이 없습니다.`}
-                                 </p>
+                           <>
+                              <div className="flex flex-col gap-5">
+                                 {pageItems.length > 0 ? (
+                                    activeTab === 'purchase' ? (
+                                       (pageItems as typeof filteredPurchaseItems).map(item => (
+                                          <HistoryCard
+                                             key={item.id}
+                                             mode="purchase"
+                                             item={item}
+                                          />
+                                       ))
+                                    ) : (
+                                       (pageItems as typeof filteredSaleItems).map(item => (
+                                          <HistoryCard
+                                             key={item.id}
+                                             mode="sale"
+                                             item={item}
+                                          />
+                                       ))
+                                    )
+                                 ) : (
+                                    <p className="text-center text-(--text-tertiary) text-body-2-regular h-full">
+                                       조건에 맞는 {activeTab === 'purchase' ? '구매' : '판매'} 내역이 없습니다.
+                                    </p>
+                                 )}
+                              </div>
+
+                              {/* 페이지네이션 */}
+                              {totalPages > 1 && (
+                                 <div className="flex items-center justify-center gap-1">
+                                    <Button
+                                       variant="none"
+                                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                       className="size-6 p-0 flex items-center justify-center border border-border rounded-xs text-muted-foreground hover:bg-[#f1f2f4] transition-colors [&_svg]:size-4"
+                                    >
+                                       <ChevronLeft size={16} />
+                                    </Button>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                       <Button
+                                          key={page}
+                                          variant="none"
+                                          onClick={() => setCurrentPage(page)}
+                                          className={`size-6 p-0 flex items-center justify-center text-body-2-regular rounded-xs transition-all ${
+                                             safePage === page
+                                                ? 'bg-primary text-white'
+                                                : 'border border-border text-muted-foreground hover:bg-[#f1f2f4]'
+                                          }`}
+                                       >
+                                          {page}
+                                       </Button>
+                                    ))}
+                                    <Button
+                                       variant="none"
+                                       onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                       className="size-6 p-0 flex items-center justify-center border border-border rounded-xs text-muted-foreground hover:bg-[#f1f2f4] transition-colors [&_svg]:size-4"
+                                    >
+                                       <ChevronRight size={16} />
+                                    </Button>
+                                 </div>
                               )}
                            </div>
                         );

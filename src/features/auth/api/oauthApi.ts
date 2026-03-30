@@ -1,4 +1,4 @@
-import apiClient from "@/shared/api/client";
+import apiClient, { unwrapApiData } from "@/shared/api/client";
 import {
   GOOGLE_REDIRECT_URI,
   KAKAO_REDIRECT_URI,
@@ -68,8 +68,7 @@ export const issueSocialState = async (
     `/api/v1/auth/${providerToPath(provider)}/state`,
   );
 
-  const payload =
-    "data" in response.data ? response.data.data : response.data;
+  const payload = unwrapApiData<SocialStateResponse>(response.data);
 
   if (!payload?.state) {
     throw new Error("Invalid social state response.");
@@ -100,8 +99,7 @@ export const submitAuthCode = async ({
     requestBody,
   );
 
-  const payload =
-    "data" in response.data ? response.data.data : response.data;
+  const payload = unwrapApiData<SubmitAuthCodeResponse>(response.data);
 
   if (!payload?.socialVerifyToken) {
     throw new Error("Invalid social verify response.");

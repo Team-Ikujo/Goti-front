@@ -34,13 +34,28 @@ const formatDate = (dateStr: string) => {
    return `${y}.${m}.${d}`;
 };
 
+const formatDateTime = (dateStr: string) => {
+   const date = new Date(dateStr);
+   const y = date.getFullYear();
+   const m = String(date.getMonth() + 1).padStart(2, '0');
+   const d = String(date.getDate()).padStart(2, '0');
+   const day = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
+   const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+   return `${y}.${m}.${d} (${day}) ${time}`;
+};
+
 const mapPurchaseStatus = (status: OrderListItem['orderStatus']): PurchaseStatus => {
    switch (status) {
-      case 'PENDING': return '입금 대기';
-      case 'CONFIRMED': return '예매 완료';
-      case 'PARTIALLY_CANCELED': return '부분 처리';
-      case 'CANCELED': return '취소/환불';
-      default: return '예매 완료';
+      case 'PENDING':
+         return '입금 대기';
+      case 'CONFIRMED':
+         return '예매 완료';
+      case 'PARTIALLY_CANCELED':
+         return '부분 처리';
+      case 'CANCELED':
+         return '취소/환불';
+      default:
+         return '예매 완료';
    }
 };
 

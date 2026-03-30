@@ -15,10 +15,11 @@ export interface ResaleListingItem {
    listingPrice: number;
    listingStatus: 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCEL_REQUESTED' | 'CANCELED';
    availableStatus: 'ENABLED' | 'DISABLED';
+   lastTransactionPrice?: number;
    listedAt: string;
+   soldAt?: string;
+   canceledAt?: string;
    isCancelable: boolean;
-   isPurchasable: boolean;
-   minPrice: number;
    maxPrice: number;
    gameTitle?: string;
    gameDate?: string;

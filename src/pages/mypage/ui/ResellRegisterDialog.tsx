@@ -107,6 +107,17 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
 
    const [isSubmitting, setIsSubmitting] = useState(false);
    const queryClient = useQueryClient();
+   const mutation = useMutation({
+      mutationFn: createResaleListing,
+      onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: ['myResales'] });
+         setCompleteOpen(true);
+      },
+      onError: (error) => {
+         alert('판매 등록에 실패했습니다. 다시 시도해주세요.');
+         console.error('Resale listing failed:', error);
+      }
+   });
 
    // 열릴 때마다 상태 초기화
    useEffect(() => {
@@ -179,6 +190,11 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
          <ResellRegisterCompleteDialog
             open={completeOpen}
             onClose={() => {
+               setCompleteOpen(false);
+               onClose();
+               onCompleteConfirm?.();
+            }}
+            onConfirm={() => {
                setCompleteOpen(false);
                onClose();
                onCompleteConfirm?.();

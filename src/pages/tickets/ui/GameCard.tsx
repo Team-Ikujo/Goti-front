@@ -50,10 +50,22 @@ function getButtonConfig(status: string, activeTab: TabType): { label: string; i
 }
 
 export function GameCard({ game, activeTab, onActionClick }: GameCardProps) {
-   const status = activeTab === '예매' ? game.bookingStatus : game.resellStatus;
+   // game.date(YYYY-MM-DD) 기준 오전 11시→예매, 오후 1시→리셀 전환
+   const now = new Date();
+   const saleOpenTime = new Date(`${game.date}T11:00:00`);
+   const resellOpenTime = new Date(`${game.date}T13:00:00`);
+
+   const effectiveBookingStatus =
+      game.bookingStatus === '판매 예정' && now >= saleOpenTime ? '예매 가능' : game.bookingStatus;
+   const effectiveResellStatus =
+      game.resellStatus === '리셀 예정' && now >= resellOpenTime ? '리셀 가능' : game.resellStatus;
+
+   const status = activeTab === '예매' ? effectiveBookingStatus : effectiveResellStatus;
    const { label: buttonLabel, isActive } = getButtonConfig(status, activeTab);
    const showPrice = game.minPrice > 0;
    const formattedDateTime = formatBookingCardDateTime(game.dateTime);
+
+   const [, gameMonth, gameDay] = game.date.split('-').map(Number);
 
    const formatPrice = (price: number) => price.toLocaleString('ko-KR') + '원';
 
@@ -75,7 +87,9 @@ export function GameCard({ game, activeTab, onActionClick }: GameCardProps) {
             <div className="flex items-center gap-4 flex-wrap">
                <div className="flex items-center gap-2 h-5">
                   <CalendarDays className="size-4 text-muted-foreground shrink-0" />
-                  <span className="text-body-2-regular text-muted-foreground whitespace-nowrap">{formattedDateTime}</span>
+                  <span className="text-body-2-regular text-muted-foreground whitespace-nowrap">
+                     {formattedDateTime}
+                  </span>
                </div>
                <div className="flex items-center gap-2 h-5">
                   <MapPin className="size-4 text-muted-foreground shrink-0" />
@@ -109,18 +123,36 @@ export function GameCard({ game, activeTab, onActionClick }: GameCardProps) {
             )}
 
             {/* 액션 버튼 */}
-            <button
-               disabled={!isActive}
-               onClick={isActive ? () => onActionClick(game) : undefined}
-               className={cn(
-                  'px-[14px] py-[6px] rounded-[8px] text-body-2-medium whitespace-nowrap transition-colors w-[77px]',
-                  isActive
-                     ? 'bg-primary text-white hover:bg-primary-strong'
-                     : 'bg-primary-disabled text-disabled-foreground cursor-not-allowed',
-               )}
-            >
-               {buttonLabel}
-            </button>
+            {status === '판매 예정' ? (
+               <div className="w-[88px] bg-[#e9ebee] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
+                  <p className="text-[16px] font-medium text-[#acb4bb] leading-[1.5] whitespace-nowrap">판매예정</p>
+                  <div className="text-[11px] text-[#acb4bb] text-center leading-[1.2]">
+                     <p className="whitespace-nowrap">{gameMonth}월 {gameDay}일</p>
+                     <p className="whitespace-nowrap">오전 11시 오픈</p>
+                  </div>
+               </div>
+            ) : status === '리셀 예정' ? (
+               <div className="w-[88px] border border-[#d0d6db] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
+                  <p className="text-[16px] font-medium text-[#acb4bb] leading-[1.5] whitespace-nowrap">리셀예정</p>
+                  <div className="text-[11px] text-[#acb4bb] text-center leading-[1.2]">
+                     <p className="whitespace-nowrap">정식 예매 오픈</p>
+                     <p className="whitespace-nowrap">2시간 후</p>
+                  </div>
+               </div>
+            ) : (
+               <button
+                  disabled={!isActive}
+                  onClick={isActive ? () => onActionClick(game) : undefined}
+                  className={cn(
+                     'px-[14px] py-[6px] rounded-[8px] text-body-2-medium whitespace-nowrap transition-colors w-[77px]',
+                     isActive
+                        ? 'bg-primary text-white hover:bg-primary-strong'
+                        : 'bg-primary-disabled text-disabled-foreground cursor-not-allowed',
+                  )}
+               >
+                  {buttonLabel}
+               </button>
+            )}
          </div>
       </div>
    );

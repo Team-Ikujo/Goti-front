@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { useAuthStore } from "@/entities/auth/model/authStore";
-import { isMswEnabled } from "@/shared/config/runtime";
+import { redirectToErrorPage } from '@/shared/lib/error-navigation';
 
 export class ApiError extends Error {
    status?: number;
@@ -15,7 +15,51 @@ export class ApiError extends Error {
 }
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? "").trim();
-const shouldUseRelativeApiBase = isMswEnabled || import.meta.env.DEV;
+// dev 환경에서는 Rsbuild proxy가 /api 요청을 백엔드로 전달한다.
+// preview/build 환경에서는 정적 서버가 /api를 처리하지 않으므로 절대 base URL을 사용한다.
+const shouldUseRelativeApiBase = import.meta.env.DEV;
+const tokenReissuePath = "/api/v1/auth/reissue";
+const shouldKeepSessionAlivePathPrefixes = ["/books", "/tickets"];
+
+type RetriableAxiosRequestConfig = AxiosRequestConfig & {
+  _retry?: boolean;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isHtmlDocument = (value: unknown): value is string =>
+  typeof value === "string" && /^\s*(<!DOCTYPE html>|<html[\s>])/i.test(value);
+
+export const unwrapApiData = <T>(payload: { data: T } | T): T => {
+  if (isHtmlDocument(payload)) {
+    throw new ApiError(
+      "API expected JSON but received HTML. Check PUBLIC_API_BASE_URL, dev proxy, or MSW configuration.",
+      502,
+      payload,
+    );
+  }
+
+  if (isRecord(payload) && "data" in payload) {
+    return payload.data as T;
+  }
+
+  return payload as T;
+};
+
+const canAttemptTokenReissue = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  if (useAuthStore.getState().isManualLogout) {
+    return false;
+  }
+
+  return shouldKeepSessionAlivePathPrefixes.some((prefix) =>
+    window.location.pathname.startsWith(prefix),
+  );
+};
 
 const getConsoleTargets = (): Console[] => {
   const targets: Console[] = [console];
@@ -49,6 +93,26 @@ const toAbsoluteUrl = (config?: AxiosRequestConfig) => {
     return new URL(url, baseURL || window.location.origin).toString();
   } catch {
     return `${baseURL}${url}`;
+  }
+};
+
+const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
+  const requestUrl = toAbsoluteUrl(config);
+
+  try {
+    const { pathname } = new URL(requestUrl, window.location.origin);
+
+    switch (true) {
+      // 일정/팀 메타 조회는 비로그인 접근 가능한 공개 조회 API로 운영 중.
+      // 일부 배포 게이트웨이에서 Authorization 헤더가 붙으면 인증 리다이렉트 루프가 발생할 수 있어 제외한다.
+      case pathname === "/api/v1/games/schedules":
+      case /^\/api\/v1\/baseball-teams\/[^/]+$/.test(pathname):
+        return true;
+      default:
+        return false;
+    }
+  } catch {
+    return false;
   }
 };
 
@@ -106,10 +170,59 @@ const apiClient = axios.create({
   },
 });
 
+let refreshAccessTokenPromise: Promise<string> | null = null;
+
+const reissueAccessTokenFromCookie = async () => {
+  if (useAuthStore.getState().isManualLogout) {
+    throw new ApiError("수동 로그아웃 상태에서는 토큰을 재발급하지 않습니다.", 401);
+  }
+
+  if (!refreshAccessTokenPromise) {
+    refreshAccessTokenPromise = axios
+      .post(
+        tokenReissuePath,
+        undefined,
+        {
+          baseURL: shouldUseRelativeApiBase ? "" : configuredApiBaseUrl,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          withCredentials: true,
+        },
+      )
+      .then((response) => {
+        const data = unwrapApiData<{ accessToken: string }>(response.data);
+
+        if (!data.accessToken) {
+          throw new ApiError("토큰 재발급 응답에 accessToken이 없습니다.", response.status, response.data);
+        }
+
+        if (useAuthStore.getState().isManualLogout) {
+          throw new ApiError("로그아웃 이후 도착한 토큰 재발급 응답은 무시합니다.", 401, response.data);
+        }
+
+        useAuthStore.getState().setAccessToken(data.accessToken);
+        return data.accessToken;
+      })
+      .catch((error: unknown) => {
+        if (!useAuthStore.getState().isManualLogout) {
+          useAuthStore.getState().clearAuth("expired");
+        }
+        throw error;
+      })
+      .finally(() => {
+        refreshAccessTokenPromise = null;
+      });
+  }
+
+  return refreshAccessTokenPromise;
+};
+
 apiClient.interceptors.request.use((config) => {
   const accessToken = useAuthStore.getState().accessToken;
+  const shouldSkipAuth = shouldSkipAuthorizationHeader(config);
 
-  if (accessToken) {
+  if (accessToken && !shouldSkipAuth) {
     if (config.headers && typeof config.headers.set === "function") {
       config.headers.set("Authorization", `Bearer ${accessToken}`);
     } else {
@@ -125,11 +238,47 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (response) => {
+    if (isHtmlDocument(response.data)) {
+      return Promise.reject(
+        new ApiError(
+          "API expected JSON but received HTML. Check PUBLIC_API_BASE_URL, dev proxy, or MSW configuration.",
+          response.status,
+          response.data,
+        ),
+      );
+    }
+
     logResponse(response);
     return response;
   },
   (error: AxiosError) => {
     logError(error);
+
+    const requestConfig = error.config as RetriableAxiosRequestConfig | undefined;
+    const requestUrl = requestConfig?.url ?? "";
+    const isReissueRequest = requestUrl.includes(tokenReissuePath);
+
+    if (
+      error.response?.status === 401 &&
+      requestConfig &&
+      !requestConfig._retry &&
+      !isReissueRequest &&
+      canAttemptTokenReissue()
+    ) {
+      requestConfig._retry = true;
+
+      return reissueAccessTokenFromCookie().then((accessToken) => {
+        const nextHeaders = AxiosHeaders.from(requestConfig.headers);
+        nextHeaders.set("Authorization", `Bearer ${accessToken}`);
+        requestConfig.headers = nextHeaders;
+
+        return apiClient(requestConfig);
+      });
+    }
+
+    if (error.response?.status === 302 || error.response?.status === 503) {
+      redirectToErrorPage(error.response.status);
+    }
 
     if (error.response) {
       const status = error.response.status;

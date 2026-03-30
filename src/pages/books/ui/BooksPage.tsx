@@ -32,7 +32,8 @@ const BooksPage = () => {
    const location = useLocation();
    const routeBookingEntryState = location.state as BookingEntryState | null;
    const bookingFlowMode = getBookingFlowMode(location.search);
-   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
+   const storedBookingEntryState = useBookingEntryStore((state) => state.entry);
+   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
    const patchBookingEntry = useBookingEntryStore((state) => state.patchEntry);
    const bookingTeamConfig = useMemo(() => getBookingTeamConfig(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);

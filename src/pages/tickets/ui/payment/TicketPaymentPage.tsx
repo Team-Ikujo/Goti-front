@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSeatPaymentSummary';
 import { getSelectedSeatDetails } from '@/pages/books/model/selectedSeats';
-import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
+import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { getBookingTeamConfig, getBookingZones } from '@/pages/books/model/zoneData';
 import { Button } from '@/shared/ui/button';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
@@ -26,6 +27,7 @@ import {
    type CashReceiptNumType,
    type CashReceiptType,
    type PaymentMethod,
+   isSupportedPaymentMethod,
 } from './_shared';
 
 type DeliveryMethod = 'mobile' | 'onsite' | 'delivery';
@@ -48,15 +50,18 @@ export default function TicketPaymentPage() {
    const location = useLocation();
    const locationState = location.state as (BookingEntryState & { botData?: TicketCheckoutRequest['botData'] }) | null;
    const routeBookingEntryState = locationState;
-   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
+   const storedBookingEntryState = useBookingEntryStore((state) => state.entry);
+   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
    const zonesState = useSeatSelectionStore((state) => state.zones);
+   const holdsBySeatId = useSeatHoldStore((state) => state.holdsBySeatId);
    const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
    const bookingZones = bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId);
    const paymentSummary = getSelectedSeatPaymentSummary(zonesState, bookingZones);
    const selectedSeatDetails = getSelectedSeatDetails(zonesState, bookingZones);
    const selectedSeats = selectedSeatDetails.map(({ seat, zoneName }) => ({
       seatId: seat.id,
+      holdId: holdsBySeatId[seat.id]?.holdId ?? '',
       label: `${zoneName} ${seat.block}블록 ${seat.rowLabel} ${seat.seatNumber}번`,
    }));
    const botData = locationState?.botData;
@@ -98,6 +103,7 @@ export default function TicketPaymentPage() {
       isDeliveryValid &&
       isCashReceiptValid &&
       selectedSeats.length > 0 &&
+      selectedSeats.every((seat) => !!seat.holdId) &&
       !!bookingEntryState?.gameId &&
       !!bookingEntryState?.queueTokenJti &&
       agreedPrivacy &&
@@ -107,6 +113,15 @@ export default function TicketPaymentPage() {
    const handleZipResult = (zip: string, addr: string) => {
       setZipCode(zip);
       setAddress(addr);
+   };
+
+   const handleSelectPaymentMethod = (method: PaymentMethod) => {
+      if (!isSupportedPaymentMethod(method)) {
+         window.alert('아직 지원하지 않는 결제수단입니다.');
+         return;
+      }
+
+      setPaymentMethod(method);
    };
 
    const orderInfo = {
@@ -149,9 +164,10 @@ export default function TicketPaymentPage() {
          hasEmail: !!email,
          isDeliveryValid,
          isCashReceiptValid,
-         selectedSeatCount: selectedSeats.length,
-         hasGameId: !!bookingEntryState?.gameId,
-         hasQueueTokenJti: !!bookingEntryState?.queueTokenJti,
+      selectedSeatCount: selectedSeats.length,
+      hasSeatHolds: selectedSeats.every((seat) => !!seat.holdId),
+      hasGameId: !!bookingEntryState?.gameId,
+      hasQueueTokenJti: !!bookingEntryState?.queueTokenJti,
          agreedPrivacy,
          agreedPolicy,
          agreedResell,
@@ -168,6 +184,7 @@ export default function TicketPaymentPage() {
       isFormValid,
       name,
       phone,
+      selectedSeats,
       selectedSeats.length,
    ]);
 
@@ -269,7 +286,7 @@ export default function TicketPaymentPage() {
                         <DiscountCard />
 
                         {/* 결제 방법 */}
-                        <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
+                        <PaymentMethodCard selected={paymentMethod} onSelect={handleSelectPaymentMethod} />
 
                         {/* 현금영수증 (무통장 입금 선택 시에만 표시) */}
                         {paymentMethod === 'bank' && (

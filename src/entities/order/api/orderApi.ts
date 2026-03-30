@@ -12,7 +12,7 @@ export interface OrderListItem {
    orderedAt: string;
    gameId: string;
    stadiumId: string;
-   // 확장 필드 (MSW에서 추가 제공)
+   // 서버/MSW 확장 필드 (game 정보)
    homeTeamName?: string;
    awayTeamName?: string;
    stadiumName?: string;
