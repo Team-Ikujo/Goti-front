@@ -29,6 +29,7 @@ function BookingCaptchaGate({
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
             className="w-[calc(100%-40px)] max-w-[426px] gap-0 overflow-hidden rounded-[12px] border-0 bg-(--background-elevated) p-0"
+            closeOnlyWithButton
             showCloseButton={false}
          >
             <DialogHeader className="px-5 pb-5 pt-5">
