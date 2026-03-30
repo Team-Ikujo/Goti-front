@@ -4,10 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, RefreshCcw, Clock } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogClose } from '@/shared/ui/dialog';
-import { useQuery } from '@tanstack/react-query';
-import { fetchTicketQr } from '@/entities/ticket/api/ticketApi';
 
 const QR_DURATION = 180; // 3분
+const QR_IMAGE_SRC = '/images/QR%EC%BD%94%EB%93%9C.png';
 
 export interface QrSeat {
    ticketId?: string;
@@ -30,16 +29,8 @@ function formatTime(seconds: number): string {
 export default function QrViewDialog({ open, onClose, seats }: QrViewDialogProps) {
    const [currentIndex, setCurrentIndex] = useState(0);
    const [timeLeft, setTimeLeft] = useState(QR_DURATION);
-   const [qrKey, setQrKey] = useState(0); // 새로고침 시 QR 갱신용 키
 
    const currentSeat = seats[currentIndex];
-
-   const { data: qrData, refetch: refetchQr } = useQuery({
-      queryKey: ['ticketQr', currentSeat?.ticketId, qrKey],
-      queryFn: () => fetchTicketQr(currentSeat!.ticketId!),
-      enabled: open && !!currentSeat?.ticketId,
-      staleTime: QR_DURATION * 1000,
-   });
 
    // 팝업 열릴 때 초기화
    useEffect(() => {
@@ -55,13 +46,11 @@ export default function QrViewDialog({ open, onClose, seats }: QrViewDialogProps
          setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
       }, 1000);
       return () => clearInterval(interval);
-   }, [open, qrKey]);
+   }, [open]);
 
    const handleRefresh = useCallback(() => {
       setTimeLeft(QR_DURATION);
-      setQrKey(k => k + 1);
-      refetchQr();
-   }, [refetchQr]);
+   }, []);
 
    if (!currentSeat) return null;
 
@@ -108,17 +97,11 @@ export default function QrViewDialog({ open, onClose, seats }: QrViewDialogProps
                      </button>
 
                      <div className="w-[200px] h-[200px] flex items-center justify-center bg-surface rounded-xl overflow-hidden">
-                        {qrData?.qrToken ? (
-                           <img
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData.qrToken)}`}
-                              alt="QR 코드"
-                              className="w-full h-full object-contain"
-                           />
-                        ) : (
-                           <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
-                              QR 코드
-                           </div>
-                        )}
+                        <img
+                           src={QR_IMAGE_SRC}
+                           alt="QR 코드"
+                           className="w-full h-full object-contain"
+                        />
                      </div>
 
                      <button
