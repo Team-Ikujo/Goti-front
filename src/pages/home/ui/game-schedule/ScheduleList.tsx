@@ -25,15 +25,49 @@ const toVenueRegionLabel = (venue: string) => {
    return VENUE_REGION_LABELS[venue] ?? venue;
 };
 
+const parseScheduleDateTime = (value?: string) => {
+   if (!value?.trim()) {
+      return null;
+   }
+
+   const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+   const parsedDate = new Date(normalized);
+
+   return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
 const getEffectiveSaleStatuses = (game: GameRow) => {
    const now = new Date();
-   const saleOpenTime = game.rawDate ? new Date(`${game.rawDate}T11:00:00`) : null;
+   const saleOpenTime = parseScheduleDateTime(game.ticketingOpenedAt);
+   const saleEndTime = parseScheduleDateTime(game.ticketingEndAt);
    const resellOpenTime = game.rawDate ? new Date(`${game.rawDate}T13:00:00`) : null;
-   const saleNowOpen = saleOpenTime !== null && now >= saleOpenTime;
+   const saleBeforeOpen = saleOpenTime !== null && now < saleOpenTime;
+   const saleClosed = saleEndTime !== null && now > saleEndTime;
+   const saleNowOpen = (saleOpenTime === null || now >= saleOpenTime) && (saleEndTime === null || now <= saleEndTime);
    const resellNowOpen = resellOpenTime !== null && now >= resellOpenTime;
 
+   const effectiveTicket = (() => {
+      if (game.ticket === '매진') {
+         return game.ticket;
+      }
+
+      if (saleBeforeOpen) {
+         return '판매예정';
+      }
+
+      if (saleClosed) {
+         return '매진';
+      }
+
+      if (saleNowOpen) {
+         return '예매하기';
+      }
+
+      return game.ticket;
+   })();
+
    return {
-      effectiveTicket: game.ticket === '판매예정' && saleNowOpen ? '예매하기' : game.ticket,
+      effectiveTicket,
       effectiveResell: game.resell === '리셀예정' && resellNowOpen ? '리셀예매' : game.resell,
    };
 };
