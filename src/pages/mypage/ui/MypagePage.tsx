@@ -2,11 +2,10 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronDown, ChevronLeft, ChevronRight, Settings, Check, SlidersHorizontal, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Settings, Check, Search, X } from 'lucide-react';
 import HistoryCard from './HistoryCard';
 import { Button } from '@/shared/ui/button';
 import { DatePicker } from '@/shared/ui/date-picker';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/shared/ui/drawer';
 import { useMyProfileData, useMyOrdersData, useMyResaleListData } from '../model/useMypageData';
 
 type HistoryTab = 'purchase' | 'sale';
