@@ -22,6 +22,9 @@ const getRemainingSeconds = (authExpiresAt: number | null) => {
   return Math.max(0, Math.ceil((authExpiresAt - Date.now()) / 1000));
 };
 
+const getNextAuthExpiresAt = (accessToken: string | null) =>
+  accessToken === null ? null : Date.now() + AUTH_SESSION_DURATION_MS;
+
 export type AuthState = {
   hasHydrated: boolean;
   hasResolvedSession: boolean;
@@ -78,15 +81,7 @@ export const useAuthStore = create<AuthState>()(
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
       setHasResolvedSession: (hasResolvedSession) => set({ hasResolvedSession }),
       setAccessToken: (accessToken) => {
-        const previousState = get();
-        const nextAuthExpiresAt =
-          accessToken === null
-            ? null
-            : accessToken === previousState.accessToken &&
-                previousState.authExpiresAt &&
-                previousState.authExpiresAt > Date.now()
-              ? previousState.authExpiresAt
-              : Date.now() + AUTH_SESSION_DURATION_MS;
+        const nextAuthExpiresAt = getNextAuthExpiresAt(accessToken);
 
         set({
           accessToken,
@@ -101,15 +96,7 @@ export const useAuthStore = create<AuthState>()(
       setRecentLoginProvider: (recentLoginProvider) =>
         set({ recentLoginProvider }),
       setAuthTokens: ({ accessToken, socialVerifyToken }) => {
-        const previousState = get();
-        const nextAuthExpiresAt =
-          accessToken === null
-            ? null
-            : accessToken === previousState.accessToken &&
-                previousState.authExpiresAt &&
-                previousState.authExpiresAt > Date.now()
-              ? previousState.authExpiresAt
-              : Date.now() + AUTH_SESSION_DURATION_MS;
+        const nextAuthExpiresAt = getNextAuthExpiresAt(accessToken);
 
         set({
           accessToken,

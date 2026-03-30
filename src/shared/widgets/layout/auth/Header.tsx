@@ -1,11 +1,10 @@
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Button } from '@/shared/ui/button';
 import { cn } from '@/shared/lib/utils';
-import { Heart, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Heart } from 'lucide-react';
+import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTeamStore } from '@/entities/team/model/teamStore';
-import SessionWarningDialog from './SessionWarningDialog';
 import SessionStatus from './SessionStatus';
 import TeamSelectModal from './TeamSelectModal';
 import TrafficState from './TrafficState';
@@ -19,63 +18,22 @@ const Header = () => {
    const accessToken = useAuthStore(state => state.accessToken);
    const sessionRemainingSeconds = useAuthStore(state => state.sessionRemainingSeconds);
    const clearAuth = useAuthStore(state => state.clearAuth);
-   const extendAuthSession = useAuthStore(state => state.extendAuthSession);
-   const logoutReason = useAuthStore(state => state.logoutReason);
-   const clearLogoutReason = useAuthStore(state => state.clearLogoutReason);
    const isLoggedIn = !!accessToken;
    const navigate = useNavigate();
 
    const [teamModalOpen, setTeamModalOpen] = useState(false);
-   const [isWarningDismissed, setIsWarningDismissed] = useState(false);
    const { selectedTeam, setSelectedTeam } = useTeamStore();
 
    const handleLogout = () => clearAuth();
 
-   // 59분 경고: 남은 시간이 60초 이하이고 아직 로그인 중일 때 표시
-   const showWarning = isLoggedIn && sessionRemainingSeconds > 0 && sessionRemainingSeconds <= 60 && !isWarningDismissed;
-
-   const handleWarningClose = () => setIsWarningDismissed(true);
-   const handleExtend = () => {
-      extendAuthSession();
-      setIsWarningDismissed(false);
-   };
-
-   // 경고 팝업: 세션이 연장되거나 새로 시작되면 dismissed 상태 초기화
-   useEffect(() => {
-      if (sessionRemainingSeconds > 60) {
-         setIsWarningDismissed(false);
-      }
-   }, [sessionRemainingSeconds]);
-
-   // 60분 만료: 세션 만료 페이지로 이동
-   useEffect(() => {
-      if (logoutReason !== 'expired') {
-         return;
-      }
-      clearLogoutReason();
-      navigate('/session-expired', { replace: true });
-   }, [logoutReason, clearLogoutReason, navigate]);
-
    return (
       <>
-         {showWarning && (
-            <SessionWarningDialog
-               remainingSeconds={sessionRemainingSeconds}
-               onClose={handleWarningClose}
-               onExtend={handleExtend}
-            />
-         )}
          <header className="flex flex-col w-full">
             {/* State bar */}
             <div className="bg-background w-full px-4 py-1">
                <div className="flex items-center justify-between w-full max-w-300 mx-auto">
                   <TrafficState state="원활" />
-                  {isLoggedIn && (
-                     <SessionStatus
-                        remainingSeconds={sessionRemainingSeconds}
-                        onLogout={handleLogout}
-                     />
-                  )}
+                  {isLoggedIn && <SessionStatus remainingSeconds={sessionRemainingSeconds} onLogout={handleLogout} />}
                </div>
             </div>
 
@@ -87,7 +45,7 @@ const Header = () => {
                      GoTi
                   </Link>
 
-                  {/* 탭 + 데스크톱 검색바 */}
+                  {/* 탭 */}
                   <div className="flex items-center gap-5 flex-1 h-full min-w-0">
                      <div className="flex items-center gap-0.5 h-full shrink-0">
                         {navTabs.map(({ label, to }) => (
@@ -114,17 +72,6 @@ const Header = () => {
                               )}
                            </NavLink>
                         ))}
-                     </div>
-
-                     {/* 검색바 — 데스크톱 전용 */}
-                     <div className="desktop-only items-center w-62.5 h-9 border border-border rounded-full bg-background shrink-0">
-                        <input
-                           className="flex-1 px-5 text-body-2-regular text-(--text-tertiary) bg-transparent outline-none truncate"
-                           placeholder="Search"
-                        />
-                        <div className="pr-3">
-                           <Search className="size-4 text-(--text-tertiary)" />
-                        </div>
                      </div>
                   </div>
 

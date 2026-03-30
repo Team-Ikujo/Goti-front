@@ -111,8 +111,6 @@ export default function HistoryCard(props: HistoryCardProps) {
    const showSellBtn = isBooked || (purchaseItem?.canSell ?? false);
    const showCancelBtn = isBooked || purchaseItem?.paymentStatus === '입금 대기';
    const showQrBtn = isBooked && item.deliveryType === '모바일 티켓';
-   const hasAnyPurchaseBtn = showSellBtn || showCancelBtn || showQrBtn;
-
    // 판매 오픈 여부: 해당월 1일 11:00 이전 → 판매예정, ~13:00 이전 → 리셀예정
    const now = new Date();
    const saleOpenTime = getSaleOpenTime(item.game.datetime);
@@ -195,28 +193,23 @@ export default function HistoryCard(props: HistoryCardProps) {
 
             <Separator />
 
-            {/* 본문 — 모바일: flex-col / 데스크톱: flex-row items-stretch */}
-            <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-stretch lg:min-h-26.75">
+            {/* 본문 — 데스크톱 전용 */}
+            <div className="hidden lg:flex flex-row gap-4 p-4 items-stretch min-h-26.75">
                {/* ① 뱃지 + 주문번호 */}
-               <div className="flex items-center justify-between lg:flex-col lg:items-center lg:justify-start lg:w-36 lg:shrink-0 lg:px-1 lg:gap-1.5">
-                  <div className="flex items-center gap-1.5 px-1 h-full lg:flex-col lg:items-start lg:gap-1.5 lg:w-full">
-                     <div className="lg:flex lg:flex-col lg:items-start lg:w-full h-full">
+               <div className="flex flex-col items-center justify-start w-36 shrink-0 px-1 gap-1.5">
+                  <div className="flex flex-col items-start gap-1.5 w-full h-full">
+                     <div className="flex flex-col items-start w-full h-full">
                         <TicketTypeBadge type={item.type} />
                      </div>
                      <p className="text-foreground text-body-2-medium whitespace-nowrap">{item.orderId}</p>
-                     {/* 데스크톱 전용: 수령방식 */}
-                     <p className="hidden lg:flex w-full items-center justify-center text-(--text-tertiary) text-caption-1-regular text-center whitespace-nowrap mt-auto h-full">
+                     <p className="flex w-full items-center justify-center text-(--text-tertiary) text-caption-1-regular text-center whitespace-nowrap mt-auto h-full">
                         {item.deliveryType}
                      </p>
                   </div>
-                  {/* 모바일 전용: 상태 */}
-                  <p className="lg:hidden text-body-1-semibold whitespace-nowrap text-(--text-primary) px-2.5">
-                     {status}
-                  </p>
                </div>
 
                {/* ② 경기 정보 */}
-               <div className="flex flex-1 flex-col gap-2 min-w-0 lg:px-1 lg:justify-center lg:min-h-24">
+               <div className="flex flex-1 flex-col gap-2 min-w-0 px-1 justify-center min-h-24">
                   <p className="text-foreground text-body-1-bold whitespace-nowrap">{item.game.teams}</p>
                   <div className="flex items-center gap-2 h-4">
                      <span className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">
@@ -231,29 +224,9 @@ export default function HistoryCard(props: HistoryCardProps) {
                         {item.game.quantity}매
                      </span>
                   </div>
-
-                  {/* 구역명(좌석수) 토글 */}
                   <div className="flex flex-col gap-1">
-                     {/* 모바일: 좌석 라벨 행 */}
-                     <div className="flex items-center gap-2.5 lg:hidden">
-                        <span className="text-caption-1-regular text-(--text-tertiary) w-10.5 shrink-0">좌석</span>
-                        <button
-                           className="flex items-center gap-1 text-left"
-                           onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
-                           aria-expanded={expanded}
-                        >
-                           <span className="text-body-2-medium text-foreground whitespace-nowrap">
-                              {item.game.section}({item.game.seats.length})
-                           </span>
-                           <ChevronDown
-                              size={16}
-                              className={`text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-                           />
-                        </button>
-                     </div>
-                     {/* 데스크톱: 좌석 토글 */}
                      <button
-                        className="hidden lg:flex items-center gap-1 text-left"
+                        className="flex items-center gap-1 text-left"
                         onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
                         aria-expanded={expanded}
                      >
@@ -278,44 +251,29 @@ export default function HistoryCard(props: HistoryCardProps) {
                         </div>
                      )}
                   </div>
-
-                  {/* 모바일 전용: 수령방법 + 가격 */}
-                  <div className="flex flex-col gap-2.5 mt-0.5 lg:hidden">
-                     <div className="flex items-center gap-2.5">
-                        <span className="text-(--text-tertiary) text-caption-1-regular w-10.5 shrink-0">수령방법</span>
-                        <span className="text-(--text-secondary) text-body-2-regular">{item.deliveryType}</span>
-                     </div>
-                     <div className="flex items-center gap-2.5">
-                        <span className="text-(--text-tertiary) text-caption-1-regular w-10.5 shrink-0">
-                           {priceLabel}
-                        </span>
-                        <span className="text-(--text-secondary) text-body-2-regular">{price.toLocaleString()}원</span>
-                     </div>
-                  </div>
                </div>
 
-               {/* ③ 가격 — 데스크톱 전용 */}
-               <div className="hidden lg:flex flex-col items-center justify-center gap-1 w-28 shrink-0 text-center whitespace-nowrap">
+               {/* ③ 가격 */}
+               <div className="flex flex-col items-center justify-center gap-1 w-28 shrink-0 text-center whitespace-nowrap">
                   <p className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">{priceLabel}</p>
                   <p className="text-body-1-bold text-foreground">{price.toLocaleString()}원</p>
                </div>
 
-               {/* ④ 상태 — 데스크톱 전용 */}
-               <div className="hidden lg:flex items-center justify-center w-28 shrink-0">
+               {/* ④ 상태 */}
+               <div className="flex items-center justify-center w-28 shrink-0">
                   <p className="text-body-1-semibold whitespace-nowrap text-foreground">{status}</p>
                </div>
 
-               {/* 구분선 — 데스크톱 전용 */}
-               <div className="hidden lg:block w-px self-stretch bg-border shrink-0" />
+               {/* 구분선 */}
+               <div className="block w-px self-stretch bg-border shrink-0" />
 
-               {/* ⑤ 액션 버튼 — 데스크톱 전용 (항상 3행 높이 유지) */}
-               <div className="hidden lg:flex flex-col items-center justify-center gap-1 px-3 shrink-0 w-25 min-h-28.25">
+               {/* ⑤ 액션 버튼 (항상 3행 높이 유지) */}
+               <div className="flex flex-col items-center justify-center gap-1 px-3 shrink-0 w-25 min-h-28.25">
                   {isPurchase ? (
                      showDash ? (
                         <span className="text-body-1-regular text-muted-foreground">-</span>
                      ) : (
                         <>
-                           {/* 판매 등록 / 판매예정 / 리셀예정 */}
                            {showSellBtn ? (
                               <Button
                                  variant="secondary"
@@ -359,49 +317,127 @@ export default function HistoryCard(props: HistoryCardProps) {
                </div>
             </div>
 
-            {/* 모바일 전용: 하단 버튼 (항상 높이 유지) */}
-            <div className="flex lg:hidden gap-2 px-4 pb-1">
-               {isPurchase ? (
-                  <>
-                     {showDash ? (
-                        <div className="h-8.25" />
-                     ) : (
-                        <>
-                           {showSellBtn && (
-                              <Button
-                                 variant="secondary"
-                                 size="sm"
-                                 className="flex-1"
-                                 onClick={e => { e.stopPropagation(); setResellOpen(true); }}
+            {/* 본문 — 모바일 전용 */}
+            <div className="flex flex-col gap-4 px-4 pt-1 pb-3 lg:hidden">
+               {/* 내부 컨테이너 — Figma: border=#e5e7eb, gap=10 */}
+               <div className="flex flex-col gap-2.5 border border-[#e5e7eb]">
+                  {/* Row1: 뱃지 + 주문번호 | 상태 */}
+                  <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-1.5">
+                        <TicketTypeBadge type={item.type} />
+                        <span className="text-[14px] font-medium leading-5.25 text-[#161d24] whitespace-nowrap">
+                           {item.orderId}
+                        </span>
+                     </div>
+                     <span className="text-[16px] font-semibold leading-6 text-[#161d24] whitespace-nowrap">
+                        {status}
+                     </span>
+                  </div>
+
+                  {/* 경기 정보 — Figma: teams fs=16/fw=700, meta fs=14/fw=400 color=#646f7c */}
+                  <div className="flex flex-col gap-1">
+                     <p className="text-[16px] font-bold leading-6 text-black whitespace-nowrap">
+                        {item.game.teams}
+                     </p>
+                     <div className="flex items-center gap-2">
+                        <span className="text-[14px] text-[#646f7c] whitespace-nowrap">{item.game.venue}</span>
+                        <span className="w-px h-2.5 bg-[#d1d5dc] shrink-0" />
+                        <span className="text-[14px] text-[#646f7c] whitespace-nowrap">{item.game.datetime}</span>
+                        <span className="w-px h-2.5 bg-[#d1d5dc] shrink-0" />
+                        <span className="text-[14px] text-[#646f7c] whitespace-nowrap">{item.game.quantity}매</span>
+                     </div>
+                  </div>
+
+                  {/* 좌석 / 수령방법 / 가격 — Figma: label w=42px fs=12/fw=400, value fs=14/fw=400 */}
+                  <div className="flex flex-col gap-1">
+                     <div className="flex items-center gap-2.5">
+                        <span className="text-[12px] font-normal leading-4.5 text-[#646f7c] w-10.5 shrink-0">
+                           좌석
+                        </span>
+                        <button
+                           className="flex items-center gap-1 text-left"
+                           onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
+                           aria-expanded={expanded}
+                        >
+                           <span className="text-[14px] font-medium leading-5.25 text-[#161d24]">
+                              {item.game.section}({item.game.seats.length})
+                           </span>
+                           <ChevronDown
+                              size={16}
+                              className={`text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+                           />
+                        </button>
+                     </div>
+                     {expanded && (
+                        <div className="flex flex-wrap gap-1.5 pl-13">
+                           {item.game.seats.map((seat, i) => (
+                              <span
+                                 key={i}
+                                 className="border border-border rounded-[5px] px-1 py-0.5 text-muted-foreground text-caption-1-regular whitespace-nowrap"
                               >
-                                 판매 등록
-                              </Button>
-                           )}
-                           {showCancelBtn && (
-                              <Button
-                                 variant="tertiary"
-                                 size="sm"
-                                 className="flex-1"
-                                 onClick={e => { e.stopPropagation(); setCancelOpen(true); }}
-                              >
-                                 예매 취소
-                              </Button>
-                           )}
-                           {showQrBtn && (
-                              <Button variant="tertiary" size="sm" className="flex-1" onClick={e => { e.stopPropagation(); setQrOpen(true); }}>
-                                 QR 확인
-                              </Button>
-                           )}
-                           {!hasAnyPurchaseBtn && <div className="h-8.25" />}
-                        </>
+                                 {seat}
+                              </span>
+                           ))}
+                        </div>
                      )}
-                  </>
-               ) : showSaleDash ? (
-                  <div className="h-8.25" />
+                     <div className="flex items-center gap-2.5">
+                        <span className="text-[12px] font-normal leading-4.5 text-[#646f7c] w-10.5 shrink-0">
+                           수령방법
+                        </span>
+                        <span className="text-[14px] font-normal leading-5.25 text-[#374553]">
+                           {item.deliveryType}
+                        </span>
+                     </div>
+                     <div className="flex items-center gap-2.5">
+                        <span className="text-[12px] font-normal leading-4.5 text-[#646f7c] w-10.5 shrink-0">
+                           {priceLabel}
+                        </span>
+                        <span className="text-[14px] font-normal leading-5.25 text-[#374553]">
+                           {price.toLocaleString()}원
+                        </span>
+                     </div>
+                  </div>
+               </div>
+
+               {/* 액션 버튼 — Figma: gap=8, each flex-1 */}
+               {isPurchase ? (
+                  !showDash && (
+                     <div className="flex gap-2">
+                        {showSellBtn && (
+                           <Button
+                              variant="secondary"
+                              size="sm"
+                              className="flex-1"
+                              onClick={e => { e.stopPropagation(); setResellOpen(true); }}
+                           >
+                              판매 등록
+                           </Button>
+                        )}
+                        {showCancelBtn && (
+                           <Button
+                              variant="tertiary"
+                              size="sm"
+                              className="flex-1"
+                              onClick={e => { e.stopPropagation(); setCancelOpen(true); }}
+                           >
+                              예매 취소
+                           </Button>
+                        )}
+                        {showQrBtn && (
+                           <Button variant="tertiary" size="sm" className="flex-1" onClick={e => { e.stopPropagation(); setQrOpen(true); }}>
+                              QR 확인
+                           </Button>
+                        )}
+                     </div>
+                  )
                ) : (
-                  <Button variant="tertiary" size="sm" className="flex-1" onClick={e => e.stopPropagation()}>
-                     판매 취소
-                  </Button>
+                  canCancelSale && (
+                     <div className="flex gap-2">
+                        <Button variant="tertiary" size="sm" className="flex-1" onClick={e => e.stopPropagation()}>
+                           판매 취소
+                        </Button>
+                     </div>
+                  )
                )}
             </div>
          </div>
