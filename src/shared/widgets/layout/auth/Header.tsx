@@ -1,7 +1,7 @@
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Button } from '@/shared/ui/button';
 import { cn } from '@/shared/lib/utils';
-import { Heart, Search } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTeamStore } from '@/entities/team/model/teamStore';
@@ -45,7 +45,7 @@ const Header = () => {
                      GoTi
                   </Link>
 
-                  {/* 탭 + 데스크톱 검색바 */}
+                  {/* 탭 */}
                   <div className="flex items-center gap-5 flex-1 h-full min-w-0">
                      <div className="flex items-center gap-0.5 h-full shrink-0">
                         {navTabs.map(({ label, to }) => (
@@ -73,17 +73,6 @@ const Header = () => {
                            </NavLink>
                         ))}
                      </div>
-
-                     {/* 검색바 — 데스크톱 전용 */}
-                     {/* <div className="desktop-only items-center w-62.5 h-9 border border-border rounded-full bg-background shrink-0">
-                        <input
-                           className="flex-1 px-5 text-body-2-regular text-(--text-tertiary) bg-transparent outline-none truncate"
-                           placeholder="Search"
-                        />
-                        <div className="pr-3">
-                           <Search className="size-4 text-(--text-tertiary)" />
-                        </div>
-                     </div> */}
                   </div>
 
                   {/* 로그인 후 아이콘 — 모바일 + 데스크톱 */}

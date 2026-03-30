@@ -52,7 +52,19 @@ const canAttemptTokenReissue = () => {
     return false;
   }
 
-  if (useAuthStore.getState().isManualLogout) {
+  const authState = useAuthStore.getState();
+
+  if (authState.isManualLogout) {
+    return false;
+  }
+
+  if (!authState.accessToken || !authState.authExpiresAt) {
+    return false;
+  }
+
+  // 좌석 선택/결제 화면에서 발생하는 모든 401을 자동 로그아웃으로 해석하면 안 된다.
+  // 실제 세션 만료 임박 구간에서만 재발급을 시도해야 "로그인 1시간 후" 규칙과 일치한다.
+  if (authState.sessionRemainingSeconds > 60) {
     return false;
   }
 
@@ -107,6 +119,10 @@ const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
       // 일부 배포 게이트웨이에서 Authorization 헤더가 붙으면 인증 리다이렉트 루프가 발생할 수 있어 제외한다.
       case pathname === "/api/v1/games/schedules":
       case /^\/api\/v1\/baseball-teams\/[^/]+$/.test(pathname):
+      // 좌석 점유 API는 queueTokenJti 기반으로 동작한다.
+      // Authorization 헤더를 함께 보내면 일부 백엔드/게이트웨이에서 JWT 검증으로 분기해
+      // "Jwt issuer is not configured" 같은 인증 설정 오류를 반환할 수 있다.
+      case pathname.startsWith("/api/v1/seat-reservations"):
         return true;
       default:
         return false;
