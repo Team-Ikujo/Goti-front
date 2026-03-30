@@ -50,11 +50,11 @@ export default function TicketPaymentPage() {
    const location = useLocation();
    const locationState = location.state as (BookingEntryState & { botData?: TicketCheckoutRequest['botData'] }) | null;
    const routeBookingEntryState = locationState;
-   const storedBookingEntryState = useBookingEntryStore((state) => state.entry);
+   const storedBookingEntryState = useBookingEntryStore(state => state.entry);
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
-   const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
-   const zonesState = useSeatSelectionStore((state) => state.zones);
-   const holdsBySeatId = useSeatHoldStore((state) => state.holdsBySeatId);
+   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
+   const zonesState = useSeatSelectionStore(state => state.zones);
+   const holdsBySeatId = useSeatHoldStore(state => state.holdsBySeatId);
    const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
    const bookingZones = bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId);
    const paymentSummary = getSelectedSeatPaymentSummary(zonesState, bookingZones);
@@ -103,7 +103,7 @@ export default function TicketPaymentPage() {
       isDeliveryValid &&
       isCashReceiptValid &&
       selectedSeats.length > 0 &&
-      selectedSeats.every((seat) => !!seat.holdId) &&
+      selectedSeats.every(seat => !!seat.holdId) &&
       !!bookingEntryState?.gameId &&
       !!bookingEntryState?.queueTokenJti &&
       agreedPrivacy &&
@@ -164,10 +164,10 @@ export default function TicketPaymentPage() {
          hasEmail: !!email,
          isDeliveryValid,
          isCashReceiptValid,
-      selectedSeatCount: selectedSeats.length,
-      hasSeatHolds: selectedSeats.every((seat) => !!seat.holdId),
-      hasGameId: !!bookingEntryState?.gameId,
-      hasQueueTokenJti: !!bookingEntryState?.queueTokenJti,
+         selectedSeatCount: selectedSeats.length,
+         hasSeatHolds: selectedSeats.every(seat => !!seat.holdId),
+         hasGameId: !!bookingEntryState?.gameId,
+         hasQueueTokenJti: !!bookingEntryState?.queueTokenJti,
          agreedPrivacy,
          agreedPolicy,
          agreedResell,
@@ -242,7 +242,7 @@ export default function TicketPaymentPage() {
                               <RadioOptionCard
                                  selected={deliveryMethod === 'mobile'}
                                  onSelect={() => setDeliveryMethod('mobile')}
-                                 label="모바일 티켓 (추천)"
+                                 label="모바일 티켓"
                                  description="QR코드로 바로 입장 · 무료"
                               />
                               <RadioOptionCard
