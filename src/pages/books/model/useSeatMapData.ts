@@ -208,7 +208,10 @@ const fetchAggregatedSeatSections = async ({
    const sectionBundles = await Promise.all(
       targetSections.map(async (section) => {
          const [seats, statuses] = await Promise.all([
-            fetchSeats(section.sectionId),
+            fetchSeats({
+               sectionId: section.sectionId,
+               gameId,
+            }),
             fetchSeatStatuses(gameId, section.sectionId),
          ]);
 
@@ -254,7 +257,10 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
                throw new Error(DEFAULT_SEAT_MAP_ERROR_MESSAGE);
             }
             const [seats, statuses] = await Promise.all([
-               fetchSeats(resolvedSection.sectionId),
+               fetchSeats({
+                  sectionId: resolvedSection.sectionId,
+                  gameId,
+               }),
                fetchSeatStatuses(gameId, resolvedSection.sectionId),
             ]);
 
