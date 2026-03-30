@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQueries } from '@tanstack/react-query';
 import { RefreshCw, SlidersHorizontal } from 'lucide-react';
 
 import { useGameSchedules } from '@/entities/game/model/schedule';
 import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
 import { useResaleListingMarket } from '@/entities/resale/model/useResaleListingMarket';
-import { fetchSeatGrades } from '@/pages/books/api/bookingApi';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 import { Button } from '@/shared/ui/button';
 import { FilterSidebar } from './FilterSidebar';
@@ -108,41 +106,7 @@ const TicketsPage = () => {
    );
    const visibleGames = useMemo(() => filteredGames.slice(0, visibleCount), [filteredGames, visibleCount]);
    const hasMoreGames = visibleCount < filteredGames.length;
-
-   const seatGradeQueries = useQueries({
-      queries: visibleGames.map((game) => ({
-         queryKey: ['ticket-remaining-seat-grades', game.id, game.stadiumId],
-         enabled: Boolean(game.id && game.stadiumId),
-         queryFn: async () => {
-            const grades = await fetchSeatGrades(game.id, game.stadiumId!);
-
-            return grades.reduce((total, grade) => total + grade.availableSeatCount, 0);
-         },
-      })),
-   });
-
-   const remainingSeatsByGameId = useMemo(() => {
-      return new Map(
-         visibleGames.flatMap((game, index) => {
-            const remainingSeats = seatGradeQueries[index]?.data;
-
-            if (typeof remainingSeats !== 'number') {
-               return [];
-            }
-
-            return [[game.id, remainingSeats] as const];
-         }),
-      );
-   }, [seatGradeQueries, visibleGames]);
-
-   const gamesToRender = useMemo(
-      () =>
-         visibleGames.map((game) => ({
-            ...game,
-            remainingSeats: remainingSeatsByGameId.get(game.id) ?? game.remainingSeats,
-         })),
-      [remainingSeatsByGameId, visibleGames],
-   );
+   const gamesToRender = visibleGames;
    const appliedSearchQuery = appliedFilters.searchQuery.trim();
 
    useEffect(() => {
@@ -188,9 +152,6 @@ const TicketsPage = () => {
       void scheduleQuery.refetch();
       void resaleCountsQuery.refetch();
       void resaleListingMarketQuery.refetch();
-      seatGradeQueries.forEach((query) => {
-         void query.refetch();
-      });
    };
 
    const handleGameActionClick = (game: GameItem) => {
