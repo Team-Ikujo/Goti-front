@@ -169,7 +169,14 @@ export default function HistoryCard(props: HistoryCardProps) {
             />
          )}
 
-         <div className="bg-background border border-border rounded-[14px] flex flex-col gap-2.5 px-px py-3.25">
+         <div
+            className="bg-background border border-border rounded-[14px] flex flex-col gap-2.5 px-px py-3.25 cursor-pointer hover:border-primary/40 transition-colors"
+            onClick={() => navigate(detailRoute)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') navigate(detailRoute); }}
+            aria-label={`${item.game.teams} ${detailLabel}`}
+         >
             {/* 상단: 일자 / 상세 링크 */}
             <div className="flex items-center justify-between lg:justify-start lg:gap-8 px-4 py-1">
                <div className="flex items-center gap-1 text-body-2-regular shrink-0 w-33">
@@ -180,7 +187,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                   variant="none"
                   size="xs"
                   className="flex items-center text-body-2-regular text-foreground shrink-0 px-0 hover:text-primary transition-colors gap-0"
-                  onClick={() => navigate(detailRoute)}
+                  onClick={e => { e.stopPropagation(); navigate(detailRoute); }}
                >
                   {detailLabel} <ChevronRight size={16} />
                </Button>
@@ -232,7 +239,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                         <span className="text-caption-1-regular text-(--text-tertiary) w-10.5 shrink-0">좌석</span>
                         <button
                            className="flex items-center gap-1 text-left"
-                           onClick={() => setExpanded(v => !v)}
+                           onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
                            aria-expanded={expanded}
                         >
                            <span className="text-body-2-medium text-foreground whitespace-nowrap">
@@ -247,7 +254,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                      {/* 데스크톱: 좌석 토글 */}
                      <button
                         className="hidden lg:flex items-center gap-1 text-left"
-                        onClick={() => setExpanded(v => !v)}
+                        onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
                         aria-expanded={expanded}
                      >
                         <span className="text-foreground text-body-2-medium whitespace-nowrap">
@@ -310,30 +317,14 @@ export default function HistoryCard(props: HistoryCardProps) {
                         <>
                            {/* 판매 등록 / 판매예정 / 리셀예정 */}
                            {showSellBtn ? (
-                              isSaleNotOpen ? (
-                                 <div className="w-full bg-[#e9ebee] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
-                                    <p className="text-[16px] font-medium text-(--text-disabled) leading-[1.5] whitespace-nowrap">판매예정</p>
-                                    <p className="text-[11px] text-(--text-disabled) text-center leading-[1.2] whitespace-nowrap">
-                                       {getSaleOpenLabel(item.game.datetime)}
-                                    </p>
-                                 </div>
-                              ) : isResellNotOpen ? (
-                                 <div className="w-full border border-[#d0d6db] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
-                                    <p className="text-[16px] font-medium text-(--text-disabled) leading-[1.5] whitespace-nowrap">리셀예정</p>
-                                    <p className="text-[11px] text-(--text-disabled) text-center leading-[1.2] whitespace-nowrap">
-                                       정식 예매 오픈<br />2시간 후
-                                    </p>
-                                 </div>
-                              ) : (
-                                 <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    className="w-full"
-                                    onClick={() => setResellOpen(true)}
-                                 >
-                                    판매 등록
-                                 </Button>
-                              )
+                              <Button
+                                 variant="secondary"
+                                 size="sm"
+                                 className="w-full"
+                                 onClick={e => { e.stopPropagation(); setResellOpen(true); }}
+                              >
+                                 판매 등록
+                              </Button>
                            ) : (
                               <div className="h-8.25 w-full" />
                            )}
@@ -342,7 +333,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                                  variant="tertiary"
                                  size="sm"
                                  className="w-full"
-                                 onClick={() => setCancelOpen(true)}
+                                 onClick={e => { e.stopPropagation(); setCancelOpen(true); }}
                               >
                                  예매 취소
                               </Button>
@@ -350,7 +341,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                               <div className="h-8.25 w-full" />
                            )}
                            {showQrBtn ? (
-                              <Button variant="tertiary" size="sm" className="w-full" onClick={() => setQrOpen(true)}>
+                              <Button variant="tertiary" size="sm" className="w-full" onClick={e => { e.stopPropagation(); setQrOpen(true); }}>
                                  QR 확인
                               </Button>
                            ) : (
@@ -361,7 +352,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                   ) : showSaleDash ? (
                      <span className="text-body-1-regular text-muted-foreground">-</span>
                   ) : (
-                     <Button variant="tertiary" size="sm" className="w-full">
+                     <Button variant="tertiary" size="sm" className="w-full" onClick={e => e.stopPropagation()}>
                         판매 취소
                      </Button>
                   )}
@@ -372,57 +363,46 @@ export default function HistoryCard(props: HistoryCardProps) {
             <div className="flex lg:hidden gap-2 px-4 pb-1">
                {isPurchase ? (
                   <>
-                     {!showDash && (
+                     {showDash ? (
+                        <div className="h-8.25" />
+                     ) : (
                         <>
                            {showSellBtn && (
-                              isSaleNotOpen ? (
-                                 <div className="flex-1 bg-[#e9ebee] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
-                                    <p className="text-[16px] font-medium text-(--text-disabled) leading-[1.5] whitespace-nowrap">판매예정</p>
-                                    <p className="text-[11px] text-(--text-disabled) text-center leading-[1.2] whitespace-nowrap">
-                                       {getSaleOpenLabel(item.game.datetime)}
-                                    </p>
-                                 </div>
-                              ) : isResellNotOpen ? (
-                                 <div className="flex-1 border border-[#d0d6db] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
-                                    <p className="text-[16px] font-medium text-(--text-disabled) leading-[1.5] whitespace-nowrap">리셀예정</p>
-                                    <p className="text-[11px] text-(--text-disabled) text-center leading-[1.2] whitespace-nowrap">
-                                       정식 예매 오픈<br />2시간 후
-                                    </p>
-                                 </div>
-                              ) : (
-                                 <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    className="flex-1"
-                                    onClick={() => setResellOpen(true)}
-                                 >
-                                    판매 등록
-                                 </Button>
-                              )
+                              <Button
+                                 variant="secondary"
+                                 size="sm"
+                                 className="flex-1"
+                                 onClick={e => { e.stopPropagation(); setResellOpen(true); }}
+                              >
+                                 판매 등록
+                              </Button>
                            )}
                            {showCancelBtn && (
                               <Button
                                  variant="tertiary"
                                  size="sm"
                                  className="flex-1"
-                                 onClick={() => setCancelOpen(true)}
+                                 onClick={e => { e.stopPropagation(); setCancelOpen(true); }}
                               >
                                  예매 취소
                               </Button>
                            )}
                            {showQrBtn && (
-                              <Button variant="tertiary" size="sm" className="flex-1" onClick={() => setQrOpen(true)}>
+                              <Button variant="tertiary" size="sm" className="flex-1" onClick={e => { e.stopPropagation(); setQrOpen(true); }}>
                                  QR 확인
                               </Button>
                            )}
+                           {!hasAnyPurchaseBtn && <div className="h-8.25" />}
                         </>
                      )}
                   </>
-               ) : !showSaleDash ? (
-                  <Button variant="tertiary" size="sm" className="flex-1">
+               ) : showSaleDash ? (
+                  <div className="h-8.25" />
+               ) : (
+                  <Button variant="tertiary" size="sm" className="flex-1" onClick={e => e.stopPropagation()}>
                      판매 취소
                   </Button>
-               ) : null}
+               )}
             </div>
          </div>
       </>

@@ -13,16 +13,17 @@ export interface ResaleListingItem {
    seatInfo: string;
    dailyBasePrice: number;
    listingPrice: number;
-   listingStatus: 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCELED';
+   listingStatus: 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCEL_REQUESTED' | 'CANCELED';
    availableStatus: 'ENABLED' | 'DISABLED';
    lastTransactionPrice?: number;
    listedAt: string;
    soldAt?: string;
    canceledAt?: string;
    isCancelable: boolean;
-   isPurchasable: boolean;
-   minPrice: number;
    maxPrice: number;
+   gameTitle?: string;
+   gameDate?: string;
+   stadiumName?: string;
 }
 
 export const fetchMyResaleListings = async (): Promise<ResaleListingItem[]> => {
@@ -30,12 +31,34 @@ export const fetchMyResaleListings = async (): Promise<ResaleListingItem[]> => {
    return response.data.data;
 };
 
-export interface ResaleListingCreateRequest {
+export interface CreateResaleListingRequest {
    ticketId: string;
    listingPrice: number;
 }
 
-export const createResaleListing = async (payload: ResaleListingCreateRequest): Promise<ResaleListingItem> => {
-   const response = await apiClient.post<ApiEnvelope<ResaleListingItem>>('/api/v1/resales/listings', payload);
+export const createResaleListing = async (body: CreateResaleListingRequest): Promise<void> => {
+   await apiClient.post('/api/v1/resales/listings', body);
+};
+
+export interface ResaleListingDetail {
+   listingId: string;
+   ticketId: string;
+   seatInfo: string;
+   listingPrice: number;
+   listingStatus: 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCEL_REQUESTED' | 'CANCELED';
+   listedAt: string;
+   canceledAt?: string;
+   gameTitle: string;
+   gameDate: string;
+   stadiumName: string;
+   isCancelable: boolean;
+}
+
+export const fetchResaleListingDetail = async (listingId: string): Promise<ResaleListingDetail> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleListingDetail>>(`/api/v1/resales/listings/${listingId}`);
    return response.data.data;
+};
+
+export const cancelResaleListing = async (listingId: string): Promise<void> => {
+   await apiClient.post(`/api/v1/resales/listings/${listingId}/cancel`);
 };

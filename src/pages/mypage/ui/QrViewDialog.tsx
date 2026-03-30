@@ -4,10 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, RefreshCcw, Clock } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogClose } from '@/shared/ui/dialog';
+import { useQuery } from '@tanstack/react-query';
+import { fetchTicketQr } from '@/entities/ticket/api/ticketApi';
 
 const QR_DURATION = 180; // 3분
 
 export interface QrSeat {
+   ticketId?: string;
    section: string;
    seatDetail: string;
 }
@@ -29,6 +32,15 @@ export default function QrViewDialog({ open, onClose, seats }: QrViewDialogProps
    const [timeLeft, setTimeLeft] = useState(QR_DURATION);
    const [qrKey, setQrKey] = useState(0); // 새로고침 시 QR 갱신용 키
 
+   const currentSeat = seats[currentIndex];
+
+   const { data: qrData, refetch: refetchQr } = useQuery({
+      queryKey: ['ticketQr', currentSeat?.ticketId, qrKey],
+      queryFn: () => fetchTicketQr(currentSeat!.ticketId!),
+      enabled: open && !!currentSeat?.ticketId,
+      staleTime: QR_DURATION * 1000,
+   });
+
    // 팝업 열릴 때 초기화
    useEffect(() => {
       if (!open) return;
@@ -48,10 +60,10 @@ export default function QrViewDialog({ open, onClose, seats }: QrViewDialogProps
    const handleRefresh = useCallback(() => {
       setTimeLeft(QR_DURATION);
       setQrKey(k => k + 1);
-   }, []);
+      refetchQr();
+   }, [refetchQr]);
 
-   const current = seats[currentIndex];
-   if (!current) return null;
+   if (!currentSeat) return null;
 
    return (
       <Dialog open={open} onOpenChange={isOpen => { if (!isOpen) onClose(); }}>
@@ -63,8 +75,8 @@ export default function QrViewDialog({ open, onClose, seats }: QrViewDialogProps
 
                {/* 좌석 정보 */}
                <div className="flex flex-col items-center">
-                  <p className="text-[18px] font-bold text-[#161d24] leading-[1.55]">{current.section}</p>
-                  <p className="text-[14px] font-medium text-[#646f7c] leading-[1.5]">{current.seatDetail}</p>
+                  <p className="text-[18px] font-bold text-[#161d24] leading-[1.55]">{currentSeat.section}</p>
+                  <p className="text-[14px] font-medium text-[#646f7c] leading-[1.5]">{currentSeat.seatDetail}</p>
                </div>
 
                {/* QR + 네비게이션 */}
@@ -96,10 +108,17 @@ export default function QrViewDialog({ open, onClose, seats }: QrViewDialogProps
                      </button>
 
                      <div className="w-[200px] h-[200px] flex items-center justify-center bg-surface rounded-xl overflow-hidden">
-                        {/* 실제 QR 이미지로 교체 예정 */}
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
-                           QR 코드
-                        </div>
+                        {qrData?.qrToken ? (
+                           <img
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData.qrToken)}`}
+                              alt="QR 코드"
+                              className="w-full h-full object-contain"
+                           />
+                        ) : (
+                           <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
+                              QR 코드
+                           </div>
+                        )}
                      </div>
 
                      <button

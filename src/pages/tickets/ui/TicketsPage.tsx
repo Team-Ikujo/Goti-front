@@ -41,9 +41,11 @@ const TicketsPage = () => {
    const [isFilterOpen, setIsFilterOpen] = useState(false);
    /** 마지막 조회 시 적용된 검색어 (결과 없음 문구 분기용) */
    const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
+   /** 조회하기 버튼이 한 번이라도 눌렸는지 여부 */
+   const [hasApplied, setHasApplied] = useState(false);
 
    const allGames = useMemo<GameItem[]>(() => {
-      return (scheduleQuery.data ?? []).map((game) => ({
+      return (scheduleQuery.data ?? []).map(game => ({
          id: game.id,
          homeTeamId: game.homeTeamId ?? '',
          serverHomeTeamId: game.serverHomeTeamId,
@@ -67,6 +69,7 @@ const TicketsPage = () => {
 
    /** 필터 사이드바에서 조회하기 클릭 시 */
    const handleApply = (filters: FilterState) => {
+      setHasApplied(true);
       setActiveTab(filters.tab);
       setAppliedSearchQuery(filters.searchQuery.trim());
       setDisplayedGames(applyFilters(allGames, filters, filters.tab));
@@ -74,9 +77,10 @@ const TicketsPage = () => {
    };
 
    const handleRefresh = () => {
+      setHasApplied(false);
       setActiveTab('예매');
       setAppliedSearchQuery('');
-      setDisplayedGames(allGames);
+      setDisplayedGames([]);
    };
 
    const handleGameActionClick = (game: GameItem) => {
@@ -110,18 +114,18 @@ const TicketsPage = () => {
       });
    };
 
-   const gamesToRender = displayedGames.length > 0 || appliedSearchQuery || activeTab !== '예매' ? displayedGames : allGames;
+   const gamesToRender = hasApplied ? displayedGames : allGames;
 
    return (
-      <div className="w-full px-4 py-12.5 pb-30 flex justify-center bg-white h-full">
-         <div className="flex items-start justify-between max-w-300 w-full gap-5 ">
+      <div className="w-full px-4 py-12.5 pb-30 flex justify-center bg-white min-h-screen">
+         <div className="flex items-start justify-between max-w-300 w-full gap-5 h-200">
             {/* 데스크톱 필터 사이드바 */}
             <div className="hidden md:block">
                <FilterSidebar activeTab={activeTab} onApply={handleApply} />
             </div>
 
             {/* 경기 목록 */}
-            <div className="flex flex-1 flex-col gap-5 max-w-210 min-w-0 h-full">
+            <div className="flex flex-1 flex-col gap-5 max-w-210  h-full min-w-0">
                {/* 모바일 전용: 예매/리셀 토글 + 필터 버튼 */}
                <div className="md:hidden flex flex-col gap-3">
                   <Button
@@ -153,15 +157,20 @@ const TicketsPage = () => {
                {/* 게임 카드 목록 */}
                <div className="flex flex-col gap-4 h-full">
                   {scheduleQuery.isError ? (
-                     <div className="flex items-center justify-center h-full bg-surface rounded-[14px] text-body-1-medium text-muted-foreground">
+                     <div className="flex items-center justify-center py-20 bg-surface rounded-[14px] h-full text-body-1-medium text-muted-foreground">
                         경기 일정을 불러오지 못했습니다.
                      </div>
                   ) : gamesToRender.length > 0 ? (
                      gamesToRender.map(game => (
-                        <GameCard key={game.id} game={game} activeTab={activeTab} onActionClick={handleGameActionClick} />
+                        <GameCard
+                           key={game.id}
+                           game={game}
+                           activeTab={activeTab}
+                           onActionClick={handleGameActionClick}
+                        />
                      ))
                   ) : (
-                     <div className="flex items-center justify-center h-full bg-surface rounded-[14px] text-body-1-medium text-muted-foreground">
+                     <div className="flex items-center justify-center py-20 bg-surface rounded-[14px] h-full text-body-1-medium text-muted-foreground">
                         {appliedSearchQuery.length >= 2 ? '해당 데이터가 없습니다' : '조건에 맞는 경기가 없습니다.'}
                      </div>
                   )}
