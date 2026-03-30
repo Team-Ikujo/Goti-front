@@ -2,18 +2,18 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronDown, ChevronLeft, ChevronRight, Settings, Check, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Settings, Check, Search, X } from 'lucide-react';
 import HistoryCard from './HistoryCard';
 import { Button } from '@/shared/ui/button';
 import { DatePicker } from '@/shared/ui/date-picker';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/shared/ui/drawer';
 import { useMyProfileData, useMyOrdersData, useMyResaleListData } from '../model/useMypageData';
 
 type HistoryTab = 'purchase' | 'sale';
 type PurchaseStatusFilter = '전체' | '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
-type SaleStatusFilter = '전체' | '판매 중' | '판매 완료' | '정산 대기';
+type SaleStatusFilter = '전체' | '판매 중' | '정산 대기' | '판매 완료' | '취소 대기' | '취소 완료';
 type PeriodFilter = '전체 내역' | '1개월' | '3개월' | '6개월' | '직접설정';
 type PurchaseTypeFilter = '전체 내역' | '리셀' | '예매';
+type SaleTypeFilter = '리셀';
 
 const PURCHASE_STATUS_CHIPS: PurchaseStatusFilter[] = [
    '전체',
@@ -23,15 +23,12 @@ const PURCHASE_STATUS_CHIPS: PurchaseStatusFilter[] = [
    '관람 완료',
    '취소/환불',
 ];
-const SALE_STATUS_CHIPS: SaleStatusFilter[] = ['전체', '판매 중', '판매 완료', '정산 대기'];
+const SALE_STATUS_CHIPS: SaleStatusFilter[] = ['전체', '판매 중', '정산 대기', '판매 완료', '취소 대기', '취소 완료'];
 const PERIOD_OPTIONS: PeriodFilter[] = ['전체 내역', '1개월', '3개월', '6개월', '직접설정'];
 const PURCHASE_TYPE_OPTIONS: PurchaseTypeFilter[] = ['전체 내역', '리셀', '예매'];
+const SALE_TYPE_OPTIONS: SaleTypeFilter[] = ['리셀'];
 
-// YYYY.MM.DD → YYYY-MM-DD
 const toISODate = (s: string) => s.replace(/\./g, '-');
-// YYYY-MM-DD → YYYY.MM.DD
-const toDisplay = (s: string) => s.replace(/-/g, '.');
-// Date → YYYY-MM-DD
 const toInput = (d: Date) => d.toISOString().slice(0, 10);
 
 const calcPeriodDates = (period: PeriodFilter, dataMinDate?: string) => {
@@ -61,28 +58,23 @@ export default function MypagePage() {
       return dates[0] || toInput(new Date(2025, 0, 1));
    }, [purchaseItems, saleItems]);
 
-   // ── 상태 칩 필터 (즉시 반영) ──
    const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatusFilter>('전체');
    const [saleStatus, setSaleStatus] = useState<SaleStatusFilter>('전체');
 
-   // ── 필터 바 Pending 상태 (조회 버튼 클릭 시 반영) ──
    const [pendingPeriod, setPendingPeriod] = useState<PeriodFilter>('전체 내역');
    const [pendingStartDate, setPendingStartDate] = useState(() => calcPeriodDates('전체 내역', DATA_MIN_DATE).start);
    const [pendingEndDate, setPendingEndDate] = useState(() => calcPeriodDates('전체 내역', DATA_MIN_DATE).end);
    const [pendingPurchaseType, setPendingPurchaseType] = useState<PurchaseTypeFilter>('전체 내역');
+   const [pendingSaleType, setPendingSaleType] = useState<SaleTypeFilter>('리셀');
    const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
    const [showTypeDropdown, setShowTypeDropdown] = useState(false);
    const periodDropdownRef = useRef<HTMLDivElement>(null);
    const typeDropdownRef = useRef<HTMLDivElement>(null);
 
-   // ── 모바일 필터 시트 ──
-   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
-   const [mobilePeriodOpen, setMobilePeriodOpen] = useState(false);
-   const [mobileTypeOpen, setMobileTypeOpen] = useState(false);
-   const mobilePeriodRef = useRef<HTMLDivElement>(null);
-   const mobileTypeRef = useRef<HTMLDivElement>(null);
+   const [searchQuery, setSearchQuery] = useState('');
+   const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
+   const [searchError, setSearchError] = useState('');
 
-   // 드롭다운 외부 클릭 시 닫기
    useEffect(() => {
       const handleClickOutside = (e: MouseEvent) => {
          if (periodDropdownRef.current && !periodDropdownRef.current.contains(e.target as Node)) {
@@ -91,26 +83,19 @@ export default function MypagePage() {
          if (typeDropdownRef.current && !typeDropdownRef.current.contains(e.target as Node)) {
             setShowTypeDropdown(false);
          }
-         if (mobilePeriodRef.current && !mobilePeriodRef.current.contains(e.target as Node)) {
-            setMobilePeriodOpen(false);
-         }
-         if (mobileTypeRef.current && !mobileTypeRef.current.contains(e.target as Node)) {
-            setMobileTypeOpen(false);
-         }
       };
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
    }, []);
 
-   // ── 실제 적용된 필터 ──
    const [appliedStartDate, setAppliedStartDate] = useState('');
    const [appliedEndDate, setAppliedEndDate] = useState('');
    const [appliedPurchaseType, setAppliedPurchaseType] = useState<PurchaseTypeFilter>('전체 내역');
+   const [appliedSaleType, setAppliedSaleType] = useState<SaleTypeFilter>('리셀');
 
    const [currentPage, setCurrentPage] = useState(1);
    const ITEMS_PER_PAGE = 5;
 
-   // 기간 선택 시 날짜 pending 자동 설정
    const handlePeriodChange = (period: PeriodFilter) => {
       setPendingPeriod(period);
       setShowPeriodDropdown(false);
@@ -121,15 +106,25 @@ export default function MypagePage() {
       }
    };
 
-   // 조회 버튼: pending → applied 반영
    const handleApply = () => {
+      const trimmed = searchQuery.trim();
+      if (searchQuery.length > 0 && trimmed.length === 0) {
+         setSearchError('공백만으로는 검색할 수 없습니다.');
+         return;
+      }
+      if (trimmed.length > 0 && trimmed.length < 2) {
+         setSearchError('2글자 이상 입력해주세요.');
+         return;
+      }
+      setSearchError('');
       setAppliedStartDate(pendingStartDate);
       setAppliedEndDate(pendingEndDate);
       setAppliedPurchaseType(pendingPurchaseType);
+      setAppliedSaleType(pendingSaleType);
+      setAppliedSearchQuery(trimmed);
       setCurrentPage(1);
    };
 
-   // 탭 변경 시 필터 전체 초기화
    const handleTabChange = (tab: HistoryTab) => {
       setActiveTab(tab);
       setPurchaseStatus('전체');
@@ -144,7 +139,6 @@ export default function MypagePage() {
       setCurrentPage(1);
    };
 
-   // 날짜 범위 필터 (applied 기준)
    const matchesDate = (orderDate: string) => {
       const d = toISODate(orderDate);
       if (appliedStartDate && d < appliedStartDate) return false;
@@ -160,18 +154,35 @@ export default function MypagePage() {
                const target = appliedPurchaseType === '예매' ? '티켓' : '리셀';
                if (item.type !== target) return false;
             }
+            if (appliedSearchQuery) {
+               const q = appliedSearchQuery.toLowerCase();
+               const matches =
+                  item.game.teams.toLowerCase().includes(q) ||
+                  item.orderId.toLowerCase().includes(q) ||
+                  item.game.venue.toLowerCase().includes(q);
+               if (!matches) return false;
+            }
             return matchesDate(item.orderDate);
          }),
-      [purchaseItems, purchaseStatus, appliedPurchaseType, appliedStartDate, appliedEndDate],
+      [purchaseItems, purchaseStatus, appliedPurchaseType, appliedStartDate, appliedEndDate, appliedSearchQuery],
    );
 
    const filteredSaleItems = useMemo(
       () =>
          saleItems.filter(item => {
             if (saleStatus !== '전체' && item.saleStatus !== saleStatus) return false;
+            if (item.type !== '리셀') return false;
+            if (appliedSearchQuery) {
+               const q = appliedSearchQuery.toLowerCase();
+               const matches =
+                  item.game.teams.toLowerCase().includes(q) ||
+                  item.orderId.toLowerCase().includes(q) ||
+                  item.game.venue.toLowerCase().includes(q);
+               if (!matches) return false;
+            }
             return matchesDate(item.orderDate);
          }),
-      [saleItems, saleStatus, appliedStartDate, appliedEndDate],
+      [saleItems, saleStatus, appliedSaleType, appliedStartDate, appliedEndDate, appliedSearchQuery],
    );
 
    return (
@@ -185,14 +196,16 @@ export default function MypagePage() {
                   <div className="flex items-start justify-between gap-3">
                      <div className="flex items-center gap-4 lg:gap-5">
                         <div className="size-16 lg:size-21 rounded-full border border-border flex items-center justify-center shrink-0">
-                           <span className="text-heading-1-bold text-foreground">
-                              {profile?.name?.[0] || '유'}
-                           </span>
+                           <span className="text-heading-1-bold text-foreground">{profile?.name?.[0] || '유'}</span>
                         </div>
                         <div className="flex flex-col">
                            <p className="text-heading-1-bold text-foreground">{profile?.name || '로딩 중...'}</p>
-                           <p className="text-body-1-regular text-muted-foreground">{profile?.email || 'goti1234@google.com'}</p>
-                           <p className="text-body-1-regular text-muted-foreground">{profile?.mobile || '010-0000-0000'}</p>
+                           <p className="text-body-1-regular text-muted-foreground">
+                              {profile?.email || '이메일 정보 없음'}
+                           </p>
+                           <p className="text-body-1-regular text-muted-foreground">
+                              {profile?.mobile || '전화번호 정보 없음'}
+                           </p>
                         </div>
                      </div>
                      <Button
@@ -212,10 +225,9 @@ export default function MypagePage() {
                   const totalHeld = purchaseItems.filter(i => i.paymentStatus === '예매 완료').length;
                   const onSale = saleItems.filter(i => i.saleStatus === '판매 중').length;
                   const soldCount = saleItems.filter(i => i.saleStatus === '판매 완료').length;
-                  const unsettledAmount = saleItems.filter(i => i.saleStatus === '정산 대기').reduce(
-                     (sum, i) => sum + i.salePrice,
-                     0,
-                  );
+                  const unsettledAmount = saleItems
+                     .filter(i => i.saleStatus === '정산 대기')
+                     .reduce((sum, i) => sum + i.salePrice, 0);
                   const stats = [
                      { icon: '/Icon/Line/ticket.svg', label: '전체 소지', value: String(totalHeld) },
                      { icon: '/Icon/Line/increase.svg', label: '판매 중', value: String(onSale) },
@@ -249,18 +261,16 @@ export default function MypagePage() {
                <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6">
                   <p className="text-heading-4-bold text-foreground mb-4">구매 / 판매 내역</p>
 
-                  {/* 탭 */}
                   <div className="flex flex-col gap-5">
-                     <div className="bg-[#f1f2f4] rounded-lg p-1 flex">
+                     {/* 탭 목록 — Figma: fill=#e9ebee, r=14, p=4 */}
+                     <div className="bg-[#e9ebee] rounded-[14px] p-1 flex">
                         {(['purchase', 'sale'] as const).map(tab => (
                            <Button
                               key={tab}
                               variant="none"
                               onClick={() => handleTabChange(tab)}
-                              className={`flex-1 py-2.5 text-body-2-semibold rounded-md transition-all ${
-                                 activeTab === tab
-                                    ? 'bg-background text-foreground shadow-sm'
-                                    : 'text-(--text-tertiary)'
+                              className={`flex-1 py-2.5 px-2 text-[14px] font-medium text-[#0a0a0a] transition-all ${
+                                 activeTab === tab ? 'bg-white rounded-[10px] shadow-sm' : 'rounded-[14px]'
                               }`}
                            >
                               {tab === 'purchase' ? '구매 내역' : '판매 내역'}
@@ -268,323 +278,8 @@ export default function MypagePage() {
                         ))}
                      </div>
 
-                     {/* 필터 바 — 데스크톱 전용 */}
-                     <div className="hidden lg:block bg-background border border-border rounded-lg px-4 py-3">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
-                           {/* 조회기간 */}
-                           <div className="flex items-center gap-2 overflow-x-auto">
-                              <span className="text-body-2-regular text-foreground whitespace-nowrap">조회기간:</span>
-
-                              {/* 기간 드롭다운 */}
-                              <div className="relative" ref={periodDropdownRef}>
-                                 <Button
-                                    variant="none"
-                                    onClick={() => setShowPeriodDropdown(p => !p)}
-                                    className="flex items-center gap-2 border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-29.75 justify-between [&_svg]:size-4"
-                                 >
-                                    <span>{pendingPeriod}</span>
-                                    <ChevronDown size={16} />
-                                 </Button>
-                                 {showPeriodDropdown && (
-                                    <div className="absolute top-full left-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-10 min-w-29.75 p-0.75 flex flex-col gap-0.5">
-                                       {PERIOD_OPTIONS.map(opt => {
-                                          const isSelected = pendingPeriod === opt;
-                                          return (
-                                             <Button
-                                                key={opt}
-                                                variant="none"
-                                                onClick={() => handlePeriodChange(opt)}
-                                                className={`w-full flex items-center justify-between px-1 py-1 rounded-sm text-body-2-medium text-foreground tracking-[-0.15px] hover:bg-[#f1f2f4] [&_svg]:size-4 ${isSelected ? 'bg-fill-disabled' : ''}`}
-                                             >
-                                                <span>{opt}</span>
-                                                {isSelected && <Check size={16} className="shrink-0" />}
-                                             </Button>
-                                          );
-                                       })}
-                                    </div>
-                                 )}
-                              </div>
-
-                              {/* 날짜 범위 — 직접설정이면 DatePicker, 아니면 읽기 전용 버튼 */}
-                              {pendingPeriod === '직접설정' ? (
-                                 <>
-                                    <div className="w-44">
-                                       <DatePicker
-                                          value={pendingStartDate}
-                                          onChange={setPendingStartDate}
-                                          placeholder="시작 날짜"
-                                       />
-                                    </div>
-                                    <span className="text-body-2-regular text-foreground">~</span>
-                                    <div className="w-44">
-                                       <DatePicker
-                                          value={pendingEndDate}
-                                          onChange={setPendingEndDate}
-                                          placeholder="종료 날짜"
-                                       />
-                                    </div>
-                                 </>
-                              ) : (
-                                 <>
-                                    <Button
-                                       variant="none"
-                                       disabled
-                                       className="border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-24 cursor-default"
-                                    >
-                                       {pendingStartDate ? toDisplay(pendingStartDate) : '날짜 선택'}
-                                    </Button>
-                                    <span className="text-body-2-regular text-foreground">~</span>
-                                    <Button
-                                       variant="none"
-                                       disabled
-                                       className="border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-24 cursor-default"
-                                    >
-                                       {pendingEndDate ? toDisplay(pendingEndDate) : '날짜 선택'}
-                                    </Button>
-                                 </>
-                              )}
-                           </div>
-
-                           {/* 종류 + 조회 */}
-                           <div className="flex items-center gap-3 overflow-x-auto">
-                              {/* 종류 드롭다운 */}
-                              <div className="flex items-center gap-1">
-                                 <span className="text-body-2-regular text-foreground whitespace-nowrap">종류:</span>
-                                 {activeTab === 'purchase' ? (
-                                    <div className="relative" ref={typeDropdownRef}>
-                                       <Button
-                                          variant="none"
-                                          onClick={() => setShowTypeDropdown(p => !p)}
-                                          className="flex items-center gap-2 border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-29.75 justify-between [&_svg]:size-4"
-                                       >
-                                          <span>{pendingPurchaseType}</span>
-                                          <ChevronDown size={16} />
-                                       </Button>
-                                       {showTypeDropdown && (
-                                          <div className="absolute top-full right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-10 min-w-29.75 p-0.75 flex flex-col gap-0.5">
-                                             {PURCHASE_TYPE_OPTIONS.map(opt => {
-                                                const isSelected = pendingPurchaseType === opt;
-                                                return (
-                                                   <Button
-                                                      key={opt}
-                                                      variant="none"
-                                                      onClick={() => {
-                                                         setPendingPurchaseType(opt);
-                                                         setShowTypeDropdown(false);
-                                                      }}
-                                                      className={`w-full flex items-center justify-between px-1 py-1 rounded-sm text-body-2-medium text-foreground tracking-[-0.15px] hover:bg-[#f1f2f4] [&_svg]:size-4 ${isSelected ? 'bg-fill-disabled' : ''}`}
-                                                   >
-                                                      <span>{opt}</span>
-                                                      {isSelected && <Check size={16} className="shrink-0" />}
-                                                   </Button>
-                                                );
-                                             })}
-                                          </div>
-                                       )}
-                                    </div>
-                                 ) : (
-                                    /* 판매 내역: 리셀 단일 옵션 */
-                                    <div className="relative" ref={typeDropdownRef}>
-                                       <Button
-                                          variant="none"
-                                          onClick={() => setShowTypeDropdown(p => !p)}
-                                          className="flex items-center gap-2 border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-29.75 justify-between [&_svg]:size-4"
-                                       >
-                                          <span>리셀</span>
-                                          <ChevronDown size={16} />
-                                       </Button>
-                                       {showTypeDropdown && (
-                                          <div className="absolute top-full right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-10 min-w-29.75 p-0.75 flex flex-col gap-0.5">
-                                             <Button
-                                                variant="none"
-                                                onClick={() => setShowTypeDropdown(false)}
-                                                className="w-full flex items-center justify-between px-1 py-1 rounded-sm text-body-2-medium text-foreground tracking-[-0.15px] bg-fill-disabled [&_svg]:size-4"
-                                             >
-                                                <span>리셀</span>
-                                                <Check size={16} className="shrink-0" />
-                                             </Button>
-                                          </div>
-                                       )}
-                                    </div>
-                                 )}
-                              </div>
-
-                              {/* 조회 버튼 — 클릭 시 필터 적용 */}
-                              <Button
-                                 variant="tertiary"
-                                 className="text-body-2-medium px-4 py-1.5 rounded-lg"
-                                 onClick={handleApply}
-                              >
-                                 조회
-                              </Button>
-                           </div>
-                        </div>
-                     </div>
-
-                     {/* 모바일 필터 버튼 */}
-                     <div className="flex items-center justify-end lg:hidden">
-                        <Button
-                           variant="tertiary"
-                           size="sm"
-                           onClick={() => setFilterSheetOpen(true)}
-                           className="flex items-center gap-1.5 text-body-2-medium w-full"
-                        >
-                           <SlidersHorizontal size={15} />
-                           필터
-                        </Button>
-                     </div>
-
-                     {/* 모바일 필터 Drawer */}
-                     <Drawer open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
-                        <DrawerContent>
-                           <DrawerHeader>
-                              <DrawerTitle>구매/판매 내역</DrawerTitle>
-                           </DrawerHeader>
-
-                           <div className="px-5 flex flex-col gap-4">
-                              {/* 조회기간 */}
-                              <div className="flex flex-col gap-2">
-                                 <span className="text-body-2-medium text-foreground">조회기간:</span>
-                                 <div className="flex items-center gap-2">
-                                    {/* 기간 드롭다운 */}
-                                    <div className="relative shrink-0" ref={mobilePeriodRef}>
-                                       <Button
-                                          variant="none"
-                                          onClick={() => setMobilePeriodOpen(p => !p)}
-                                          className="flex items-center gap-2 border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground min-w-29.75 justify-between [&_svg]:size-4"
-                                       >
-                                          <span>{pendingPeriod}</span>
-                                          <ChevronDown size={16} />
-                                       </Button>
-                                       {mobilePeriodOpen && (
-                                          <div className="absolute top-full left-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-10 min-w-29.75 p-0.75 flex flex-col gap-0.5">
-                                             {PERIOD_OPTIONS.map(opt => {
-                                                const isSelected = pendingPeriod === opt;
-                                                return (
-                                                   <Button
-                                                      key={opt}
-                                                      variant="none"
-                                                      onClick={() => {
-                                                         handlePeriodChange(opt);
-                                                         setMobilePeriodOpen(false);
-                                                      }}
-                                                      className={`w-full flex items-center justify-between px-1 py-1 rounded-sm text-body-2-medium text-foreground tracking-[-0.15px] hover:bg-[#f1f2f4] [&_svg]:size-4 ${isSelected ? 'bg-fill-disabled' : ''}`}
-                                                   >
-                                                      <span>{opt}</span>
-                                                      {isSelected && <Check size={16} className="shrink-0" />}
-                                                   </Button>
-                                                );
-                                             })}
-                                          </div>
-                                       )}
-                                    </div>
-
-                                    {/* 날짜 범위 */}
-                                    {pendingPeriod === '직접설정' ? (
-                                       <div className="flex items-center gap-2 flex-1">
-                                          <div className="flex-1">
-                                             <DatePicker
-                                                value={pendingStartDate}
-                                                onChange={setPendingStartDate}
-                                                placeholder="시작 날짜"
-                                             />
-                                          </div>
-                                          <span className="text-body-2-regular text-foreground shrink-0">~</span>
-                                          <div className="flex-1">
-                                             <DatePicker
-                                                value={pendingEndDate}
-                                                onChange={setPendingEndDate}
-                                                placeholder="종료 날짜"
-                                             />
-                                          </div>
-                                       </div>
-                                    ) : (
-                                       <div className="flex items-center gap-2 flex-1">
-                                          <Button
-                                             variant="none"
-                                             disabled
-                                             className="border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground flex-1 cursor-default"
-                                          >
-                                             {pendingStartDate ? toDisplay(pendingStartDate) : '날짜 선택'}
-                                          </Button>
-                                          <span className="text-body-2-regular text-foreground shrink-0">~</span>
-                                          <Button
-                                             variant="none"
-                                             disabled
-                                             className="border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground flex-1 cursor-default"
-                                          >
-                                             {pendingEndDate ? toDisplay(pendingEndDate) : '날짜 선택'}
-                                          </Button>
-                                       </div>
-                                    )}
-                                 </div>
-                              </div>
-
-                              {/* 종류 */}
-                              <div className="flex flex-col gap-2">
-                                 <span className="text-body-2-medium text-foreground">종류:</span>
-                                 <div className="relative" ref={mobileTypeRef}>
-                                    {activeTab === 'purchase' ? (
-                                       <>
-                                          <Button
-                                             variant="none"
-                                             onClick={() => setMobileTypeOpen(p => !p)}
-                                             className="flex w-full items-center gap-2 border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground justify-between [&_svg]:size-4"
-                                          >
-                                             <span>{pendingPurchaseType}</span>
-                                             <ChevronDown size={16} />
-                                          </Button>
-                                          {mobileTypeOpen && (
-                                             <div className="absolute top-full left-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-10 w-full p-0.75 flex flex-col gap-0.5">
-                                                {PURCHASE_TYPE_OPTIONS.map(opt => {
-                                                   const isSelected = pendingPurchaseType === opt;
-                                                   return (
-                                                      <Button
-                                                         key={opt}
-                                                         variant="none"
-                                                         onClick={() => {
-                                                            setPendingPurchaseType(opt);
-                                                            setMobileTypeOpen(false);
-                                                         }}
-                                                         className={`w-full flex items-center justify-between px-1 py-1 rounded-sm text-body-2-medium text-foreground tracking-[-0.15px] hover:bg-[#f1f2f4] [&_svg]:size-4 ${isSelected ? 'bg-fill-disabled' : ''}`}
-                                                      >
-                                                         <span>{opt}</span>
-                                                         {isSelected && <Check size={16} className="shrink-0" />}
-                                                      </Button>
-                                                   );
-                                                })}
-                                             </div>
-                                          )}
-                                       </>
-                                    ) : (
-                                       <Button
-                                          variant="none"
-                                          className="flex w-full items-center gap-2 border border-border rounded-lg px-3 py-1.5 text-body-2-regular text-foreground justify-between [&_svg]:size-4 cursor-default"
-                                       >
-                                          <span>리셀</span>
-                                          <ChevronDown size={16} />
-                                       </Button>
-                                    )}
-                                 </div>
-                              </div>
-
-                              {/* 조회 버튼 */}
-                              <Button
-                                 variant="tertiary"
-                                 className="w-full py-2.5 text-body-2-medium rounded-lg mt-1"
-                                 onClick={() => {
-                                    handleApply();
-                                    setFilterSheetOpen(false);
-                                 }}
-                              >
-                                 조회
-                              </Button>
-                           </div>
-                        </DrawerContent>
-                     </Drawer>
-
-                     {/* 상태 필터 칩 (즉시 반영) */}
-                     <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                     {/* 상태 필터 칩 — Figma: Team chip r=80, gap=12 */}
+                     <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
                         {(activeTab === 'purchase'
                            ? PURCHASE_STATUS_CHIPS
                            : (SALE_STATUS_CHIPS as (PurchaseStatusFilter | SaleStatusFilter)[])
@@ -599,16 +294,242 @@ export default function MypagePage() {
                                     else setSaleStatus(chip as SaleStatusFilter);
                                     setCurrentPage(1);
                                  }}
-                                 className={`shrink-0 px-4 py-2 rounded-full text-body-2-medium transition-all ${
+                                 className={`shrink-0 px-4 py-2 rounded-full text-[14px] font-bold transition-all ${
                                     isActive
-                                       ? 'bg-fill-inverse text-white'
-                                       : 'border border-border text-muted-foreground hover:bg-surface'
+                                       ? 'bg-[#161d24] text-white'
+                                       : 'bg-white border border-[#e9ebee] text-[#acb4bb]'
                                  }`}
                               >
                                  {chip}
                               </Button>
                            );
                         })}
+                     </div>
+
+                     {/* 필터 바 — Figma: Card 1150×70, r=14, p=16, stroke=#d0d6db */}
+                     <div className="flex flex-col gap-2.5 p-4 bg-white rounded-[14px] border border-[#d0d6db]">
+                        {/* 모바일 전용: 검색 인풋 — Figma: 230×36, r=20, stroke=#e5e5e5, 아이콘 우측 */}
+                        <div className="flex flex-col gap-1 lg:hidden">
+                           <div className="flex items-center w-full h-10 border border-[#e5e5e5] rounded-[20px] bg-background overflow-hidden">
+                              <input
+                                 type="text"
+                                 value={searchQuery}
+                                 onChange={e => {
+                                    setSearchQuery(e.target.value);
+                                    setSearchError('');
+                                 }}
+                                 onKeyDown={e => {
+                                    if (e.key === 'Enter') handleApply();
+                                 }}
+                                 placeholder="경기명, 주문번호, 구장 검색 (2글자 이상)"
+                                 className="flex-1 h-full pl-3 text-[14px] text-foreground placeholder:text-[#646f7c] bg-transparent focus:outline-none"
+                              />
+                              <div className="flex items-center justify-center shrink-0 w-7 pr-3">
+                                 {searchQuery ? (
+                                    <button
+                                       type="button"
+                                       onClick={() => {
+                                          setSearchQuery('');
+                                          setSearchError('');
+                                       }}
+                                       aria-label="검색어 초기화"
+                                    >
+                                       <X size={11} className="text-muted-foreground" />
+                                    </button>
+                                 ) : (
+                                    <Search size={16} className="text-[#161d24]" />
+                                 )}
+                              </div>
+                           </div>
+                           {searchError && (
+                              <p className="text-caption-1-regular text-destructive pl-1">{searchError}</p>
+                           )}
+                        </div>
+
+                        {/* 필터 행 — 데스크톱: SPACE_BETWEEN (Figma: OrdersPage primaryAxisAlignItems=SPACE_BETWEEN) */}
+                        <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-between">
+                           {/* 왼쪽 그룹 — Figma: Container 411×36, gap=8 */}
+                           <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:gap-2">
+                              {/* 데스크톱 전용: "조회기간:" 라벨 — Figma: 14px/500/#364153 */}
+                              <span className="hidden lg:inline text-[14px] font-medium text-[#364153] whitespace-nowrap">
+                                 조회기간:
+                              </span>
+
+                              {/* 조회기간 드롭다운 — Figma: 119×36, r=8, fill=#fff, stroke=#d0d6db, SPACE_BETWEEN */}
+                              <div ref={periodDropdownRef} className="relative shrink-0">
+                                 <button
+                                    type="button"
+                                    className="flex items-center justify-between h-9 px-3 border border-[#d0d6db] rounded-lg bg-white text-[14px] font-medium text-[#161d24] whitespace-nowrap lg:w-[119px]"
+                                    onClick={() => {
+                                       setShowPeriodDropdown(v => !v);
+                                       setShowTypeDropdown(false);
+                                    }}
+                                 >
+                                    <span className="lg:hidden mr-1">조회기간: </span>
+                                    <span className="lg:flex-1">{pendingPeriod}</span>
+                                    <ChevronDown
+                                       size={15}
+                                       className={`shrink-0 ml-1 transition-transform ${showPeriodDropdown ? 'rotate-180' : ''}`}
+                                    />
+                                 </button>
+                                 {showPeriodDropdown && (
+                                    <div className="absolute top-[calc(100%+4px)] left-0 z-20 bg-white border border-[#d0d6db] rounded-[8px] p-1 w-[119px]">
+                                       {PERIOD_OPTIONS.map(opt => (
+                                          <button
+                                             key={opt}
+                                             type="button"
+                                             className={`w-full flex items-center justify-between h-8 px-1.5 rounded-[6px] text-[14px] transition-colors ${
+                                                pendingPeriod === opt
+                                                   ? 'bg-[#f7f8f9] text-[#374553] font-medium'
+                                                   : 'text-[#646f7c] font-normal hover:bg-[#f7f8f9]'
+                                             }`}
+                                             onClick={() => handlePeriodChange(opt)}
+                                          >
+                                             <span>{opt}</span>
+                                             {pendingPeriod === opt && (
+                                                <Check size={13} className="shrink-0 text-[#374553]" />
+                                             )}
+                                          </button>
+                                       ))}
+                                    </div>
+                                 )}
+                              </div>
+
+                              {/* 직접설정 날짜 — Figma: 96×36 / 99×36, r=8, stroke=#d0d6db, 구분 "~" */}
+                              {pendingPeriod === '직접설정' && (
+                                 <div className="flex items-center gap-2 shrink-0">
+                                    <DatePicker
+                                       value={pendingStartDate}
+                                       onChange={setPendingStartDate}
+                                       placeholder="시작일"
+                                       className="w-[140px]"
+                                       triggerClassName="border-[#d0d6db] bg-transparent text-[14px] font-medium text-[#161d24]"
+                                    />
+                                    <span className="text-[14px] font-medium text-black shrink-0">~</span>
+                                    <DatePicker
+                                       value={pendingEndDate}
+                                       onChange={setPendingEndDate}
+                                       placeholder="종료일"
+                                       className="w-[140px]"
+                                       triggerClassName="border-[#d0d6db] bg-transparent text-[14px] font-medium text-[#161d24]"
+                                    />
+                                 </div>
+                              )}
+                           </div>
+
+                           {/* 오른쪽 그룹 — Figma: Frame 442×36, gap=20 */}
+                           <div className="flex items-center gap-2 lg:gap-5">
+                              {/* 데스크톱 전용: 검색 인풋 — Figma: 230×36, r=20, fill=#fff, stroke=#e5e5e5, 아이콘 우측 */}
+                              <div className="hidden lg:flex items-center w-[230px] h-9 border border-[#e5e5e5] rounded-[20px] bg-white overflow-hidden">
+                                 <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={e => {
+                                       setSearchQuery(e.target.value);
+                                       setSearchError('');
+                                    }}
+                                    onKeyDown={e => {
+                                       if (e.key === 'Enter') handleApply();
+                                    }}
+                                    placeholder="Search"
+                                    className="flex-1 h-full pl-3 text-[14px] text-[#161d24] placeholder:text-[#646f7c] bg-transparent focus:outline-none"
+                                 />
+                                 {/* 아이콘 영역 — Figma: 28×28, pad=(6,12,6,0) */}
+                                 <div className="flex items-center justify-center shrink-0 w-7 pr-3">
+                                    {searchQuery ? (
+                                       <button
+                                          type="button"
+                                          onClick={() => {
+                                             setSearchQuery('');
+                                             setSearchError('');
+                                          }}
+                                          aria-label="검색어 초기화"
+                                       >
+                                          <X size={11} className="text-muted-foreground" />
+                                       </button>
+                                    ) : (
+                                       <Search size={16} className="text-[#161d24]" />
+                                    )}
+                                 </div>
+                              </div>
+
+                              {/* 종류 label + 드롭다운 — 구매: 전체/리셀/예매, 판매: 전체/리셀 */}
+                              <div className="flex items-center gap-2 shrink-0">
+                                 {/* 데스크톱 전용: "종류:" 라벨 — Figma: 14px/500/#364153 */}
+                                 <span className="hidden lg:inline text-[14px] font-medium text-[#364153] whitespace-nowrap">
+                                    종류:
+                                 </span>
+                                 {/* 드롭다운 — Figma: 119×36, r=8, fill=#fff, stroke=#d0d6db, SPACE_BETWEEN */}
+                                 <div ref={typeDropdownRef} className="relative">
+                                    <button
+                                       type="button"
+                                       className="flex items-center justify-between h-9 px-3 border border-[#d0d6db] rounded-lg bg-white text-[14px] font-medium text-[#161d24] whitespace-nowrap lg:w-[119px]"
+                                       onClick={() => {
+                                          setShowTypeDropdown(v => !v);
+                                          setShowPeriodDropdown(false);
+                                       }}
+                                    >
+                                       <span className="lg:hidden mr-1">종류: </span>
+                                       <span className="lg:flex-1">
+                                          {activeTab === 'purchase' ? pendingPurchaseType : pendingSaleType}
+                                       </span>
+                                       <ChevronDown
+                                          size={15}
+                                          className={`shrink-0 ml-1 transition-transform ${showTypeDropdown ? 'rotate-180' : ''}`}
+                                       />
+                                    </button>
+                                    {showTypeDropdown && (
+                                       <div className="absolute top-[calc(100%+4px)] left-0 z-20 bg-white border border-[#d0d6db] rounded-[8px] p-1 w-[119px]">
+                                          {(activeTab === 'purchase' ? PURCHASE_TYPE_OPTIONS : SALE_TYPE_OPTIONS).map(
+                                             opt => {
+                                                const isSelected =
+                                                   activeTab === 'purchase'
+                                                      ? pendingPurchaseType === opt
+                                                      : pendingSaleType === opt;
+                                                return (
+                                                   <button
+                                                      key={opt}
+                                                      type="button"
+                                                      className={`w-full flex items-center justify-between h-8 px-1.5 rounded-[6px] text-[14px] transition-colors ${
+                                                         isSelected
+                                                            ? 'bg-[#f7f8f9] text-[#374553] font-medium'
+                                                            : 'text-[#646f7c] font-normal hover:bg-[#f7f8f9]'
+                                                      }`}
+                                                      onClick={() => {
+                                                         if (activeTab === 'purchase')
+                                                            setPendingPurchaseType(opt as PurchaseTypeFilter);
+                                                         else setPendingSaleType(opt as SaleTypeFilter);
+                                                         setShowTypeDropdown(false);
+                                                      }}
+                                                   >
+                                                      <span>{opt}</span>
+                                                      {isSelected && (
+                                                         <Check size={13} className="shrink-0 text-[#374553]" />
+                                                      )}
+                                                   </button>
+                                                );
+                                             },
+                                          )}
+                                       </div>
+                                    )}
+                                 </div>
+                              </div>
+
+                              {/* 조회 버튼 — Figma: 53×33, r=8, stroke=#d0d6db, Settings+조회 텍스트 */}
+                              <button
+                                 type="button"
+                                 onClick={handleApply}
+                                 className="flex items-center gap-2 h-[33px] px-[14px] border border-[#d0d6db] rounded-lg bg-transparent text-[14px] font-medium text-[#374553] whitespace-nowrap ml-auto lg:ml-0"
+                              >
+                                 조회
+                              </button>
+                           </div>
+                        </div>
+
+                        {/* 데스크톱 전용: 검색 에러 */}
+                        {searchError && (
+                           <p className="hidden lg:block text-caption-1-regular text-destructive pl-1">{searchError}</p>
+                        )}
                      </div>
 
                      {/* 내역 리스트 */}

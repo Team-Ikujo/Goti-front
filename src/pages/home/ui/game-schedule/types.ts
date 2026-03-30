@@ -6,7 +6,9 @@ export type GameRow = {
    gameId?: string;
    homeTeamId?: string;
    awayTeamId?: string;
+   serverHomeTeamId?: string;
    stadiumId?: string;
+   leagueType?: import('@/shared/types/game').ApiLeagueType;
    queueTokenJti?: string;
    rawDate?: string; // YYYY-MM-DD — 시간 기반 상태 전환용
    time: string;

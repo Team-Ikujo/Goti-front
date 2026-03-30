@@ -9,6 +9,7 @@ interface DatePickerProps {
    onChange: (value: string) => void;
    placeholder?: string;
    className?: string;
+   triggerClassName?: string;
 }
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -127,7 +128,7 @@ function NavDropdown({ items, selected, onSelect, labelOf, className }: NavDropd
 }
 
 // ── DatePicker 본체 ───────────────────────────────────────────────
-export function DatePicker({ value, onChange, placeholder = '경기 일시 선택', className }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = '경기 일시 선택', className, triggerClassName }: DatePickerProps) {
    const [isOpen, setIsOpen] = useState(false);
    const [showYearDrop, setShowYearDrop] = useState(false);
    const [showMonthDrop, setShowMonthDrop] = useState(false);
@@ -193,7 +194,7 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
          <button
             type="button"
             onClick={() => setIsOpen(v => !v)}
-            className="bg-surface border border-border-light rounded-lg px-3 h-9 flex items-center justify-between w-full"
+            className={cn("bg-surface border border-border-light rounded-lg px-3 h-9 flex items-center justify-between w-full", triggerClassName)}
             aria-haspopup="dialog"
             aria-expanded={isOpen}
          >
@@ -225,7 +226,7 @@ export function DatePicker({ value, onChange, placeholder = '경기 일시 선�
                      // 모바일: 바텀시트
                      'fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl p-4 pb-safe shadow-[0px_-4px_16px_rgba(0,0,0,0.12)] md:pb-4',
                      // 데스크톱: 드롭다운
-                     'md:absolute md:bottom-auto md:top-[calc(100%+4px)] md:left-0 md:right-0 md:rounded-[10px] md:border md:border-border md:p-3 md:shadow-[0px_1px_3px_rgba(0,0,0,0.1)]',
+                     'md:absolute md:bottom-auto md:top-[calc(100%+4px)] md:left-0 md:w-[280px] md:rounded-[10px] md:border md:border-border md:p-3 md:shadow-[0px_1px_3px_rgba(0,0,0,0.1)]',
                   )}
                >
                   {/* ── 헤더 ── */}

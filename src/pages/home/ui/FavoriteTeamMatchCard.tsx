@@ -6,12 +6,15 @@ import { Link } from 'react-router-dom';
 import { teams } from '@/entities/team/model/teams';
 import type { Team } from '@/entities/team/model/types';
 import { getClosestMatch, getDDay, useGameSchedules } from '@/entities/game/model/schedule';
+import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
 import { Button } from '@/shared/ui/button';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 
 const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const { openBookingEntry, openResellEntry, bookingGuideDialog } = useBookingEntryFlow();
    const { data, isPending } = useGameSchedules();
+   const resaleGameIds = (data ?? []).map((game) => game.id);
+   const resaleCountsQuery = useResaleGameCounts(resaleGameIds);
    const match = getClosestMatch(data ?? [], team.id);
 
    /** 헤더 — 경기 없을 때도 공통 사용 */
@@ -77,12 +80,18 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const formattedDate = `${match.date.replace(/-/g, '.')} ${match.time}`;
    const awayTeamName = match.awayTeamFullName;
    const homeTeamName = match.homeTeamFullName;
+   const resaleCount = resaleCountsQuery.data?.get(match.id);
+   const canResellBook = match.resell === '리셀예매' && typeof resaleCount === 'number' && resaleCount > 0;
+   const resellButtonLabel = match.resell === '리셀예정' ? '리셀예정' : canResellBook ? '리셀예매' : '리셀매진';
 
    const handleBookingClick = () => {
       openBookingEntry({
          homeTeamId: match.homeTeamId,
+         serverHomeTeamId: match.serverHomeTeamId,
          gameId: match.id,
          stadiumId: match.stadiumId,
+         leagueType: match.leagueType,
+         gameDate: match.date,
          queueTokenJti: match.queueTokenJti,
          matchTitle: `${awayTeamName} vs ${homeTeamName}`,
          venue: match.venue,
@@ -91,14 +100,17 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    };
 
    const handleResellClick = () => {
-      if (match.resell !== '리셀예매') {
+      if (!canResellBook) {
          return;
       }
 
       openResellEntry({
          homeTeamId: match.homeTeamId,
+         serverHomeTeamId: match.serverHomeTeamId,
          gameId: match.id,
          stadiumId: match.stadiumId,
+         leagueType: match.leagueType,
+         gameDate: match.date,
          queueTokenJti: match.queueTokenJti,
          matchTitle: `${awayTeamName} vs ${homeTeamName}`,
          venue: match.venue,
@@ -175,10 +187,10 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                <Button
                   variant="secondary"
                   className="flex-1 max-w-[300px] h-[46px] text-[14px] font-bold rounded-[10px] tracking-[-0.15px]"
-                  disabled={match.resell !== '리셀예매'}
+                  disabled={!canResellBook}
                   onClick={handleResellClick}
                >
-                  리셀예매
+                  {resellButtonLabel}
                </Button>
             </div>
          </div>
@@ -250,10 +262,10 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                   <Button
                      variant="secondary"
                      className="h-12 text-[16px] font-bold rounded-lg"
-                     disabled={match.resell !== '리셀예매'}
+                     disabled={!canResellBook}
                      onClick={handleResellClick}
                   >
-                     리셀예매
+                     {resellButtonLabel}
                   </Button>
                </div>
             </div>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { fetchResaleListingCountsBySections } from '@/entities/resale/api/resaleApi';
 
 import {
    fetchSeatGrades,
@@ -50,6 +51,7 @@ const BooksPage = () => {
    const { data: apiZones } = useQuery({
       queryKey: [
          'booking-zones',
+         bookingFlowMode,
          bookingEntryState?.stadiumId,
          bookingEntryState?.gameId,
          bookingEntryState?.serverHomeTeamId,
@@ -69,6 +71,13 @@ const BooksPage = () => {
             fetchSeatSections(bookingEntryState!.stadiumId!),
             fetchTicketPricingPolicy(bookingEntryState!.serverHomeTeamId!).catch(() => undefined),
          ]);
+         const remainingBySectionId =
+            bookingFlowMode === 'resell'
+               ? await fetchResaleListingCountsBySections(
+                    bookingEntryState!.gameId!,
+                    sections.map((section) => section.sectionId),
+                 )
+               : undefined;
          const pricingByGradeId = resolvePricingByGradeId({
             policy: pricingPolicy,
             gameDate: bookingEntryState?.gameDate,
@@ -80,6 +89,7 @@ const BooksPage = () => {
             grades,
             teamId: bookingEntryState?.homeTeamId,
             pricingByGradeId,
+            remainingBySectionId,
          });
       },
    });

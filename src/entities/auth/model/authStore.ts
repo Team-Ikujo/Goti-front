@@ -49,6 +49,7 @@ export type AuthState = {
   }) => void;
   clearAuth: (reason?: LogoutReason) => void;
   clearLogoutReason: () => void;
+  extendAuthSession: () => void;
   syncAuthSession: () => void;
   startAuthSessionTimer: () => void;
   stopAuthSessionTimer: () => void;
@@ -141,6 +142,14 @@ export const useAuthStore = create<AuthState>()(
         });
       },
       clearLogoutReason: () => set({ logoutReason: null }),
+      extendAuthSession: () => {
+        const nextAuthExpiresAt = Date.now() + AUTH_SESSION_DURATION_MS;
+        set({
+          authExpiresAt: nextAuthExpiresAt,
+          sessionRemainingSeconds: getRemainingSeconds(nextAuthExpiresAt),
+        });
+        get().startAuthSessionTimer();
+      },
       syncAuthSession: () => {
         const { accessToken, authExpiresAt } = get();
 

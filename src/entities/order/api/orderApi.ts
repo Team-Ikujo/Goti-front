@@ -20,6 +20,7 @@ export interface OrderListItem {
    seatGradeName?: string;
    seatInfos?: string[];
    ticketId?: string;
+   ticketIds?: string[];
 }
 
 export const fetchMyOrders = async (): Promise<OrderListItem[]> => {

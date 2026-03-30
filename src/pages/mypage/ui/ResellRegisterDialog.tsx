@@ -105,6 +105,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
    const [bulkToggle, setBulkToggle] = useState(false);
    const [completeOpen, setCompleteOpen] = useState(false);
 
+   const [isSubmitting, setIsSubmitting] = useState(false);
    const queryClient = useQueryClient();
    const mutation = useMutation({
       mutationFn: createResaleListing,
@@ -152,23 +153,35 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
    };
 
    const handleRegister = async () => {
-      if (checkedSeats.size === 0) {
+      const indices = Array.from(checkedSeats);
+      if (indices.length === 0) {
          alert('판매할 좌석을 선택해주세요.');
          return;
       }
 
-      const firstIdx = Array.from(checkedSeats)[0];
-      const listingPrice = bulkToggle ? Number(bulkPrice) : Number(prices[firstIdx]);
+      // 좌석별 ticketId 매핑 (ticketIds 배열 우선, 없으면 item.id로 fallback)
+      const ticketIds = item.ticketIds ?? [item.id];
 
-      if (!listingPrice || isNaN(listingPrice)) {
+      const requests = indices.map(idx => ({
+         ticketId: ticketIds[idx] ?? item.id,
+         listingPrice: bulkToggle ? Number(bulkPrice) : Number(prices[idx]),
+      }));
+
+      if (requests.some(r => !r.listingPrice || isNaN(r.listingPrice))) {
          alert('판매 가격을 올바르게 입력해주세요.');
          return;
       }
 
-      mutation.mutate({
-         ticketId: item.id,
-         listingPrice
-      });
+      setIsSubmitting(true);
+      try {
+         await Promise.all(requests.map(r => createResaleListing(r)));
+         queryClient.invalidateQueries({ queryKey: ['myResales'] });
+         setCompleteOpen(true);
+      } catch {
+         alert('판매 등록에 실패했습니다. 다시 시도해주세요.');
+      } finally {
+         setIsSubmitting(false);
+      }
    };
 
    return createPortal(
@@ -179,6 +192,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
             onClose={() => {
                setCompleteOpen(false);
                onClose();
+               onCompleteConfirm?.();
             }}
             onConfirm={() => {
                setCompleteOpen(false);
@@ -372,9 +386,9 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                      variant="none"
                      className="flex-1 bg-primary rounded-lg py-3 text-[16px] font-bold text-white leading-normal hover:bg-primary/90 transition-colors disabled:opacity-50"
                      onClick={handleRegister}
-                     disabled={mutation.isPending}
+                     disabled={isSubmitting}
                   >
-                     {mutation.isPending ? '등록 중...' : '판매 등록하기'}
+                     {isSubmitting ? '등록 중...' : '판매 등록하기'}
                   </Button>
                </div>
             </div>

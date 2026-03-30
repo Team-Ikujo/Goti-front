@@ -137,6 +137,25 @@ export const mockGameSchedules: MockGameSchedule[] = [
 
 const matchesCalendarDate = (startAt: string, date: string) => startAt.slice(0, 10) === date;
 
+/** 현재 시각 기준으로 경기 상태와 티켓팅 상태를 동적으로 계산 */
+const resolveGameStatus = (game: MockGameSchedule): Pick<MockGameSchedule, 'gameStatus' | 'ticketingStatus'> => {
+  const now = Date.now();
+  const startMs = new Date(game.startAt.replace(' ', 'T')).getTime();
+  const GAME_DURATION_MS = 3 * 60 * 60 * 1000;   // 경기 지속 시간: 3시간
+  const TICKETING_CLOSE_MS = 4 * 60 * 60 * 1000; // 경기 시작 4시간 전 티켓팅 마감
+
+  if (now >= startMs + GAME_DURATION_MS) {
+    return { gameStatus: 'FINISHED', ticketingStatus: 'CLOSED' };
+  }
+  if (now >= startMs) {
+    return { gameStatus: 'IN_PROGRESS', ticketingStatus: 'CLOSED' };
+  }
+  if (now >= startMs - TICKETING_CLOSE_MS) {
+    return { gameStatus: 'SCHEDULED', ticketingStatus: 'CLOSED' };
+  }
+  return { gameStatus: game.gameStatus, ticketingStatus: game.ticketingStatus };
+};
+
 export const gameHandlers = [
   http.get('/api/v1/games/schedules', async ({ request }) => {
     const searchParams = new URL(request.url).searchParams;
@@ -145,29 +164,31 @@ export const gameHandlers = [
     const month = searchParams.get('month');
     const today = searchParams.get('today');
 
-    const filteredGames = mockGameSchedules.filter((game) => {
-      if (teamId && game.homeTeamId !== teamId && game.awayTeamId !== teamId) {
-        return false;
-      }
-
-      if (year || month) {
-        const [gameYear, gameMonth] = game.startAt.split(' ')[0]?.split('-') ?? [];
-
-        if (year && gameYear !== year) {
+    const filteredGames = mockGameSchedules
+      .filter((game) => {
+        if (teamId && game.homeTeamId !== teamId && game.awayTeamId !== teamId) {
           return false;
         }
 
-        if (month && gameMonth !== month.padStart(2, '0')) {
+        if (year || month) {
+          const [gameYear, gameMonth] = game.startAt.split(' ')[0]?.split('-') ?? [];
+
+          if (year && gameYear !== year) {
+            return false;
+          }
+
+          if (month && gameMonth !== month.padStart(2, '0')) {
+            return false;
+          }
+        }
+
+        if (today === 'true' && !matchesCalendarDate(game.startAt, MOCK_TODAY)) {
           return false;
         }
-      }
 
-      if (today === 'true' && !matchesCalendarDate(game.startAt, MOCK_TODAY)) {
-        return false;
-      }
-
-      return true;
-    });
+        return true;
+      })
+      .map((game) => ({ ...game, ...resolveGameStatus(game) }));
 
     return HttpResponse.json({
       code: 'SUCCESS',

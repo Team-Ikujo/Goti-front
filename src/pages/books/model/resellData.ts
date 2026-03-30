@@ -1,4 +1,4 @@
-import type { SeatItem, ZoneItem } from './types';
+import type { ZoneItem } from './types';
 
 export type ResellTradeRange = 'minute' | 'day';
 
@@ -30,6 +30,11 @@ export type ResellListingItem = {
    isPurchasable: boolean;
 };
 
+export type ResellGraphPoint = {
+   transactionPrice: number;
+   confirmedAt: string;
+};
+
 export type ResellZoneInsights = {
    changeAmount: number;
    changeRate: number;
@@ -42,114 +47,112 @@ export type ResellZoneInsights = {
    listings: ResellListingItem[];
 };
 
-const minuteLabels = ['14:00', '14:45', '15:30', '16:15', '17:00', '17:45', '18:30'];
-const dayLabels = ['03/14', '03/15', '03/16', '03/17', '03/18', '03/19', '03/20'];
-const minuteOccurredAt = [
-   '2026-03-20T14:00:00+09:00',
-   '2026-03-20T14:45:00+09:00',
-   '2026-03-20T15:30:00+09:00',
-   '2026-03-20T16:15:00+09:00',
-   '2026-03-20T17:00:00+09:00',
-   '2026-03-20T17:45:00+09:00',
-   '2026-03-20T18:30:00+09:00',
-];
-const dayOccurredAt = [
-   '2026-03-14T18:00:00+09:00',
-   '2026-03-15T18:00:00+09:00',
-   '2026-03-16T18:00:00+09:00',
-   '2026-03-17T18:00:00+09:00',
-   '2026-03-18T18:00:00+09:00',
-   '2026-03-19T18:00:00+09:00',
-   '2026-03-20T18:00:00+09:00',
-];
+const minuteLabelFormatter = new Intl.DateTimeFormat('ko-KR', {
+   hour: '2-digit',
+   minute: '2-digit',
+   hour12: false,
+   timeZone: 'Asia/Seoul',
+});
 
-const formatSeatInfo = (zone: ZoneItem, seat: SeatItem) => `${zone.name} ${seat.rowLabel} ${seat.seatNumber}번`;
+const dayLabelFormatter = new Intl.DateTimeFormat('ko-KR', {
+   month: '2-digit',
+   day: '2-digit',
+   timeZone: 'Asia/Seoul',
+});
 
-const formatSeatLabel = (zone: ZoneItem, seat: SeatItem) => `${zone.sectionCode}구역 ${seat.rowLabel} ${seat.seatNumber}번`;
+const sortGraphPointsByTime = (left: ResellGraphPoint, right: ResellGraphPoint) =>
+   new Date(left.confirmedAt).getTime() - new Date(right.confirmedAt).getTime();
 
-const createPricePoints = (labels: string[], prices: number[], occurredAtList: string[]): PricePoint[] => {
-   return labels.map((time, index) => ({
-      time,
-      price: prices[index] ?? prices[prices.length - 1] ?? 0,
-      occurredAt: occurredAtList[index] ?? occurredAtList[occurredAtList.length - 1] ?? '',
-   }));
-};
+const createPricePointsFromGraph = (points: ResellGraphPoint[], range: ResellTradeRange): PricePoint[] => {
+   const sortedPoints = [...points].sort(sortGraphPointsByTime);
 
-const createListingPrice = (zonePrice: number, seat: SeatItem, index: number) => {
-   const basePrice = Math.max(zonePrice, 10000);
-   const rowPremium = Math.max(0, 6 - Math.min(6, Number.parseInt(seat.rowLabel, 10) || 6)) * 1000;
-   const seatPremium = (seat.seatNumber % 5) * 500;
-
-   return basePrice + rowPremium + seatPremium + index * 500;
-};
-
-export function getResellZoneInsights({
-   zone,
-   seats,
-}: {
-   zone: ZoneItem;
-   seats: SeatItem[];
-}): ResellZoneInsights {
-   const listedSeats = seats
-      .filter((seat) => seat.status === 'available')
-      .sort(
-         (left, right) =>
-            left.block.localeCompare(right.block, 'ko-KR', { numeric: true, sensitivity: 'base' }) ||
-            left.rowLabel.localeCompare(right.rowLabel, 'ko-KR', { numeric: true, sensitivity: 'base' }) ||
-            left.seatNumber - right.seatNumber,
-      )
-      .slice(0, 8);
-
-   const listings = listedSeats.map((seat, index) => {
-      const listingPrice = createListingPrice(zone.price, seat, index);
-      const totalBuyerFee = 2000;
-      const totalSellerFee = Math.max(1000, Math.round(listingPrice * 0.05 / 1000) * 1000);
+   return sortedPoints.map((point) => {
+      const confirmedAt = new Date(point.confirmedAt);
 
       return {
-         listingId: `listing-${seat.id}`,
-         sellerId: `seller-${zone.id}-${index + 1}`,
-         seatId: seat.id,
-         seatInfo: formatSeatInfo(zone, seat),
-         seatLabel: formatSeatLabel(zone, seat),
-         listingPrice,
-         totalAmount: listingPrice + totalBuyerFee,
-         totalBuyerFee,
-         totalSellerFee,
-         settlementAmount: Math.max(0, listingPrice - totalSellerFee),
-         listedAt: `2026-03-20T0${Math.min(index, 9)}:00:00.000Z`,
-         isPurchasable: true,
-      } satisfies ResellListingItem;
+         time: range === 'minute' ? minuteLabelFormatter.format(confirmedAt) : dayLabelFormatter.format(confirmedAt).replace('. ', '/').replace('.', ''),
+         price: point.transactionPrice,
+         occurredAt: point.confirmedAt,
+      };
    });
+};
 
-   const previousClose = Math.max(zone.price, 10000);
-   const recentTrade = listings[0]?.listingPrice ?? previousClose;
+const toRelativeTradeTime = (value: string) => {
+   const now = Date.now();
+   const target = new Date(value).getTime();
+
+   if (Number.isNaN(target)) {
+      return value;
+   }
+
+   const diffMinutes = Math.max(0, Math.floor((now - target) / (1000 * 60)));
+
+   if (diffMinutes < 1) {
+      return '방금 전';
+   }
+
+   if (diffMinutes < 60) {
+      return `${diffMinutes}분 전`;
+   }
+
+   const diffHours = Math.floor(diffMinutes / 60);
+
+   if (diffHours < 24) {
+      return `${diffHours}시간 전`;
+   }
+
+   const date = new Date(target);
+   const month = String(date.getMonth() + 1).padStart(2, '0');
+   const day = String(date.getDate()).padStart(2, '0');
+   const hours = String(date.getHours()).padStart(2, '0');
+   const minutes = String(date.getMinutes()).padStart(2, '0');
+
+   return `${month}/${day} ${hours}:${minutes}`;
+};
+
+const createTradeHistoryFromGraph = (zone: ZoneItem, points: ResellGraphPoint[]): TradeHistoryItem[] => {
+   return [...points]
+      .sort((left, right) => new Date(right.confirmedAt).getTime() - new Date(left.confirmedAt).getTime())
+      .slice(0, 4)
+      .map((point, index) => ({
+         id: `${zone.id}-trade-${index}-${point.confirmedAt}`,
+         price: point.transactionPrice,
+         seatLabel: zone.name,
+         tradedAt: toRelativeTradeTime(point.confirmedAt),
+      }));
+};
+
+const getFallbackPrice = (zone: ZoneItem, listings: ResellListingItem[]) => {
+   return listings[0]?.listingPrice ?? Math.max(zone.price, 10000);
+};
+
+export const buildResellZoneInsightsFromApi = ({
+   zone,
+   listings,
+   minuteGraph,
+   dayGraph,
+}: {
+   zone: ZoneItem;
+   listings: ResellListingItem[];
+   minuteGraph: ResellGraphPoint[];
+   dayGraph: ResellGraphPoint[];
+}): ResellZoneInsights => {
+   const pricePointsByMinute = createPricePointsFromGraph(minuteGraph, 'minute');
+   const pricePointsByDay = createPricePointsFromGraph(dayGraph, 'day');
+   const fallbackPrice = getFallbackPrice(zone, listings);
+   const previousClose =
+      pricePointsByDay.length >= 2
+         ? pricePointsByDay[pricePointsByDay.length - 2]?.price ?? fallbackPrice
+         : pricePointsByDay[0]?.price ?? fallbackPrice;
+   const recentTrade =
+      pricePointsByMinute[pricePointsByMinute.length - 1]?.price ??
+      pricePointsByDay[pricePointsByDay.length - 1]?.price ??
+      listings[0]?.listingPrice ??
+      previousClose;
+   const dayPrices = pricePointsByDay.map((point) => point.price);
+   const dayLow = dayPrices.length > 0 ? Math.min(...dayPrices) : Math.min(previousClose, recentTrade);
+   const dayHigh = dayPrices.length > 0 ? Math.max(...dayPrices) : Math.max(previousClose, recentTrade);
    const changeAmount = recentTrade - previousClose;
-   const dayLow = Math.max(5000, previousClose - Math.round(previousClose * 0.3));
-   const dayHigh = Math.max(recentTrade, previousClose + Math.round(previousClose * 0.3));
-   const minutePrices = [
-      previousClose - 2000,
-      previousClose + 500,
-      previousClose + 3500,
-      previousClose + 6000,
-      previousClose + 4500,
-      previousClose + 8000,
-      previousClose + 7000,
-   ];
-   const dayPrices = [
-      previousClose - 3000,
-      previousClose - 1500,
-      previousClose + 500,
-      previousClose + 1500,
-      previousClose + 2800,
-      previousClose + 4200,
-      recentTrade,
-   ];
-   const tradeHistory = listings.slice(0, 4).map((listing, index) => ({
-      id: `${listing.listingId}-history`,
-      price: listing.listingPrice,
-      seatLabel: listing.seatLabel,
-      tradedAt: ['40분 전', '6시간 전', '03/07 14:23', '03/07 14:23'][index] ?? '방금 전',
-   }));
 
    return {
       changeAmount,
@@ -159,10 +162,14 @@ export function getResellZoneInsights({
       dayLow,
       dayHigh,
       pricePointsByRange: {
-         minute: createPricePoints(minuteLabels, minutePrices, minuteOccurredAt),
-         day: createPricePoints(dayLabels, dayPrices, dayOccurredAt),
+         minute: pricePointsByMinute.length > 0
+            ? pricePointsByMinute
+            : [{ time: '00:00', price: recentTrade, occurredAt: new Date().toISOString() }],
+         day: pricePointsByDay.length > 0
+            ? pricePointsByDay
+            : [{ time: '00/00', price: recentTrade, occurredAt: new Date().toISOString() }],
       },
-      tradeHistory,
+      tradeHistory: createTradeHistoryFromGraph(zone, dayGraph.length > 0 ? dayGraph : minuteGraph),
       listings,
    };
-}
+};

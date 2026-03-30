@@ -57,3 +57,7 @@ export const fetchTicketQr = async (ticketId: string): Promise<TicketQrResponse>
    const response = await apiClient.get<ApiEnvelope<TicketQrResponse>>(`/api/v1/tickets/${ticketId}/qr`);
    return response.data.data;
 };
+
+export const cancelTicket = async (ticketId: string): Promise<void> => {
+   await apiClient.post(`/api/v1/tickets/${ticketId}/cancel`);
+};

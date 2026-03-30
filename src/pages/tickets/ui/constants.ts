@@ -4,14 +4,14 @@ import type { GameItem } from './types';
 
 export const MAX_PRICE = 100_000;
 
-/** 홈 페이지 schedule.ts의 venue 목록과 동일하게 유지 */
+/** schedule.ts STADIUM_REFERENCES의 displayName과 동일하게 유지 */
 export const VENUES = [
    '잠실 야구장',
-   '대구 삼성라이온즈파크',
+   '대구 삼성 라이온즈 파크',
    '사직 야구장',
    '창원 NC파크',
    '고척 스카이돔',
-   '광주 기아 챔피언스 필드',
+   '기아 챔피언스필드',
    '수원 KT위즈파크',
 ];
 
