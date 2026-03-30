@@ -27,6 +27,7 @@ const STAGE_WIDTH = 1240;
 const STAGE_HEIGHT = 620;
 const BLOCK_SEAT_SIZE = 18;
 const BLOCK_SEAT_GAP = 2;
+const BLOCK_CARD_COLUMN_GAP = 48;
 const MINIMAP_WIDTH = 215;
 const MINIMAP_HEIGHT = 140;
 const MINIMAP_PADDING_X = 24;
@@ -58,7 +59,13 @@ function SeatsPage() {
    const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
-   const { apiSeatItems, seatBlocks, hasApiSeatMap, isSeatMapLoading, refetchSeatMap } = useSeatMapData({
+   const {
+      apiSeatItems,
+      seatBlocks,
+      hasApiSeatMap,
+      isSeatMapLoading,
+      refetchSeatMap,
+   } = useSeatMapData({
       gameId: bookingEntryState?.gameId,
       stadiumId: bookingEntryState?.stadiumId,
       zone,
@@ -259,27 +266,44 @@ function SeatsPage() {
          return null;
       }
 
-      const blockMetrics = seatBlocks.map(block => {
+      const blockMetrics = seatBlocks.map((block, index) => {
          const width = block.cols * (BLOCK_SEAT_SIZE + BLOCK_SEAT_GAP) - BLOCK_SEAT_GAP;
          const height = block.rows * (BLOCK_SEAT_SIZE + BLOCK_SEAT_GAP) - BLOCK_SEAT_GAP;
+         const renderedOffsetX = block.offsetX + index * BLOCK_CARD_COLUMN_GAP;
 
          return {
             ...block,
             width,
             height,
-            right: block.offsetX + width,
+            renderedOffsetX,
+            right: renderedOffsetX + width,
             bottom: block.offsetY + height,
          };
       });
 
       return {
-         left: Math.min(...blockMetrics.map(block => block.offsetX)),
+         left: Math.min(...blockMetrics.map(block => block.renderedOffsetX)),
          top: Math.min(...blockMetrics.map(block => block.offsetY)),
          right: Math.max(...blockMetrics.map(block => block.right)),
          bottom: Math.max(...blockMetrics.map(block => block.bottom)),
          blocks: blockMetrics,
       };
    }, [seatBlocks]);
+
+   const directionBadgePosition = useMemo(() => {
+      if (!sectionBounds) {
+         return null;
+      }
+
+      const badgeHeight = 48;
+      const sectionHeight = sectionBounds.bottom - sectionBounds.top;
+      const badgeOffset = Math.max(156, Math.min(260, Math.round(sectionHeight * 0.44)));
+
+      return {
+         left: (sectionBounds.left + sectionBounds.right) / 2,
+         top: Math.max(-160, sectionBounds.top - badgeHeight - badgeOffset),
+      };
+   }, [sectionBounds]);
 
    const minimapLayout = useMemo(() => {
       if (!sectionBounds) {
@@ -302,7 +326,7 @@ function SeatsPage() {
          offsetY,
          blocks: sectionBounds.blocks.map(block => ({
             id: block.id,
-            x: offsetX + (block.offsetX - sectionBounds.left) * scale,
+            x: offsetX + (block.renderedOffsetX - sectionBounds.left) * scale,
             y: offsetY + (block.offsetY - sectionBounds.top) * scale,
             width: block.width * scale,
             height: block.height * scale,
@@ -321,15 +345,15 @@ function SeatsPage() {
 
       const stageLeft = (mapViewportSize.width - STAGE_WIDTH * seatMapScale) / 2 + seatMapOffset.x;
       const stageTop = 56 + seatMapOffset.y;
-      const visibleX = Math.max(0, (0 - stageLeft) / seatMapScale);
-      const visibleY = Math.max(0, (0 - stageTop) / seatMapScale);
-      const visibleWidth = Math.min(STAGE_WIDTH - visibleX, mapViewportSize.width / seatMapScale);
-      const visibleHeight = Math.min(STAGE_HEIGHT - visibleY, mapViewportSize.height / seatMapScale);
+      const visibleLeft = (0 - stageLeft) / seatMapScale;
+      const visibleTop = (0 - stageTop) / seatMapScale;
+      const visibleRight = (mapViewportSize.width - stageLeft) / seatMapScale;
+      const visibleBottom = (mapViewportSize.height - stageTop) / seatMapScale;
 
-      const intersectLeft = Math.max(sectionBounds.left, visibleX);
-      const intersectTop = Math.max(sectionBounds.top, visibleY);
-      const intersectRight = Math.min(sectionBounds.right, visibleX + visibleWidth);
-      const intersectBottom = Math.min(sectionBounds.bottom, visibleY + visibleHeight);
+      const intersectLeft = Math.max(sectionBounds.left, visibleLeft);
+      const intersectTop = Math.max(sectionBounds.top, visibleTop);
+      const intersectRight = Math.min(sectionBounds.right, visibleRight);
+      const intersectBottom = Math.min(sectionBounds.bottom, visibleBottom);
 
       if (intersectRight <= intersectLeft || intersectBottom <= intersectTop || !minimapLayout) {
          return null;
@@ -491,6 +515,7 @@ function SeatsPage() {
 
                <div className="relative flex-1 overflow-hidden px-0 pb-[144px] lg:px-8 lg:pb-6 xl:pb-6">
                   <SeatMapStage
+                     directionBadgePosition={directionBadgePosition}
                      isSeatMapDragging={isSeatMapDragging}
                      mapViewportRef={mapViewportRef}
                      minimapLayout={minimapLayout}

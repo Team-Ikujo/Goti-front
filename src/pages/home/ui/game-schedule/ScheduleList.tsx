@@ -5,7 +5,7 @@ import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
 import { TAB_TODAY, TEAM_IDS, statusColor, teamLogos } from './constants';
 import type { DaySchedule, GameRow } from './types';
-import { getGameResultTexts } from './utils';
+import { getEffectiveSaleStatuses, getGameResultTexts } from './utils';
 
 const VENUE_REGION_LABELS: Record<string, string> = {
    '기아 챔피언스필드': '광주',
@@ -23,53 +23,6 @@ const VENUE_REGION_LABELS: Record<string, string> = {
 
 const toVenueRegionLabel = (venue: string) => {
    return VENUE_REGION_LABELS[venue] ?? venue;
-};
-
-const parseScheduleDateTime = (value?: string) => {
-   if (!value?.trim()) {
-      return null;
-   }
-
-   const normalized = value.includes('T') ? value : value.replace(' ', 'T');
-   const parsedDate = new Date(normalized);
-
-   return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
-};
-
-const getEffectiveSaleStatuses = (game: GameRow) => {
-   const now = new Date();
-   const saleOpenTime = parseScheduleDateTime(game.ticketingOpenedAt);
-   const saleEndTime = parseScheduleDateTime(game.ticketingEndAt);
-   const resellOpenTime = game.rawDate ? new Date(`${game.rawDate}T13:00:00`) : null;
-   const saleBeforeOpen = saleOpenTime !== null && now < saleOpenTime;
-   const saleClosed = saleEndTime !== null && now > saleEndTime;
-   const saleNowOpen = (saleOpenTime === null || now >= saleOpenTime) && (saleEndTime === null || now <= saleEndTime);
-   const resellNowOpen = resellOpenTime !== null && now >= resellOpenTime;
-
-   const effectiveTicket = (() => {
-      if (game.ticket === '매진') {
-         return game.ticket;
-      }
-
-      if (saleBeforeOpen) {
-         return '판매예정';
-      }
-
-      if (saleClosed) {
-         return '매진';
-      }
-
-      if (saleNowOpen) {
-         return '예매하기';
-      }
-
-      return game.ticket;
-   })();
-
-   return {
-      effectiveTicket,
-      effectiveResell: game.resell === '리셀예정' && resellNowOpen ? '리셀예매' : game.resell,
-   };
 };
 
 function ScoreDisplay({ game }: { game: GameRow }) {
@@ -220,7 +173,7 @@ function ActionButtons({
    onOpenBookingFlow: (game: GameRow) => void;
    onOpenResellFlow: (game: GameRow) => void;
 }) {
-   const { effectiveTicket, effectiveResell } = getEffectiveSaleStatuses(game);
+   const { effectiveTicket, effectiveResell, ticketInfo, reselInfo } = getEffectiveSaleStatuses(game);
 
    const canBook = effectiveTicket === '예매하기';
    const canResellBook = effectiveResell === '리셀예매';
@@ -228,8 +181,8 @@ function ActionButtons({
    const isResellScheduled = effectiveResell === '리셀예정';
 
    // 서브텍스트 두 줄 분리
-   const [ticketInfoLine1, ticketInfoLine2] = (game.ticketInfo ?? '').split('\n');
-   const [reselInfoLine1, reselInfoLine2] = (game.reselInfo ?? '').split('\n');
+   const [ticketInfoLine1, ticketInfoLine2] = (ticketInfo ?? '').split('\n');
+   const [reselInfoLine1, reselInfoLine2] = (reselInfo ?? '').split('\n');
 
    return (
       <>

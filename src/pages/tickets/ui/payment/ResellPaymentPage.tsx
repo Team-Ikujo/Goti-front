@@ -100,10 +100,11 @@ export default function ResellPaymentPage() {
    const [cashReceiptNumType, setCashReceiptNumType] = useState<CashReceiptNumType>('phone');
    const [cashReceiptNum, setCashReceiptNum] = useState('');
    const [saveCashReceipt, setSaveCashReceipt] = useState(false);
+   const phoneDigits = phone.replace(/\D/g, '');
 
    // 무통장 입금 + 미발행이 아닌 경우 현금영수증 번호 필수
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
-   const isFormValid = !!name && phone.length === 11 && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
+   const isFormValid = !!name && phoneDigits.length === 11 && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
    const resolvedBuyerId = resellEntryState?.buyerId ?? resolveUserIdFromAccessToken(accessToken);
 
    const orderInfo = {
@@ -149,7 +150,7 @@ export default function ResellPaymentPage() {
          gameVenue: resellEntryState?.venue ?? MOCK_GAME.venue,
          deliveryMethod: 'mobile',
          ordererName: name,
-         ordererPhone: phone,
+         ordererPhone: phoneDigits,
          ordererEmail: email,
          paymentMethod,
          botData: resellEntryState?.botData,

@@ -34,6 +34,10 @@ type MinimapViewport = {
 } | null;
 
 type SeatMapStageProps = {
+   directionBadgePosition: {
+      left: number;
+      top: number;
+   } | null;
    isSeatMapDragging: boolean;
    mapViewportRef: RefObject<HTMLDivElement | null>;
    minimapLayout: MinimapLayout;
@@ -57,6 +61,7 @@ type SeatMapStageProps = {
 };
 
 function SeatMapStage({
+   directionBadgePosition,
    isSeatMapDragging,
    mapViewportRef,
    minimapLayout,
@@ -110,16 +115,18 @@ function SeatMapStage({
                onPointerUp={onMapPointerUp}
                onPointerCancel={onMapPointerUp}
             >
-               <div
-                  className="absolute rounded-[10px] bg-[rgba(233,235,238,0.72)] px-8 py-3 text-body-1-bold text-muted-foreground shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur lg:rounded-xl lg:bg-white/70 lg:text-body-2-semibold"
-                  style={{
-                     left: '50%',
-                     top: '24px',
-                     transform: 'translateX(-50%)',
-                  }}
-               >
-                  경기장 방향
-               </div>
+               {directionBadgePosition ? (
+                  <div
+                     className="pointer-events-none absolute z-10 whitespace-nowrap rounded-[10px] bg-[rgba(233,235,238,0.72)] px-8 py-3 text-body-1-bold text-muted-foreground shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur lg:rounded-xl lg:bg-white/70 lg:text-body-2-semibold"
+                     style={{
+                        left: `${directionBadgePosition.left}px`,
+                        top: `${directionBadgePosition.top}px`,
+                        transform: 'translateX(-50%)',
+                     }}
+                  >
+                     경기장 방향
+                  </div>
+               ) : null}
 
                {seatBlocks.map((block, index) => (
                   <SeatBlockGrid
