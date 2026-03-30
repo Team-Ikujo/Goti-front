@@ -181,7 +181,10 @@ const fetchAggregatedSeatSections = async ({
    stadiumId,
    zone,
 }: Required<Pick<SeatMapDataParams, 'gameId' | 'stadiumId'>> & { zone: ZoneItem }) => {
-   const sections = await fetchSeatSections(stadiumId);
+   const sections = await fetchSeatSections({
+      stadiumId,
+      gameId,
+   });
    const targetSections = sections
       .filter((section) => matchesSectionExpression(zone.sectionCode, section.sectionCode))
       .sort((left, right) =>
@@ -225,12 +228,20 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
             const resolvedSection =
                (await resolveSeatSectionByCode({
                   stadiumId,
+                  gameId,
                   sectionCode: zone.sectionCode,
-               })) ??
-               ({
-                  sectionId: zone.id,
-                  sectionCode: zone.sectionCode,
-               } satisfies Pick<ApiSeatSectionBundle, 'sectionId' | 'sectionCode'>);
+               }));
+
+            if (!resolvedSection) {
+               console.error('[SeatMapDebug] 좌석 구역 매핑 실패', {
+                  gameId,
+                  stadiumId,
+                  zoneId: zone.id,
+                  zoneSectionCode: zone.sectionCode,
+               });
+
+               return null;
+            }
             const [seats, statuses] = await Promise.all([
                fetchSeats(resolvedSection.sectionId),
                fetchSeatStatuses(gameId, resolvedSection.sectionId),

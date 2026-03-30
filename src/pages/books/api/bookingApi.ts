@@ -219,24 +219,37 @@ export const fetchSeatGrades = async (gameId: string, stadiumId: string) => {
    return response.data.data;
 };
 
-export const fetchSeatSections = async (stadiumId: string) => {
-   const response = await apiClient.get<ApiEnvelope<SeatSectionResponse[]>>(`/api/v1/stadium-seats/stadiums/${stadiumId}/seat-sections`);
+export const fetchSeatSections = async ({
+   stadiumId,
+   gameId,
+}: {
+   stadiumId: string;
+   gameId?: string;
+}) => {
+   const response = await apiClient.get<ApiEnvelope<SeatSectionResponse[]>>(`/api/v1/stadium-seats/stadiums/${stadiumId}/seat-sections`, {
+      params: gameId ? { gameId } : undefined,
+   });
 
    return response.data.data;
 };
 
 export const resolveSeatSectionByCode = async ({
    stadiumId,
+   gameId,
    sectionCode,
 }: {
    stadiumId?: string;
+   gameId?: string;
    sectionCode: string;
 }) => {
    if (!stadiumId) {
       return null;
    }
 
-   const sections = await fetchSeatSections(stadiumId);
+   const sections = await fetchSeatSections({
+      stadiumId,
+      gameId,
+   });
    const normalizedTargetSectionCode = normalizeSectionCode(sectionCode);
 
    return sections.find((section) => normalizeSectionCode(section.sectionCode) === normalizedTargetSectionCode) ?? null;

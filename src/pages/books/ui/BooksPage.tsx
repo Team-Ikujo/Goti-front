@@ -76,7 +76,10 @@ const BooksPage = () => {
       queryFn: async () => {
          const [grades, sections, pricingPolicy] = await Promise.all([
             fetchSeatGrades(bookingEntryState!.gameId!, bookingEntryState!.stadiumId!),
-            fetchSeatSections(bookingEntryState!.stadiumId!),
+            fetchSeatSections({
+               stadiumId: bookingEntryState!.stadiumId!,
+               gameId: bookingEntryState!.gameId!,
+            }),
             fetchTicketPricingPolicy(bookingEntryState!.serverHomeTeamId!).catch(() => undefined),
          ]);
          const remainingBySectionId =

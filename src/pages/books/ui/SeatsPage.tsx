@@ -169,7 +169,7 @@ function SeatsPage() {
    );
 
    const selectedPrice = selectedSeats.reduce((total, item) => total + item.price, 0);
-   const isSeatInteractionLocked = isSeatMapLoading && !hasApiSeatMap && Boolean(bookingEntryState?.gameId);
+   const isSeatInteractionLocked = Boolean(bookingEntryState?.gameId) && (!hasApiSeatMap || isSeatMapLoading);
    const resellInsightsQuery = useResellZoneInsights({
       enabled: isResellMode,
       gameId: bookingEntryState?.gameId,
