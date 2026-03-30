@@ -22,7 +22,7 @@ const DEFAULT_FILTERS: FilterState = {
    searchQuery: '',
 };
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 8;
 
 function applyFilters(games: GameItem[], filters: FilterState, activeTab: TabType): GameItem[] {
    return games.filter((game) => {
@@ -32,8 +32,8 @@ function applyFilters(games: GameItem[], filters: FilterState, activeTab: TabTyp
       if (!filters.showSoldOut && status === '매진') return false;
       if (filters.dateTime && game.date !== filters.dateTime) return false;
       if (filters.venue && game.venue !== filters.venue) return false;
-      if (filters.minPrice > 0 && game.minPrice < filters.minPrice) return false;
-      if (filters.maxPrice < MAX_PRICE && game.maxPrice > filters.maxPrice) return false;
+      if (filters.minPrice > 0 && game.minPrice > 0 && game.minPrice < filters.minPrice) return false;
+      if (filters.maxPrice < MAX_PRICE && game.maxPrice > 0 && game.maxPrice > filters.maxPrice) return false;
 
       const trimmedQuery = filters.searchQuery.trim();
       if (trimmedQuery.length >= 2) {
@@ -57,26 +57,19 @@ function getResellStatus(resaleCount: number | undefined, fallbackStatus: Resell
 const TicketsPage = () => {
    const { openBookingEntry, openResellEntry, bookingGuideDialog } = useBookingEntryFlow();
    const scheduleQuery = useGameSchedules();
-   const resaleGameIds = useMemo(() => (scheduleQuery.data ?? []).map((game) => game.id), [scheduleQuery.data]);
-   const resaleCountsQuery = useResaleGameCounts(resaleGameIds);
-   const resaleListingMarketQuery = useResaleListingMarket(resaleGameIds);
    const [isFilterOpen, setIsFilterOpen] = useState(false);
    const [appliedFilters, setAppliedFilters] = useState<FilterState>(DEFAULT_FILTERS);
    const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
    const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
    const activeTab: TabType = appliedFilters.tab;
+   const isResellTab = activeTab === '리셀';
 
    const baseGames = useMemo<GameItem[]>(() => {
-      const resaleCountByGameId = resaleCountsQuery.data;
-      const resaleMarketByGameId = resaleListingMarketQuery.data;
-
       return (scheduleQuery.data ?? [])
          .filter((game) => game.status === '예정')
          .map((game) => {
             const fallbackResellStatus =
                game.resell === '리셀예매' ? '리셀 가능' : game.resell === '리셀예정' ? '리셀 예정' : '매진';
-            const resaleMarket = resaleMarketByGameId?.get(game.id);
-            const resaleCount = resaleCountByGameId?.get(game.id) ?? resaleMarket?.count;
 
             return {
                id: game.id,
@@ -91,14 +84,14 @@ const TicketsPage = () => {
                dateTime: `${game.date.replace(/-/g, '.')} ${game.time}`,
                venue: game.venue,
                remainingSeats: game.ticket === '매진' ? 0 : 999,
-               resellRemainingSeats: resaleCount ?? (fallbackResellStatus === '리셀 가능' ? 999 : 0),
-               minPrice: resaleMarket?.minPrice ?? 0,
-               maxPrice: resaleMarket?.maxPrice ?? 0,
+               resellRemainingSeats: fallbackResellStatus === '리셀 가능' ? 999 : 0,
+               minPrice: 0,
+               maxPrice: 0,
                bookingStatus: game.ticket === '예매하기' ? '예매 가능' : game.ticket === '판매예정' ? '판매 예정' : '매진',
-               resellStatus: getResellStatus(resaleCount, fallbackResellStatus),
+               resellStatus: fallbackResellStatus,
             };
          });
-   }, [resaleCountsQuery.data, resaleListingMarketQuery.data, scheduleQuery.data]);
+   }, [scheduleQuery.data]);
 
    const filteredGames = useMemo(
       () => applyFilters(baseGames, appliedFilters, activeTab),
@@ -106,7 +99,27 @@ const TicketsPage = () => {
    );
    const visibleGames = useMemo(() => filteredGames.slice(0, visibleCount), [filteredGames, visibleCount]);
    const hasMoreGames = visibleCount < filteredGames.length;
-   const gamesToRender = visibleGames;
+   const visibleGameIds = useMemo(() => visibleGames.map((game) => game.id), [visibleGames]);
+   const resaleCountsQuery = useResaleGameCounts(visibleGameIds, isResellTab);
+   const resaleListingMarketQuery = useResaleListingMarket(visibleGameIds, isResellTab);
+   const gamesToRender = useMemo(
+      () =>
+         visibleGames.map((game) => {
+            const fallbackResellStatus =
+               game.resellStatus === '리셀 가능' ? '리셀 가능' : game.resellStatus === '리셀 예정' ? '리셀 예정' : '매진';
+            const resaleMarket = resaleListingMarketQuery.data?.get(game.id);
+            const resaleCount = resaleCountsQuery.data?.get(game.id) ?? resaleMarket?.count;
+
+            return {
+               ...game,
+               resellRemainingSeats: resaleCount ?? game.resellRemainingSeats,
+               minPrice: resaleMarket?.minPrice ?? game.minPrice,
+               maxPrice: resaleMarket?.maxPrice ?? game.maxPrice,
+               resellStatus: getResellStatus(resaleCount, fallbackResellStatus),
+            };
+         }),
+      [resaleCountsQuery.data, resaleListingMarketQuery.data, visibleGames],
+   );
    const appliedSearchQuery = appliedFilters.searchQuery.trim();
 
    useEffect(() => {
@@ -224,11 +237,11 @@ const TicketsPage = () => {
                      <div className="flex items-center justify-center py-20 bg-surface rounded-[14px] h-full text-body-1-medium text-muted-foreground">
                         경기 일정을 불러오지 못했습니다.
                      </div>
-                  ) : activeTab === '리셀' && resaleCountsQuery.isError ? (
+                  ) : isResellTab && resaleCountsQuery.isError ? (
                      <div className="flex items-center justify-center h-full bg-surface rounded-[14px] text-body-1-medium text-muted-foreground">
                         리셀 경기 정보를 불러오지 못했습니다.
                      </div>
-                  ) : activeTab === '리셀' && resaleListingMarketQuery.isError ? (
+                  ) : isResellTab && resaleListingMarketQuery.isError ? (
                      <div className="flex items-center justify-center h-full bg-surface rounded-[14px] text-body-1-medium text-muted-foreground">
                         리셀 목록 정보를 불러오지 못했습니다.
                      </div>
