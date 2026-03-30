@@ -113,20 +113,10 @@ const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
 
   try {
     const { pathname } = new URL(requestUrl, window.location.origin);
-
-    switch (true) {
-      // 일정/팀 메타 조회는 비로그인 접근 가능한 공개 조회 API로 운영 중.
-      // 일부 배포 게이트웨이에서 Authorization 헤더가 붙으면 인증 리다이렉트 루프가 발생할 수 있어 제외한다.
-      case pathname === "/api/v1/games/schedules":
-      case /^\/api\/v1\/baseball-teams\/[^/]+$/.test(pathname):
-      // 좌석 점유 API는 queueTokenJti 기반으로 동작한다.
-      // Authorization 헤더를 함께 보내면 일부 백엔드/게이트웨이에서 JWT 검증으로 분기해
-      // "Jwt issuer is not configured" 같은 인증 설정 오류를 반환할 수 있다.
-      case pathname.startsWith("/api/v1/seat-reservations"):
-        return true;
-      default:
-        return false;
-    }
+    // 이 프로젝트의 백엔드 API는 쿠키 세션 기준으로 동작하도록 맞춘다.
+    // Authorization Bearer 헤더를 기본 첨부하면 JWT/RBAC 게이트웨이와 충돌해
+    // "Jwt issuer is not configured", "RBAC: access denied" 오류가 발생할 수 있다.
+    return pathname.startsWith("/api/");
   } catch {
     return false;
   }
@@ -181,6 +171,7 @@ const apiClient = axios.create({
   // 개발 환경에서는 dev server proxy를 통해 CORS 없이 백엔드에 붙는다.
   // MSW 사용 시에도 상대 경로(/api) 요청을 유지해 worker가 가로챌 수 있게 한다.
   baseURL: shouldUseRelativeApiBase ? "" : configuredApiBaseUrl,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },

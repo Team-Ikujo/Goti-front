@@ -4,6 +4,27 @@ import { Input } from '@/shared/ui/input';
 
 import { PaymentCard } from './PaymentCard';
 
+const NAME_MAX_LENGTH = 10;
+const PHONE_DIGIT_LENGTH = 11;
+const EMAIL_MAX_LENGTH = 35;
+
+const sanitizeName = (value: string) =>
+   value.replace(/[^\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318Fa-zA-Z\s]/g, '').slice(0, NAME_MAX_LENGTH);
+
+const sanitizePhone = (value: string) => value.replace(/\D/g, '').slice(0, PHONE_DIGIT_LENGTH);
+
+const formatPhone = (value: string) => {
+   const digits = sanitizePhone(value);
+
+   if (digits.length !== PHONE_DIGIT_LENGTH) {
+      return digits;
+   }
+
+   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
+
+const sanitizeEmail = (value: string) => value.slice(0, EMAIL_MAX_LENGTH);
+
 interface OrdererInfoCardProps {
    name: string;
    phone: string;
@@ -30,7 +51,8 @@ export function OrdererInfoCard({
                required
                placeholder="홍길동"
                value={name}
-               onChange={e => onChangeName(e.target.value.replace(/[^\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318Fa-zA-Z\s]/g, ''))}
+               maxLength={NAME_MAX_LENGTH}
+               onChange={e => onChangeName(sanitizeName(e.target.value))}
             />
             <Input
                label="휴대폰 번호"
@@ -38,15 +60,16 @@ export function OrdererInfoCard({
                placeholder="01012345678"
                value={phone}
                inputMode="numeric"
-               maxLength={11}
-               onChange={e => onChangePhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+               maxLength={13}
+               onChange={e => onChangePhone(formatPhone(e.target.value))}
             />
             <Input
                label="이메일"
                required
                placeholder="example@email.com"
                value={email}
-               onChange={e => onChangeEmail(e.target.value)}
+               maxLength={EMAIL_MAX_LENGTH}
+               onChange={e => onChangeEmail(sanitizeEmail(e.target.value))}
             />
          </div>
       </PaymentCard>
