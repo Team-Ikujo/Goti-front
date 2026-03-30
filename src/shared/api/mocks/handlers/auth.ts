@@ -312,6 +312,21 @@ export const authHandlers = [
          } catch {
             // 파싱 실패 시 기본값 사용
          }
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            name,
+            email,
+            mobile,
+            gender: 'MALE',
+            birthDate: '1990-01-01',
+         },
+      });
+   }),
+
    http.post('/api/v1/auth/reissue', async () => {
       const session = mockRefreshSession.get();
 
@@ -330,23 +345,6 @@ export const authHandlers = [
                ...(session.mobile ? { mobile: session.mobile } : {}),
                ...(session.name ? { name: session.name } : {}),
             }),
-         },
-      });
-   }),
-
-   http.get('/api/v1/members/me', async () => {
-      const session = mockRefreshSession.get();
-
-      // 세션이 없더라도 테스트를 위해 기본값 반환하거나, 세션 기반 데이터 반환
-      return HttpResponse.json({
-         code: 'SUCCESS',
-         message: 'ok',
-         data: {
-            name: session?.name || '김고티',
-            email: 'goti1234@google.com',
-            mobile: session?.mobile || '010-1234-5678',
-            gender: 'MALE',
-            birthDate: '1990-01-01',
          },
       });
    }),

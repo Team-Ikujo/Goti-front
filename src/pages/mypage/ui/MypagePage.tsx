@@ -172,7 +172,7 @@ export default function MypagePage() {
       () =>
          saleItems.filter(item => {
             if (saleStatus !== '전체' && item.saleStatus !== saleStatus) return false;
-            if (appliedSaleType !== '전체 내역' && item.type !== '리셀') return false;
+            if (item.type !== '리셀') return false;
             if (appliedSearchQuery) {
                const q = appliedSearchQuery.toLowerCase();
                const matches =
@@ -601,7 +601,7 @@ export default function MypagePage() {
                                     </Button>
                                  </div>
                               )}
-                           </div>
+                           </>
                         );
                      })()}
                   </div>
