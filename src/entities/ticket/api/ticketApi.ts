@@ -19,6 +19,8 @@ export interface TicketDetail {
    resalePrice?: number;
    ticketStatus: 'ISSUED' | 'USED' | 'INVALID' | 'RESALE_ISSUED';
    resaleEnabledStatus: 'ENABLED' | 'DISABLED';
+   frozen?: boolean;
+   frozenUntil?: string;
    issuedAt: string;
    usedAt?: string;
    orderedAt?: string;

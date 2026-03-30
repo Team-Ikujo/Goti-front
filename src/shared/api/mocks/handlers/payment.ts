@@ -112,6 +112,8 @@ type TicketRecord = {
    paymentMethodDisplay?: string;
    ticketStatus: 'ISSUED' | 'USED' | 'INVALID';
    resaleEnabledStatus: 'ENABLED' | 'DISABLED';
+   frozen?: boolean;
+   frozenUntil?: string;
    issuedAt: string;
    orderedAt: string;
    cancelableUntil?: string;
@@ -1416,6 +1418,8 @@ export const paymentHandlers = [
             serviceFee: ticket.serviceFee ?? 1000,
             ticketStatus: ticket.ticketStatus,
             resaleEnabledStatus: ticket.resaleEnabledStatus,
+            frozen: ticket.frozen ?? false,
+            frozenUntil: ticket.frozenUntil,
             issuedAt: ticket.issuedAt,
             orderedAt: ticket.orderedAt,
             cancelableUntil: ticket.cancelableUntil,
