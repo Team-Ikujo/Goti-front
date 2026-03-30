@@ -263,6 +263,13 @@ const seatGradesByStadium: Record<string, SeatGrade[]> = {
          displayColorHex: '#2FA84F',
          availableSeatCount: 20,
       },
+      {
+         seatGradeId: 'grade-samsung-outfield',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '외야 지정석',
+         displayColorHex: '#3AA66B',
+         availableSeatCount: 218,
+      },
    ],
 };
 
@@ -300,9 +307,11 @@ const pricingPoliciesByTeamId: Record<string, TicketPricingPolicy> = {
          { priceId: 'price-samsung-first-base-weekday', gradeId: 'grade-samsung-first-base-infield', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 22000 },
          { priceId: 'price-samsung-blue-weekday', gradeId: 'grade-samsung-blue-zone', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 20000 },
          { priceId: 'price-samsung-wheelchair-weekday', gradeId: 'grade-samsung-wheelchair', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 10000 },
+         { priceId: 'price-samsung-outfield-weekday', gradeId: 'grade-samsung-outfield', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 12000 },
          { priceId: 'price-samsung-first-base-weekend', gradeId: 'grade-samsung-first-base-infield', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 24000 },
          { priceId: 'price-samsung-blue-weekend', gradeId: 'grade-samsung-blue-zone', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 22000 },
          { priceId: 'price-samsung-wheelchair-weekend', gradeId: 'grade-samsung-wheelchair', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 10000 },
+         { priceId: 'price-samsung-outfield-weekend', gradeId: 'grade-samsung-outfield', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 14000 },
       ],
    },
 };
@@ -400,6 +409,20 @@ const seatSectionsByStadium: Record<string, SeatSection[]> = {
          codes: ['W-1', 'W-2'],
          capacity: 12,
       }),
+      {
+         sectionId: 'section-samsung-lf-1',
+         gradeId: 'grade-samsung-outfield',
+         stadiumId: 'stadium-samsung-lions-park',
+         sectionCode: 'LF-1',
+         capacity: 220,
+      },
+      {
+         sectionId: 'section-samsung-rf-1',
+         gradeId: 'grade-samsung-outfield',
+         stadiumId: 'stadium-samsung-lions-park',
+         sectionCode: 'RF-1',
+         capacity: 220,
+      },
    ],
 };
 
@@ -550,6 +573,136 @@ const buildSectionSeats = (sectionId: string) => {
    );
 };
 
+const createMockResaleListings = ({
+   gameId,
+   seatIds,
+   sellerId,
+   listedAtSeed,
+}: {
+   gameId: string;
+   seatIds: string[];
+   sellerId: string;
+   listedAtSeed: string;
+}) => {
+   const matchedGame = mockGameSchedules.find((game) => game.gameId === gameId);
+
+   if (!matchedGame) {
+      return [];
+   }
+
+   return seatIds.map((seatId, index) => {
+      const sectionId = extractSectionId(seatId);
+      const section = Object.values(seatSectionsByStadium).flat().find((item) => item.sectionId === sectionId);
+      const seatPrice = resolveSeatPrice(matchedGame.homeTeamId, seatId, matchedGame.startAt);
+      const listingPrice = seatPrice + (index % 4) * 1000 + 2000;
+      const minPrice = Math.max(1000, listingPrice - 4000);
+      const maxPrice = listingPrice + 6000;
+
+      return {
+         listingId: `listing-${gameId}-${index + 1}`,
+         ticketId: `ticket-${gameId}-${index + 1}`,
+         sellerId,
+         gameId,
+         seatId,
+         gradeId: section?.gradeId ?? 'grade-unknown',
+         seatInfo: buildSeatInfoStr(seatId),
+         dailyBasePrice: seatPrice,
+         listingPrice,
+         listingStatus: 'LISTING',
+         availableStatus: 'ENABLED',
+         lastTransactionPrice: Math.max(seatPrice, listingPrice - 2000),
+         listedAt: new Date(new Date(listedAtSeed).getTime() + index * 15 * 60 * 1000).toISOString(),
+         soldAt: undefined,
+         canceledAt: undefined,
+         isCancelable: true,
+         isPurchasable: true,
+         minPrice,
+         maxPrice,
+      };
+   });
+};
+
+const mockResaleListings = [
+   ...createMockResaleListings({
+      gameId: 'game-samsung-home-today',
+      sellerId: 'seller-samsung-001',
+      listedAtSeed: '2026-03-27T04:00:00.000Z',
+      seatIds: [
+         'section-samsung-1-6-A-1',
+         'section-samsung-1-6-A-2',
+         'section-samsung-1-6-B-1',
+         'section-samsung-1-6-B-2',
+         'section-samsung-1-7-A-3',
+         'section-samsung-1-7-A-4',
+         'section-samsung-1-7-B-3',
+         'section-samsung-3-1-A-1',
+      ],
+   }),
+   ...createMockResaleListings({
+      gameId: 'game-kia-home-tomorrow',
+      sellerId: 'seller-kia-001',
+      listedAtSeed: '2026-03-28T02:00:00.000Z',
+      seatIds: [
+         'section-stadium-kia-champions-field-104-A-1',
+         'section-stadium-kia-champions-field-104-A-2',
+         'section-stadium-kia-champions-field-105-B-1',
+         'section-stadium-kia-champions-field-108-A-1',
+         'section-stadium-kia-champions-field-108-B-1',
+         'section-stadium-kia-champions-field-118-A-1',
+      ],
+   }),
+   ...createMockResaleListings({
+      gameId: 'game-samsung-home-this-weekend',
+      sellerId: 'seller-samsung-002',
+      listedAtSeed: '2026-03-30T03:00:00.000Z',
+      seatIds: [
+         'section-samsung-1-6-C-1',
+         'section-samsung-1-6-C-2',
+         'section-samsung-1-7-C-1',
+         'section-samsung-1-7-C-2',
+         'section-samsung-3-1-B-1',
+         'section-samsung-3-1-B-2',
+      ],
+   }),
+   ...createMockResaleListings({
+      gameId: 'game-kia-home-two-weeks',
+      sellerId: 'seller-kia-002',
+      listedAtSeed: '2026-04-10T03:30:00.000Z',
+      seatIds: [
+         'section-stadium-kia-champions-field-519-A-1',
+         'section-stadium-kia-champions-field-520-A-1',
+         'section-stadium-kia-champions-field-521-B-1',
+      ],
+   }),
+];
+
+const mockResaleHistoryGraphByKey: Record<string, Array<{ transactionPrice: number; confirmedAt: string }>> = {
+   'game-samsung-home-today:grade-samsung-first-base-infield:HOUR': [
+      { transactionPrice: 22000, confirmedAt: '2026-03-27T05:00:00.000Z' },
+      { transactionPrice: 23000, confirmedAt: '2026-03-27T05:40:00.000Z' },
+      { transactionPrice: 24000, confirmedAt: '2026-03-27T06:20:00.000Z' },
+      { transactionPrice: 25000, confirmedAt: '2026-03-27T07:00:00.000Z' },
+   ],
+   'game-samsung-home-today:grade-samsung-first-base-infield:DAY': [
+      { transactionPrice: 21000, confirmedAt: '2026-03-23T09:00:00.000Z' },
+      { transactionPrice: 22000, confirmedAt: '2026-03-24T09:00:00.000Z' },
+      { transactionPrice: 23000, confirmedAt: '2026-03-25T09:00:00.000Z' },
+      { transactionPrice: 24000, confirmedAt: '2026-03-26T09:00:00.000Z' },
+      { transactionPrice: 25000, confirmedAt: '2026-03-27T09:00:00.000Z' },
+   ],
+   'game-kia-home-tomorrow:grade-kia-k5:HOUR': [
+      { transactionPrice: 13000, confirmedAt: '2026-03-28T04:00:00.000Z' },
+      { transactionPrice: 14000, confirmedAt: '2026-03-28T05:10:00.000Z' },
+      { transactionPrice: 15000, confirmedAt: '2026-03-28T06:20:00.000Z' },
+   ],
+   'game-kia-home-tomorrow:grade-kia-k5:DAY': [
+      { transactionPrice: 12000, confirmedAt: '2026-03-24T09:00:00.000Z' },
+      { transactionPrice: 13000, confirmedAt: '2026-03-25T09:00:00.000Z' },
+      { transactionPrice: 14000, confirmedAt: '2026-03-26T09:00:00.000Z' },
+      { transactionPrice: 15000, confirmedAt: '2026-03-27T09:00:00.000Z' },
+   ],
+};
+
 const buildErrorResponse = (message: string, status = 400) => {
    return HttpResponse.json({ message }, { status });
 };
@@ -615,11 +768,53 @@ const buildPageResponse = <T>(content: T[], page = 0, size = content.length || 1
 };
 
 export const paymentHandlers = [
+   http.get('/api/v1/resales/listings/games/:gameId/count', async ({ params }) => {
+      const gameId = String(params.gameId);
+      const gameExists = mockGameSchedules.some((game) => game.gameId === gameId);
+
+      if (!gameExists) {
+         return HttpResponse.json(
+            {
+               code: 'NOT_FOUND',
+               message: 'game not found',
+               data: null,
+            },
+            { status: 404 },
+         );
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            count: mockResaleListings.filter((listing) => listing.gameId === gameId && listing.isPurchasable).length,
+         },
+      });
+   }),
+
+   http.get('/api/v1/resales/listings/games/:gameId/section/:sectionId/count', async ({ params }) => {
+      const gameId = String(params.gameId);
+      const sectionId = String(params.sectionId);
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            count: mockResaleListings.filter(
+               (listing) =>
+                  listing.gameId === gameId &&
+                  listing.isPurchasable &&
+                  extractSectionId(listing.seatId) === sectionId,
+            ).length,
+         },
+      });
+   }),
+
    http.get('/api/v1/resales/listings', async () => {
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
-         data: [],
+         data: mockResaleListings,
       });
    }),
 
@@ -637,6 +832,19 @@ export const paymentHandlers = [
             isCancelable: true,
             isPurchasable: true,
          },
+      });
+   }),
+
+   http.get('/api/v1/resales/histories/games/:gameId/grade/:gradeId/ranges/:range/graph', async ({ params }) => {
+      const gameId = String(params.gameId);
+      const gradeId = String(params.gradeId);
+      const range = String(params.range).toUpperCase();
+      const key = `${gameId}:${gradeId}:${range}`;
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: mockResaleHistoryGraphByKey[key] ?? [],
       });
    }),
 
@@ -965,6 +1173,22 @@ export const paymentHandlers = [
          listingId: body.listingId,
          queueTokenJti: body.queueTokenJti,
       });
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: { holdId },
+      });
+   }),
+
+   http.patch('/api/v1/resales/holds/:holdId/release', async ({ params }) => {
+      const holdId = String(params.holdId);
+
+      if (!resaleHolds.has(holdId)) {
+         return buildErrorResponse(`Resale hold not found: ${holdId}`, 404);
+      }
+
+      resaleHolds.delete(holdId);
 
       return HttpResponse.json({
          code: 'SUCCESS',

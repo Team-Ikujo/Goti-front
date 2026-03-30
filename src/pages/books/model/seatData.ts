@@ -296,6 +296,7 @@ export const createSeatsForZone = (zone: ZoneItem): SeatItem[] => {
 
          return {
             id: `${zone.id}-${block.id}-${rowIndex + 1}-${colIndex + 1}`,
+            apiSeatId: `${zone.id}-${block.id}-${rowIndex + 1}-${colIndex + 1}`,
             zoneId: zone.id,
             block: block.id,
             rowLabel: `${rowIndex + 1}열`,

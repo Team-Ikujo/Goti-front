@@ -173,16 +173,8 @@ function ActionButtons({
    onOpenBookingFlow: (game: GameRow) => void;
    onOpenResellFlow: (game: GameRow) => void;
 }) {
-   // rawDate(YYYY-MM-DD) 기준 오전 11시 → 예매, 오후 1시 → 리셀 전환
-   const now = new Date();
-   const saleOpenTime = game.rawDate ? new Date(`${game.rawDate}T11:00:00`) : null;
-   const resellOpenTime = game.rawDate ? new Date(`${game.rawDate}T13:00:00`) : null;
-   const saleNowOpen = saleOpenTime !== null && now >= saleOpenTime;
-   const resellNowOpen = resellOpenTime !== null && now >= resellOpenTime;
-
-   // API가 판매예정이라도 오전 11시 지났으면 예매하기로 전환
-   const effectiveTicket = (game.ticket === '판매예정' && saleNowOpen) ? '예매하기' : game.ticket;
-   const effectiveResell = (game.resell === '리셀예정' && resellNowOpen) ? '리셀예매' : game.resell;
+   const effectiveTicket = game.ticket;
+   const effectiveResell = game.resell;
 
    const canBook = effectiveTicket === '예매하기';
    const canResellBook = effectiveResell === '리셀예매';
@@ -319,8 +311,9 @@ function MobileGameRow({
 
    return (
       <div
+         style={{ zIndex: day.games.length - index }}
          className={cn(
-            'md:hidden border border-t-0 border-(--border-normal) px-[17px] pt-[16px] pb-[16px] flex flex-col gap-[12px]',
+            'relative md:hidden border border-t-0 border-(--border-normal) px-[17px] pt-[16px] pb-[16px] flex flex-col gap-[12px]',
             isLast && 'rounded-bl-[16px] rounded-br-[16px]',
             isEnded ? 'bg-[#f7f8f9]' : 'bg-background',
          )}
@@ -379,8 +372,9 @@ function DesktopGameRow({
 
    return (
       <div
+         style={{ zIndex: day.games.length - index }}
          className={cn(
-            'hidden md:flex border border-t-0 border-(--border-normal) px-[20px] py-[6px] items-center justify-between',
+            'relative hidden md:flex border border-t-0 border-(--border-normal) px-[20px] py-[6px] items-center justify-between',
             isLast && 'rounded-bl-[20px] rounded-br-[20px]',
             isEnded ? 'bg-[#f7f8f9]' : 'bg-background',
          )}
@@ -463,8 +457,11 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
 
       openBookingEntry({
          homeTeamId: game.homeTeamId ?? TEAM_IDS[game.home],
+         serverHomeTeamId: game.serverHomeTeamId,
          gameId: game.gameId,
          stadiumId: game.stadiumId,
+         leagueType: game.leagueType,
+         gameDate: game.rawDate,
          queueTokenJti: game.queueTokenJti,
          matchTitle: `${game.away} vs ${game.home}`,
          venue: game.venue,
@@ -482,8 +479,11 @@ function ScheduleList({ activeTab, filteredData }: ScheduleListProps) {
 
       openResellEntry({
          homeTeamId: game.homeTeamId ?? TEAM_IDS[game.home],
+         serverHomeTeamId: game.serverHomeTeamId,
          gameId: game.gameId,
          stadiumId: game.stadiumId,
+         leagueType: game.leagueType,
+         gameDate: game.rawDate,
          queueTokenJti: game.queueTokenJti,
          matchTitle: `${game.away} vs ${game.home}`,
          venue: game.venue,

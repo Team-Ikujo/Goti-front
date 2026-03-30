@@ -18,6 +18,7 @@ import type { FilterState, TabType } from './types';
 interface FilterSidebarProps {
    /** 마지막으로 적용된 탭 (초기값 및 초기화 기준) */
    activeTab: TabType;
+   filters: FilterState;
    onApply: (filters: FilterState) => void;
    className?: string;
    /** 바텀시트 모드: 내부 너비 full + 버튼 우측 정렬 */
@@ -31,24 +32,35 @@ const venueOptions = VENUES.map(v => ({ value: v, label: v }));
 const inputBase =
    'bg-surface border border-border-light rounded-lg px-3 py-2 text-body-2-medium text-neutral-600 outline-none w-full';
 
-export function FilterSidebar({ activeTab, onApply, className, sheetMode = false }: FilterSidebarProps) {
+export function FilterSidebar({ activeTab, filters, onApply, className, sheetMode = false }: FilterSidebarProps) {
    // 로컬 탭 상태 — 조회하기 클릭 시에만 부모에 전파
-   const [localTab, setLocalTab] = useState<TabType>(activeTab);
+   const [localTab, setLocalTab] = useState<TabType>(filters.tab);
+   const [showUpcoming, setShowUpcoming] = useState(filters.showUpcoming);
+   const [showSoldOut, setShowSoldOut] = useState(filters.showSoldOut);
+   const [dateTime, setDateTime] = useState(filters.dateTime);
+   const [minPrice, setMinPrice] = useState(filters.minPrice);
+   const [maxPrice, setMaxPrice] = useState(filters.maxPrice);
+   const [venue, setVenue] = useState(filters.venue);
+   const [searchQuery, setSearchQuery] = useState(filters.searchQuery);
 
    // 외부에서 탭이 변경되면 (모바일 탭 클릭 등) 로컬 탭도 sync
    useEffect(() => {
       setLocalTab(activeTab);
    }, [activeTab]);
-   const [showUpcoming, setShowUpcoming] = useState(true);
-   const [showSoldOut, setShowSoldOut] = useState(true);
-   const [dateTime, setDateTime] = useState('');
-   const [minPrice, setMinPrice] = useState(0);
-   const [maxPrice, setMaxPrice] = useState(MAX_PRICE);
-   const [venue, setVenue] = useState('');
-   const [searchQuery, setSearchQuery] = useState('');
+
+   useEffect(() => {
+      setLocalTab(filters.tab);
+      setShowUpcoming(filters.showUpcoming);
+      setShowSoldOut(filters.showSoldOut);
+      setDateTime(filters.dateTime);
+      setMinPrice(filters.minPrice);
+      setMaxPrice(filters.maxPrice);
+      setVenue(filters.venue);
+      setSearchQuery(filters.searchQuery);
+   }, [filters]);
 
    const handleReset = () => {
-      setLocalTab(activeTab); // 마지막 적용 탭으로 복원
+      setLocalTab(activeTab);
       setShowUpcoming(true);
       setShowSoldOut(true);
       setDateTime('');
