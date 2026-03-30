@@ -1,4 +1,5 @@
 import apiClient from '@/shared/api/client';
+import { useAuthStore } from '@/entities/auth/model/authStore';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import type {
    CashReceiptNumType,
@@ -51,6 +52,7 @@ export type TicketCheckoutSeat = {
 export interface TicketCheckoutRequest extends CheckoutFormRequest {
    gameId: string;
    queueTokenJti: string;
+   userId?: string;
    matchTitle: string;
    gameDate: string;
    gameVenue: string;
@@ -95,6 +97,12 @@ type OrderPaymentRequest = {
    idempotencyKey: string;
 };
 
+type OrderPaymentConfirmRequest = {
+   userId: string;
+   paymentId?: string;
+   pgTid?: string;
+};
+
 type OrderPaymentResponse = {
    paymentId: string;
    orderId: string;
@@ -127,6 +135,24 @@ type ResaleOrderResponse = {
    orderStatus: string;
    totalQuantity: number;
    totalAmount: number;
+};
+
+type ResaleOrderTransactionsResponse = {
+   transactionIds: string[];
+};
+
+type ResaleOrderCompleteResponse = {
+   orderId: string;
+   orderNumber: string;
+   buyerId: string;
+   totalAmount: number;
+   orderStatus: string;
+   items?: Array<{
+      transactionId: string;
+      listingId: string;
+      seatInfo: string;
+      price: number;
+   }>;
 };
 
 type ResalePaymentItem = {
@@ -168,6 +194,27 @@ const createClientTransactionId = (prefix: string) => {
    }
 
    return `${prefix}-${Date.now()}`;
+};
+
+const resolveUserIdFromAccessToken = (accessToken: string | null) => {
+   if (!accessToken) {
+      return undefined;
+   }
+
+   const tokenParts = accessToken.split('.');
+
+   if (tokenParts.length < 2) {
+      return undefined;
+   }
+
+   try {
+      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>;
+      const userId = payload.userId ?? payload.user_id ?? payload.memberId ?? payload.member_id ?? payload.sub;
+
+      return typeof userId === 'string' && userId.length > 0 ? userId : undefined;
+   } catch {
+      return undefined;
+   }
 };
 
 const getResaleHoldReleaseUrl = (holdId: string) => {
@@ -233,6 +280,18 @@ const createOrderPayment = async (orderId: string, payload: OrderPaymentRequest)
    return response.data.data;
 };
 
+const confirmOrderPayment = async (orderId: string, payload: OrderPaymentConfirmRequest) => {
+   const response = await apiClient.post<
+      ApiEnvelope<{
+         orderId: string;
+         orderStatus: string;
+         issuedTicketCount: number;
+      }>
+   >(`/api/v1/orders/${orderId}/payment-confirmations`, payload);
+
+   return response.data.data;
+};
+
 const createResaleHold = async (payload: ResaleHoldRequest) => {
    const response = await apiClient.post<ApiEnvelope<ResaleHoldResponse>>('/api/v1/resales/holds', payload);
 
@@ -269,13 +328,29 @@ const createResaleOrder = async (payload: ResaleOrderRequest) => {
 };
 
 const getResaleTransactions = async (orderId: string) => {
-   const response = await apiClient.get<ApiEnvelope<string[]>>(`/api/v1/resales/orders/${orderId}/transactions`);
+   const response = await apiClient.get<ApiEnvelope<ResaleOrderTransactionsResponse>>(
+      `/api/v1/resales/orders/${orderId}/transactions`,
+   );
+
+   return response.data.data.transactionIds;
+};
+
+const createResalePayment = async (payload: ResalePaymentRequest) => {
+   const response = await apiClient.post<ApiEnvelope<OrderPaymentResponse>>('/api/v1/payments/resales', payload);
 
    return response.data.data;
 };
 
-const createResalePayment = async (payload: ResalePaymentRequest) => {
-   const response = await apiClient.post<ApiEnvelope<OrderPaymentResponse>>('/api/v1/resales/payments', payload);
+const completeResaleOrder = async (orderId: string, paymentId: string) => {
+   const response = await apiClient.patch<ApiEnvelope<ResaleOrderCompleteResponse>>(
+      `/api/v1/resales/orders/${orderId}/complete`,
+      undefined,
+      {
+         params: {
+            paymentId,
+         },
+      },
+   );
 
    return response.data.data;
 };
@@ -290,6 +365,7 @@ const buildPaymentResponse = ({
    gameVenue,
    seats,
    recipient,
+   issuedTicketCount,
 }: {
    amount: number;
    order: CreateOrderResponse | ResaleOrderResponse;
@@ -304,6 +380,7 @@ const buildPaymentResponse = ({
       phone: string;
       address: string;
    };
+   issuedTicketCount?: number;
 }): PaymentResponse => {
    const paymentResponse = {
       orderId: order.orderId,
@@ -319,6 +396,7 @@ const buildPaymentResponse = ({
       paymentMethod: toPaymentMethodLabel(paymentMethod),
       orderedAt: formatOrderedAt(new Date()),
       amount,
+      issuedTicketCount,
       ...(recipient && {
          recipientName: recipient.name,
          recipientPhone: recipient.phone,
@@ -363,16 +441,31 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       paymentMethod: toPaymentMethodCode(payload.paymentMethod),
       idempotencyKey: createClientTransactionId('idempotency'),
    });
+   const resolvedUserId = payload.userId ?? resolveUserIdFromAccessToken(useAuthStore.getState().accessToken);
+
+   if (!resolvedUserId) {
+      throw new Error('구매자 정보를 확인할 수 없어 결제를 완료할 수 없습니다.');
+   }
+
+   const confirmation = await confirmOrderPayment(order.orderId, {
+      userId: resolvedUserId,
+      paymentId: payment.paymentId,
+      pgTid: payment.pgTid,
+   });
 
    return buildPaymentResponse({
       amount: payment.paymentAmount,
-      order,
+      order: {
+         ...order,
+         orderStatus: confirmation.orderStatus,
+      },
       payment,
       paymentMethod: payload.paymentMethod,
       gameTitle: payload.matchTitle,
       gameDate: payload.gameDate,
       gameVenue: payload.gameVenue,
       seats: heldSeats.map(({ seatLabel }) => seatLabel),
+      issuedTicketCount: confirmation.issuedTicketCount,
       recipient:
          payload.deliveryMethod === 'delivery'
             ? {
@@ -426,16 +519,22 @@ export const submitResaleOrder = async (
          paymentMethod: toPaymentMethodCode(payload.paymentMethod),
          idempotencyKey: createClientTransactionId('resale-idempotency'),
       });
+      const completedOrder = await completeResaleOrder(order.orderId, payment.paymentId);
 
       return buildPaymentResponse({
          amount: payment.paymentAmount,
-         order,
+         order: {
+            ...order,
+            orderNumber: completedOrder.orderNumber,
+            orderStatus: completedOrder.orderStatus,
+            totalAmount: completedOrder.totalAmount,
+         },
          payment,
          paymentMethod: payload.paymentMethod,
          gameTitle: payload.matchTitle,
          gameDate: payload.gameDate,
          gameVenue: payload.gameVenue,
-         seats: [payload.seatInfo],
+         seats: completedOrder.items?.map((item) => item.seatInfo) ?? [payload.seatInfo],
       });
    } catch (error) {
       if (resaleHoldId) {

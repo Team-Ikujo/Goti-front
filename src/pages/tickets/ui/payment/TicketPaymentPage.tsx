@@ -90,6 +90,7 @@ export default function TicketPaymentPage() {
    const [agreedPrivacy, setAgreedPrivacy] = useState(false);
    const [agreedPolicy, setAgreedPolicy] = useState(false);
    const [agreedResell, setAgreedResell] = useState(false);
+   const phoneDigits = phone.replace(/\D/g, '');
 
    const shippingFee = deliveryMethod === 'delivery' ? 3000 : 0;
 
@@ -98,7 +99,7 @@ export default function TicketPaymentPage() {
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
    const isFormValid =
       !!name &&
-      phone.length === 11 &&
+      phoneDigits.length === 11 &&
       !!email &&
       isDeliveryValid &&
       isCashReceiptValid &&
@@ -144,50 +145,6 @@ export default function TicketPaymentPage() {
       }
    }, [routeBookingEntryState, setBookingEntry]);
 
-   useEffect(() => {
-      const selectedSeatSummary = selectedSeatDetails.map(({ zoneId, seat }) => ({
-         zoneId,
-         seatId: seat.id,
-      }));
-
-      console.info('[TicketPaymentPage] mounted with seat selections', {
-         selectedSeatCount: selectedSeatSummary.length,
-         selectedSeatSummary,
-      });
-   }, [selectedSeatDetails]);
-
-   useEffect(() => {
-      console.info('[TicketPaymentPage] form validity check', {
-         isFormValid,
-         hasName: !!name,
-         hasPhoneLength11: phone.length === 11,
-         hasEmail: !!email,
-         isDeliveryValid,
-         isCashReceiptValid,
-         selectedSeatCount: selectedSeats.length,
-         hasSeatHolds: selectedSeats.every(seat => !!seat.holdId),
-         hasGameId: !!bookingEntryState?.gameId,
-         hasQueueTokenJti: !!bookingEntryState?.queueTokenJti,
-         agreedPrivacy,
-         agreedPolicy,
-         agreedResell,
-      });
-   }, [
-      agreedPolicy,
-      agreedPrivacy,
-      agreedResell,
-      bookingEntryState?.gameId,
-      bookingEntryState?.queueTokenJti,
-      email,
-      isCashReceiptValid,
-      isDeliveryValid,
-      isFormValid,
-      name,
-      phone,
-      selectedSeats,
-      selectedSeats.length,
-   ]);
-
    const handlePay = () => {
       if (!bookingEntryState?.gameId || !bookingEntryState.queueTokenJti) {
          return;
@@ -196,6 +153,7 @@ export default function TicketPaymentPage() {
       const paymentRequest: TicketCheckoutRequest = {
          gameId: bookingEntryState.gameId,
          queueTokenJti: bookingEntryState.queueTokenJti,
+         userId: bookingEntryState.userId,
          matchTitle: orderInfo.matchTitle,
          gameDate: orderInfo.dateTime,
          gameVenue: bookingEntryState?.venue ?? bookingTeamConfig.stadiumName ?? MOCK_GAME.venue,
@@ -203,7 +161,7 @@ export default function TicketPaymentPage() {
          selectedSeats,
          deliveryMethod,
          ordererName: name,
-         ordererPhone: phone,
+         ordererPhone: phoneDigits,
          ordererEmail: email,
          paymentMethod,
          botData,
@@ -214,7 +172,6 @@ export default function TicketPaymentPage() {
             cashReceiptNum,
          }),
       };
-      console.log('결제 요청 시 포함된 봇 데이터:', paymentRequest.botData);
 
       navigate('/tickets/payment/processing', { state: { request: paymentRequest, amount: totalPayment } });
    };
