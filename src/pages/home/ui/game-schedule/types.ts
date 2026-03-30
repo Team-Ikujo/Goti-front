@@ -11,6 +11,8 @@ export type GameRow = {
    leagueType?: import('@/shared/types/game').ApiLeagueType;
    queueTokenJti?: string;
    rawDate?: string; // YYYY-MM-DD — 시간 기반 상태 전환용
+   ticketingOpenedAt?: string;
+   ticketingEndAt?: string;
    time: string;
    venue: string;
    away: string;

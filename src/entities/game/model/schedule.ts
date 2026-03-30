@@ -36,6 +36,7 @@ export type NormalizedScheduleGame = {
   reselInfo?: string;
   isToday: boolean;
   ticketingOpenedAt?: string;
+  ticketingEndAt?: string;
 };
 
 type TeamReference = {
@@ -245,10 +246,38 @@ const toDateLabel = (date: string) => {
   return `${month}월 ${day}일 (${DAY_LABELS[parsed.getDay()]})`;
 };
 
-/** 게임 날짜(YYYY-MM-DD) 기준 당일 11시 오픈 레이블 */
-const computeTicketOpenLabel = (date: string): string => {
-  const [, month, day] = date.split('-').map(Number);
-  return `${month}월 ${day}일\n오전 11시 오픈`;
+const parseScheduleBoundary = (value?: string) => {
+  if (!value?.trim()) {
+    return null;
+  }
+
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+  const parsedDate = new Date(normalized);
+
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
+const formatOpenBoundaryLabel = (value?: string, fallbackDate?: string): string => {
+  const parsedDate = parseScheduleBoundary(value);
+
+  if (parsedDate) {
+    const month = parsedDate.getMonth() + 1;
+    const day = parsedDate.getDate();
+    const hours = parsedDate.getHours();
+    const minutes = parsedDate.getMinutes();
+    const meridiem = hours < 12 ? '오전' : '오후';
+    const displayHour = hours % 12 || 12;
+    const minuteLabel = minutes === 0 ? '' : ` ${minutes}분`;
+
+    return `${month}월 ${day}일\n${meridiem} ${displayHour}시${minuteLabel} 오픈`;
+  }
+
+  if (fallbackDate) {
+    const [, month, day] = fallbackDate.split('-').map(Number);
+    return `${month}월 ${day}일\n오픈 예정`;
+  }
+
+  return '오픈 예정';
 };
 
 
@@ -370,10 +399,11 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
     status,
     ticket,
     resell: mapResellStatus(ticket),
-    ticketInfo: ticket === '판매예정' ? computeTicketOpenLabel(date) : undefined,
+    ticketInfo: ticket === '판매예정' ? formatOpenBoundaryLabel(game.ticketingOpenedAt, date) : undefined,
     reselInfo: ticket === '판매예정' ? '정식 예매 오픈\n2시간 후' : undefined,
     isToday: isSameCalendarDate(date, new Date()),
     ticketingOpenedAt: game.ticketingOpenedAt,
+    ticketingEndAt: game.ticketingEndAt,
   };
 };
 
@@ -396,6 +426,8 @@ export const mapGamesToDaySchedules = (games: NormalizedScheduleGame[]): DaySche
       leagueType: game.leagueType,
       queueTokenJti: game.queueTokenJti,
       rawDate: game.date,
+      ticketingOpenedAt: game.ticketingOpenedAt,
+      ticketingEndAt: game.ticketingEndAt,
       time: game.time,
       venue: game.venue,
       away: game.awayTeamName,
