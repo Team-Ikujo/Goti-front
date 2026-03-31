@@ -387,6 +387,7 @@ const buildPaymentResponse = ({
    recipient,
    issuedTicketCount,
    resaleListingId,
+   ticketId,
 }: {
    orderType: 'ticket' | 'resale';
    amount: number;
@@ -438,7 +439,7 @@ const buildPaymentResponse = ({
       );
    }
 
-  return paymentResponse;
+   return paymentResponse;
 };
 
 const buildOptimisticResalePaymentResponse = ({

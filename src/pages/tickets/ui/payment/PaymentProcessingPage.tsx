@@ -111,11 +111,13 @@ export default function PaymentProcessingPage() {
    const hasStartedRef = useRef(false);
    const isMountedRef = useRef(false);
    const hasCompletedRef = useRef(false);
+   const hasSuccessfulTicketPaymentRef = useRef(false);
    const resaleHoldIdRef = useRef<string | null>(null);
 
    useEffect(() => {
       isMountedRef.current = true;
       hasCompletedRef.current = false;
+      hasSuccessfulTicketPaymentRef.current = false;
 
       if (!locationState?.request) {
          navigate('/tickets/payment', { replace: true });
@@ -154,6 +156,10 @@ export default function PaymentProcessingPage() {
       };
 
       const releasePendingHolds = async () => {
+         if (hasSuccessfulTicketPaymentRef.current) {
+            return;
+         }
+
          if (isResaleRequest) {
             const resaleHoldId = resaleHoldIdRef.current;
 
@@ -187,6 +193,11 @@ export default function PaymentProcessingPage() {
                submitOrder(),
                new Promise(resolve => setTimeout(resolve, 1000)),
             ]);
+
+            if (!isResaleRequest && result.paymentStatus === 'SUCCESS') {
+               hasSuccessfulTicketPaymentRef.current = true;
+            }
+
             completePayment(result);
          } catch (error) {
             if (isMountedRef.current && isStillOnProcessingPage()) {
@@ -212,7 +223,7 @@ export default function PaymentProcessingPage() {
       process();
 
       const handlePageHide = () => {
-         if (hasCompletedRef.current) {
+         if (hasCompletedRef.current || hasSuccessfulTicketPaymentRef.current) {
             return;
          }
 
