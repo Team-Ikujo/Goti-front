@@ -43,15 +43,17 @@ const BookingFlowStateGuard = () => {
       }
 
       if (!isCurrentBookingFlow) {
-         console.info('[BookingFlowStateGuard] booking flow exited, clearing seat selections and timer');
+         console.info('[BookingFlowStateGuard] booking flow exited, clearing booking state');
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
+         useBookingEntryStore.getState().clearEntry();
       } else if (previousPathname && isBookingFlowPath(previousPathname) && !isCurrentBookingFlow) {
-         console.info('[BookingFlowStateGuard] moved out of booking flow, clearing seat selections and timer');
+         console.info('[BookingFlowStateGuard] moved out of booking flow, clearing booking state');
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
+         useBookingEntryStore.getState().clearEntry();
       }
 
       previousPathnameRef.current = pathname;
