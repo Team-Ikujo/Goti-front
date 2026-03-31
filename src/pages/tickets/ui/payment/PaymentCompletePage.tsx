@@ -6,6 +6,8 @@ import { getOrderPayment, type PaymentResponse } from '@/pages/tickets/api/payme
 import { Calendar, CheckCircle, ChevronLeft, MapPin } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
+import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import { ApiError } from '@/shared/api/client';
 
@@ -129,6 +131,11 @@ export default function PaymentCompletePage() {
       return locationOrder ?? readStoredPaymentCompleteState(orderId) ?? (MOCK_ORDER as PaymentResponse);
    });
    const [paymentReloadError, setPaymentReloadError] = useState<string | null>(null);
+
+   useEffect(() => {
+      useSeatHoldStore.getState().clearSeatHolds();
+      useSeatSelectionStore.getState().clearAllSelections();
+   }, []);
 
    useEffect(() => {
       if (locationOrder?.orderId) {
