@@ -1,8 +1,11 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Lottie from 'lottie-react';
 import { useSearchParams } from 'react-router-dom';
+import type { AnimationData } from 'lottie-web';
 
 const DEFAULT_RANK = 9960;
-const DEFAULT_PROGRESS = 66.67;
+const DEFAULT_TICK_MS = 1200;
+const DEFAULT_STEP = 37;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -21,27 +24,91 @@ const parsePositiveNumber = (value: string | null, fallback: number) => {
 const formatRank = (value: number) => new Intl.NumberFormat('ko-KR').format(Math.round(value));
 
 const QueueIllustration = () => {
+   const [animationData, setAnimationData] = useState<AnimationData | null>(null);
+
+   useEffect(() => {
+      let isMounted = true;
+
+      const loadAnimation = async () => {
+         const response = await fetch('/animation/queueAnimation.json');
+
+         if (!response.ok) {
+            throw new Error('queueAnimation.json을 불러오지 못했습니다.');
+         }
+
+         const data = (await response.json()) as AnimationData;
+
+         if (isMounted) {
+            setAnimationData(data);
+         }
+      };
+
+      void loadAnimation().catch(() => {
+         if (isMounted) {
+            setAnimationData(null);
+         }
+      });
+
+      return () => {
+         isMounted = false;
+      };
+   }, []);
+
    return (
-      <div
-         aria-hidden="true"
-         className="h-[216px] w-[335px] rounded-[120px] bg-[linear-gradient(180deg,#ddecff_0%,#cfe0fb_100%)]"
-      >
-         <div className="h-full w-full animate-pulse rounded-[120px] bg-[linear-gradient(180deg,#ddecff_0%,#cfe0fb_100%)]" />
+      <div aria-hidden="true" className="flex h-[216px] w-[335px] items-center justify-center">
+         {animationData ? (
+            <Lottie
+               animationData={animationData}
+               autoplay
+               loop
+               className="h-full w-full"
+               rendererSettings={{ preserveAspectRatio: 'xMidYMid meet' }}
+            />
+         ) : (
+            <div className="h-full w-full animate-pulse rounded-[120px] bg-[linear-gradient(180deg,#ddecff_0%,#cfe0fb_100%)]" />
+         )}
       </div>
    );
 };
 
 const QueuePage = () => {
    const [searchParams] = useSearchParams();
+   const [currentRank, setCurrentRank] = useState(DEFAULT_RANK);
 
-   const rank = useMemo(
+   const initialRank = useMemo(
       () => parsePositiveNumber(searchParams.get('rank'), DEFAULT_RANK),
       [searchParams]
    );
 
-   const progress = useMemo(
-      () => clamp(parsePositiveNumber(searchParams.get('progress'), DEFAULT_PROGRESS), 0, 100),
+   const tickMs = useMemo(
+      () => Math.max(250, parsePositiveNumber(searchParams.get('tickMs'), DEFAULT_TICK_MS)),
       [searchParams]
+   );
+
+   const step = useMemo(
+      () => Math.max(1, parsePositiveNumber(searchParams.get('step'), DEFAULT_STEP)),
+      [searchParams]
+   );
+
+   useEffect(() => {
+      setCurrentRank(initialRank);
+   }, [initialRank]);
+
+   useEffect(() => {
+      if (currentRank <= 0) return;
+
+      const timer = window.setInterval(() => {
+         setCurrentRank(previousRank => Math.max(0, previousRank - step));
+      }, tickMs);
+
+      return () => {
+         window.clearInterval(timer);
+      };
+   }, [currentRank, step, tickMs]);
+
+   const progress = useMemo(
+      () => clamp(((initialRank - currentRank) / Math.max(initialRank, 1)) * 100, 0, 100),
+      [currentRank, initialRank]
    );
 
    return (
@@ -61,7 +128,7 @@ const QueuePage = () => {
                   </p>
                   <p className="flex items-center gap-1 text-center">
                      <strong className="text-[48px] leading-[1.33] font-bold tracking-[-0.048px] text-[var(--primary-normal)]">
-                        {formatRank(rank)}
+                        {formatRank(currentRank)}
                      </strong>
                      <span className="pt-3 text-[24px] leading-[1.5] font-semibold text-[var(--text-tertiary)]">번째</span>
                   </p>
