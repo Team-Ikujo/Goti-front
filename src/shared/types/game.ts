@@ -44,7 +44,7 @@ export interface GetGameSchedulesParams {
    today?: boolean;
 }
 
-// GET /api/v1/stadium-seats/stadiums/{stadiumId}/games/{gameId}/seat-grades 응답 타입
+// GET /api/v1/stadium-seats/games/{gameId}/seat-grades 응답 타입
 export interface SeatGradeResponse {
    seatGradeId: string;
    stadiumId: string;
