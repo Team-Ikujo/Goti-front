@@ -83,7 +83,12 @@ const TicketsPage = () => {
                date: game.date,
                dateTime: `${game.date.replace(/-/g, '.')} ${game.time}`,
                venue: game.venue,
-               remainingSeats: game.ticket === '매진' ? 0 : 999,
+               remainingSeats:
+                  game.ticket === '판매예정'
+                     ? 25000
+                     : game.ticket === '매진'
+                       ? 0
+                       : (game.remainingSeatCount ?? 0),
                resellRemainingSeats: fallbackResellStatus === '리셀 가능' ? 999 : 0,
                minPrice: 0,
                maxPrice: 0,
