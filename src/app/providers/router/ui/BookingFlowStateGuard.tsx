@@ -18,6 +18,9 @@ const BookingFlowStateGuard = () => {
    useEffect(() => {
       const previousPathname = previousPathnameRef.current;
       const isCurrentBookingFlow = isBookingFlowPath(pathname);
+      const didExitBookingFlow = Boolean(
+         previousPathname && isBookingFlowPath(previousPathname) && !isCurrentBookingFlow,
+      );
       const requiresEntry = requiresBookingEntry(pathname);
       const selectedSeatCount = Object.values(useSeatSelectionStore.getState().zones).reduce(
          (count, zone) => count + zone.selectedSeatIds.length,
@@ -42,13 +45,7 @@ const BookingFlowStateGuard = () => {
          return;
       }
 
-      if (!isCurrentBookingFlow) {
-         console.info('[BookingFlowStateGuard] booking flow exited, clearing booking state');
-         useSeatHoldStore.getState().clearSeatHolds();
-         useSeatSelectionStore.getState().clearAllSelections();
-         useBookingFlowTimerStore.getState().clearTimer();
-         useBookingEntryStore.getState().clearEntry();
-      } else if (previousPathname && isBookingFlowPath(previousPathname) && !isCurrentBookingFlow) {
+      if (didExitBookingFlow) {
          console.info('[BookingFlowStateGuard] moved out of booking flow, clearing booking state');
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
