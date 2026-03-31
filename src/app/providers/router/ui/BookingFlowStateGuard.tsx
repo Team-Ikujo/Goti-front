@@ -27,17 +27,7 @@ const BookingFlowStateGuard = () => {
          0,
       );
 
-      console.info('[BookingFlowStateGuard]', {
-         previousPathname,
-         pathname,
-         isCurrentBookingFlow,
-         requiresEntry,
-         hasBookingEntry: Boolean(bookingEntry),
-         selectedSeatCount,
-      });
-
       if (requiresEntry && !bookingEntry) {
-         console.info('[BookingFlowStateGuard] booking entry missing, redirecting to home');
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
@@ -46,7 +36,6 @@ const BookingFlowStateGuard = () => {
       }
 
       if (didExitBookingFlow) {
-         console.info('[BookingFlowStateGuard] moved out of booking flow, clearing booking state');
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();

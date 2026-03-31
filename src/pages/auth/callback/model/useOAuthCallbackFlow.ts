@@ -140,11 +140,6 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
           throw new Error("Missing authorization code.");
         }
 
-        console.log("[OAuth] Provider authorization code received.", {
-          provider: normalizedProvider,
-          authCode: code,
-        });
-
         if (!isSocialProvider(normalizedProvider)) {
           throw new Error(`Unsupported provider: ${normalizedProvider ?? "none"}`);
         }
@@ -209,7 +204,6 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
         }
         setMessage("로그인에 실패했어요. 다시 시도해 주세요.");
         setErrorMessage(formatErrorMessage(error));
-        console.error(error);
       }
     };
 

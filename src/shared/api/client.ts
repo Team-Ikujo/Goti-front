@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig, type AxiosResponse } from "axios";
+import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/entities/auth/model/authStore";
 import { redirectToErrorPage } from '@/shared/lib/error-navigation';
 
@@ -94,30 +94,6 @@ const canAttemptTokenReissue = () => {
   );
 };
 
-const getConsoleTargets = (): Console[] => {
-  const targets: Console[] = [console];
-
-  if (typeof window === "undefined" || !window.opener || window.opener.closed) {
-    return targets;
-  }
-
-  try {
-    if (window.opener.location.origin === window.location.origin) {
-      targets.push(window.opener.console);
-    }
-  } catch {
-    // Cross-origin opener access is blocked by the browser.
-  }
-
-  return targets;
-};
-
-const logToConsoles = (method: "log" | "error", ...args: unknown[]) => {
-  getConsoleTargets().forEach((target) => {
-    target[method](...args);
-  });
-};
-
 const toAbsoluteUrl = (config?: AxiosRequestConfig) => {
   const baseURL = config?.baseURL ?? "";
   const url = config?.url ?? "";
@@ -182,67 +158,6 @@ const normalizeApiErrorMessage = (message: string, status?: number) => {
   }
 
   return message;
-};
-
-const getSerializableData = (value: unknown) => {
-  if (value === undefined) {
-    return null;
-  }
-
-  if (typeof FormData !== "undefined" && value instanceof FormData) {
-    const entries: Array<[string, FormDataEntryValue]> = [];
-    value.forEach((entryValue, entryKey) => {
-      entries.push([entryKey, entryValue]);
-    });
-    return Object.fromEntries(entries);
-  }
-
-  return value;
-};
-
-const logRequest = (config: AxiosRequestConfig) => {
-  logToConsoles("log", "[API REQUEST]", {
-    method: config.method?.toUpperCase() ?? "GET",
-    url: toAbsoluteUrl(config),
-    params: config.params ?? null,
-    data: getSerializableData(config.data),
-    headers: config.headers ?? null,
-  });
-};
-
-const logResponse = (response: AxiosResponse) => {
-  logToConsoles("log", "[API RESPONSE]", {
-    method: response.config.method?.toUpperCase() ?? "GET",
-    url: toAbsoluteUrl(response.config),
-    status: response.status,
-    data: response.data,
-  });
-};
-
-const logError = (error: AxiosError) => {
-  const requestConfig = error.config;
-  const responseStatus = error.response?.status;
-  const responseData = error.response?.data;
-  const responseMessage =
-    typeof responseData === "string"
-      ? responseData
-      : (responseData as { message?: string } | undefined)?.message ?? error.message;
-
-  if (
-    requestConfig &&
-    shouldSkipCredentials(requestConfig) &&
-    (responseStatus === 401 || responseStatus === 403 || isAuthorizationConflictMessage(responseMessage))
-  ) {
-    return;
-  }
-
-  logToConsoles("error", "[API ERROR]", {
-    method: requestConfig?.method?.toUpperCase() ?? "UNKNOWN",
-    url: toAbsoluteUrl(requestConfig),
-    status: responseStatus ?? null,
-    data: responseData ?? null,
-    message: error.message,
-  });
 };
 
 const apiClient = axios.create({
@@ -321,8 +236,6 @@ apiClient.interceptors.request.use((config) => {
       config.headers = nextHeaders;
     }
   }
-
-  logRequest(config);
   return config;
 });
 
@@ -337,13 +250,9 @@ apiClient.interceptors.response.use(
         ),
       );
     }
-
-    logResponse(response);
     return response;
   },
   (error: AxiosError) => {
-    logError(error);
-
     const requestConfig = error.config as RetriableAxiosRequestConfig | undefined;
     const requestUrl = requestConfig?.url ?? "";
     const isReissueRequest = requestUrl.includes(tokenReissuePath);
