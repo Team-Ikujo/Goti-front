@@ -53,6 +53,12 @@ export interface SeatGradeResponse {
    availableSeatCount: number;
 }
 
+export interface SeatGradeSearchResultResponse {
+   sessionId: string;
+   sessionExpiresAt: string;
+   seatGrades: SeatGradeResponse[];
+}
+
 // GET /api/v1/stadium-seats/stadiums/{stadiumId}/seat-sections 응답 타입
 export interface SeatSectionResponse {
    sectionId: string;

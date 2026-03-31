@@ -11,6 +11,12 @@ export type SeatGradeResponse = {
    availableSeatCount: number;
 };
 
+export type SeatGradeSearchResultResponse = {
+   sessionId: string;
+   sessionExpiresAt: string;
+   seatGrades: SeatGradeResponse[];
+};
+
 export type SeatSectionResponse = {
    sectionId: string;
    gradeId: string;
@@ -233,12 +239,23 @@ export const getPricingDayType = (gameDate: string) => {
    return dayOfWeek === 0 || dayOfWeek === 6 ? 'WEEKEND' : 'WEEKDAY';
 };
 
-export const fetchSeatGrades = async (gameId: string, stadiumId: string) => {
-   const response = await apiClient.get<ApiEnvelope<SeatGradeResponse[]>>(
+export const fetchSeatGrades = async ({
+   gameId,
+   stadiumId,
+   forceNewSession,
+}: {
+   gameId: string;
+   stadiumId: string;
+   forceNewSession?: boolean;
+}) => {
+   const response = await apiClient.get<ApiEnvelope<SeatGradeSearchResultResponse>>(
       `/api/v1/stadium-seats/stadiums/${stadiumId}/games/${gameId}/seat-grades`,
+      {
+         params: forceNewSession ? { forceNewSession: true } : undefined,
+      },
    );
 
-   return response.data.data;
+   return response.data.data?.seatGrades ?? [];
 };
 
 export const fetchSeatSections = async ({
@@ -277,8 +294,16 @@ export const resolveSeatSectionByCode = async ({
    return sections.find((section) => normalizeSectionCode(section.sectionCode) === normalizedTargetSectionCode) ?? null;
 };
 
-export const fetchSeats = async (sectionId: string) => {
-   const response = await apiClient.get<ApiEnvelope<RawSeatResponse[]>>(`/api/v1/seats/seat-sections/${sectionId}/seats`);
+export const fetchSeats = async ({
+   sectionId,
+   gameId,
+}: {
+   sectionId: string;
+   gameId: string;
+}) => {
+   const response = await apiClient.get<ApiEnvelope<RawSeatResponse[]>>(`/api/v1/seats/seat-sections/${sectionId}/seats`, {
+      params: { gameId },
+   });
 
    return (response.data.data ?? []).flatMap((seat) => {
       const normalizedSeat = normalizeSeatResponse(seat);
@@ -289,6 +314,7 @@ export const fetchSeats = async (sectionId: string) => {
 
       console.error('[bookingApi] 좌석 응답 정규화 실패', {
          sectionId,
+         gameId,
          seat,
       });
 

@@ -15,6 +15,12 @@ type SeatGrade = {
    availableSeatCount: number;
 };
 
+type SeatGradeSearchResult = {
+   sessionId: string;
+   sessionExpiresAt: string;
+   seatGrades: SeatGrade[];
+};
+
 type SeatSection = {
    sectionId: string;
    gradeId: string;
@@ -112,6 +118,8 @@ type TicketRecord = {
    paymentMethodDisplay?: string;
    ticketStatus: 'ISSUED' | 'USED' | 'INVALID' | 'RESALE_ISSUED';
    resaleEnabledStatus: 'ENABLED' | 'DISABLED';
+   frozen?: boolean;
+   frozenUntil?: string;
    issuedAt: string;
    orderedAt: string;
    cancelableUntil?: string;
@@ -855,10 +863,17 @@ export const paymentHandlers = [
    }),
 
    http.get('/api/v1/stadium-seats/stadiums/:stadiumId/games/:gameId/seat-grades', async ({ params }) => {
+      const seatGrades = seatGradesByStadium[String(params.stadiumId)] ?? [];
+      const seatGradeResult: SeatGradeSearchResult = {
+         sessionId: `seat-session-${String(params.gameId)}`,
+         sessionExpiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+         seatGrades,
+      };
+
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
-         data: seatGradesByStadium[String(params.stadiumId)] ?? [],
+         data: seatGradeResult,
       });
    }),
 
@@ -870,7 +885,21 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/seats/seat-sections/:sectionId/seats', async ({ params }) => {
+   http.get('/api/v1/seats/seat-sections/:sectionId/seats', async ({ params, request }) => {
+      const requestUrl = new URL(request.url);
+      const gameId = requestUrl.searchParams.get('gameId');
+
+      if (!gameId) {
+         return HttpResponse.json(
+            {
+               code: 'VALIDATION_ERROR',
+               message: 'gameId query parameter is required',
+               data: null,
+            },
+            { status: 400 },
+         );
+      }
+
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
@@ -1474,6 +1503,8 @@ export const paymentHandlers = [
             serviceFee: ticket.serviceFee ?? 1000,
             ticketStatus: ticket.ticketStatus,
             resaleEnabledStatus: ticket.resaleEnabledStatus,
+            frozen: ticket.frozen ?? false,
+            frozenUntil: ticket.frozenUntil,
             issuedAt: ticket.issuedAt,
             orderedAt: ticket.orderedAt,
             cancelableUntil: ticket.cancelableUntil,

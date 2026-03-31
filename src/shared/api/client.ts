@@ -19,6 +19,12 @@ const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? "").trim();
 // preview/build 환경에서는 정적 서버가 /api를 처리하지 않으므로 절대 base URL을 사용한다.
 const shouldUseRelativeApiBase = import.meta.env.DEV;
 const tokenReissuePath = "/api/v1/auth/reissue";
+const authorizationOptionalApiPaths = new Set([
+  "/api/v1/auth/login",
+  "/api/v1/auth/signup",
+  "/api/v1/auth/signup/sms/send",
+  tokenReissuePath,
+]);
 const shouldKeepSessionAlivePathPrefixes = ["/books", "/tickets"];
 const PUBLIC_API_PATH_PATTERNS = [
   /^\/api\/v1\/seat-reservations(?:\/|$)/,
@@ -128,10 +134,19 @@ const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
 
   try {
     const { pathname } = new URL(requestUrl, window.location.origin);
-    // 이 프로젝트의 백엔드 API는 쿠키 세션 기준으로 동작하도록 맞춘다.
-    // Authorization Bearer 헤더를 기본 첨부하면 JWT/RBAC 게이트웨이와 충돌해
-    // "Jwt issuer is not configured", "RBAC: access denied" 오류가 발생할 수 있다.
-    return pathname.startsWith("/api/");
+    if (authorizationOptionalApiPaths.has(pathname)) {
+      return true;
+    }
+
+    if (/^\/api\/v1\/auth\/[^/]+\/state$/.test(pathname)) {
+      return true;
+    }
+
+    if (/^\/api\/v1\/auth\/[^/]+\/social\/verify$/.test(pathname)) {
+      return true;
+    }
+
+    return false;
   } catch {
     return false;
   }
