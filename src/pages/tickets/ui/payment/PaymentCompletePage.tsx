@@ -8,6 +8,8 @@ import { Button } from '@/shared/ui/button';
 import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
+import { resolveBookingEntrySourcePath } from '@/shared/lib/booking-flow';
+import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import { ApiError } from '@/shared/api/client';
 
@@ -122,20 +124,50 @@ const MOCK_ORDER = {
 export default function PaymentCompletePage() {
    const navigate = useNavigate();
    const [searchParams] = useSearchParams();
-   const { state } = useLocation();
+   const location = useLocation();
+   const { state } = location;
    const timeStr = useTimerStr();
    const deliveryMethod = (searchParams.get('delivery') as DeliveryMethod) ?? 'mobile';
    const orderId = searchParams.get('orderId');
    const locationOrder = state as PaymentResponse | null;
+   const clearBookingEntry = useBookingEntryStore(state => state.clearEntry);
+   const clearTimer = useBookingFlowTimerStore(state => state.clearTimer);
+   const [entrySourcePath] = useState(() =>
+      resolveBookingEntrySourcePath(useBookingEntryStore.getState().entry?.entrySourcePath),
+   );
    const [order, setOrder] = useState<PaymentResponse>(() => {
       return locationOrder ?? readStoredPaymentCompleteState(orderId) ?? (MOCK_ORDER as PaymentResponse);
    });
    const [paymentReloadError, setPaymentReloadError] = useState<string | null>(null);
 
+   const navigateToEntrySource = () => {
+      clearTimer();
+      clearBookingEntry();
+      navigate(entrySourcePath, { replace: true });
+   };
+
    useEffect(() => {
       useSeatHoldStore.getState().clearSeatHolds();
       useSeatSelectionStore.getState().clearAllSelections();
-   }, []);
+      clearTimer();
+      clearBookingEntry();
+   }, [clearBookingEntry, clearTimer]);
+
+   useEffect(() => {
+      window.history.pushState({ paymentCompleteExitGuard: true }, '', window.location.href);
+
+      const handlePopState = () => {
+         clearTimer();
+         clearBookingEntry();
+         navigate(entrySourcePath, { replace: true });
+      };
+
+      window.addEventListener('popstate', handlePopState);
+
+      return () => {
+         window.removeEventListener('popstate', handlePopState);
+      };
+   }, [clearBookingEntry, clearTimer, entrySourcePath, navigate]);
 
    useEffect(() => {
       if (locationOrder?.orderId) {
@@ -224,7 +256,7 @@ export default function PaymentCompletePage() {
             <div className="relative flex items-center justify-between pl-3 pr-5 py-2">
                <button
                   type="button"
-                  onClick={() => navigate(-1)}
+                  onClick={navigateToEntrySource}
                   className="p-1 flex items-center justify-center shrink-0"
                   aria-label="뒤로가기"
                >
@@ -373,8 +405,8 @@ export default function PaymentCompletePage() {
 
                {/* 하단 버튼 */}
                <div className="flex gap-4 justify-center w-full">
-                  <Button variant="secondary" className="flex-1 max-w-[360px] py-3" onClick={() => navigate('/')}>
-                     홈으로
+                  <Button variant="secondary" className="flex-1 max-w-[360px] py-3" onClick={navigateToEntrySource}>
+                     시작 화면으로
                   </Button>
                   <Button variant="primary" className="flex-1 max-w-[360px] py-3" onClick={actionButton.onClick}>
                      {actionButton.label}
