@@ -16,8 +16,10 @@ export interface CancelTicketItem {
 interface Props {
    open: boolean;
    onClose: () => void;
+   /** 취소 API 호출용 주문 ID */
+   orderId: string;
    /** 취소 완료 후 이동할 구매 상세 페이지 ID */
-   itemId: string;
+   detailId: string;
    game: { teams: string; datetime: string };
    seats: CancelTicketItem[];
    /** 무통장 입금 여부 */
@@ -65,7 +67,8 @@ function CheckboxIcon({ checked }: { checked: boolean }) {
 export default function CancelBookingDialog({
    open,
    onClose,
-   itemId,
+   orderId,
+   detailId,
    game,
    seats,
    isBankTransfer = false,
@@ -114,7 +117,8 @@ export default function CancelBookingDialog({
             open={confirmOpen}
             onClose={onClose}
             onBack={() => setConfirmOpen(false)}
-            itemId={itemId}
+            orderId={orderId}
+            detailId={detailId}
             isBankTransfer={isBankTransfer}
             account={isBankTransfer && MOCK_REGISTERED_ACCOUNT
                ? { bank: MOCK_REGISTERED_ACCOUNT.bank, number: MOCK_REGISTERED_ACCOUNT.number }

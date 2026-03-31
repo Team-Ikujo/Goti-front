@@ -177,10 +177,6 @@ export default function ResellPaymentPage() {
                <div className="flex flex-col lg:flex-row gap-8 items-start">
                   {/* 왼쪽: 주문자 정보 */}
                   <div className="w-full lg:flex-1 min-w-0 flex flex-col gap-[10px]">
-                     <h2 className="hidden lg:block text-heading-1-bold leading-normal text-foreground h-9">
-                        주문자 정보 입력
-                     </h2>
-
                      <div className="flex flex-col gap-6">
                         {/* 수령 방식 — 리셀은 모바일 티켓만 가능 */}
                         <PaymentCard>
@@ -262,8 +258,6 @@ export default function ResellPaymentPage() {
 
                   {/* 오른쪽: 주문 정보 — 데스크톱 전용 */}
                   <div className="hidden lg:flex flex-col flex-1 max-w-100 shrink-0 gap-[10px]">
-                     <h2 className="text-heading-1-bold leading-normal text-foreground h-9">주문 정보 확인</h2>
-
                      <div className="flex flex-col gap-6">
                         <OrderSummaryCard orderInfo={orderInfo} />
 

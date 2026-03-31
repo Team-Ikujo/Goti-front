@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { fetchResaleListings } from '@/entities/resale/api/resaleApi';
+import { fetchResaleListingCountsBySections, fetchResaleListings } from '@/entities/resale/api/resaleApi';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 
@@ -13,7 +13,6 @@ import {
    mergeBookingZones,
    resolvePricingByGradeId,
 } from '@/pages/books/api/bookingApi';
-import { isPurchasableResaleListing, resolveResaleListingZoneId } from '@/pages/books/model/resellMatching';
 import { getBookingTeamConfig, getZoneDisplayOrder, getBookingZones } from '@/pages/books/model/zoneData';
 import type { ZoneItem } from '@/pages/books/model/types';
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
@@ -25,6 +24,7 @@ import BookingCaptchaGate from './components/BookingCaptchaGate';
 import BookingZoneDesktopLayout from './components/BookingZoneDesktopLayout';
 import BookingZoneMobileLayout from './components/BookingZoneMobileLayout';
 import BooksExitDialog from '@/shared/widgets/layout/books/BooksExitDialog';
+import { isPurchasableResaleListing, resolveResaleListingZoneId } from '@/pages/books/model/resellMatching';
 
 const CAPTCHA_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -113,45 +113,13 @@ const BooksPage = () => {
          });
 
          if (bookingFlowMode === 'resell') {
-            const resaleListings = await fetchResaleListings();
-            const mappedZones = mapSeatSectionsToZones({
+            return mapSeatSectionsToZones({
                sections,
                grades,
                teamId: bookingEntryState?.homeTeamId,
                pricingByGradeId,
+               remainingBySectionId,
             });
-            const completedResaleLookup = getCompletedResalePurchaseLookup();
-
-            const resaleCountByZoneId = new Map(mappedZones.map((zone) => [zone.id, 0]));
-
-            resaleListings.forEach((listing) => {
-               if (
-                  completedResaleLookup.listingIds.has(listing.listingId) ||
-                  completedResaleLookup.seatInfos.has(listing.seatInfo)
-               ) {
-                  return;
-               }
-
-               if (!isPurchasableResaleListing(listing, bookingEntryState!.gameId!)) {
-                  return;
-               }
-
-               const resolvedZoneId = resolveResaleListingZoneId({
-                  zones: mappedZones,
-                  listing,
-               });
-
-               if (!resolvedZoneId) {
-                  return;
-               }
-
-               resaleCountByZoneId.set(resolvedZoneId, (resaleCountByZoneId.get(resolvedZoneId) ?? 0) + 1);
-            });
-
-            return mappedZones.map((zone) => ({
-               ...zone,
-               remaining: resaleCountByZoneId.get(zone.id) ?? 0,
-            }));
          }
 
          return mapSeatSectionsToZones({
@@ -162,31 +130,65 @@ const BooksPage = () => {
          });
       },
    });
+   const mergedBaseZones = useMemo(
+      () =>
+         mergeBookingZones({
+            localZones,
+            apiZones,
+         }),
+      [apiZones, localZones],
+   );
+   const { data: resellRemainingByZoneId } = useQuery({
+      queryKey: ['resell-zone-remaining', bookingEntryState?.gameId, mergedBaseZones.map((zone) => zone.id).sort()],
+      enabled: bookingFlowMode === 'resell' && Boolean(bookingEntryState?.gameId) && mergedBaseZones.length > 0,
+      queryFn: async () => {
+         if (!bookingEntryState?.gameId) {
+            return new Map<string, number>();
+         }
+
+         const listings = await fetchResaleListings();
+         const completedResaleLookup = getCompletedResalePurchaseLookup();
+         const nextCounts = new Map<string, number>();
+
+         listings.forEach((listing) => {
+            if (
+               completedResaleLookup.listingIds.has(listing.listingId) ||
+               completedResaleLookup.seatInfos.has(listing.seatInfo) ||
+               !isPurchasableResaleListing(listing, bookingEntryState.gameId)
+            ) {
+               return;
+            }
+
+            const zoneId = resolveResaleListingZoneId({
+               zones: mergedBaseZones,
+               listing,
+            });
+
+            if (!zoneId) {
+               return;
+            }
+
+            nextCounts.set(zoneId, (nextCounts.get(zoneId) ?? 0) + 1);
+         });
+
+         return nextCounts;
+      },
+      placeholderData: (previousData) => previousData,
+   });
    const zones = useMemo<ZoneItem[]>(() => {
-      const mergedZones = mergeBookingZones({
-         localZones,
-         apiZones,
-      });
-
       const normalizedZones = bookingFlowMode === 'resell'
-         ? mergedZones.map((zone) => {
-              const hasApiZone = apiZones?.some((apiZone) => apiZone.id === zone.id) ?? false;
-
-              return hasApiZone
-                 ? zone
-                 : {
-                      ...zone,
-                      remaining: 0,
-                   };
-           })
-         : mergedZones;
+         ? mergedBaseZones.map((zone) => ({
+              ...zone,
+              remaining: resellRemainingByZoneId?.get(zone.id) ?? 0,
+           }))
+         : mergedBaseZones;
 
       return [...normalizedZones].sort(
          (left, right) => right.remaining - left.remaining || left.name.localeCompare(right.name, 'ko-KR'),
       );
-   }, [apiZones, bookingFlowMode, localZones]);
+   }, [bookingFlowMode, mergedBaseZones, resellRemainingByZoneId]);
 
-   const [selectedZoneId, setSelectedZoneId] = useState(zones[0]?.id ?? '');
+   const [selectedZoneId, setSelectedZoneId] = useState(() => zones.find((zone) => zone.remaining > 0)?.id ?? zones[0]?.id ?? '');
    const [isCaptchaOpen, setIsCaptchaOpen] = useState(requiresCaptcha);
    const [captchaInput, setCaptchaInput] = useState('');
    const [captchaError, setCaptchaError] = useState('');
@@ -212,7 +214,7 @@ const BooksPage = () => {
    }, [routeBookingEntryState, setBookingEntry]);
 
    useEffect(() => {
-      setSelectedZoneId(zones[0]?.id ?? '');
+      setSelectedZoneId(zones.find((zone) => zone.remaining > 0)?.id ?? zones[0]?.id ?? '');
    }, [zones]);
 
    useEffect(() => {

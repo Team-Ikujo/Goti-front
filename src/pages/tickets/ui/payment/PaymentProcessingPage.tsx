@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
 import {
    releaseResaleHold,
@@ -27,6 +28,23 @@ const MOCK_GAME = {
 
 const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
 
+const createFallbackOrderNumber = () => {
+   const digits = String(Date.now()).slice(-13).padStart(13, '0');
+   return `ORD${digits}`;
+};
+
+const formatReceiptDateTime = (date: Date) => {
+   const year = date.getFullYear();
+   const month = String(date.getMonth() + 1).padStart(2, '0');
+   const day = String(date.getDate()).padStart(2, '0');
+   const hours24 = date.getHours();
+   const minutes = String(date.getMinutes()).padStart(2, '0');
+   const meridiem = hours24 >= 12 ? 'PM' : 'AM';
+   const hours12 = hours24 % 12 || 12;
+
+   return `${year}.${month}.${day} ${String(hours12).padStart(2, '0')}:${minutes} ${meridiem}`;
+};
+
 const savePaymentCompleteState = (order: PaymentResponse) => {
    if (typeof window === 'undefined' || !order.orderId) {
       return;
@@ -44,7 +62,7 @@ const createFallbackResalePaymentResponse = (
 ): PaymentResponse => ({
    orderType: 'resale',
    orderId: `resale-order-${Date.now()}`,
-   orderNumber: `RSL-${Date.now()}`,
+   orderNumber: createFallbackOrderNumber(),
    orderStatus: 'COMPLETED',
    paymentStatus: 'SUCCESS',
    paidAt: new Date().toISOString(),
@@ -54,14 +72,7 @@ const createFallbackResalePaymentResponse = (
    quantity: 1,
    seats: [request.seatInfo],
    paymentMethod: request.paymentMethod === 'bank' ? '무통장 입금' : '신용/체크카드',
-   orderedAt: new Date().toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-   }),
+   orderedAt: formatReceiptDateTime(new Date()),
    amount,
    resaleListingId: request.listingId,
 });
@@ -106,6 +117,7 @@ const releasePendingTicketSeatHoldsKeepalive = () => {
 
 export default function PaymentProcessingPage() {
    const navigate = useNavigate();
+   const queryClient = useQueryClient();
    const { state } = useLocation();
    const locationState = state as { request: TicketCheckoutRequest | ResaleCheckoutRequest; amount: number } | null;
    const hasStartedRef = useRef(false);
@@ -143,6 +155,14 @@ export default function PaymentProcessingPage() {
             savePaymentCompleteState({ ...result, amount: clientAmount });
          } catch {
             // sessionStorage 저장 실패가 완료 페이지 이동을 막지 않게 한다.
+         }
+
+         if (isResaleRequest) {
+            void queryClient.invalidateQueries({ queryKey: ['resell-zone-remaining'] });
+            void queryClient.invalidateQueries({ queryKey: ['resell-zone-insights'] });
+            void queryClient.invalidateQueries({ queryKey: ['resales', 'game-counts'] });
+            void queryClient.invalidateQueries({ queryKey: ['resales', 'listing-market'] });
+            void queryClient.invalidateQueries({ queryKey: ['myResales'] });
          }
 
          useSeatHoldStore.getState().clearSeatHolds();
@@ -237,7 +257,7 @@ export default function PaymentProcessingPage() {
          window.removeEventListener('pagehide', handlePageHide);
          isMountedRef.current = false;
       };
-   }, [locationState, navigate]);
+   }, [locationState, navigate, queryClient]);
 
    const headerRequest = locationState?.request;
    const headerProps =

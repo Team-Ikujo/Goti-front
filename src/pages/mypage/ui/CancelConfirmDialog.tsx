@@ -12,8 +12,10 @@ interface Props {
    open: boolean;
    onClose: () => void;
    onBack: () => void;
+   /** 취소 API 호출용 주문 ID */
+   orderId: string;
    /** 취소 완료 후 이동할 구매 상세 페이지 ID */
-   itemId: string;
+   detailId: string;
    /** 무통장 입금 여부 */
    isBankTransfer: boolean;
    /** 무통장 입금일 때 표시할 등록 계좌 */
@@ -29,7 +31,8 @@ export default function CancelConfirmDialog({
    open,
    onClose,
    onBack,
-   itemId,
+   orderId,
+   detailId,
    isBankTransfer,
    account,
    paymentMethod,
@@ -42,12 +45,14 @@ export default function CancelConfirmDialog({
    const [isLoading, setIsLoading] = useState(false);
 
    const { mutate: cancel } = useMutation({
-      mutationFn: () => cancelTicket(itemId),
+      mutationFn: () => cancelTicket(orderId),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['ticketDetail', itemId] });
+         queryClient.invalidateQueries({ queryKey: ['ticketDetail', detailId] });
+         queryClient.invalidateQueries({ queryKey: ['orderTicketsFallback', detailId] });
+         queryClient.invalidateQueries({ queryKey: ['ticketDetailFallback'] });
          queryClient.invalidateQueries({ queryKey: ['myOrders'] });
          onClose();
-         navigate(`/mypage/purchase/${itemId}`, { state: { showCancelSuccess: true } });
+         navigate(`/mypage/purchase/${detailId}`, { state: { showCancelSuccess: true } });
       },
       onError: () => {
          setIsLoading(false);

@@ -20,6 +20,7 @@ export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판
 export interface PurchaseHistoryItem {
    id: string;
    orderId: string;
+   rawOrderId?: string;
    orderDate: string;
    type: TicketType;
    game: {
@@ -143,7 +144,8 @@ export default function HistoryCard(props: HistoryCardProps) {
             <CancelBookingDialog
                open={cancelOpen}
                onClose={() => setCancelOpen(false)}
-               itemId={item.id}
+               orderId={purchaseItem.rawOrderId ?? item.id}
+               detailId={item.id}
                game={{ teams: item.game.teams, datetime: item.game.datetime }}
                seats={item.game.seats.map(seat => ({
                   orderId: item.orderId,

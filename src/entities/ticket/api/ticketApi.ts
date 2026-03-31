@@ -60,6 +60,6 @@ export const fetchTicketQr = async (ticketId: string): Promise<TicketQrResponse>
    return response.data.data;
 };
 
-export const cancelTicket = async (ticketId: string): Promise<void> => {
-   await apiClient.post(`/api/v1/tickets/${ticketId}/cancel`);
+export const cancelTicket = async (orderId: string): Promise<void> => {
+   await apiClient.post(`/api/v1/payments/orders/${orderId}/cancellations`);
 };

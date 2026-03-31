@@ -502,6 +502,7 @@ const resaleLedgers = new Map<string, ResaleLedger>();
 type ResaleListing = {
    listingId: string;
    ticketId: string;
+   ticketNumber?: string;
    sellerId: string;
    seatInfo: string;
    listingPrice: number;
@@ -862,8 +863,9 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/stadium-seats/stadiums/:stadiumId/games/:gameId/seat-grades', async ({ params }) => {
-      const seatGrades = seatGradesByStadium[String(params.stadiumId)] ?? [];
+   http.get('/api/v1/stadium-seats/games/:gameId/seat-grades', async ({ params }) => {
+      const matchedGame = mockGameSchedules.find((game) => game.gameId === String(params.gameId));
+      const seatGrades = matchedGame ? (seatGradesByStadium[matchedGame.stadiumId] ?? []) : [];
       const seatGradeResult: SeatGradeSearchResult = {
          sessionId: `seat-session-${String(params.gameId)}`,
          sessionExpiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
@@ -1550,6 +1552,37 @@ export const paymentHandlers = [
       });
    }),
 
+   http.post('/api/v1/payments/orders/:orderId/cancellations', async ({ params }) => {
+      const orderId = String(params.orderId);
+      const order = ticketOrders.get(orderId);
+
+      if (!order) {
+         return buildErrorResponse('Order not found.', 404);
+      }
+
+      const orderTickets = Array.from(ticketRecords.values()).filter((ticket) => ticket.orderId === orderId);
+
+      if (orderTickets.length === 0) {
+         return buildErrorResponse('Ticket not found.', 404);
+      }
+
+      if (orderTickets.every((ticket) => ticket.ticketStatus === 'INVALID')) {
+         return buildErrorResponse('Already canceled.', 400);
+      }
+
+      orderTickets.forEach((ticket) => {
+         ticketRecords.set(ticket.ticketId, {
+            ...ticket,
+            ticketStatus: 'INVALID',
+            resaleEnabledStatus: 'DISABLED',
+         });
+      });
+
+      ticketOrders.set(orderId, { ...order, orderStatus: 'CANCELED' });
+
+      return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: null });
+   }),
+
    // 티켓 취소
    http.post('/api/v1/tickets/:ticketId/cancel', async ({ params }) => {
       const ticket = ticketRecords.get(String(params.ticketId));
@@ -1594,6 +1627,7 @@ export const paymentHandlers = [
       const listing: ResaleListing = {
          listingId,
          ticketId: ticket.ticketId,
+         ticketNumber: ticket.ticketNumber,
          sellerId: 'mock-seller',
          seatInfo: ticket.seatInfo,
          listingPrice: body.listingPrice,
@@ -1620,6 +1654,7 @@ export const paymentHandlers = [
       const listings = Array.from(resaleListings.values()).map((l) => ({
          listingId: l.listingId,
          ticketId: l.ticketId,
+         ticketNumber: l.ticketNumber,
          sellerId: l.sellerId,
          gameId: '',
          seatId: '',
@@ -1656,6 +1691,7 @@ export const paymentHandlers = [
          data: {
             listingId: listing.listingId,
             ticketId: listing.ticketId,
+            ticketNumber: listing.ticketNumber,
             seatInfo: listing.seatInfo,
             listingPrice: listing.listingPrice,
             listingStatus: listing.listingStatus,
@@ -1670,8 +1706,9 @@ export const paymentHandlers = [
    }),
 
    // 리셀 취소
-   http.post('/api/v1/resales/listings/:listingId/cancel', async ({ params }) => {
-      const listing = resaleListings.get(String(params.listingId));
+   http.patch('/api/v1/resales/listings/cancel', async ({ request }) => {
+      const body = (await request.json()) as { listingId?: string } | null;
+      const listing = body?.listingId ? resaleListings.get(String(body.listingId)) : undefined;
 
       if (!listing) {
          return buildErrorResponse('Listing not found.', 404);

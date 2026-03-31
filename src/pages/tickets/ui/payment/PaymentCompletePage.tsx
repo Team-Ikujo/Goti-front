@@ -8,6 +8,7 @@ import { Button } from '@/shared/ui/button';
 import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import { ApiError } from '@/shared/api/client';
+import { formatReservationNumber } from '@/pages/mypage/model/ticketNumber';
 
 function useTimerStr() {
    const [now, setNow] = useState(Date.now());
@@ -73,6 +74,69 @@ const isResalePaymentResponse = (order: PaymentResponse | null) => {
    }
 
    return order.orderId?.toLowerCase().includes('resale') ?? false;
+};
+
+const formatReceiptDateTime = (value: string | undefined) => {
+   if (!value) {
+      return '-';
+   }
+
+   const directDate = new Date(value);
+   if (!Number.isNaN(directDate.getTime())) {
+      const year = directDate.getFullYear();
+      const month = String(directDate.getMonth() + 1).padStart(2, '0');
+      const day = String(directDate.getDate()).padStart(2, '0');
+      const hours24 = directDate.getHours();
+      const minutes = String(directDate.getMinutes()).padStart(2, '0');
+      const meridiem = hours24 >= 12 ? 'PM' : 'AM';
+      const hours12 = hours24 % 12 || 12;
+
+      return `${year}.${month}.${day} ${String(hours12).padStart(2, '0')}:${minutes} ${meridiem}`;
+   }
+
+   const normalized = value
+      .replace(/\.(오전|오후)/g, ' $1')
+      .replace(/\s+/g, ' ')
+      .replace(/\.$/, '')
+      .trim();
+   const match = normalized.match(
+      /^(\d{4})[.\-]\s?(\d{2})[.\-]\s?(\d{2})(?:\s(?:\(([^)]+)\)\s)?)?(?:(오전|오후)\s)?(\d{1,2}):(\d{2})(?::\d{2})?\s?(AM|PM)?$/i,
+   );
+
+   if (!match) {
+      return value;
+   }
+
+   const [, year, month, day, , meridiemKo, rawHour, minute, meridiemEn] = match;
+   let hour = Number(rawHour);
+   const meridiem = (meridiemEn?.toUpperCase() ?? (meridiemKo === '오후' ? 'PM' : 'AM')) as 'AM' | 'PM';
+
+   if (meridiem === 'PM' && hour < 12) {
+      hour += 12;
+   }
+
+   if (meridiem === 'AM' && hour === 12) {
+      hour = 0;
+   }
+
+   const hours12 = hour % 12 || 12;
+   return `${year}.${month}.${day} ${String(hours12).padStart(2, '0')}:${minute} ${meridiem}`;
+};
+
+const formatOrderStatusLabel = (value: string | undefined) => {
+   switch (value) {
+      case 'SUCCESS':
+      case 'CONFIRMED':
+      case 'COMPLETED':
+      case 'PENDING':
+         return '결제완료';
+      case 'FAILED':
+         return '결제실패';
+      case 'CANCELED':
+         return '취소됨';
+      default:
+         return '결제완료';
+   }
 };
 
 const ENTRANCE_GUIDES: Record<DeliveryMethod, string[]> = {
@@ -265,7 +329,9 @@ export default function PaymentCompletePage() {
                   {/* 예매 번호 */}
                   <div className="flex flex-col gap-1">
                      <span className="text-[16px] font-bold leading-normal text-disabled-foreground">예매 번호</span>
-                     <span className="text-[18px] font-bold leading-[1.55] text-foreground">{order.orderNumber}</span>
+                     <span className="text-[18px] font-bold leading-[1.55] text-foreground">
+                        {formatReservationNumber(order.orderNumber)}
+                     </span>
                   </div>
 
                   {/* 경기 정보 */}
@@ -329,8 +395,8 @@ export default function PaymentCompletePage() {
                   <div className="flex flex-col gap-3">
                      {[
                         { label: '결제 방법', value: order.paymentMethod },
-                        { label: '주문상태', value: order.orderStatus ?? 'PENDING' },
-                        { label: '주문접수일시', value: order.paidAt ?? order.orderedAt },
+                        { label: '주문상태', value: formatOrderStatusLabel(order.orderStatus ?? order.paymentStatus) },
+                        { label: '주문접수일시', value: formatReceiptDateTime(order.orderedAt ?? order.paidAt) },
                         { label: '수령 방식', value: DELIVERY_LABELS[deliveryMethod] },
                      ].map(({ label, value }) => (
                         <div key={label} className="flex items-start justify-between text-[16px] leading-normal">

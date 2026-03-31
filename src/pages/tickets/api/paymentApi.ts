@@ -103,12 +103,6 @@ type OrderPaymentRequest = {
    idempotencyKey: string;
 };
 
-type OrderPaymentConfirmRequest = {
-   userId: string;
-   paymentId?: string;
-   pgTid?: string;
-};
-
 type OrderPaymentResponse = {
    paymentId: string;
    orderId: string;
@@ -185,14 +179,15 @@ const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
 const shouldUseRelativeApiBase = import.meta.env.DEV;
 
 const formatOrderedAt = (date: Date) => {
-   return date.toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-   });
+   const year = date.getFullYear();
+   const month = String(date.getMonth() + 1).padStart(2, '0');
+   const day = String(date.getDate()).padStart(2, '0');
+   const hours24 = date.getHours();
+   const minutes = String(date.getMinutes()).padStart(2, '0');
+   const meridiem = hours24 >= 12 ? 'PM' : 'AM';
+   const hours12 = hours24 % 12 || 12;
+
+   return `${year}.${month}.${day} ${String(hours12).padStart(2, '0')}:${minutes} ${meridiem}`;
 };
 
 const createClientTransactionId = (prefix: string) => {
@@ -283,18 +278,6 @@ const createOrderPayment = async (orderId: string, payload: OrderPaymentRequest)
       `/api/v1/payments/orders/${orderId}`,
       payload,
    );
-
-   return response.data.data;
-};
-
-const confirmOrderPayment = async (orderId: string, payload: OrderPaymentConfirmRequest) => {
-   const response = await apiClient.post<
-      ApiEnvelope<{
-         orderId: string;
-         orderStatus: string;
-         issuedTicketCount: number;
-      }>
-   >(`/api/v1/orders/${orderId}/payment-confirmations`, payload);
 
    return response.data.data;
 };
@@ -536,24 +519,13 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       paymentMethod: toPaymentMethodCode(payload.paymentMethod),
       idempotencyKey: createClientTransactionId('idempotency'),
    });
-   const resolvedUserId = payload.userId ?? resolveUserIdFromJwt(useAuthStore.getState().accessToken) ?? undefined;
-
-   if (!resolvedUserId) {
-      throw new Error('구매자 정보를 확인할 수 없어 결제를 완료할 수 없습니다.');
-   }
-
-   const confirmation = await confirmOrderPayment(order.orderId, {
-      userId: resolvedUserId,
-      paymentId: payment.paymentId,
-      pgTid: payment.pgTid,
-   });
 
    return buildPaymentResponse({
       orderType: 'ticket',
       amount: payment.paymentAmount,
       order: {
          ...order,
-         orderStatus: confirmation.orderStatus,
+         orderStatus: payment.paymentStatus === 'SUCCESS' ? 'CONFIRMED' : order.orderStatus,
       },
       payment,
       paymentMethod: payload.paymentMethod,
@@ -561,7 +533,7 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       gameDate: payload.gameDate,
       gameVenue: payload.gameVenue,
       seats: heldSeats.map(({ seatLabel }) => seatLabel),
-      issuedTicketCount: confirmation.issuedTicketCount,
+      issuedTicketCount: heldSeats.length,
       recipient:
          payload.deliveryMethod === 'delivery'
             ? {

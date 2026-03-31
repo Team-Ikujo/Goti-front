@@ -481,6 +481,60 @@ function SeatsPage() {
       };
    }, [sectionBounds]);
 
+   const stageContentBounds = useMemo(() => {
+      if (seatBlocks.length === 0) {
+         return null;
+      }
+
+      const blockMetrics = seatBlocks.map((block, index) => {
+         const blockWidth = block.cols * (BLOCK_SEAT_SIZE + BLOCK_SEAT_GAP) - BLOCK_SEAT_GAP;
+         const blockHeight = block.rows * (BLOCK_SEAT_SIZE + BLOCK_SEAT_GAP) - BLOCK_SEAT_GAP;
+         const renderedOffsetX = block.offsetX + index * BLOCK_CARD_COLUMN_GAP;
+         const cardLeft = renderedOffsetX - BLOCK_CARD_PADDING_X;
+         const cardTop = block.offsetY - (BLOCK_CARD_PADDING_TOP + BLOCK_CARD_LABEL_HEIGHT + BLOCK_CARD_LABEL_GAP);
+         const cardWidth = blockWidth + BLOCK_CARD_PADDING_X * 2;
+         const cardHeight =
+            BLOCK_CARD_PADDING_TOP +
+            BLOCK_CARD_LABEL_HEIGHT +
+            BLOCK_CARD_LABEL_GAP +
+            blockHeight +
+            BLOCK_CARD_PADDING_BOTTOM;
+
+         return {
+            left: cardLeft,
+            top: cardTop,
+            right: cardLeft + cardWidth,
+            bottom: cardTop + cardHeight,
+         };
+      });
+
+      return {
+         left: Math.min(...blockMetrics.map((block) => block.left)),
+         top: Math.min(...blockMetrics.map((block) => block.top)),
+         right: Math.max(...blockMetrics.map((block) => block.right)),
+         bottom: Math.max(...blockMetrics.map((block) => block.bottom)),
+      };
+   }, [seatBlocks]);
+
+   const getDefaultSeatMapView = () => {
+      if (!stageContentBounds || mapViewportSize.width === 0 || mapViewportSize.height === 0) {
+         return {
+            scale: 1,
+            offset: { x: 0, y: 0 },
+         };
+      }
+
+      const centeredStageLeft = (mapViewportSize.width - STAGE_WIDTH) / 2;
+
+      return {
+         scale: 1,
+         offset: {
+            x: DEFAULT_SEAT_MAP_LEFT_PADDING - centeredStageLeft - stageContentBounds.left,
+            y: DEFAULT_SEAT_MAP_TOP_PADDING - 56 - stageContentBounds.top,
+         },
+      };
+   };
+
    const minimapLayout = useMemo(() => {
       if (!sectionBounds) {
          return null;

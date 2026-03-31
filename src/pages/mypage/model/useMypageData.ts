@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '@/entities/auth/model/authStore';
-import { fetchMyProfile, type MemberProfile } from '@/entities/user/api/memberApi';
+import type { MemberProfile } from '@/entities/user/api/memberApi';
 import { fetchMyOrders, type OrderListItem } from '@/entities/order/api/orderApi';
 import { fetchMyResaleListings, type ResaleListingItem } from '@/entities/resale/api/resaleApi';
 import { decodeJwtPayload } from '@/shared/lib/jwt';
@@ -89,6 +89,7 @@ const mapStoredPaymentToPurchaseHistory = (payment: PaymentResponse): PurchaseHi
    return {
       id: payment.ticketId ?? payment.orderId ?? payment.orderNumber,
       orderId: formatTicketNumber(payment.orderNumber, payment.orderType === 'resale' ? 'resale' : 'ticket'),
+      rawOrderId: payment.orderId,
       orderDate: formatDate(payment.paidAt ?? payment.orderedAt),
       type: payment.orderType === 'resale' ? '리셀' : '티켓',
       game: {
@@ -122,7 +123,7 @@ export const useMyProfileData = () => {
 
    return useQuery({
       queryKey: ['myProfile', accessToken],
-      queryFn: fetchMyProfile,
+      queryFn: async () => tokenInfo ?? { name: '사용자', mobile: '010-0000-0000', email: '' },
       placeholderData: tokenInfo || undefined,
       enabled: !!accessToken,
    });
@@ -168,6 +169,7 @@ export const useMyOrdersData = () => {
         return {
             id: order.ticketId ?? order.orderId,
             orderId: formatTicketNumber(order.orderNumber, 'ticket'),
+            rawOrderId: order.orderId,
             orderDate: formatDate(order.orderedAt),
             type: '티켓' as TicketType,
             game: {
@@ -212,7 +214,7 @@ export const useMyResaleListData = () => {
       select: (data): SaleHistoryItem[] => {
          return data.map((listing) => ({
             id: listing.listingId,
-            orderId: listing.listingId.replace(/^listing-/i, '').slice(0, 8).toUpperCase(),
+            orderId: formatTicketNumber(listing.ticketNumber ?? listing.ticketId, 'ticket'),
             orderDate: formatDate(listing.listedAt),
             type: '리셀' as TicketType,
             game: {

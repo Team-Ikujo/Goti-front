@@ -24,6 +24,27 @@ export const parseBookingDateTime = (value: string) => {
       }
    }
 
+   const koreanDateMatch = normalizedValue.match(
+      /^(?:(\d{4})[년.]\s*)?(\d{1,2})\s*월\s*(\d{1,2})\s*일(?:\s*\(([일월화수목금토])\))?\s+(?:(오전|오후)\s*)?(\d{1,2}):(\d{2})$/,
+   );
+
+   if (koreanDateMatch) {
+      const [, year, month, day, , meridiem, hour, minute] = koreanDateMatch;
+      const parsedHour = Number(hour);
+      const normalizedHour =
+         meridiem === '오전' && parsedHour === 12
+            ? 0
+            : meridiem === '오후' && parsedHour < 12
+              ? parsedHour + 12
+              : parsedHour;
+      const resolvedYear = Number(year ?? new Date().getFullYear());
+      const parsed = new Date(resolvedYear, Number(month) - 1, Number(day), normalizedHour, Number(minute));
+
+      if (!Number.isNaN(parsed.getTime())) {
+         return parsed;
+      }
+   }
+
    const figmaStyleMatch = normalizedValue.match(
       /^(\d{1,2})\.(\d{1,2})\s+\(([일월화수목금토])\)\s+(오전|오후)\s+(\d{1,2}):(\d{2})$/,
    );

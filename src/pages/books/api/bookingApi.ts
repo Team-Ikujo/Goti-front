@@ -241,7 +241,6 @@ export const getPricingDayType = (gameDate: string) => {
 
 export const fetchSeatGrades = async ({
    gameId,
-   stadiumId,
    forceNewSession,
 }: {
    gameId: string;
@@ -249,7 +248,7 @@ export const fetchSeatGrades = async ({
    forceNewSession?: boolean;
 }) => {
    const response = await apiClient.get<ApiEnvelope<SeatGradeSearchResultResponse>>(
-      `/api/v1/stadium-seats/stadiums/${stadiumId}/games/${gameId}/seat-grades`,
+      `/api/v1/stadium-seats/games/${gameId}/seat-grades`,
       {
          params: forceNewSession ? { forceNewSession: true } : undefined,
       },

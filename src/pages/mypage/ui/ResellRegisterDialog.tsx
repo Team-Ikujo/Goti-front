@@ -111,6 +111,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
       mutationFn: createResaleListing,
       onSuccess: () => {
          queryClient.invalidateQueries({ queryKey: ['myResales'] });
+         queryClient.invalidateQueries({ queryKey: ['myOrders'] });
          setCompleteOpen(true);
       },
       onError: (error) => {
@@ -174,10 +175,9 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
 
       setIsSubmitting(true);
       try {
-         await Promise.all(requests.map(r => createResaleListing(r)));
-         queryClient.invalidateQueries({ queryKey: ['myResales'] });
-         setCompleteOpen(true);
-      } catch {
+         await Promise.all(requests.map((request) => mutation.mutateAsync(request)));
+      } catch (error) {
+         console.error('Resale listing failed:', error);
          alert('판매 등록에 실패했습니다. 다시 시도해주세요.');
       } finally {
          setIsSubmitting(false);

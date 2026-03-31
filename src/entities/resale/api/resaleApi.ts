@@ -9,6 +9,7 @@ const shouldUseRelativeApiBase = import.meta.env.DEV;
 export interface ResaleListingItem {
    listingId: string;
    ticketId: string;
+   ticketNumber?: string;
    sellerId: string;
    gameId: string;
    seatId: string;
@@ -94,6 +95,7 @@ export const createResaleListing = async (body: CreateResaleListingRequest): Pro
 export interface ResaleListingDetail {
    listingId: string;
    ticketId: string;
+   ticketNumber?: string;
    seatInfo: string;
    listingPrice: number;
    listingStatus: 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCEL_REQUESTED' | 'CANCELED';
@@ -111,7 +113,9 @@ export const fetchResaleListingDetail = async (listingId: string): Promise<Resal
 };
 
 export const cancelResaleListing = async (listingId: string): Promise<void> => {
-   await apiClient.post(`/api/v1/resales/listings/${listingId}/cancel`);
+   await apiClient.patch('/api/v1/resales/listings/cancel', {
+      listingId,
+   });
 };
 
 export interface ResaleGameListingCountResponse {
