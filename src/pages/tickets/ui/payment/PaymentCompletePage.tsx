@@ -247,6 +247,7 @@ export default function PaymentCompletePage() {
                confirmBeforeExit={false}
                showTimer={false}
                currentStepIndex={3}
+               onBack={navigateToEntrySource}
             />
          </div>
 
