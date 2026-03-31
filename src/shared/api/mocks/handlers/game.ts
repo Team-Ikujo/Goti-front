@@ -11,9 +11,14 @@ type MockGameSchedule = {
   gameStatus: 'SCHEDULED' | 'FINISHED' | 'IN_PROGRESS';
   homeTeamScore: number;
   awayTeamScore: number;
-  gameResult: 'HOME_WIN' | 'AWAY_WIN' | 'DRAW';
-  ticketingStatus: 'AVAILABLE' | 'SCHEDULED' | 'CLOSED';
+  gameResult: 'WIN' | 'LOSE' | 'DRAW';
+  ticketingStatus: 'AVAILABLE' | 'SCHEDULED' | 'TERMINATED';
   ticketingOpenedAt: string;
+  ticketingEndAt: string;
+  remainingSeatCount: number;
+  homeTeamDisplayName: string;
+  awayTeamDisplayName: string;
+  stadiumLocation: string;
 };
 
 const formatLocalDate = (value: Date) => {
@@ -45,9 +50,14 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameStatus: 'FINISHED',
     homeTeamScore: 6,
     awayTeamScore: 2,
-    gameResult: 'HOME_WIN',
-    ticketingStatus: 'CLOSED',
+    gameResult: 'WIN',
+    ticketingStatus: 'TERMINATED',
     ticketingOpenedAt: '2026-03-11 11:00',
+    ticketingEndAt: '2026-03-18 14:30',
+    remainingSeatCount: 0,
+    homeTeamDisplayName: 'KIA',
+    awayTeamDisplayName: 'LG',
+    stadiumLocation: '광주',
   },
   {
     gameId: 'game-samsung-home-today',
@@ -62,6 +72,11 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameResult: 'DRAW',
     ticketingStatus: 'AVAILABLE',
     ticketingOpenedAt: formatLocalDateTime(-7, 11, 0),
+    ticketingEndAt: formatLocalDateTime(0, 14, 30),
+    remainingSeatCount: 12543,
+    homeTeamDisplayName: '삼성',
+    awayTeamDisplayName: 'NC',
+    stadiumLocation: '대구',
   },
   {
     gameId: 'game-kia-home-tomorrow',
@@ -76,6 +91,11 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameResult: 'DRAW',
     ticketingStatus: 'AVAILABLE',
     ticketingOpenedAt: formatLocalDateTime(-6, 11, 0),
+    ticketingEndAt: formatLocalDateTime(1, 14, 30),
+    remainingSeatCount: 9632,
+    homeTeamDisplayName: 'KIA',
+    awayTeamDisplayName: 'SSG',
+    stadiumLocation: '광주',
   },
   {
     gameId: 'game-samsung-home-this-weekend',
@@ -90,6 +110,11 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameResult: 'DRAW',
     ticketingStatus: 'AVAILABLE',
     ticketingOpenedAt: formatLocalDateTime(-4, 11, 0),
+    ticketingEndAt: formatLocalDateTime(3, 10, 0),
+    remainingSeatCount: 10124,
+    homeTeamDisplayName: '삼성',
+    awayTeamDisplayName: '키움',
+    stadiumLocation: '대구',
   },
   {
     gameId: 'game-kia-home-next-week',
@@ -104,6 +129,11 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameResult: 'DRAW',
     ticketingStatus: 'AVAILABLE',
     ticketingOpenedAt: formatLocalDateTime(1, 11, 0),
+    ticketingEndAt: formatLocalDateTime(8, 14, 30),
+    remainingSeatCount: 8740,
+    homeTeamDisplayName: 'KIA',
+    awayTeamDisplayName: 'NC',
+    stadiumLocation: '광주',
   },
   {
     gameId: 'game-samsung-home-next-weekend',
@@ -118,6 +148,11 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameResult: 'DRAW',
     ticketingStatus: 'SCHEDULED',
     ticketingOpenedAt: formatLocalDateTime(5, 11, 0),
+    ticketingEndAt: formatLocalDateTime(9, 13, 0),
+    remainingSeatCount: 11032,
+    homeTeamDisplayName: '삼성',
+    awayTeamDisplayName: 'LG',
+    stadiumLocation: '대구',
   },
   {
     gameId: 'game-kia-home-two-weeks',
@@ -132,6 +167,11 @@ export const mockGameSchedules: MockGameSchedule[] = [
     gameResult: 'DRAW',
     ticketingStatus: 'AVAILABLE',
     ticketingOpenedAt: formatLocalDateTime(8, 11, 0),
+    ticketingEndAt: formatLocalDateTime(14, 14, 30),
+    remainingSeatCount: 11876,
+    homeTeamDisplayName: 'KIA',
+    awayTeamDisplayName: '두산',
+    stadiumLocation: '광주',
   },
 ];
 
@@ -145,13 +185,13 @@ const resolveGameStatus = (game: MockGameSchedule): Pick<MockGameSchedule, 'game
   const TICKETING_CLOSE_MS = 4 * 60 * 60 * 1000; // 경기 시작 4시간 전 티켓팅 마감
 
   if (now >= startMs + GAME_DURATION_MS) {
-    return { gameStatus: 'FINISHED', ticketingStatus: 'CLOSED' };
+    return { gameStatus: 'FINISHED', ticketingStatus: 'TERMINATED' };
   }
   if (now >= startMs) {
-    return { gameStatus: 'IN_PROGRESS', ticketingStatus: 'CLOSED' };
+    return { gameStatus: 'IN_PROGRESS', ticketingStatus: 'TERMINATED' };
   }
   if (now >= startMs - TICKETING_CLOSE_MS) {
-    return { gameStatus: 'SCHEDULED', ticketingStatus: 'CLOSED' };
+    return { gameStatus: 'SCHEDULED', ticketingStatus: 'TERMINATED' };
   }
   return { gameStatus: game.gameStatus, ticketingStatus: game.ticketingStatus };
 };

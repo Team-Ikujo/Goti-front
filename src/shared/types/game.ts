@@ -17,13 +17,20 @@ export type ApiTicketingStatus =
    | 'CANCELED'
    | 'PAUSED';
 
-export type ApiGameResult = 'NONE' | 'HOME_WIN' | 'AWAY_WIN' | 'DRAW' | 'CANCELLED';
+export type ApiGameResult =
+   | 'NONE'
+   | 'HOME_WIN'
+   | 'AWAY_WIN'
+   | 'WIN'
+   | 'LOSE'
+   | 'DRAW'
+   | 'CANCELLED';
 
 export type ApiLeagueType = 'EXHIBITION' | 'REGULAR' | 'POST_SEASON';
 
 export interface GameScheduleResponse {
    gameId: string;
-   startAt: string; // ISO 8601 date-time
+   startAt: string;
    leagueType: ApiLeagueType;
    homeTeamId: string;
    awayTeamId: string;
@@ -33,7 +40,17 @@ export interface GameScheduleResponse {
    awayTeamScore: number;
    gameResult: ApiGameResult;
    ticketingStatus: ApiTicketingStatus;
-   ticketingOpenedAt: string;
+   ticketingOpenedAt?: string;
+   ticketingEndAt?: string;
+   remainingSeatCount?: number;
+   homeTeamDisplayName?: string;
+   awayTeamDisplayName?: string;
+   stadiumLocation?: string;
+   homeTeamCode?: string;
+   awayTeamCode?: string;
+   homeTeamName?: string;
+   awayTeamName?: string;
+   stadiumName?: string;
 }
 
 export interface GetGameSchedulesParams {

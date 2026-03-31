@@ -309,6 +309,7 @@ const mapTicketStatus = (value: string): TicketStatus => {
     case 'ENDED':
     case 'EXHAUSTED':
     case 'TERMINATED':
+    case 'CANCELED':
       return '매진';
     case 'PAUSED':
       return '판매예정';
