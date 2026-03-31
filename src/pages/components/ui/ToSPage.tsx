@@ -30,7 +30,7 @@ const ToSPage = () => {
             label="Label"
             checked={subItem1}
             onChange={handleSubItem1Change}
-            onTrigger={() => console.log('상세보기 클릭')}
+            onTrigger={() => undefined}
          />
          <TermsSubItem
             id="sub-item-2"
