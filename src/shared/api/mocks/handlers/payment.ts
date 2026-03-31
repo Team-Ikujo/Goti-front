@@ -862,10 +862,14 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/stadium-seats/stadiums/:stadiumId/games/:gameId/seat-grades', async ({ params }) => {
-      const seatGrades = seatGradesByStadium[String(params.stadiumId)] ?? [];
+   http.get('/api/v1/stadium-seats/games/:gameId/seat-grades', async ({ params, request }) => {
+      const requestUrl = new URL(request.url);
+      const forceNewSession = requestUrl.searchParams.get('forceNewSession');
+      const gameId = String(params.gameId);
+      const stadiumId = mockGameSchedules.find((game) => game.gameId === gameId)?.stadiumId;
+      const seatGrades = stadiumId ? seatGradesByStadium[stadiumId] ?? [] : [];
       const seatGradeResult: SeatGradeSearchResult = {
-         sessionId: `seat-session-${String(params.gameId)}`,
+         sessionId: forceNewSession === 'true' ? `seat-session-new-${gameId}` : `seat-session-${gameId}`,
          sessionExpiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
          seatGrades,
       };
