@@ -69,9 +69,6 @@ export default function MypagePage() {
    const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
    const [showTypeDropdown, setShowTypeDropdown] = useState(false);
    const [showFilterSheet, setShowFilterSheet] = useState(false);
-   const [filterSheetHeight, setFilterSheetHeight] = useState<number | null>(null);
-   const filterSheetRef = useRef<HTMLDivElement>(null);
-   const sheetDrag = useRef({ isDragging: false, startY: 0, startHeight: 0 });
    const periodDropdownRef = useRef<HTMLDivElement>(null);
    const typeDropdownRef = useRef<HTMLDivElement>(null);
    const mobilePeriodDropdownRef = useRef<HTMLDivElement>(null);
@@ -93,45 +90,6 @@ export default function MypagePage() {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
    }, []);
-
-   // 바텀 시트 드래그 리사이즈
-   useEffect(() => {
-      if (!showFilterSheet) {
-         setFilterSheetHeight(null);
-         return;
-      }
-
-      const onMove = (clientY: number) => {
-         if (!sheetDrag.current.isDragging) return;
-         const delta = sheetDrag.current.startY - clientY;
-         const next = Math.max(120, Math.min(window.innerHeight * 0.92, sheetDrag.current.startHeight + delta));
-         setFilterSheetHeight(next);
-      };
-
-      const onEnd = () => {
-         if (!sheetDrag.current.isDragging) return;
-         sheetDrag.current.isDragging = false;
-         const h = filterSheetRef.current?.getBoundingClientRect().height ?? 0;
-         if (h < 150) setShowFilterSheet(false);
-      };
-
-      const onMouseMove = (e: MouseEvent) => onMove(e.clientY);
-      const onMouseUp = () => onEnd();
-      const onTouchMove = (e: TouchEvent) => { e.preventDefault(); onMove(e.touches[0].clientY); };
-      const onTouchEnd = () => onEnd();
-
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', onMouseUp);
-      window.addEventListener('touchmove', onTouchMove, { passive: false });
-      window.addEventListener('touchend', onTouchEnd);
-
-      return () => {
-         window.removeEventListener('mousemove', onMouseMove);
-         window.removeEventListener('mouseup', onMouseUp);
-         window.removeEventListener('touchmove', onTouchMove);
-         window.removeEventListener('touchend', onTouchEnd);
-      };
-   }, [showFilterSheet]);
 
    const [appliedStartDate, setAppliedStartDate] = useState('');
    const [appliedEndDate, setAppliedEndDate] = useState('');
@@ -627,44 +585,27 @@ export default function MypagePage() {
                   aria-hidden="true"
                />
                {/* 시트 */}
-               <div
-                  ref={filterSheetRef}
-                  className="fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-[20px] lg:hidden flex flex-col overflow-hidden"
-                  style={filterSheetHeight !== null ? { height: `${filterSheetHeight}px` } : undefined}
-               >
-                  {/* 드래그 핸들 — 마우스/터치로 시트 높이 조절 */}
-                  <div
-                     className="flex justify-center pt-2.5 pb-1.5 cursor-grab active:cursor-grabbing shrink-0 select-none"
-                     onMouseDown={e => {
-                        e.preventDefault();
-                        const h = filterSheetRef.current?.getBoundingClientRect().height ?? 0;
-                        sheetDrag.current = { isDragging: true, startY: e.clientY, startHeight: h };
-                        setFilterSheetHeight(h);
-                     }}
-                     onTouchStart={e => {
-                        const h = filterSheetRef.current?.getBoundingClientRect().height ?? 0;
-                        sheetDrag.current = { isDragging: true, startY: e.touches[0].clientY, startHeight: h };
-                        setFilterSheetHeight(h);
-                     }}
-                  >
+               <div className="fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-[20px] lg:hidden">
+                  {/* 드래그 핸들 — Figma: Wrapper 375×14, Button 36×4, r=9999 */}
+                  <div className="flex justify-center pt-[10px] pb-[6px]">
                      <div className="w-9 h-1 bg-[#d0d6db] rounded-full" />
                   </div>
 
                   {/* 타이틀 — Figma: Content 375×62, pad=T16 R20 B16 L20 */}
-                  <div className="flex items-center px-5 py-4 shrink-0">
+                  <div className="flex items-center px-5 py-4">
                      <h2 className="text-[20px] font-bold text-[#161d24]">구매/판매 내역</h2>
                   </div>
 
-                  {/* 필터 폼 — 스크롤 가능 영역 */}
-                  <div className="px-5 pt-5 pb-5 flex flex-col gap-4 overflow-y-auto flex-1">
+                  {/* 필터 폼 — Figma: Content 375×264, pad=T20 R20 B20 L20, gap=10 */}
+                  <div className="px-5 pt-5 pb-5 flex flex-col gap-4">
                      {/* 조회기간 — Figma: Container 335×64, gap=8 */}
                      <div className="flex flex-col gap-2">
                         <span className="text-[14px] font-medium text-[#364153]">조회기간:</span>
                         <div className="flex items-center gap-2">
-                           {/* 조회기간 드롭다운 — 항상 flex-1로 균등 너비 */}
+                           {/* 조회기간 드롭다운 — 직접설정 아닐 때 full width */}
                            <div
                               ref={mobilePeriodDropdownRef}
-                              className="relative flex-1"
+                              className={`relative ${pendingPeriod === '직접설정' ? 'shrink-0' : 'flex-1'}`}
                            >
                               <button
                                  type="button"
@@ -681,7 +622,7 @@ export default function MypagePage() {
                                  />
                               </button>
                               {showPeriodDropdown && (
-                                 <div className="absolute top-[calc(100%+4px)] left-0 z-60 bg-white border border-[#d0d6db] rounded-lg p-1 w-full">
+                                 <div className="absolute top-[calc(100%+4px)] left-0 z-60 bg-white border border-[#d0d6db] rounded-lg p-1 w-29.75">
                                     {PERIOD_OPTIONS.map(opt => (
                                        <button
                                           key={opt}
@@ -702,9 +643,9 @@ export default function MypagePage() {
                                  </div>
                               )}
                            </div>
-                           {/* 직접설정 날짜 — 드롭다운과 동일한 flex-1 형제로 균등 너비 */}
+                           {/* 직접설정 날짜 — 나머지 너비를 균등 분할 */}
                            {pendingPeriod === '직접설정' && (
-                              <>
+                              <div className="flex flex-1 items-center gap-1.5">
                                  <DatePicker
                                     value={pendingStartDate}
                                     onChange={setPendingStartDate}
@@ -720,7 +661,7 @@ export default function MypagePage() {
                                     className="flex-1"
                                     triggerClassName="border-[#d0d6db] bg-transparent text-[14px] font-medium text-[#161d24]"
                                  />
-                              </>
+                              </div>
                            )}
                         </div>
                      </div>
@@ -793,7 +734,8 @@ export default function MypagePage() {
                                     if (ok) setShowFilterSheet(false);
                                  }
                               }}
-                              placeholder="Search"
+                              placeholder="Search
+                              "
                               className="flex-1 h-full pl-3 text-[14px] text-foreground placeholder:text-[#646f7c] bg-transparent focus:outline-none"
                            />
                            <div className="flex items-center justify-center shrink-0 w-7 pr-3">
@@ -817,8 +759,8 @@ export default function MypagePage() {
                      </div>
                   </div>
 
-                  {/* 조회 버튼 — 항상 하단 고정 */}
-                  <div className="px-5 pb-5 shrink-0">
+                  {/* 조회 버튼 — Figma: Button/Container 375×53, pad=T0 R20 B20 L20, Button 335×33 */}
+                  <div className="px-5 pb-5">
                      <button
                         type="button"
                         onClick={() => {

@@ -6,7 +6,6 @@ import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Button } from '@/shared/ui/button';
 import type { ResaleCheckoutRequest } from '@/pages/tickets/api/paymentApi';
 import type { BotReport } from '@/shared/lib/botDetector';
-import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 import {
    CashReceiptCard,
    DiscountCard,
@@ -35,8 +34,8 @@ const MOCK_GAME = {
 };
 
 const MOCK_RESALE_ENTRY = {
+   buyerId: '8df84c70-833e-4374-85ad-fa52f92f939e',
    listingId: '2df84c70-833e-4374-85ad-fa52f92f939e',
-   holdId: undefined,
    queueTokenJti: 'queue-token-resale-001',
    sellerId: '7df84c70-833e-4374-85ad-fa52f92f939e',
    settlementAmount: 46000,
@@ -53,13 +52,41 @@ type ResellPaymentEntryState = Partial<typeof MOCK_RESALE_ENTRY> & {
    botData?: BotReport;
 };
 
+const resolveUserIdFromAccessToken = (accessToken: string | null) => {
+   if (!accessToken) {
+      return undefined;
+   }
+
+   const tokenParts = accessToken.split('.');
+
+   if (tokenParts.length < 2) {
+      return undefined;
+   }
+
+   try {
+      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>;
+      const userId =
+         payload.userId ??
+         payload.user_id ??
+         payload.memberId ??
+         payload.member_id ??
+         payload.sub;
+
+      return typeof userId === 'string' && userId.length > 0 ? userId : undefined;
+   } catch {
+      return undefined;
+   }
+};
+
 export default function ResellPaymentPage() {
    const navigate = useNavigate();
    const location = useLocation();
    const accessToken = useAuthStore((state) => state.accessToken);
-   const currentUserId = useAuthStore((state) => state.currentUserId);
    const resellEntryState = location.state as ResellPaymentEntryState | null;
-   const resaleEntry = resellEntryState ?? null;
+   const resaleEntry = {
+      ...MOCK_RESALE_ENTRY,
+      ...resellEntryState,
+   };
 
    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
    const [name, setName] = useState('');
@@ -73,24 +100,23 @@ export default function ResellPaymentPage() {
    const [cashReceiptNumType, setCashReceiptNumType] = useState<CashReceiptNumType>('phone');
    const [cashReceiptNum, setCashReceiptNum] = useState('');
    const [saveCashReceipt, setSaveCashReceipt] = useState(false);
-   const phoneDigits = phone.replace(/\D/g, '');
 
    // 무통장 입금 + 미발행이 아닌 경우 현금영수증 번호 필수
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
-   const isFormValid = !!name && phoneDigits.length === 11 && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
-   const resolvedBuyerId = currentUserId ?? resolveUserIdFromJwt(accessToken) ?? resellEntryState?.buyerId;
+   const isFormValid = !!name && phone.replace(/\D/g, '').length === 11 && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
+   const resolvedBuyerId = resellEntryState?.buyerId ?? resolveUserIdFromAccessToken(accessToken);
 
    const orderInfo = {
       matchTitle: resellEntryState?.matchTitle ?? MOCK_GAME.matchTitle,
       dateTime: resellEntryState?.dateTime ?? MOCK_GAME.dateTime,
       quantity: 1,
-      seats: [resaleEntry?.seatInfo ?? MOCK_RESALE_ENTRY.seatInfo],
+      seats: [resaleEntry.seatInfo],
       deliveryLabel: '모바일 티켓',
       paymentLabel: PAYMENT_LABELS[paymentMethod],
    };
 
-   const fee = resaleEntry?.totalBuyerFee ?? MOCK_RESALE_ENTRY.totalBuyerFee;
-   const totalPayment = resaleEntry?.totalAmount ?? MOCK_RESALE_ENTRY.totalAmount;
+   const fee = resaleEntry.totalBuyerFee;
+   const totalPayment = resaleEntry.totalAmount;
    const ticketPrice = Math.max(totalPayment - fee, 0);
 
    const handleSelectPaymentMethod = (method: PaymentMethod) => {
@@ -108,26 +134,9 @@ export default function ResellPaymentPage() {
          return;
       }
 
-      if (
-         !resaleEntry?.listingId ||
-         !resaleEntry?.holdId ||
-         !resaleEntry?.queueTokenJti ||
-         !resaleEntry?.sellerId ||
-         typeof resaleEntry.settlementAmount !== 'number' ||
-         typeof resaleEntry.totalAmount !== 'number' ||
-         typeof resaleEntry.totalBuyerFee !== 'number' ||
-         typeof resaleEntry.totalSellerFee !== 'number' ||
-         !resaleEntry.seatInfo
-      ) {
-         window.alert('리셀 결제 정보가 올바르지 않습니다. 좌석을 다시 선택해 주세요.');
-         navigate('/books?mode=resell', { replace: true });
-         return;
-      }
-
       const paymentRequest: ResaleCheckoutRequest = {
          buyerId: resolvedBuyerId,
          listingId: resaleEntry.listingId,
-         holdId: resaleEntry.holdId,
          queueTokenJti: resaleEntry.queueTokenJti,
          sellerId: resaleEntry.sellerId,
          settlementAmount: resaleEntry.settlementAmount,
@@ -140,7 +149,7 @@ export default function ResellPaymentPage() {
          gameVenue: resellEntryState?.venue ?? MOCK_GAME.venue,
          deliveryMethod: 'mobile',
          ordererName: name,
-         ordererPhone: phoneDigits,
+         ordererPhone: phone,
          ordererEmail: email,
          paymentMethod,
          botData: resellEntryState?.botData,
@@ -180,7 +189,7 @@ export default function ResellPaymentPage() {
                               selected
                               onSelect={() => {}}
                               disabled
-                              label="모바일 티켓 (추천)"
+                              label="모바일 티켓"
                               description="QR코드로 바로 입장 · 무료"
                            />
                         </PaymentCard>

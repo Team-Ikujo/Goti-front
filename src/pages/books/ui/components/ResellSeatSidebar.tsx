@@ -25,7 +25,7 @@ function ResellSeatSidebar({
    onSubmit,
 }: ResellSeatSidebarProps) {
    return (
-      <aside className="hidden w-full shrink-0 flex-col border-l border-border-light bg-background xl:flex xl:w-[420px]">
+      <aside className="hidden w-full shrink-0 flex-col overflow-hidden border-l border-border-light bg-background xl:flex xl:w-[420px]">
          <div className="relative h-[220px] overflow-hidden border-b border-border-light bg-[#e9ebee] px-5 py-2.5">
             <div className="relative mx-auto h-[200px] w-[200px] shrink-0">
                <img

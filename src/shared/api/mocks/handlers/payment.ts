@@ -65,6 +65,12 @@ type ResaleHold = {
    holdId: string;
    listingId: string;
    queueTokenJti: string;
+   // hold 생성 시점의 listing 스냅샷 (listing이 없는 경우 fallback용)
+   seatInfo?: string;
+   listingPrice?: number;
+   gameTitle?: string;
+   gameDate?: string;
+   stadiumName?: string;
 };
 
 type ResaleOrder = {
@@ -104,7 +110,7 @@ type TicketRecord = {
    serviceFee: number;
    paymentMethod?: string;
    paymentMethodDisplay?: string;
-   ticketStatus: 'ISSUED' | 'USED' | 'INVALID';
+   ticketStatus: 'ISSUED' | 'USED' | 'INVALID' | 'RESALE_ISSUED';
    resaleEnabledStatus: 'ENABLED' | 'DISABLED';
    issuedAt: string;
    orderedAt: string;
@@ -428,7 +434,7 @@ const seatSectionsByStadium: Record<string, SeatSection[]> = {
 
 // ── MSW localStorage 영속화 ────────────────────────────────────────
 
-const MSW_STORAGE_VERSION = '5';
+const MSW_STORAGE_VERSION = '6';
 const MSW_VERSION_KEY = '__msw_storage_version__';
 const MSW_STORAGE_KEYS = ['__msw_ticket_orders__', '__msw_ticket_records__', '__msw_seat_holds__'];
 
@@ -1025,7 +1031,7 @@ export const paymentHandlers = [
 
       const order: TicketOrder = {
          orderId,
-         orderNumber: `ORD-${Date.now()}`,
+         orderNumber: `ORD${Date.now()}`,
          gameId: body.gameId,
          stadiumId: matchedGame?.stadiumId ?? 'stadium-kia-champions-field',
          orderStatus: 'PENDING',
@@ -1168,10 +1174,16 @@ export const paymentHandlers = [
       }
 
       const holdId = createId('resale-hold');
+      const holdListing = resaleListings.get(body.listingId);
       resaleHolds.set(holdId, {
          holdId,
          listingId: body.listingId,
          queueTokenJti: body.queueTokenJti,
+         seatInfo: holdListing?.seatInfo,
+         listingPrice: holdListing?.listingPrice,
+         gameTitle: holdListing?.gameTitle,
+         gameDate: holdListing?.gameDate,
+         stadiumName: holdListing?.stadiumName,
       });
 
       return HttpResponse.json({
@@ -1215,7 +1227,7 @@ export const paymentHandlers = [
       const orderId = createId('resale-order');
       const order: ResaleOrder = {
          orderId,
-         orderNumber: `RESALE-ORD-${Date.now()}`,
+         orderNumber: `RESALE${Date.now()}`,
          orderStatus: 'PENDING',
          totalQuantity: body.holdIds.length,
          totalAmount: 54000 * body.holdIds.length,
@@ -1362,6 +1374,79 @@ export const paymentHandlers = [
          code: 'SUCCESS',
          message: 'ok',
          data: ledger,
+      });
+   }),
+
+   // 리셀 주문 완료: 구매자에게 RESALE_ISSUED 티켓 발급
+   http.patch('/api/v1/resales/orders/:orderId/complete', async ({ params }) => {
+      const orderId = String(params.orderId);
+      const order = resaleOrders.get(orderId);
+
+      if (!order) {
+         return buildErrorResponse('Resale order not found.', 404);
+      }
+
+      const paidAt = new Date().toISOString();
+      const newOrderNumber = `RESALE${Date.now()}`;
+
+      order.holdIds.forEach((holdId, idx) => {
+         const hold = resaleHolds.get(holdId);
+         if (!hold) return;
+
+         // listing이 없으면 hold에 저장된 스냅샷 또는 fallback 데이터 사용
+         const listing = resaleListings.get(hold.listingId);
+         const seatInfo = listing?.seatInfo ?? hold.seatInfo ?? '리셀 티켓';
+         const listingPrice = listing?.listingPrice ?? hold.listingPrice ?? order.totalAmount;
+         const gameTitle = listing?.gameTitle ?? hold.gameTitle ?? 'KBO 리그 경기';
+         const gameDate = listing?.gameDate ?? hold.gameDate ?? paidAt;
+         const stadiumName = listing?.stadiumName ?? hold.stadiumName;
+
+         const newTicketId = createId('resale-ticket');
+         ticketRecords.set(newTicketId, {
+            ticketId: newTicketId,
+            ticketNumber: `RSL-TKT-${Date.now()}-${idx}`,
+            orderItemId: createId('resale-order-item'),
+            orderId,
+            gameId: '',
+            seatId: '',
+            qrToken: createId('qr'),
+            gameTitle,
+            gameDate,
+            stadiumName,
+            seatInfo,
+            ticketPrice: listingPrice,
+            serviceFee: 1000,
+            ticketStatus: 'RESALE_ISSUED',
+            resaleEnabledStatus: 'DISABLED',
+            issuedAt: paidAt,
+            orderedAt: paidAt,
+            cancelableUntil: undefined,
+            ordererName: undefined,
+         });
+
+         if (listing) {
+            resaleListings.set(hold.listingId, { ...listing, listingStatus: 'SOLD' });
+         }
+      });
+
+      // 주문 상태 COMPLETED로 변경
+      resaleOrders.set(orderId, { ...order, orderStatus: 'COMPLETED', orderNumber: newOrderNumber });
+
+      const createdTicketIds = Array.from(ticketRecords.values())
+         .filter(t => t.orderId === orderId && t.ticketStatus === 'RESALE_ISSUED')
+         .map(t => t.ticketId);
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            orderId,
+            orderNumber: newOrderNumber,
+            buyerId: '',
+            totalAmount: order.totalAmount,
+            orderStatus: 'COMPLETED',
+            ticketIds: createdTicketIds,
+         },
       });
    }),
 

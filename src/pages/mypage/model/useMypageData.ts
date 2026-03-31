@@ -10,6 +10,7 @@ import { teams } from '@/entities/team/model/teams';
 import type { PurchaseHistoryItem, SaleHistoryItem, PurchaseStatus, SaleStatus } from '../ui/HistoryCard';
 import type { TicketType } from '../ui/TicketTypeBadge';
 import type { PaymentResponse } from '@/pages/tickets/api/paymentApi';
+import { formatTicketNumber } from './ticketNumber';
 
 const teamStadiumMap = Object.fromEntries(teams.map((t) => [t.serverTeamId, t.stadiumName]));
 
@@ -32,6 +33,26 @@ const formatDateTime = (dateStr: string) => {
 };
 
 const toISODate = (value: string) => value.replace(/\./g, '-');
+
+/** "1루 내야지정석 109구역 A열 1번" → "1루 내야지정석" */
+const parseGradeName = (seatInfo: string): string => {
+   const tokens = seatInfo.split(' ');
+   // "N구역" 형태의 토큰 앞까지를 등급명으로 처리
+   const sectionIndex = tokens.findIndex(t => t.endsWith('구역'));
+   if (sectionIndex > 0) return tokens.slice(0, sectionIndex).join(' ');
+   // 구역 토큰이 없으면 행열 정보 앞까지
+   const rowIndex = tokens.findIndex(t => /^[A-Z가-힣\d]+열$/.test(t));
+   return rowIndex > 0 ? tokens.slice(0, rowIndex).join(' ') : (tokens[0] ?? '');
+};
+
+/** "1루 내야지정석 109구역 A열 1번" → "109구역 A열 1번" */
+const parseSeatDetail = (seatInfo: string): string => {
+   const tokens = seatInfo.split(' ');
+   const sectionIndex = tokens.findIndex(t => t.endsWith('구역'));
+   if (sectionIndex > 0) return tokens.slice(sectionIndex).join(' ');
+   const rowIndex = tokens.findIndex(t => /^[A-Z가-힣\d]+열$/.test(t));
+   return rowIndex > 0 ? tokens.slice(rowIndex).join(' ') : tokens.slice(1).join(' ');
+};
 
 const mapPurchaseStatus = (status: OrderListItem['orderStatus']): PurchaseStatus => {
    switch (status) {
@@ -62,11 +83,12 @@ const mapSaleStatus = (status: ResaleListingItem['listingStatus']): SaleStatus =
 
 const mapStoredPaymentToPurchaseHistory = (payment: PaymentResponse): PurchaseHistoryItem => {
    const primarySeat = payment.seats[0] ?? '좌석 정보';
-   const [section, ...seatDetailTokens] = primarySeat.split(' ');
+   const section = parseGradeName(primarySeat);
+   const seatDetail = parseSeatDetail(primarySeat);
 
    return {
-      id: payment.orderId ?? payment.orderNumber,
-      orderId: payment.orderNumber,
+      id: payment.ticketId ?? payment.orderId ?? payment.orderNumber,
+      orderId: formatTicketNumber(payment.orderNumber, payment.orderType === 'resale' ? 'resale' : 'ticket'),
       orderDate: formatDate(payment.paidAt ?? payment.orderedAt),
       type: payment.orderType === 'resale' ? '리셀' : '티켓',
       game: {
@@ -75,7 +97,7 @@ const mapStoredPaymentToPurchaseHistory = (payment: PaymentResponse): PurchaseHi
          datetime: payment.gameDate,
          quantity: payment.quantity,
          section,
-         seats: seatDetailTokens.length > 0 ? [seatDetailTokens.join(' ')] : payment.seats,
+         seats: seatDetail ? [seatDetail] : payment.seats,
       },
       price: payment.amount,
       paymentStatus: '예매 완료',
@@ -143,9 +165,9 @@ export const useMyOrdersData = () => {
          const seats = order.seatInfos?.length
             ? order.seatInfos
             : Array.from({ length: order.totalQuantity }, (_, i) => `좌석${i + 1}`);
-         return {
+        return {
             id: order.ticketId ?? order.orderId,
-            orderId: order.orderNumber,
+            orderId: formatTicketNumber(order.orderNumber, 'ticket'),
             orderDate: formatDate(order.orderedAt),
             type: '티켓' as TicketType,
             game: {
@@ -198,8 +220,8 @@ export const useMyResaleListData = () => {
                venue: listing.stadiumName || '야구장',
                datetime: listing.gameDate ? formatDate(listing.gameDate) : formatDate(listing.listedAt),
                quantity: 1,
-               section: listing.seatInfo.split(' ')[0] || '정보 없음',
-               seats: [listing.seatInfo.split(' ').slice(1).join(' ')],
+               section: parseGradeName(listing.seatInfo) || '정보 없음',
+               seats: [parseSeatDetail(listing.seatInfo)],
             },
             salePrice: listing.listingPrice,
             saleStatus: mapSaleStatus(listing.listingStatus),

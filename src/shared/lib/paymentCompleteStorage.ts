@@ -1,6 +1,7 @@
 export type StoredPaymentCompleteItem = {
    orderType?: 'ticket' | 'resale';
    orderId?: string;
+   ticketId?: string;
    orderNumber: string;
    gameTitle: string;
    gameDate: string;

@@ -153,6 +153,7 @@ type ResaleOrderCompleteResponse = {
    buyerId: string;
    totalAmount: number;
    orderStatus: string;
+   ticketIds?: string[];
    items?: Array<{
       transactionId: string;
       listingId: string;
@@ -423,10 +424,12 @@ const buildPaymentResponse = ({
    };
    issuedTicketCount?: number;
    resaleListingId?: string;
+   ticketId?: string;
 }): PaymentResponse => {
    const paymentResponse: StoredPaymentCompleteItem = {
       orderType,
       orderId: order.orderId,
+      ticketId,
       orderNumber: order.orderNumber,
       orderStatus: order.orderStatus,
       paymentStatus: payment.paymentStatus,
@@ -468,7 +471,7 @@ const buildOptimisticResalePaymentResponse = ({
    const fallbackOrder: ResaleOrderResponse =
       order ?? {
          orderId: createClientTransactionId('resale-order'),
-         orderNumber: createClientTransactionId('RSL'),
+         orderNumber: `RESALE${Date.now()}`,
          orderStatus: 'COMPLETED',
          totalQuantity: 1,
          totalAmount: payload.totalAmount,
@@ -656,6 +659,7 @@ export const submitResaleOrder = async (
          gameVenue: payload.gameVenue,
          seats: completedOrder?.items?.map((item) => item.seatInfo) ?? [payload.seatInfo],
          resaleListingId: payload.listingId,
+         ticketId: completedOrder?.ticketIds?.[0],
       });
    } catch (error) {
       if (resaleHoldId) {
