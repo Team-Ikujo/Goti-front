@@ -3,6 +3,9 @@
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 
+const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
+const shouldUseRelativeApiBase = import.meta.env.DEV;
+
 export interface ResaleListingItem {
    listingId: string;
    ticketId: string;
@@ -27,9 +30,56 @@ export interface ResaleListingItem {
    isPurchasable?: boolean;
 }
 
+export interface ResaleHoldRequest {
+   listingId: string;
+   queueTokenJti: string;
+}
+
+export interface ResaleHoldResponse {
+   holdId: string;
+}
+
+const getResaleHoldReleaseUrl = (holdId: string) => {
+   const path = `/api/v1/resales/holds/${encodeURIComponent(holdId)}/release`;
+
+   if (shouldUseRelativeApiBase || !configuredApiBaseUrl) {
+      return path;
+   }
+
+   return new URL(path, configuredApiBaseUrl).toString();
+};
+
 export const fetchMyResaleListings = async (): Promise<ResaleListingItem[]> => {
    const response = await apiClient.get<ApiEnvelope<ResaleListingItem[]>>('/api/v1/resales/listings');
    return response.data.data;
+};
+
+export const holdResaleListing = async (body: ResaleHoldRequest): Promise<ResaleHoldResponse> => {
+   const response = await apiClient.post<ApiEnvelope<ResaleHoldResponse>>('/api/v1/resales/holds', body);
+   return response.data.data;
+};
+
+export const releaseResaleListingHold = async (holdId: string): Promise<ResaleHoldResponse> => {
+   const response = await apiClient.patch<ApiEnvelope<ResaleHoldResponse>>(
+      `/api/v1/resales/holds/${encodeURIComponent(holdId)}/release`,
+   );
+
+   return response.data.data;
+};
+
+export const releaseResaleListingHoldKeepalive = (holdId: string) => {
+   if (typeof window === 'undefined') {
+      return;
+   }
+
+   void fetch(getResaleHoldReleaseUrl(holdId), {
+      method: 'PATCH',
+      headers: {
+         'Content-Type': 'application/json',
+      },
+      credentials: 'omit',
+      keepalive: true,
+   });
 };
 
 export interface CreateResaleListingRequest {

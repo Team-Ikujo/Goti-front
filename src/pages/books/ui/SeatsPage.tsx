@@ -10,10 +10,16 @@ import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { useSeatMapData } from '@/pages/books/model/useSeatMapData';
 import { useResellZoneInsights } from '@/pages/books/model/useResellZoneInsights';
+import {
+   holdResaleListing,
+   releaseResaleListingHold,
+   releaseResaleListingHoldKeepalive,
+} from '@/entities/resale/api/resaleApi';
 import { formatPrice, getBookingZones, getZoneOverviewImage, getStadiumName } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 import SeatMapStage from './components/SeatMapStage';
 import ResellSeatSidebar from './components/ResellSeatSidebar';
@@ -27,13 +33,36 @@ const STAGE_WIDTH = 1240;
 const STAGE_HEIGHT = 620;
 const BLOCK_SEAT_SIZE = 18;
 const BLOCK_SEAT_GAP = 2;
+const BLOCK_CARD_PADDING_X = 24;
+const BLOCK_CARD_PADDING_TOP = 32;
+const BLOCK_CARD_PADDING_BOTTOM = 32;
+const BLOCK_CARD_LABEL_HEIGHT = 28;
+const BLOCK_CARD_LABEL_GAP = 24;
 const BLOCK_CARD_COLUMN_GAP = 48;
+const DEFAULT_SEAT_MAP_LEFT_PADDING = 24;
+const DEFAULT_SEAT_MAP_TOP_PADDING = 24;
 const MINIMAP_WIDTH = 215;
 const MINIMAP_HEIGHT = 140;
 const MINIMAP_PADDING_X = 24;
 const MINIMAP_PADDING_Y = 18;
 
-const stepLabels = ['구역 선택', '좌석 선택', '배송/주문자 확인', '결제'];
+const normalizeSeatLookupToken = (value: string) => value.replace(/\s+/g, '').toUpperCase();
+
+const parseResellSeatInfo = (seatInfo: string) => {
+   const sectionMatch = seatInfo.match(/([A-Z0-9-]+)구역/i);
+   const rowMatch = seatInfo.match(/([A-Z0-9가-힣]+)열/i);
+   const seatNumberMatch = seatInfo.match(/(\d+)번/);
+
+   if (!sectionMatch || !rowMatch || !seatNumberMatch) {
+      return null;
+   }
+
+   return {
+      sectionCode: normalizeSeatLookupToken(sectionMatch[1]),
+      rowLabel: `${rowMatch[1]}열`,
+      seatNumber: Number(seatNumberMatch[1]),
+   };
+};
 
 function SeatsPage() {
    const navigate = useNavigate();
@@ -90,8 +119,13 @@ function SeatsPage() {
    const [seatMapOffset, setSeatMapOffset] = useState({ x: 0, y: 0 });
    const [isSeatMapDragging, setIsSeatMapDragging] = useState(false);
    const [isSeatDrawerOpen, setIsSeatDrawerOpen] = useState(true);
+   const [isResellHoldPending, setIsResellHoldPending] = useState(false);
+   const [selectedResellHoldId, setSelectedResellHoldId] = useState<string | null>(null);
+   const [selectedResellSeatId, setSelectedResellSeatId] = useState<string | null>(null);
    const dragStartRef = useRef<{ x: number; y: number } | null>(null);
    const mapViewportRef = useRef<HTMLDivElement | null>(null);
+   const selectedResellHoldIdRef = useRef<string | null>(null);
+   const persistResellHoldRef = useRef(false);
    const [mapViewportSize, setMapViewportSize] = useState({ width: 0, height: 0 });
 
    useEffect(() => {
@@ -151,11 +185,52 @@ function SeatsPage() {
 
    useEffect(() => {
       if (!isResellMode) {
+         setSelectedResellHoldId(null);
+         setSelectedResellSeatId(null);
+         persistResellHoldRef.current = false;
          return;
       }
 
       clearAllSelections();
    }, [clearAllSelections, isResellMode, zone.id]);
+
+   useEffect(() => {
+      selectedResellHoldIdRef.current = selectedResellHoldId;
+   }, [selectedResellHoldId]);
+
+   useEffect(() => {
+      if (!isResellMode) {
+         return;
+      }
+
+      const handlePageHide = () => {
+         const holdId = selectedResellHoldIdRef.current;
+
+         if (!holdId || persistResellHoldRef.current) {
+            return;
+         }
+
+         releaseResaleListingHoldKeepalive(holdId);
+      };
+
+      window.addEventListener('pagehide', handlePageHide);
+
+      return () => {
+         window.removeEventListener('pagehide', handlePageHide);
+      };
+   }, [isResellMode]);
+
+   useEffect(() => {
+      return () => {
+         const holdId = selectedResellHoldIdRef.current;
+
+         if (!isResellMode || !holdId || persistResellHoldRef.current) {
+            return;
+         }
+
+         releaseResaleListingHoldKeepalive(holdId);
+      };
+   }, [isResellMode]);
 
    const seats = useMemo(() => {
       if (!zoneSeatState) {
@@ -168,7 +243,10 @@ function SeatsPage() {
    }, [initialSeats, zoneSeatState]);
 
    const selectedSeatIds = zoneSeatState?.selectedSeatIds ?? [];
-   const selectedSeatIdSet = useMemo(() => new Set(selectedSeatIds), [selectedSeatIds]);
+   const selectedSeatIdSet = useMemo(
+      () => new Set(isResellMode ? (selectedResellSeatId ? [selectedResellSeatId] : []) : selectedSeatIds),
+      [isResellMode, selectedResellSeatId, selectedSeatIds],
+   );
 
    const selectedSeats = useMemo(
       () => getSelectedSeatDetails(zonesState, bookingZones),
@@ -176,7 +254,7 @@ function SeatsPage() {
    );
 
    const selectedPrice = selectedSeats.reduce((total, item) => total + item.price, 0);
-   const isSeatInteractionLocked = Boolean(bookingEntryState?.gameId) && (!hasApiSeatMap || isSeatMapLoading);
+   const isSeatInteractionLocked = Boolean(bookingEntryState?.gameId) && isSeatMapLoading;
    const resellInsightsQuery = useResellZoneInsights({
       enabled: isResellMode,
       gameId: bookingEntryState?.gameId,
@@ -184,23 +262,65 @@ function SeatsPage() {
       seats,
    });
    const resellInsights = resellInsightsQuery.data ?? null;
-   const resellListingBySeatId = useMemo(
-      () => new Map((resellInsights?.listings ?? []).map((listing) => [listing.seatId, listing])),
-      [resellInsights?.listings],
-   );
+   const resellListingBySeatId = useMemo(() => {
+      const listingBySeatIdentifier = new Map((resellInsights?.listings ?? []).map((listing) => [listing.seatId, listing]));
+      const seatByLookupKey = new Map(
+         seats.map((seat) => [
+            `${normalizeSeatLookupToken(seat.block)}::${seat.rowLabel}::${seat.seatNumber}`,
+            seat,
+         ]),
+      );
+      const nextMap = new Map<string, ResellListingItem>();
+
+      seats.forEach((seat) => {
+         const matchedListing = listingBySeatIdentifier.get(seat.id) ?? listingBySeatIdentifier.get(seat.apiSeatId);
+
+         if (matchedListing) {
+            nextMap.set(seat.id, matchedListing);
+         }
+      });
+
+      (resellInsights?.listings ?? []).forEach((listing) => {
+         if ([...nextMap.values()].some((mappedListing) => mappedListing.listingId === listing.listingId)) {
+            return;
+         }
+
+         const parsedSeatInfo = parseResellSeatInfo(listing.seatInfo);
+
+         if (!parsedSeatInfo) {
+            return;
+         }
+
+         const matchedSeat = seatByLookupKey.get(
+            `${parsedSeatInfo.sectionCode}::${parsedSeatInfo.rowLabel}::${parsedSeatInfo.seatNumber}`,
+         );
+
+         if (matchedSeat) {
+            nextMap.set(matchedSeat.id, listing);
+         }
+      });
+
+      return nextMap;
+   }, [resellInsights?.listings, seats]);
+   const seatIdByResellListingId = useMemo(() => {
+      return new Map(
+         [...resellListingBySeatId.entries()].map(([seatId, listing]) => [listing.listingId, seatId] as const),
+      );
+   }, [resellListingBySeatId]);
    const selectedResellListing = useMemo(() => {
       if (!isResellMode) {
          return null;
       }
 
-      const selectedSeatId = selectedSeats[0]?.seat.id;
-
-      return selectedSeatId ? resellListingBySeatId.get(selectedSeatId) ?? null : null;
-   }, [isResellMode, resellListingBySeatId, selectedSeats]);
+      return selectedResellSeatId ? resellListingBySeatId.get(selectedResellSeatId) ?? null : null;
+   }, [isResellMode, resellListingBySeatId, selectedResellSeatId]);
+   const selectedSeatCount = isResellMode ? (selectedResellListing ? 1 : 0) : selectedSeats.length;
    const summaryPrice = isResellMode
       ? (selectedResellListing?.totalAmount ?? selectedResellListing?.listingPrice ?? 0)
       : selectedPrice;
-   const allSelectedSeatsAreHeld = selectedSeats.every((selectedSeat) => Boolean(holdsBySeatId[selectedSeat.seat.id]?.holdId));
+   const allSelectedSeatsAreHeld = isResellMode
+      ? Boolean(selectedResellSeatId) && Boolean(selectedResellHoldId)
+      : selectedSeats.every((selectedSeat) => Boolean(holdsBySeatId[selectedSeat.seat.id]?.holdId));
    const bookingButtonLabel = isResellMode ? '예매하기' : `${selectedSeats.length}매 예매하기`;
    const displaySeats = useMemo(() => {
       if (isSeatInteractionLocked) {
@@ -216,7 +336,10 @@ function SeatsPage() {
 
       return seats.map((seat) => {
          if (resellListingBySeatId.has(seat.id)) {
-            return seat;
+            return {
+               ...seat,
+               status: selectedSeatIdSet.has(seat.id) ? 'selected' : 'available',
+            } satisfies SeatItem;
          }
 
          return {
@@ -224,7 +347,56 @@ function SeatsPage() {
             status: 'disabled',
          } satisfies SeatItem;
       });
-   }, [isResellMode, isSeatInteractionLocked, resellListingBySeatId, seats]);
+   }, [isResellMode, isSeatInteractionLocked, resellListingBySeatId, seats, selectedSeatIdSet]);
+
+   const releaseSelectedResellHold = async () => {
+      if (!selectedResellHoldIdRef.current) {
+         setSelectedResellHoldId(null);
+         setSelectedResellSeatId(null);
+         return;
+      }
+
+      const holdId = selectedResellHoldIdRef.current;
+
+      await releaseResaleListingHold(holdId);
+      selectedResellHoldIdRef.current = null;
+      setSelectedResellHoldId(null);
+      setSelectedResellSeatId(null);
+   };
+
+   const handleSelectResellListing = async (seatId: string, listing: ResellListingItem) => {
+      if (!bookingEntryState?.queueTokenJti || isResellHoldPending) {
+         return;
+      }
+
+      setIsResellHoldPending(true);
+
+      try {
+         const isAlreadySelected = selectedResellSeatId === seatId;
+
+         if (isAlreadySelected && selectedResellHoldIdRef.current) {
+            await releaseSelectedResellHold();
+            return;
+         }
+
+         if (selectedResellHoldIdRef.current) {
+            await releaseSelectedResellHold();
+         }
+
+         const hold = await holdResaleListing({
+            listingId: listing.listingId,
+            queueTokenJti: bookingEntryState.queueTokenJti,
+         });
+
+         selectedResellHoldIdRef.current = hold.holdId;
+         setSelectedResellHoldId(hold.holdId);
+         setSelectedResellSeatId(seatId);
+      } catch (error) {
+         window.alert(getErrorMessage(error, '리셀 좌석 점유 중 오류가 발생했습니다.'));
+      } finally {
+         setIsResellHoldPending(false);
+      }
+   };
 
    const handleProceedToPayment = () => {
       const botData = getBotReport();
@@ -234,9 +406,13 @@ function SeatsPage() {
             return;
          }
 
+         persistResellHoldRef.current = true;
+
          navigate('/tickets/resell-payment', {
             state: {
+               buyerId: bookingEntryState?.userId,
                listingId: selectedResellListing.listingId,
+               holdId: selectedResellHoldId,
                queueTokenJti: bookingEntryState?.queueTokenJti,
                sellerId: selectedResellListing.sellerId,
                settlementAmount: selectedResellListing.settlementAmount,
@@ -375,21 +551,59 @@ function SeatsPage() {
       sectionBounds,
    ]);
 
+   const getDefaultSeatMapView = () => {
+      if (!sectionBounds || mapViewportSize.width === 0 || mapViewportSize.height === 0) {
+         return {
+            scale: 1,
+            offset: { x: 0, y: 0 },
+         };
+      }
+
+      const contentWidth = sectionBounds.right - sectionBounds.left;
+      const contentHeight = sectionBounds.bottom - sectionBounds.top;
+      const availableWidth = Math.max(1, mapViewportSize.width - DEFAULT_SEAT_MAP_LEFT_PADDING * 2);
+      const availableHeight = Math.max(1, mapViewportSize.height - 56 - DEFAULT_SEAT_MAP_TOP_PADDING * 2);
+      const scale = Math.min(
+         MAX_SCALE,
+         Math.max(MIN_SCALE, Math.min(availableWidth / contentWidth, availableHeight / contentHeight)),
+      );
+      const contentCenterX = (sectionBounds.left + sectionBounds.right) / 2;
+      const contentCenterY = (sectionBounds.top + sectionBounds.bottom) / 2;
+      const targetCenterY = 56 + DEFAULT_SEAT_MAP_TOP_PADDING + availableHeight / 2;
+
+      return {
+         scale: Number(scale.toFixed(2)),
+         offset: {
+            x: (STAGE_WIDTH / 2 - contentCenterX) * scale,
+            y: targetCenterY - 56 - contentCenterY * scale,
+         },
+      };
+   };
+
    const updateSeatMapScale = (nextScale: number) => {
       setSeatMapScale(Math.min(MAX_SCALE, Math.max(MIN_SCALE, Number(nextScale.toFixed(2)))));
    };
 
    const resetSeatMapView = () => {
-      setSeatMapScale(1);
-      setSeatMapOffset({ x: 0, y: 0 });
+      const nextView = getDefaultSeatMapView();
+
+      setSeatMapScale(nextView.scale);
+      setSeatMapOffset(nextView.offset);
    };
+
+   useEffect(() => {
+      const nextView = getDefaultSeatMapView();
+
+      setSeatMapScale(nextView.scale);
+      setSeatMapOffset(nextView.offset);
+   }, [mapViewportSize.height, mapViewportSize.width, sectionBounds, zone.id]);
 
    const toggleSeat = (seat: SeatItem) => {
       if (isSeatInteractionLocked) {
          return;
       }
 
-      if (pendingSeatIds.includes(seat.id)) {
+      if (pendingSeatIds.includes(seat.id) || isResellHoldPending) {
          return;
       }
 
@@ -398,17 +612,13 @@ function SeatsPage() {
       }
 
       if (isResellMode) {
-         if (!resellListingBySeatId.has(seat.id)) {
+         const listing = resellListingBySeatId.get(seat.id);
+
+         if (!listing) {
             return;
          }
 
-         const isAlreadySelected = selectedSeatIds.includes(seat.id);
-
-         if (!isAlreadySelected) {
-            clearAllSelections();
-         }
-
-         toggleSelectedSeat(zone.id, seat.id);
+         void handleSelectResellListing(seat.id, listing);
          return;
       }
 
@@ -416,6 +626,11 @@ function SeatsPage() {
    };
 
    const handleRemoveSelectedSeat = (selectedZoneId: string, seatId: string) => {
+      if (isResellMode) {
+         void releaseSelectedResellHold();
+         return;
+      }
+
       const seatHold = holdsBySeatId[seatId];
 
       void releaseSeat({
@@ -426,17 +641,12 @@ function SeatsPage() {
    };
 
    const handleClearSelectedSeats = () => {
-      void clearSelectedSeats(selectedSeats);
-   };
-
-   const handleSelectResellListing = (listing: ResellListingItem) => {
-      const isAlreadySelected = selectedSeatIds.includes(listing.seatId);
-
-      if (!isAlreadySelected) {
-         clearAllSelections();
+      if (isResellMode) {
+         void releaseSelectedResellHold();
+         return;
       }
 
-      toggleSelectedSeat(zone.id, listing.seatId);
+      void clearSelectedSeats(selectedSeats);
    };
 
    const handleMapPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -484,33 +694,6 @@ function SeatsPage() {
                      </span>
                      <span className="truncate text-body-1-bold text-foreground">{zone.name}</span>
                   </div>
-
-                  <div className="hidden items-center lg:flex" aria-label="예매 단계">
-                     {stepLabels.map((label, index) => {
-                        const isCurrent = index === 1;
-
-                        return (
-                           <div key={label} className="flex items-center">
-                              <span
-                                 className={[
-                                    'px-4 py-2 text-label-3-semibold whitespace-nowrap',
-                                    isCurrent ? 'text-[#646f7c]' : 'text-[#9ba3ae]',
-                                 ].join(' ')}
-                              >
-                                 {label}
-                              </span>
-                              {index < stepLabels.length - 1 ? (
-                                 <span
-                                    className="text-[18px] leading-none font-bold text-border-light"
-                                    aria-hidden="true"
-                                 >
-                                    ›
-                                 </span>
-                              ) : null}
-                           </div>
-                        );
-                     })}
-                  </div>
                </div>
 
                <div className="relative flex-1 overflow-hidden px-0 pb-[144px] lg:px-8 lg:pb-6 xl:pb-6">
@@ -550,10 +733,10 @@ function SeatsPage() {
                               <div className="flex items-center justify-between gap-3">
                                  <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
                                     <span>{isResellMode ? '리셀 예매' : '선택 좌석'}</span>
-                                    <span className="text-primary">{selectedSeats.length}</span>
+                                    <span className="text-primary">{selectedSeatCount}</span>
                                  </div>
                                  <span className="text-body-1-medium text-tertiary">
-                                    {selectedSeats.length > 0 ? formatPrice(summaryPrice) : '열기'}
+                                    {selectedSeatCount > 0 ? formatPrice(summaryPrice) : '열기'}
                                  </span>
                               </div>
                            </button>
@@ -582,7 +765,15 @@ function SeatsPage() {
                               insights={resellInsights}
                               zone={zone}
                               selectedListingId={selectedResellListing?.listingId}
-                              onSelectListing={handleSelectResellListing}
+                              onSelectListing={(listing) => {
+                                 const mappedSeatId = seatIdByResellListingId.get(listing.listingId);
+
+                                 if (!mappedSeatId) {
+                                    return;
+                                 }
+
+                                 void handleSelectResellListing(mappedSeatId, listing);
+                              }}
                               submitLabel={bookingButtonLabel}
                               submitDisabled={!selectedResellListing}
                               onSubmit={handleProceedToPayment}
@@ -650,7 +841,15 @@ function SeatsPage() {
                   zone={zone}
                   zoneOverviewImage={zoneOverviewImage}
                   stadiumName={stadiumName}
-                  onSelectListing={handleSelectResellListing}
+                  onSelectListing={(listing) => {
+                     const mappedSeatId = seatIdByResellListingId.get(listing.listingId);
+
+                     if (!mappedSeatId) {
+                        return;
+                     }
+
+                     void handleSelectResellListing(mappedSeatId, listing);
+                  }}
                   onSubmit={handleProceedToPayment}
                />
             ) : isResellMode && resellInsightsQuery.isError ? (

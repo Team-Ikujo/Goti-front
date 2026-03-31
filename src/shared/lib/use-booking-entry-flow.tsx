@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { createBookingFlowSearch, type BookingFlowMode } from '@/shared/lib/booking-flow';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 import type { ApiLeagueType } from '@/shared/types/game';
 import BookingGuideDialog from '@/shared/ui/booking-guide-dialog';
 
@@ -51,12 +52,16 @@ export function useBookingEntryFlow() {
   const navigate = useNavigate();
   const hasResolvedSession = useAuthStore(state => state.hasResolvedSession);
   const accessToken = useAuthStore(state => state.accessToken);
+  const currentUserId = useAuthStore(state => state.currentUserId);
   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [pendingEntry, setPendingEntry] = useState<PendingEntry | null>(null);
 
   const openEntryWithGuide = (mode: BookingFlowMode, options?: OpenBookingEntryOptions) => {
-    const nextEntryState = createBookingEntryState(options);
+    const nextEntryState = createBookingEntryState({
+      ...options,
+      userId: options?.userId ?? currentUserId ?? resolveUserIdFromJwt(accessToken) ?? undefined,
+    });
 
     setBookingEntry(nextEntryState);
     setPendingEntry({

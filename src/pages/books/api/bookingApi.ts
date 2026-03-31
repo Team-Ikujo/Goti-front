@@ -159,12 +159,34 @@ export const matchesSectionExpression = (expression: string, rawSectionCode: str
    });
 };
 
-const resolveZoneTemplate = (teamId: string | undefined, sectionCode: string) => {
+const normalizeZoneName = (value: string) => value.replace(/[\s()]/g, '').toUpperCase();
+
+const resolveZoneTemplate = ({
+   teamId,
+   sectionCode,
+   gradeName,
+}: {
+   teamId?: string;
+   sectionCode: string;
+   gradeName?: string;
+}) => {
    if (!teamId) {
       return undefined;
    }
 
-   return getBookingZones(teamId).find((zone) => matchesSectionExpression(zone.sectionCode, sectionCode));
+   const bookingZones = getBookingZones(teamId);
+
+   // 삼성처럼 sectionCode 체계가 자주 달라지는 구장은 grade 이름이 더 안정적이다.
+   if (gradeName) {
+      const normalizedGradeName = normalizeZoneName(gradeName);
+      const matchedZoneByGradeName = bookingZones.find((zone) => normalizeZoneName(zone.name) === normalizedGradeName);
+
+      if (matchedZoneByGradeName) {
+         return matchedZoneByGradeName;
+      }
+   }
+
+   return bookingZones.find((zone) => matchesSectionExpression(zone.sectionCode, sectionCode));
 };
 
 const toSeatStatus = (status: string | undefined, available: boolean): SeatStatus => {
@@ -219,15 +241,13 @@ export const getPricingDayType = (gameDate: string) => {
 
 export const fetchSeatGrades = async ({
    gameId,
-   stadiumId,
    forceNewSession,
 }: {
    gameId: string;
-   stadiumId: string;
    forceNewSession?: boolean;
 }) => {
    const response = await apiClient.get<ApiEnvelope<SeatGradeSearchResultResponse>>(
-      `/api/v1/stadium-seats/stadiums/${stadiumId}/games/${gameId}/seat-grades`,
+      `/api/v1/stadium-seats/games/${gameId}/seat-grades`,
       {
          params: forceNewSession ? { forceNewSession: true } : undefined,
       },
@@ -404,8 +424,12 @@ export const mapSeatSectionsToZones = ({
    const unmatchedZones: ZoneItem[] = [];
 
    sections.forEach((section) => {
-      const matchedZone = resolveZoneTemplate(teamId, section.sectionCode);
       const grade = gradeById[section.gradeId];
+      const matchedZone = resolveZoneTemplate({
+         teamId,
+         sectionCode: section.sectionCode,
+         gradeName: grade?.name,
+      });
       const remainingCount = remainingBySectionId?.get(section.sectionId) ?? grade?.availableSeatCount ?? section.capacity;
 
       if (matchedZone) {
