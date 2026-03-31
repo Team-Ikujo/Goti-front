@@ -117,7 +117,7 @@ export const getEffectiveSaleStatuses = (game: GameRow, now = new Date()): Effec
    const resellOpenTime = game.rawDate ? new Date(`${game.rawDate}T13:00:00`) : null;
    const saleBeforeOpen = saleOpenTime !== null && now < saleOpenTime;
    const saleClosed = saleEndTime !== null && now > saleEndTime;
-   const saleNowOpen = (saleOpenTime === null || now >= saleOpenTime) && (saleEndTime === null || now <= saleEndTime);
+   const saleWithinWindow = (saleOpenTime === null || now >= saleOpenTime) && (saleEndTime === null || now <= saleEndTime);
    const resellNowOpen = resellOpenTime !== null && now >= resellOpenTime;
 
    const effectiveTicket: TicketStatus = (() => {
@@ -133,7 +133,7 @@ export const getEffectiveSaleStatuses = (game: GameRow, now = new Date()): Effec
          return '매진';
       }
 
-      if (saleNowOpen) {
+      if (game.ticket === '예매하기' && saleWithinWindow) {
          return '예매하기';
       }
 
