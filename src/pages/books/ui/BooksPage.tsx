@@ -45,7 +45,7 @@ const BooksPage = () => {
    const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
    const clearSeatHolds = useSeatHoldStore((state) => state.clearSeatHolds);
    const clearTimer = useBookingFlowTimerStore((state) => state.clearTimer);
-   const shouldForceNewSession = Boolean(storedBookingEntryState?.forceNewSession);
+   const shouldForceNewSessionRef = useRef(Boolean(bookingEntryState?.forceNewSession));
    const bookingTeamConfig = useMemo(() => getBookingTeamConfig(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
    const requiresCaptcha = Boolean(bookingEntryState?.requireCaptcha);
    const localZones = useMemo(
@@ -63,7 +63,6 @@ const BooksPage = () => {
          bookingFlowMode,
          bookingEntryState?.stadiumId,
          bookingEntryState?.gameId,
-         shouldForceNewSession,
          bookingEntryState?.serverHomeTeamId,
          bookingEntryState?.leagueType,
          bookingEntryState?.gameDate,
@@ -76,6 +75,8 @@ const BooksPage = () => {
             bookingEntryState?.gameDate,
       ),
       queryFn: async () => {
+         const shouldForceNewSession = shouldForceNewSessionRef.current;
+
          const [grades, sections, pricingPolicy] = await Promise.all([
             fetchSeatGrades({
                gameId: bookingEntryState!.gameId!,
@@ -88,6 +89,14 @@ const BooksPage = () => {
             }),
             fetchTicketPricingPolicy(bookingEntryState!.serverHomeTeamId!).catch(() => undefined),
          ]);
+
+         if (shouldForceNewSession) {
+            shouldForceNewSessionRef.current = false;
+            patchBookingEntry({
+               forceNewSession: false,
+            });
+         }
+
          const remainingBySectionId =
             bookingFlowMode === 'resell'
                ? await fetchResaleListingCountsBySections(
@@ -145,16 +154,6 @@ const BooksPage = () => {
          setBookingEntry(routeBookingEntryState);
       }
    }, [routeBookingEntryState, setBookingEntry]);
-
-   useEffect(() => {
-      if (!shouldForceNewSession) {
-         return;
-      }
-
-      patchBookingEntry({
-         forceNewSession: false,
-      });
-   }, [patchBookingEntry, shouldForceNewSession]);
 
    useEffect(() => {
       setSelectedZoneId(zones[0]?.id ?? '');
