@@ -24,6 +24,7 @@ export type OpenBookingEntryOptions = {
 const createBookingEntryState = (options?: OpenBookingEntryOptions): BookingEntryState => {
   return {
     requireCaptcha: true,
+    forceNewSession: true,
     homeTeamId: options?.homeTeamId,
     serverHomeTeamId: options?.serverHomeTeamId,
     gameId: options?.gameId,

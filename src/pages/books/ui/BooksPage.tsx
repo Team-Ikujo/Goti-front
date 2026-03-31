@@ -45,6 +45,7 @@ const BooksPage = () => {
    const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
    const clearSeatHolds = useSeatHoldStore((state) => state.clearSeatHolds);
    const clearTimer = useBookingFlowTimerStore((state) => state.clearTimer);
+   const shouldForceNewSession = Boolean(storedBookingEntryState?.forceNewSession);
    const bookingTeamConfig = useMemo(() => getBookingTeamConfig(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
    const requiresCaptcha = Boolean(bookingEntryState?.requireCaptcha);
    const localZones = useMemo(
@@ -62,6 +63,7 @@ const BooksPage = () => {
          bookingFlowMode,
          bookingEntryState?.stadiumId,
          bookingEntryState?.gameId,
+         shouldForceNewSession,
          bookingEntryState?.serverHomeTeamId,
          bookingEntryState?.leagueType,
          bookingEntryState?.gameDate,
@@ -75,7 +77,11 @@ const BooksPage = () => {
       ),
       queryFn: async () => {
          const [grades, sections, pricingPolicy] = await Promise.all([
-            fetchSeatGrades(bookingEntryState!.gameId!, bookingEntryState!.stadiumId!),
+            fetchSeatGrades({
+               gameId: bookingEntryState!.gameId!,
+               stadiumId: bookingEntryState!.stadiumId!,
+               forceNewSession: shouldForceNewSession,
+            }),
             fetchSeatSections({
                stadiumId: bookingEntryState!.stadiumId!,
                gameId: bookingEntryState!.gameId!,
@@ -139,6 +145,16 @@ const BooksPage = () => {
          setBookingEntry(routeBookingEntryState);
       }
    }, [routeBookingEntryState, setBookingEntry]);
+
+   useEffect(() => {
+      if (!shouldForceNewSession) {
+         return;
+      }
+
+      patchBookingEntry({
+         forceNewSession: false,
+      });
+   }, [patchBookingEntry, shouldForceNewSession]);
 
    useEffect(() => {
       setSelectedZoneId(zones[0]?.id ?? '');
@@ -210,6 +226,7 @@ const BooksPage = () => {
       return {
          ...bookingEntryState,
          requireCaptcha: undefined,
+         forceNewSession: undefined,
          bookingZones: zones,
       } satisfies BookingEntryState;
    }, [bookingEntryState, zones]);
