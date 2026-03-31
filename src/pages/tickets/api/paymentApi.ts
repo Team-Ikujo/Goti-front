@@ -1,5 +1,4 @@
 import apiClient, { ApiError } from '@/shared/api/client';
-import { useAuthStore } from '@/entities/auth/model/authStore';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import type {
    CashReceiptNumType,
@@ -8,7 +7,6 @@ import type {
    SupportedPaymentMethod,
 } from '../ui/payment/types';
 import type { BotReport } from '@/shared/lib/botDetector';
-import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 import { type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
 
 interface CheckoutFormRequest {
@@ -101,12 +99,6 @@ type CreateOrderResponse = {
 type OrderPaymentRequest = {
    paymentMethod: string;
    idempotencyKey: string;
-};
-
-type OrderPaymentConfirmRequest = {
-   userId: string;
-   paymentId?: string;
-   pgTid?: string;
 };
 
 type OrderPaymentResponse = {
@@ -283,18 +275,6 @@ const createOrderPayment = async (orderId: string, payload: OrderPaymentRequest)
       `/api/v1/payments/orders/${orderId}`,
       payload,
    );
-
-   return response.data.data;
-};
-
-const confirmOrderPayment = async (orderId: string, payload: OrderPaymentConfirmRequest) => {
-   const response = await apiClient.post<
-      ApiEnvelope<{
-         orderId: string;
-         orderStatus: string;
-         issuedTicketCount: number;
-      }>
-   >(`/api/v1/orders/${orderId}/payment-confirmations`, payload);
 
    return response.data.data;
 };
@@ -536,24 +516,13 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       paymentMethod: toPaymentMethodCode(payload.paymentMethod),
       idempotencyKey: createClientTransactionId('idempotency'),
    });
-   const resolvedUserId = payload.userId ?? resolveUserIdFromJwt(useAuthStore.getState().accessToken) ?? undefined;
-
-   if (!resolvedUserId) {
-      throw new Error('구매자 정보를 확인할 수 없어 결제를 완료할 수 없습니다.');
-   }
-
-   const confirmation = await confirmOrderPayment(order.orderId, {
-      userId: resolvedUserId,
-      paymentId: payment.paymentId,
-      pgTid: payment.pgTid,
-   });
 
    return buildPaymentResponse({
       orderType: 'ticket',
       amount: payment.paymentAmount,
       order: {
          ...order,
-         orderStatus: confirmation.orderStatus,
+         orderStatus: payment.paymentStatus === 'SUCCESS' ? 'CONFIRMED' : order.orderStatus,
       },
       payment,
       paymentMethod: payload.paymentMethod,
@@ -561,7 +530,7 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       gameDate: payload.gameDate,
       gameVenue: payload.gameVenue,
       seats: heldSeats.map(({ seatLabel }) => seatLabel),
-      issuedTicketCount: confirmation.issuedTicketCount,
+      issuedTicketCount: payment.paymentStatus === 'SUCCESS' ? order.totalQuantity : undefined,
       recipient:
          payload.deliveryMethod === 'delivery'
             ? {
