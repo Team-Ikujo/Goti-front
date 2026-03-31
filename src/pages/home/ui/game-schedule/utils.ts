@@ -137,6 +137,10 @@ export const getEffectiveSaleStatuses = (game: GameRow, now = new Date()): Effec
          return '예매하기';
       }
 
+      if (saleOpenTime !== null && now >= saleOpenTime) {
+         return '매진';
+      }
+
       return game.ticket;
    })();
 
