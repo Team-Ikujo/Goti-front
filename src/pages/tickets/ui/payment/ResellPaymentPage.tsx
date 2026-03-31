@@ -100,11 +100,10 @@ export default function ResellPaymentPage() {
    const [cashReceiptNumType, setCashReceiptNumType] = useState<CashReceiptNumType>('phone');
    const [cashReceiptNum, setCashReceiptNum] = useState('');
    const [saveCashReceipt, setSaveCashReceipt] = useState(false);
-   const phoneDigits = phone.replace(/\D/g, '');
 
    // 무통장 입금 + 미발행이 아닌 경우 현금영수증 번호 필수
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
-   const isFormValid = !!name && phoneDigits.length === 11 && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
+   const isFormValid = !!name && phone.replace(/\D/g, '').length === 11 && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
    const resolvedBuyerId = resellEntryState?.buyerId ?? resolveUserIdFromAccessToken(accessToken);
 
    const orderInfo = {
@@ -150,7 +149,7 @@ export default function ResellPaymentPage() {
          gameVenue: resellEntryState?.venue ?? MOCK_GAME.venue,
          deliveryMethod: 'mobile',
          ordererName: name,
-         ordererPhone: phoneDigits,
+         ordererPhone: phone,
          ordererEmail: email,
          paymentMethod,
          botData: resellEntryState?.botData,
@@ -190,7 +189,7 @@ export default function ResellPaymentPage() {
                               selected
                               onSelect={() => {}}
                               disabled
-                              label="모바일 티켓 (추천)"
+                              label="모바일 티켓"
                               description="QR코드로 바로 입장 · 무료"
                            />
                         </PaymentCard>

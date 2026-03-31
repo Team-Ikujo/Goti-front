@@ -16,6 +16,7 @@ import type { TicketItemStatus } from './TicketItem';
 import InfoItem from './InfoItem';
 import QrViewDialog from './QrViewDialog';
 import { Snackbar } from '@/shared/ui/snackbar';
+import { formatTicketNumber, getTicketNumberKind } from '../model/ticketNumber';
 
 // ─── 타입 ──────────────────────────────────────────────────────
 
@@ -125,15 +126,39 @@ export default function PurchaseDetailPage() {
    const [cancelOpen, setCancelOpen] = useState(false);
    const [resellOpen, setResellOpen] = useState(false);
 
-   const {
-      data: apiDetail,
-      isLoading,
-      isError,
-   } = useQuery({
+   const ticketDetailQuery = useQuery({
       queryKey: ['ticketDetail', id],
       queryFn: () => fetchTicketDetail(id!),
       enabled: !!id,
+      retry: false,
    });
+
+   const fallbackTicketsQuery = useQuery({
+      queryKey: ['orderTicketsFallback', id],
+      queryFn: () => fetchOrderTickets(id!),
+      enabled: ticketDetailQuery.isError && !!id,
+      retry: false,
+   });
+
+   const fallbackTicketId = fallbackTicketsQuery.data?.[0]?.ticketId;
+
+   const fallbackTicketDetailQuery = useQuery({
+      queryKey: ['ticketDetailFallback', fallbackTicketId],
+      queryFn: () => fetchTicketDetail(fallbackTicketId!),
+      enabled: Boolean(ticketDetailQuery.isError && fallbackTicketId && fallbackTicketId !== id),
+      retry: false,
+   });
+
+   const apiDetail = ticketDetailQuery.data ?? fallbackTicketDetailQuery.data;
+   const isLoading =
+      ticketDetailQuery.isLoading ||
+      (ticketDetailQuery.isError &&
+         (fallbackTicketsQuery.isLoading || (Boolean(fallbackTicketId) && fallbackTicketDetailQuery.isLoading)));
+   const isError =
+      ticketDetailQuery.isError &&
+      !apiDetail &&
+      !fallbackTicketsQuery.isLoading &&
+      (!fallbackTicketId || fallbackTicketDetailQuery.isError);
 
    const { data: orderTickets = [] } = useQuery({
       queryKey: ['orderTickets', apiDetail?.orderId],
@@ -160,7 +185,10 @@ export default function PurchaseDetailPage() {
          orderTickets.length > 0
             ? orderTickets.map(t => ({
                  ticketId: t.ticketId,
-                 orderId: t.ticketNumber,
+                 orderId: formatTicketNumber(
+                    t.ticketNumber,
+                    t.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(t.ticketNumber, 'ticket'),
+                 ),
                  section: t.seatInfo.split(' ')[0] ?? '',
                  seatDetail: t.seatInfo,
                  status: mapTicketItemStatus(t.ticketStatus),
@@ -169,7 +197,10 @@ export default function PurchaseDetailPage() {
             : [
                  {
                     ticketId: apiDetail.ticketId,
-                    orderId: apiDetail.ticketNumber,
+                    orderId: formatTicketNumber(
+                       apiDetail.ticketNumber,
+                       apiDetail.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(apiDetail.ticketNumber, 'ticket'),
+                    ),
                     section: apiDetail.seatInfo.split(' ')[0] ?? '',
                     seatDetail: apiDetail.seatInfo,
                     status: mapTicketItemStatus(apiDetail.ticketStatus),
@@ -196,7 +227,10 @@ export default function PurchaseDetailPage() {
             venue: apiDetail.stadiumName ?? '',
             datetime: apiDetail.gameDate,
          },
-         orderId: apiDetail.ticketNumber,
+         orderId: formatTicketNumber(
+            apiDetail.ticketNumber,
+            apiDetail.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(apiDetail.ticketNumber, 'ticket'),
+         ),
          orderDate: apiDetail.orderedAt ?? apiDetail.issuedAt,
          orderer: apiDetail.ordererName ?? '-',
          issuedAt: apiDetail.issuedAt,
@@ -366,7 +400,10 @@ export default function PurchaseDetailPage() {
                         <div key={ticket.ticketId}>
                            {idx > 0 && <div className="h-px bg-[#e9ebee] mb-6" />}
                            <TicketItem
-                              orderId={ticket.ticketNumber}
+                              orderId={formatTicketNumber(
+                                 ticket.ticketNumber,
+                                 ticket.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(ticket.ticketNumber, 'ticket'),
+                              )}
                               section={ticket.seatInfo.split(' ')[0]}
                               seatDetail={ticket.seatInfo}
                               status={mapTicketItemStatus(ticket.ticketStatus)}
@@ -472,13 +509,15 @@ export default function PurchaseDetailPage() {
 
             {/* 액션 버튼 */}
             <div className="flex gap-3">
-               <Button
-                  variant="tertiary"
-                  className="flex-1 py-3"
-                  onClick={() => setCancelOpen(true)}
-               >
-                  예매 취소하기
-               </Button>
+               {detail.canCancel && (
+                  <Button
+                     variant="tertiary"
+                     className="flex-1 py-3"
+                     onClick={() => setCancelOpen(true)}
+                  >
+                     예매 취소하기
+                  </Button>
+               )}
                {detail.canSell && (
                   <Button
                      variant="secondary"

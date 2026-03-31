@@ -63,6 +63,18 @@ const writeStoredPaymentCompleteState = (order: PaymentResponse) => {
    );
 };
 
+const isResalePaymentResponse = (order: PaymentResponse | null) => {
+   if (!order) {
+      return false;
+   }
+
+   if (order.orderType === 'resale') {
+      return true;
+   }
+
+   return order.orderId?.toLowerCase().includes('resale') ?? false;
+};
+
 const ENTRANCE_GUIDES: Record<DeliveryMethod, string[]> = {
    mobile: [
       '경기 시작 2시간 전부터 입장 가능합니다',
@@ -127,7 +139,9 @@ export default function PaymentCompletePage() {
    useEffect(() => {
       let isCancelled = false;
 
-      if (!orderId) {
+      const fallbackOrder = locationOrder ?? readStoredPaymentCompleteState(orderId);
+
+      if (!orderId || isResalePaymentResponse(fallbackOrder)) {
          return;
       }
 

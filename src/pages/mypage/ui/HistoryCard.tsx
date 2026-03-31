@@ -15,7 +15,7 @@ import NoAccountDialog from './NoAccountDialog';
 // ── 타입 ────────────────────────────────────────────────────────────
 
 export type PurchaseStatus = '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
-export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판매 취소 대기';
+export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판매 취소 대기' | '취소 대기' | '취소 완료';
 
 export interface PurchaseHistoryItem {
    id: string;
@@ -201,7 +201,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                      <div className="flex flex-col items-start w-full h-full">
                         <TicketTypeBadge type={item.type} />
                      </div>
-                     <p className="text-foreground text-body-2-medium whitespace-nowrap">{item.orderId}</p>
+                     <p className="text-foreground text-body-2-medium break-all">{item.orderId}</p>
                      <p className="flex w-full items-center justify-center text-(--text-tertiary) text-caption-1-regular text-center whitespace-nowrap mt-auto h-full">
                         {item.deliveryType}
                      </p>
@@ -325,7 +325,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                   <div className="flex items-center justify-between">
                      <div className="flex items-center gap-1.5">
                         <TicketTypeBadge type={item.type} />
-                        <span className="text-[14px] font-medium leading-5.25 text-[#161d24] whitespace-nowrap">
+                        <span className="text-[14px] font-medium leading-5.25 text-[#161d24] break-all max-w-40">
                            {item.orderId}
                         </span>
                      </div>

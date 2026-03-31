@@ -54,7 +54,7 @@ export const releaseSeatReservationKeepalive = (holdId: string) => {
       headers: {
          'Content-Type': 'application/json',
       },
-      credentials: 'include',
+      credentials: 'omit',
       keepalive: true,
    });
 };
