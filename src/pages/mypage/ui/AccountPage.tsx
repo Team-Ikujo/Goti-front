@@ -70,8 +70,6 @@ function loadDaumPostcodeAndOpen(onComplete: (zipCode: string, address: string) 
    document.head.appendChild(script);
 }
 
-
-
 export default function AccountPage() {
    const navigate = useNavigate();
    const location = useLocation();
@@ -83,8 +81,7 @@ export default function AccountPage() {
    const hasUnpaidAmount = saleItems.some(i => i.saleStatus === '정산 대기');
    // 예매 완료 또는 판매 중인 티켓 존재 여부
    const hasActiveTickets =
-      purchaseItems.some(i => i.paymentStatus === '예매 완료') ||
-      saleItems.some(i => i.saleStatus === '판매 중');
+      purchaseItems.some(i => i.paymentStatus === '예매 완료') || saleItems.some(i => i.saleStatus === '판매 중');
 
    // ── 모달 ──
    const [modal, setModal] = useState<ModalType>(null);
@@ -177,7 +174,7 @@ export default function AccountPage() {
          // state 소비 후 히스토리에서 제거 (뒤로가기 시 재실행 방지)
          window.history.replaceState({}, '');
       }
-   // eslint-disable-next-line react-hooks/exhaustive-deps
+      // eslint-disable-next-line react-hooks/exhaustive-deps
    }, []);
 
    /** 로그아웃 */
@@ -250,7 +247,9 @@ export default function AccountPage() {
                      <div className="flex items-center justify-between">
                         <p className="text-body-1-bold text-(--text-tertiary)">휴대폰 번호</p>
                         <div className="flex items-center gap-2">
-                           <p className="text-body-1-regular text-foreground">{profile?.mobile || '전화번호 정보 없음'}</p>
+                           <p className="text-body-1-regular text-foreground">
+                              {profile?.mobile || '전화번호 정보 없음'}
+                           </p>
                            <button
                               onClick={() => setModal('identity')}
                               className="border-b border-muted-foreground text-body-2-regular text-(--text-tertiary)"
@@ -523,17 +522,13 @@ export default function AccountPage() {
             </div>
          </div>
 
-
          <AccountModals
             modal={modal}
             onClose={closeModal}
             onWithdrawConfirm={handleWithdrawConfirm}
             onNavigateToVerification={() => navigate('/auth/verification-flow')}
          />
-         <AccountTermsDialogs
-            termsDialog={termsDialog}
-            onClose={() => setTermsDialog(null)}
-         />
+         <AccountTermsDialogs termsDialog={termsDialog} onClose={() => setTermsDialog(null)} />
       </div>
    );
 }

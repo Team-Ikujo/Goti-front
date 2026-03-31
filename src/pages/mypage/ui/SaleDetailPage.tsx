@@ -28,13 +28,20 @@ const SALE_BADGE: Record<SaleStatus, BadgeVariant> = {
 
 const mapSaleStatus = (status: string): SaleStatus => {
    switch (status) {
-      case 'LISTING': return '판매 중';
-      case 'HOLD':    return '판매 중';
-      case 'SOLD':    return '정산 대기';
-      case 'SETTLED': return '판매 완료';
-      case 'CANCEL_REQUESTED': return '취소 대기';
-      case 'CANCELED': return '취소 완료';
-      default:        return '판매 중';
+      case 'LISTING':
+         return '판매 중';
+      case 'HOLD':
+         return '판매 중';
+      case 'SOLD':
+         return '정산 대기';
+      case 'SETTLED':
+         return '판매 완료';
+      case 'CANCEL_REQUESTED':
+         return '취소 대기';
+      case 'CANCELED':
+         return '취소 완료';
+      default:
+         return '판매 중';
    }
 };
 
@@ -55,7 +62,11 @@ export default function SaleDetailPage() {
    const navigate = useNavigate();
    const queryClient = useQueryClient();
 
-   const { data: apiDetail, isLoading, isError } = useQuery({
+   const {
+      data: apiDetail,
+      isLoading,
+      isError,
+   } = useQuery({
       queryKey: ['resaleListingDetail', id],
       queryFn: () => fetchResaleListingDetail(id!),
       enabled: !!id,
@@ -71,7 +82,7 @@ export default function SaleDetailPage() {
 
    const saleHistoryFallback = useMemo(() => {
       const cachedSaleItems = queryClient.getQueryData<SaleHistoryItem[]>(['myResales']) ?? [];
-      return cachedSaleItems.find((item) => item.id === id);
+      return cachedSaleItems.find(item => item.id === id);
    }, [id, queryClient]);
 
    if (isLoading) return <div className="py-24 text-center text-body-1-regular">정보를 불러오는 중입니다...</div>;
@@ -79,7 +90,9 @@ export default function SaleDetailPage() {
       return (
          <div className="flex flex-col items-center justify-center py-24 gap-4">
             <p className="text-body-1-regular text-muted-foreground">판매 내역을 찾을 수 없습니다.</p>
-            <Button variant="tertiary" onClick={() => navigate('/mypage')}>마이페이지로 돌아가기</Button>
+            <Button variant="tertiary" onClick={() => navigate('/mypage')}>
+               마이페이지로 돌아가기
+            </Button>
          </div>
       );
    }
@@ -88,7 +101,10 @@ export default function SaleDetailPage() {
    const isCancelPending = overallStatus === '취소 대기' || overallStatus === '취소 완료';
    const isSoldComplete = overallStatus === '판매 완료';
    const seatInfo = apiDetail?.seatInfo ?? saleHistoryFallback?.game.seats[0] ?? '좌석 정보';
-   const ticketNumber = formatTicketNumber(apiDetail?.ticketNumber ?? apiDetail?.ticketId ?? saleHistoryFallback?.orderId, 'ticket');
+   const ticketNumber = formatTicketNumber(
+      apiDetail?.ticketNumber ?? apiDetail?.ticketId ?? saleHistoryFallback?.orderId,
+      'ticket',
+   );
    const listingIdLabel = apiDetail?.listingId.slice(0, 8).toUpperCase() ?? saleHistoryFallback?.id ?? '-';
    const gameTitle = apiDetail?.gameTitle ?? saleHistoryFallback?.game.teams ?? 'KBO 리그 경기';
    const gameDate = apiDetail?.gameDate ?? saleHistoryFallback?.game.datetime ?? '-';
@@ -104,7 +120,7 @@ export default function SaleDetailPage() {
    } as const;
 
    const salePrice = apiDetail?.listingPrice ?? saleHistoryFallback?.salePrice ?? 0;
-   const estimatedFee = -Math.round(salePrice * FEE_RATE / 100);
+   const estimatedFee = -Math.round((salePrice * FEE_RATE) / 100);
    const estimatedTotal = salePrice + estimatedFee;
 
    return (

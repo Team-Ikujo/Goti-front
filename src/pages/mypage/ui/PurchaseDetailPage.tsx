@@ -198,14 +198,7 @@ const getFallbackCancelableUntil = (orderedAt: string | undefined) => {
       return undefined;
    }
 
-   return new Date(
-      orderedDate.getFullYear(),
-      orderedDate.getMonth(),
-      orderedDate.getDate(),
-      23,
-      59,
-      0,
-   ).toISOString();
+   return new Date(orderedDate.getFullYear(), orderedDate.getMonth(), orderedDate.getDate(), 23, 59, 0).toISOString();
 };
 
 const formatGameTitle = (value: string) => {
@@ -283,7 +276,7 @@ export default function PurchaseDetailPage() {
    const { id } = useParams<{ id: string }>();
    const navigate = useNavigate();
    const location = useLocation();
-   const accessToken = useAuthStore((state) => state.accessToken);
+   const accessToken = useAuthStore(state => state.accessToken);
    const [showCancelSnackbar, setShowCancelSnackbar] = useState(false);
    const [qrOpen, setQrOpen] = useState(false);
    const [cancelOpen, setCancelOpen] = useState(false);
@@ -292,14 +285,8 @@ export default function PurchaseDetailPage() {
    const shouldLookupTicketDetailFirst = Boolean(id) && !isLikelyOrderReference(id);
    const fallbackOrdererName = useMemo(() => {
       const payload = decodeJwtPayload(accessToken);
-      const candidates = [
-         payload?.name,
-         payload?.nickname,
-         payload?.preferred_username,
-         payload?.email,
-         payload?.sub,
-      ];
-      const resolved = candidates.find((value) => typeof value === 'string' && value.trim().length > 0);
+      const candidates = [payload?.name, payload?.nickname, payload?.preferred_username, payload?.email, payload?.sub];
+      const resolved = candidates.find(value => typeof value === 'string' && value.trim().length > 0);
 
       return typeof resolved === 'string' ? resolved : '예매자';
    }, [accessToken]);
@@ -480,11 +467,10 @@ export default function PurchaseDetailPage() {
          orderDate: currentApiDetail.orderedAt ?? currentApiDetail.issuedAt,
          orderer: currentApiDetail.ordererName ?? fallbackOrdererName,
          issuedAt: currentApiDetail.issuedAt,
-         cancelDeadline:
-            isInvalid
-               ? undefined
-               : (currentApiDetail.cancelableUntil ??
-                  getFallbackCancelableUntil(currentApiDetail.orderedAt ?? currentApiDetail.issuedAt)),
+         cancelDeadline: isInvalid
+            ? undefined
+            : (currentApiDetail.cancelableUntil ??
+              getFallbackCancelableUntil(currentApiDetail.orderedAt ?? currentApiDetail.issuedAt)),
          cancelDate: isInvalid ? (currentApiDetail.issuedAt ?? '-') : undefined,
          seatInfo: currentApiDetail.seatInfo,
          ticketPrice: currentApiDetail.ticketPrice,
@@ -551,7 +537,7 @@ export default function PurchaseDetailPage() {
                detailId={detail.id}
                game={{ teams: detail.game.teams, datetime: detail.game.datetime }}
                seats={[
-                  ...detail.seatItems.map((seat) => ({
+                  ...detail.seatItems.map(seat => ({
                      orderId: seat.orderId,
                      section: seat.section,
                      seatDetail: seat.seatDetail,

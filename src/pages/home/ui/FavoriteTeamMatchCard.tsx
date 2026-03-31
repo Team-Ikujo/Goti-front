@@ -13,7 +13,7 @@ import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const { openBookingEntry, openResellEntry, bookingGuideDialog } = useBookingEntryFlow();
    const { data, isPending } = useGameSchedules();
-   const resaleGameIds = (data ?? []).map((game) => game.id);
+   const resaleGameIds = (data ?? []).map(game => game.id);
    const resaleCountsQuery = useResaleGameCounts(resaleGameIds);
    const match = getClosestMatch(data ?? [], team.id);
 
@@ -126,9 +126,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
          <div className="flex flex-col gap-4 p-[10px] lg:hidden">
             {/* 1행: D-DAY + 날짜·장소 */}
             <div className="flex items-start justify-between">
-               <span className="text-[24px] font-bold text-primary leading-[32px] tracking-[-0.5px] px-5">
-                  {dDay}
-               </span>
+               <span className="text-[24px] font-bold text-primary leading-[32px] tracking-[-0.5px] px-5">{dDay}</span>
                <div className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-1">
                      <Calendar className="size-3.5 text-[#646f7c] shrink-0" />
@@ -157,9 +155,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                </div>
 
                {/* VS */}
-               <span className="text-[24px] font-bold text-[#161d24] leading-8 tracking-[0.07px] shrink-0">
-                  VS
-               </span>
+               <span className="text-[24px] font-bold text-[#161d24] leading-8 tracking-[0.07px] shrink-0">VS</span>
 
                {/* 원정팀 */}
                <div className="flex-1 flex flex-col items-center gap-2">

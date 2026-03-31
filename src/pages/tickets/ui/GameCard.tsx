@@ -121,7 +121,9 @@ export function GameCard({ game, activeTab, onActionClick }: GameCardProps) {
                <div className="w-[88px] bg-[#e9ebee] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
                   <p className="text-[16px] font-medium text-[#acb4bb] leading-[1.5] whitespace-nowrap">판매예정</p>
                   <div className="text-[11px] text-[#acb4bb] text-center leading-[1.2]">
-                     <p className="whitespace-nowrap">{gameMonth}월 {gameDay}일</p>
+                     <p className="whitespace-nowrap">
+                        {gameMonth}월 {gameDay}일
+                     </p>
                      <p className="whitespace-nowrap">오전 11시 오픈</p>
                   </div>
                </div>

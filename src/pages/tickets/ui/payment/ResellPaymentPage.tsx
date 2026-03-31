@@ -65,12 +65,7 @@ const resolveUserIdFromAccessToken = (accessToken: string | null) => {
 
    try {
       const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>;
-      const userId =
-         payload.userId ??
-         payload.user_id ??
-         payload.memberId ??
-         payload.member_id ??
-         payload.sub;
+      const userId = payload.userId ?? payload.user_id ?? payload.memberId ?? payload.member_id ?? payload.sub;
 
       return typeof userId === 'string' && userId.length > 0 ? userId : undefined;
    } catch {
@@ -81,7 +76,7 @@ const resolveUserIdFromAccessToken = (accessToken: string | null) => {
 export default function ResellPaymentPage() {
    const navigate = useNavigate();
    const location = useLocation();
-   const accessToken = useAuthStore((state) => state.accessToken);
+   const accessToken = useAuthStore(state => state.accessToken);
    const resellEntryState = location.state as ResellPaymentEntryState | null;
    const resaleEntry = {
       ...MOCK_RESALE_ENTRY,
@@ -103,7 +98,13 @@ export default function ResellPaymentPage() {
 
    // 무통장 입금 + 미발행이 아닌 경우 현금영수증 번호 필수
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
-   const isFormValid = !!name && phone.replace(/\D/g, '').length === 11 && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
+   const isFormValid =
+      !!name &&
+      phone.replace(/\D/g, '').length === 11 &&
+      !!email &&
+      isCashReceiptValid &&
+      agreedPrivacy &&
+      agreedResell;
    const resolvedBuyerId = resellEntryState?.buyerId ?? resolveUserIdFromAccessToken(accessToken);
 
    const orderInfo = {

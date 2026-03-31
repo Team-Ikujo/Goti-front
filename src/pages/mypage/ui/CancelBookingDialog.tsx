@@ -120,9 +120,10 @@ export default function CancelBookingDialog({
             orderId={orderId}
             detailId={detailId}
             isBankTransfer={isBankTransfer}
-            account={isBankTransfer && MOCK_REGISTERED_ACCOUNT
-               ? { bank: MOCK_REGISTERED_ACCOUNT.bank, number: MOCK_REGISTERED_ACCOUNT.number }
-               : undefined
+            account={
+               isBankTransfer && MOCK_REGISTERED_ACCOUNT
+                  ? { bank: MOCK_REGISTERED_ACCOUNT.bank, number: MOCK_REGISTERED_ACCOUNT.number }
+                  : undefined
             }
             paymentMethod={paymentMethod}
             ticketAmount={totalPrice}
@@ -131,7 +132,10 @@ export default function CancelBookingDialog({
          />
 
          {/* 스크림 */}
-         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50" onClick={onClose}>
+         <div
+            className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50"
+            onClick={onClose}
+         >
             {/* 모달 */}
             <div
                className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
@@ -159,9 +163,7 @@ export default function CancelBookingDialog({
 
                   {/* 티켓 선택 섹션 */}
                   <div className="flex flex-col gap-6">
-                     <p className="text-[20px] font-bold text-[#161d24] leading-normal">
-                        취소할 티켓을 선택해주세요
-                     </p>
+                     <p className="text-[20px] font-bold text-[#161d24] leading-normal">취소할 티켓을 선택해주세요</p>
 
                      {/* 전체선택 + 카운터 */}
                      <div className="flex items-center justify-between">
@@ -211,18 +213,10 @@ export default function CancelBookingDialog({
 
                {/* 하단 고정 버튼 */}
                <div className="shrink-0 bg-background px-5 pb-5 flex gap-2">
-                  <Button
-                     variant="tertiary"
-                     className="flex-1 py-3"
-                     onClick={onClose}
-                  >
+                  <Button variant="tertiary" className="flex-1 py-3" onClick={onClose}>
                      닫기
                   </Button>
-                  <Button
-                     disabled={checkedCount === 0}
-                     className="flex-1 py-3"
-                     onClick={() => setConfirmOpen(true)}
-                  >
+                  <Button disabled={checkedCount === 0} className="flex-1 py-3" onClick={() => setConfirmOpen(true)}>
                      예매 취소하기
                   </Button>
                </div>

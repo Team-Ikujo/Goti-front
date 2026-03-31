@@ -29,26 +29,26 @@ import { isPurchasableResaleListing, resolveResaleListingZoneId } from '@/pages/
 const CAPTCHA_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function createMockCaptcha(length = 6): string {
-   return Array.from(
-      { length },
-      () => CAPTCHA_CHARS[Math.floor(Math.random() * CAPTCHA_CHARS.length)],
-   ).join('');
+   return Array.from({ length }, () => CAPTCHA_CHARS[Math.floor(Math.random() * CAPTCHA_CHARS.length)]).join('');
 }
 const BooksPage = () => {
    const navigate = useNavigate();
    const location = useLocation();
    const routeBookingEntryState = location.state as BookingEntryState | null;
    const bookingFlowMode = getBookingFlowMode(location.search);
-   const storedBookingEntryState = useBookingEntryStore((state) => state.entry);
+   const storedBookingEntryState = useBookingEntryStore(state => state.entry);
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
-   const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
-   const patchBookingEntry = useBookingEntryStore((state) => state.patchEntry);
-   const clearBookingEntry = useBookingEntryStore((state) => state.clearEntry);
-   const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
-   const clearSeatHolds = useSeatHoldStore((state) => state.clearSeatHolds);
-   const clearTimer = useBookingFlowTimerStore((state) => state.clearTimer);
+   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
+   const patchBookingEntry = useBookingEntryStore(state => state.patchEntry);
+   const clearBookingEntry = useBookingEntryStore(state => state.clearEntry);
+   const clearAllSelections = useSeatSelectionStore(state => state.clearAllSelections);
+   const clearSeatHolds = useSeatHoldStore(state => state.clearSeatHolds);
+   const clearTimer = useBookingFlowTimerStore(state => state.clearTimer);
    const shouldForceNewSessionRef = useRef(Boolean(bookingEntryState?.forceNewSession));
-   const bookingTeamConfig = useMemo(() => getBookingTeamConfig(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
+   const bookingTeamConfig = useMemo(
+      () => getBookingTeamConfig(bookingEntryState?.homeTeamId),
+      [bookingEntryState?.homeTeamId],
+   );
    const requiresCaptcha = Boolean(bookingEntryState?.requireCaptcha);
    const localZones = useMemo(
       () =>
@@ -103,7 +103,7 @@ const BooksPage = () => {
             bookingFlowMode === 'resell'
                ? await fetchResaleListingCountsBySections(
                     bookingEntryState!.gameId!,
-                    sections.map((section) => section.sectionId),
+                    sections.map(section => section.sectionId),
                  )
                : undefined;
          const pricingByGradeId = resolvePricingByGradeId({
@@ -139,7 +139,7 @@ const BooksPage = () => {
       [apiZones, localZones],
    );
    const { data: resellRemainingByZoneId } = useQuery({
-      queryKey: ['resell-zone-remaining', bookingEntryState?.gameId, mergedBaseZones.map((zone) => zone.id).sort()],
+      queryKey: ['resell-zone-remaining', bookingEntryState?.gameId, mergedBaseZones.map(zone => zone.id).sort()],
       enabled: bookingFlowMode === 'resell' && Boolean(bookingEntryState?.gameId) && mergedBaseZones.length > 0,
       queryFn: async () => {
          if (!bookingEntryState?.gameId) {
@@ -150,7 +150,7 @@ const BooksPage = () => {
          const completedResaleLookup = getCompletedResalePurchaseLookup();
          const nextCounts = new Map<string, number>();
 
-         listings.forEach((listing) => {
+         listings.forEach(listing => {
             if (
                completedResaleLookup.listingIds.has(listing.listingId) ||
                completedResaleLookup.seatInfos.has(listing.seatInfo) ||
@@ -173,22 +173,25 @@ const BooksPage = () => {
 
          return nextCounts;
       },
-      placeholderData: (previousData) => previousData,
+      placeholderData: previousData => previousData,
    });
    const zones = useMemo<ZoneItem[]>(() => {
-      const normalizedZones = bookingFlowMode === 'resell'
-         ? mergedBaseZones.map((zone) => ({
-              ...zone,
-              remaining: resellRemainingByZoneId?.get(zone.id) ?? 0,
-           }))
-         : mergedBaseZones;
+      const normalizedZones =
+         bookingFlowMode === 'resell'
+            ? mergedBaseZones.map(zone => ({
+                 ...zone,
+                 remaining: resellRemainingByZoneId?.get(zone.id) ?? 0,
+              }))
+            : mergedBaseZones;
 
       return [...normalizedZones].sort(
          (left, right) => right.remaining - left.remaining || left.name.localeCompare(right.name, 'ko-KR'),
       );
    }, [bookingFlowMode, mergedBaseZones, resellRemainingByZoneId]);
 
-   const [selectedZoneId, setSelectedZoneId] = useState(() => zones.find((zone) => zone.remaining > 0)?.id ?? zones[0]?.id ?? '');
+   const [selectedZoneId, setSelectedZoneId] = useState(
+      () => zones.find(zone => zone.remaining > 0)?.id ?? zones[0]?.id ?? '',
+   );
    const [isCaptchaOpen, setIsCaptchaOpen] = useState(requiresCaptcha);
    const [captchaInput, setCaptchaInput] = useState('');
    const [captchaError, setCaptchaError] = useState('');
@@ -214,7 +217,7 @@ const BooksPage = () => {
    }, [routeBookingEntryState, setBookingEntry]);
 
    useEffect(() => {
-      setSelectedZoneId(zones.find((zone) => zone.remaining > 0)?.id ?? zones[0]?.id ?? '');
+      setSelectedZoneId(zones.find(zone => zone.remaining > 0)?.id ?? zones[0]?.id ?? '');
    }, [zones]);
 
    useEffect(() => {
@@ -234,7 +237,7 @@ const BooksPage = () => {
 
       setCaptchaInput('');
       setCaptchaError('');
-      setCaptchaSeed((prev) => prev + 1);
+      setCaptchaSeed(prev => prev + 1);
       setIsCaptchaOpen(true);
    }, [requiresCaptcha]);
 
@@ -289,23 +292,26 @@ const BooksPage = () => {
    }, [bookingEntryState, zones]);
 
    const handleSelectZone = (zoneId: string) => {
-      const selectedZone = zones.find((zone) => zone.id === zoneId);
+      const selectedZone = zones.find(zone => zone.id === zoneId);
 
       if (!selectedZone || selectedZone.remaining <= 0) {
          return;
       }
 
       setSelectedZoneId(zoneId);
-      navigate({
-         pathname: `/books/seats/${zoneId}`,
-         search: location.search,
-      }, {
-         state: resolvedBookingEntryState,
-      });
+      navigate(
+         {
+            pathname: `/books/seats/${zoneId}`,
+            search: location.search,
+         },
+         {
+            state: resolvedBookingEntryState,
+         },
+      );
    };
 
    const refreshCaptcha = () => {
-      setCaptchaSeed((prev) => prev + 1);
+      setCaptchaSeed(prev => prev + 1);
       setCaptchaError('');
    };
 
@@ -318,20 +324,23 @@ const BooksPage = () => {
       setIsCaptchaOpen(false);
       setCaptchaInput('');
       setCaptchaError('');
-      navigate({
-         pathname: location.pathname,
-         search: location.search,
-      }, {
-         replace: true,
-         state: resolvedBookingEntryState,
-      });
+      navigate(
+         {
+            pathname: location.pathname,
+            search: location.search,
+         },
+         {
+            replace: true,
+            state: resolvedBookingEntryState,
+         },
+      );
    };
 
    return (
       <div className="w-full bg-background text-foreground">
          <BooksExitDialog
             open={isExitDialogOpen}
-            onOpenChange={(open) => {
+            onOpenChange={open => {
                setIsExitDialogOpen(open);
 
                if (!open && shouldRestoreHistoryRef.current) {
@@ -350,7 +359,7 @@ const BooksPage = () => {
             captchaCode={captchaCode}
             value={captchaInput}
             error={captchaError}
-            onOpenChange={(open) => {
+            onOpenChange={open => {
                if (!requiresCaptcha) {
                   setIsCaptchaOpen(open);
                   return;
@@ -363,7 +372,7 @@ const BooksPage = () => {
 
                setIsCaptchaOpen(true);
             }}
-            onChangeValue={(value) => {
+            onChangeValue={value => {
                setCaptchaInput(value);
                if (captchaError) {
                   setCaptchaError('');

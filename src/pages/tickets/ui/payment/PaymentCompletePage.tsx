@@ -58,10 +58,7 @@ const writeStoredPaymentCompleteState = (order: PaymentResponse) => {
       return;
    }
 
-   window.sessionStorage.setItem(
-      `${PAYMENT_COMPLETE_STORAGE_KEY}:${order.orderId}`,
-      JSON.stringify(order),
-   );
+   window.sessionStorage.setItem(`${PAYMENT_COMPLETE_STORAGE_KEY}:${order.orderId}`, JSON.stringify(order));
 };
 
 const isResalePaymentResponse = (order: PaymentResponse | null) => {
@@ -218,7 +215,7 @@ export default function PaymentCompletePage() {
             }
 
             setPaymentReloadError(null);
-            setOrder((currentOrder) => {
+            setOrder(currentOrder => {
                const nextOrder: PaymentResponse = {
                   ...currentOrder,
                   orderId: payment.orderId,
@@ -236,8 +233,7 @@ export default function PaymentCompletePage() {
                return;
             }
 
-            const hasFallbackOrder =
-               Boolean(locationOrder) || Boolean(readStoredPaymentCompleteState(orderId));
+            const hasFallbackOrder = Boolean(locationOrder) || Boolean(readStoredPaymentCompleteState(orderId));
 
             // 완료 페이지는 결제 직전 state/sessionStorage에 이미 결과를 저장해두므로
             // 후속 조회가 RBAC 등 권한 문제로 실패해도 사용자 경험을 깨지 않게 기존 완료 데이터를 우선 유지한다.
@@ -246,9 +242,7 @@ export default function PaymentCompletePage() {
                return;
             }
 
-            setPaymentReloadError(
-               error instanceof ApiError ? error.message : '결제 정보를 다시 불러오지 못했습니다.',
-            );
+            setPaymentReloadError(error instanceof ApiError ? error.message : '결제 정보를 다시 불러오지 못했습니다.');
          }
       };
 
@@ -268,11 +262,7 @@ export default function PaymentCompletePage() {
       <div className="min-h-screen flex flex-col bg-background">
          {/* 데스크톱 헤더 */}
          <div className="hidden lg:block">
-            <BooksHeader
-               confirmBeforeExit={false}
-               showTimer={false}
-               currentStepIndex={3}
-            />
+            <BooksHeader confirmBeforeExit={false} showTimer={false} currentStepIndex={3} />
          </div>
 
          {/* 모바일 헤더 */}
