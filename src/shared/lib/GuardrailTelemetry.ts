@@ -376,9 +376,7 @@ export class GuardrailTelemetry {
             headers: this.getHeaders(),
             body: JSON.stringify(payload),
          });
-         console.log('High Risk: Raw Capture Uploaded');
-      } catch (e) {
-         console.error('Raw Capture API Error:', e);
+      } catch {
       }
    }
 
