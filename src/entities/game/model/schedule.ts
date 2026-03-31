@@ -37,6 +37,7 @@ export type NormalizedScheduleGame = {
   isToday: boolean;
   ticketingOpenedAt?: string;
   ticketingEndAt?: string;
+  remainingSeatCount?: number;
 };
 
 type TeamReference = {
@@ -405,6 +406,7 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
     isToday: isSameCalendarDate(date, new Date()),
     ticketingOpenedAt: game.ticketingOpenedAt,
     ticketingEndAt: game.ticketingEndAt,
+    remainingSeatCount: game.remainingSeatCount,
   };
 };
 
