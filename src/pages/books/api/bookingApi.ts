@@ -217,9 +217,20 @@ export const getPricingDayType = (gameDate: string) => {
    return dayOfWeek === 0 || dayOfWeek === 6 ? 'WEEKEND' : 'WEEKDAY';
 };
 
-export const fetchSeatGrades = async (gameId: string, stadiumId: string) => {
+export const fetchSeatGrades = async ({
+   gameId,
+   stadiumId,
+   forceNewSession,
+}: {
+   gameId: string;
+   stadiumId: string;
+   forceNewSession?: boolean;
+}) => {
    const response = await apiClient.get<ApiEnvelope<SeatGradeSearchResultResponse>>(
       `/api/v1/stadium-seats/stadiums/${stadiumId}/games/${gameId}/seat-grades`,
+      {
+         params: forceNewSession ? { forceNewSession: true } : undefined,
+      },
    );
 
    return response.data.data?.seatGrades ?? [];

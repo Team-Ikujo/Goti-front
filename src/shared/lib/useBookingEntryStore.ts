@@ -6,6 +6,7 @@ import type { ApiLeagueType } from '@/shared/types/game';
 
 export type BookingEntryState = {
    requireCaptcha?: boolean;
+   forceNewSession?: boolean;
    homeTeamId?: string;
    serverHomeTeamId?: string;
    gameId?: string;
