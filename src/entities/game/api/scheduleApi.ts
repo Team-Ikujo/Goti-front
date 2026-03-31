@@ -1,39 +1,8 @@
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import type { GameScheduleResponse, GetGameSchedulesParams } from '@/shared/types/game';
 
-export type FetchGameSchedulesParams = {
-  teamId?: string;
-  year?: number;
-  month?: number;
-  week?: number;
-  today?: boolean;
-};
-
-export type GameScheduleResponse = {
-  gameId: string;
-  startAt: string;
-  leagueType: string;
-  homeTeamId: string;
-  awayTeamId: string;
-  stadiumId: string;
-  gameStatus: string;
-  homeTeamScore: number;
-  awayTeamScore: number;
-  gameResult: string;
-  ticketingStatus: string;
-  ticketingOpenedAt?: string;
-  ticketingEndAt?: string;
-  // 실서버 응답 필드
-  homeTeamDisplayName?: string;
-  awayTeamDisplayName?: string;
-  stadiumLocation?: string;
-  // MSW 모의 응답 호환 필드 (실서버에는 없음)
-  homeTeamCode?: string;
-  awayTeamCode?: string;
-  homeTeamName?: string;
-  awayTeamName?: string;
-  stadiumName?: string;
-};
+export type FetchGameSchedulesParams = GetGameSchedulesParams;
 
 export type BaseballTeamDetailResponse = {
   id: string;
