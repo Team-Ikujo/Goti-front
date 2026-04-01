@@ -16,6 +16,15 @@ export default defineConfig({
          '@': path.resolve(__dirname, 'src'),
       },
    },
+   output: {
+      sourceMap: {
+         js: false,
+         css: false,
+      },
+   },
+   performance: {
+      removeConsole: ['log', 'info', 'warn'],
+   },
    server: {
       proxy: {
          '/api': {
