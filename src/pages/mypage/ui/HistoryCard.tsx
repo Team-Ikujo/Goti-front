@@ -13,6 +13,7 @@ import QrViewDialog from './QrViewDialog';
 import CancelBookingDialog from './CancelBookingDialog';
 import NoAccountDialog from './NoAccountDialog';
 import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
+import { MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO } from '@/shared/api/mockScenarios';
 
 // ── 타입 ────────────────────────────────────────────────────────────
 
@@ -63,6 +64,7 @@ export interface SaleHistoryItem {
 
 type HistoryCardProps = ({ mode: 'purchase'; item: PurchaseHistoryItem } | { mode: 'sale'; item: SaleHistoryItem }) & {
    onResellCompleteConfirm?: () => void;
+   mockTicketInfoError?: boolean;
 };
 
 // ── 유틸 ─────────────────────────────────────────────────────────────
@@ -99,12 +101,16 @@ export default function HistoryCard(props: HistoryCardProps) {
    const [qrOpen, setQrOpen] = useState(false);
 
    const { mode, item } = props;
+   const mockTicketInfoError = props.mockTicketInfoError ?? false;
    const isPurchase = mode === 'purchase';
    const purchaseItem = isPurchase ? (item as PurchaseHistoryItem) : null;
    const purchaseOrderId = purchaseItem?.rawOrderId;
    const actionTicketsQuery = useQuery({
-      queryKey: ['historyCardOrderTickets', purchaseOrderId],
-      queryFn: () => fetchOrderTickets(purchaseOrderId!),
+      queryKey: ['historyCardOrderTickets', purchaseOrderId, mockTicketInfoError],
+      queryFn: () =>
+         fetchOrderTickets(purchaseOrderId!, {
+            mockScenario: mockTicketInfoError ? MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO : undefined,
+         }),
       enabled: isPurchase && Boolean(purchaseOrderId) && (qrOpen || resellOpen),
       staleTime: 0,
    });
@@ -164,6 +170,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                onClose={() => setCancelOpen(false)}
                orderId={purchaseItem.rawOrderId ?? purchaseItem.id}
                game={{ teams: item.game.teams, datetime: item.game.datetime }}
+               mockTicketInfoError={mockTicketInfoError}
                seats={item.game.seats.map(seat => ({
                   orderId: item.orderId,
                   section: item.game.section,

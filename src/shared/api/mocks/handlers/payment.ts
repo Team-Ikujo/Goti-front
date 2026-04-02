@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { teams } from '@/entities/team/model/teams';
+import { MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO } from '@/shared/api/mockScenarios';
 import { mockGameSchedules } from './game';
 
 // serverTeamId → 팀 단축명 조회 맵
@@ -743,6 +744,78 @@ const isTicketPaymentMethod = (paymentMethod: unknown) => {
       paymentMethod === 'ACCOUNT_TRANSFER'
    );
 };
+
+const ensureMockPurchaseHistorySeed = () => {
+   const seedOrderId = 'mock-order-mypage-actions';
+   if (ticketOrders.has(seedOrderId)) {
+      return;
+   }
+
+   const seedGame = mockGameSchedules.find((game) => game.gameId === 'game-kia-home-tomorrow');
+   if (!seedGame) {
+      return;
+   }
+
+   const seedSeatIds = [
+      'section-stadium-kia-champions-field-104-A-9',
+      'section-stadium-kia-champions-field-104-A-10',
+   ];
+   const seedTicketIds = seedSeatIds.map((_, index) => `mock-ticket-mypage-actions-${index + 1}`);
+   const orderedAt = new Date(new Date(seedGame.startAt.replace(' ', 'T')).getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
+   const serviceFee = 1000;
+
+   const seatInfos = seedSeatIds.map((seatId) => buildSeatInfoStr(seatId));
+   const ticketPrices = seedSeatIds.map((seatId) => resolveSeatPrice(seedGame.homeTeamId, seatId, seedGame.startAt));
+   const totalAmount = ticketPrices.reduce((sum, price) => sum + price + serviceFee, 0);
+
+   ticketOrders.set(seedOrderId, {
+      orderId: seedOrderId,
+      orderNumber: 'T241231ABC123',
+      gameId: seedGame.gameId,
+      stadiumId: seedGame.stadiumId,
+      orderStatus: 'CONFIRMED',
+      totalQuantity: seedSeatIds.length,
+      totalAmount,
+      holdIds: [],
+      orderedAt,
+      homeTeamName: seedGame.homeTeamDisplayName,
+      awayTeamName: seedGame.awayTeamDisplayName,
+      stadiumName: `${seedGame.stadiumLocation} ${seedGame.homeTeamDisplayName} 홈구장`,
+      gameStartAt: seedGame.startAt,
+      seatGradeName: resolveSeatGradeName(seedSeatIds[0]) ?? '좌석 정보',
+      ticketIds: seedTicketIds,
+      seatInfos,
+      ordererName: '홍길동',
+   });
+
+   seedTicketIds.forEach((ticketId, index) => {
+      ticketRecords.set(ticketId, {
+         ticketId,
+         ticketNumber: `TKT-MOCK-${index + 1}`,
+         orderItemId: `mock-order-item-mypage-actions-${index + 1}`,
+         orderId: seedOrderId,
+         gameId: seedGame.gameId,
+         seatId: seedSeatIds[index],
+         qrToken: `mock-qr-mypage-actions-${index + 1}`,
+         gameTitle: `${seedGame.awayTeamDisplayName} vs ${seedGame.homeTeamDisplayName}`,
+         gameDate: seedGame.startAt,
+         stadiumName: `${seedGame.stadiumLocation} ${seedGame.homeTeamDisplayName} 홈구장`,
+         seatInfo: seatInfos[index],
+         ticketPrice: ticketPrices[index],
+         serviceFee,
+         paymentMethod: 'CARD',
+         paymentMethodDisplay: buildPaymentMethodDisplay('CARD'),
+         ticketStatus: 'ISSUED',
+         resaleEnabledStatus: 'ENABLED',
+         issuedAt: orderedAt,
+         orderedAt,
+         cancelableUntil: new Date(new Date(seedGame.startAt.replace(' ', 'T')).getTime() - 4 * 60 * 60 * 1000).toISOString(),
+         ordererName: '홍길동',
+      });
+   });
+};
+
+ensureMockPurchaseHistorySeed();
 
 const buildPageResponse = <T>(content: T[], page = 0, size = content.length || 10) => {
    const pageSize = size > 0 ? size : content.length || 10;
@@ -1549,7 +1622,12 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/orders/:orderId/tickets', async ({ params }) => {
+   http.get('/api/v1/orders/:orderId/tickets', async ({ params, request }) => {
+      const requestUrl = new URL(request.url);
+      if (requestUrl.searchParams.get('mockScenario') === MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO) {
+         return buildErrorResponse('Mock ticket info error.', 500);
+      }
+
       const orderId = String(params.orderId);
       const tickets = Array.from(ticketRecords.values()).filter((t) => t.orderId === orderId);
       return HttpResponse.json({

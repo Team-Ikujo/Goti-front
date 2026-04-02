@@ -45,8 +45,14 @@ export const fetchTicketDetail = async (ticketId: string): Promise<TicketDetail>
    return response.data.data;
 };
 
-export const fetchOrderTickets = async (orderId: string): Promise<OrderTicket[]> => {
-   const response = await apiClient.get<ApiEnvelope<OrderTicket[]>>(`/api/v1/orders/${orderId}/tickets`);
+interface FetchOrderTicketsOptions {
+   mockScenario?: string;
+}
+
+export const fetchOrderTickets = async (orderId: string, options?: FetchOrderTicketsOptions): Promise<OrderTicket[]> => {
+   const response = await apiClient.get<ApiEnvelope<OrderTicket[]>>(`/api/v1/orders/${orderId}/tickets`, {
+      params: options?.mockScenario ? { mockScenario: options.mockScenario } : undefined,
+   });
    return response.data.data;
 };
 
