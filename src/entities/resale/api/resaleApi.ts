@@ -111,7 +111,7 @@ export const fetchResaleListingDetail = async (listingId: string): Promise<Resal
 };
 
 export const cancelResaleListing = async (listingId: string): Promise<void> => {
-   await apiClient.post(`/api/v1/resales/listings/${listingId}/cancel`);
+   await apiClient.patch('/api/v1/resales/listings/cancel', { listingId });
 };
 
 export interface ResaleGameListingCountResponse {
