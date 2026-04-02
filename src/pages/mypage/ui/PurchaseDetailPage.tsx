@@ -313,16 +313,17 @@ export default function PurchaseDetailPage() {
             <CancelBookingDialog
                open={cancelOpen}
                onClose={() => setCancelOpen(false)}
-               itemId={detail.id}
+               orderId={apiDetail?.orderId ?? detail.id}
                game={{ teams: detail.game.teams, datetime: detail.game.datetime }}
-               seats={[
-                  {
-                     orderId: detail.orderId,
-                     section: detail.seatInfo.split(' ')[0],
-                     seatDetail: detail.seatInfo,
-                     price: detail.ticketPrice,
-                  },
-               ]}
+               seats={seatTickets.map((ticket) => ({
+                  orderId: formatTicketNumber(
+                     ticket.ticketNumber,
+                     ticket.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(ticket.ticketNumber, 'ticket'),
+                  ),
+                  section: ticket.seatInfo.split(' ')[0] ?? '',
+                  seatDetail: ticket.seatInfo,
+                  price: ticket.ticketPrice,
+               }))}
             />
          )}
 

@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import CancelConfirmDialog from './CancelConfirmDialog';
+import { useQuery } from '@tanstack/react-query';
+import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 
 export interface CancelTicketItem {
    orderId: string;
@@ -16,8 +18,8 @@ export interface CancelTicketItem {
 interface Props {
    open: boolean;
    onClose: () => void;
-   /** 취소 완료 후 이동할 구매 상세 페이지 ID */
-   itemId: string;
+   /** 주문 취소 API에 전달할 원시 주문 ID */
+   orderId: string;
    game: { teams: string; datetime: string };
    seats: CancelTicketItem[];
    /** 무통장 입금 여부 */
@@ -65,7 +67,7 @@ function CheckboxIcon({ checked }: { checked: boolean }) {
 export default function CancelBookingDialog({
    open,
    onClose,
-   itemId,
+   orderId,
    game,
    seats,
    isBankTransfer = false,
@@ -82,12 +84,32 @@ export default function CancelBookingDialog({
       }
    }, [open]);
 
+   const orderTicketsQuery = useQuery({
+      queryKey: ['cancelOrderTickets', orderId],
+      queryFn: () => fetchOrderTickets(orderId),
+      enabled: open && Boolean(orderId),
+      staleTime: 0,
+   });
+
    if (!open) return null;
 
-   const seatCount = seats.length;
+   const resolvedSeats = orderTicketsQuery.data?.length
+      ? orderTicketsQuery.data.map((ticket) => ({
+           orderId: ticket.ticketNumber,
+           orderItemId: ticket.orderItemId,
+           section: ticket.seatInfo.split(' ')[0] ?? '',
+           seatDetail: ticket.seatInfo,
+           price: ticket.ticketPrice,
+        }))
+      : seats.map((seat) => ({
+           ...seat,
+           orderItemId: undefined as string | undefined,
+        }));
+
+   const seatCount = resolvedSeats.length;
    const checkedCount = checkedSeats.size;
    const isAllChecked = seatCount > 0 && checkedCount === seatCount;
-   const selectedSeats = seats.filter((_, i) => checkedSeats.has(i));
+   const selectedSeats = resolvedSeats.filter((_, i) => checkedSeats.has(i));
    const totalPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
 
    const toggleAll = () => {
@@ -114,7 +136,7 @@ export default function CancelBookingDialog({
             open={confirmOpen}
             onClose={onClose}
             onBack={() => setConfirmOpen(false)}
-            itemId={itemId}
+            orderId={orderId}
             isBankTransfer={isBankTransfer}
             account={isBankTransfer && MOCK_REGISTERED_ACCOUNT
                ? { bank: MOCK_REGISTERED_ACCOUNT.bank, number: MOCK_REGISTERED_ACCOUNT.number }
@@ -124,6 +146,8 @@ export default function CancelBookingDialog({
             ticketAmount={totalPrice}
             ticketCount={selectedSeats.length}
             cancelFee={MOCK_CANCEL_FEE}
+            selectedOrderItemIds={selectedSeats.map((seat) => seat.orderItemId).filter(Boolean) as string[]}
+            totalSeatCount={seatCount}
          />
 
          {/* 스크림 */}
@@ -173,7 +197,7 @@ export default function CancelBookingDialog({
 
                      {/* 좌석 목록 */}
                      <div className="flex flex-col gap-6 pb-5">
-                        {seats.map((seat, idx) => {
+                        {resolvedSeats.map((seat, idx) => {
                            const isChecked = checkedSeats.has(idx);
                            return (
                               <div key={idx} className="flex flex-col gap-6">

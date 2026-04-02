@@ -1,7 +1,9 @@
 // src/pages/mypage/ui/QrViewDialog.tsx
 
 import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, RefreshCcw, Clock } from 'lucide-react';
+import { fetchTicketQr } from '@/entities/ticket/api/ticketApi';
 import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogClose } from '@/shared/ui/dialog';
 
@@ -26,11 +28,25 @@ function formatTime(seconds: number): string {
    return `${m}:${s}`;
 }
 
+function getRemainingSeconds(expiresAt?: string): number {
+   if (!expiresAt) return QR_DURATION;
+
+   const diffSeconds = Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000);
+   return Math.max(diffSeconds, 0);
+}
+
 export default function QrViewDialog({ open, onClose, seats }: QrViewDialogProps) {
    const [currentIndex, setCurrentIndex] = useState(0);
    const [timeLeft, setTimeLeft] = useState(QR_DURATION);
 
    const currentSeat = seats[currentIndex];
+   const currentTicketId = currentSeat?.ticketId;
+   const qrQuery = useQuery({
+      queryKey: ['ticketQr', currentTicketId],
+      queryFn: () => fetchTicketQr(currentTicketId!),
+      enabled: open && Boolean(currentTicketId),
+      retry: false,
+   });
 
    // 팝업 열릴 때 초기화
    useEffect(() => {
@@ -42,15 +58,31 @@ export default function QrViewDialog({ open, onClose, seats }: QrViewDialogProps
    // 카운트다운 타이머
    useEffect(() => {
       if (!open) return;
+
+      if (qrQuery.data?.expiresAt) {
+         setTimeLeft(getRemainingSeconds(qrQuery.data.expiresAt));
+      }
+
       const interval = setInterval(() => {
+         if (qrQuery.data?.expiresAt) {
+            setTimeLeft(getRemainingSeconds(qrQuery.data.expiresAt));
+            return;
+         }
+
          setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
       }, 1000);
+
       return () => clearInterval(interval);
-   }, [open]);
+   }, [open, qrQuery.data?.expiresAt]);
 
    const handleRefresh = useCallback(() => {
+      if (currentTicketId) {
+         void qrQuery.refetch();
+         return;
+      }
+
       setTimeLeft(QR_DURATION);
-   }, []);
+   }, [currentTicketId, qrQuery]);
 
    if (!currentSeat) return null;
 
@@ -77,6 +109,7 @@ export default function QrViewDialog({ open, onClose, seats }: QrViewDialogProps
                         {seats.map((_, i) => (
                            <button
                               key={i}
+                              type="button"
                               className={`w-2 h-2 rounded-full transition-colors ${
                                  i === currentIndex ? 'bg-primary' : 'bg-[#d0d6db]'
                               }`}
@@ -89,6 +122,7 @@ export default function QrViewDialog({ open, onClose, seats }: QrViewDialogProps
                   {/* QR 이미지 + 좌우 화살표 */}
                   <div className="flex items-center gap-5">
                      <button
+                        type="button"
                         className="text-[#646f7c] disabled:opacity-30"
                         onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
                         disabled={currentIndex === 0}
@@ -105,6 +139,7 @@ export default function QrViewDialog({ open, onClose, seats }: QrViewDialogProps
                      </div>
 
                      <button
+                        type="button"
                         className="text-[#646f7c] disabled:opacity-30"
                         onClick={() => setCurrentIndex(prev => Math.min(seats.length - 1, prev + 1))}
                         disabled={currentIndex === seats.length - 1}

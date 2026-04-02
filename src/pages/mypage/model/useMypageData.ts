@@ -88,6 +88,7 @@ const mapStoredPaymentToPurchaseHistory = (payment: PaymentResponse): PurchaseHi
 
    return {
       id: payment.ticketId ?? payment.orderId ?? payment.orderNumber,
+      rawOrderId: payment.orderId,
       orderId: formatTicketNumber(payment.orderNumber, payment.orderType === 'resale' ? 'resale' : 'ticket'),
       orderDate: formatDate(payment.paidAt ?? payment.orderedAt),
       type: payment.orderType === 'resale' ? '리셀' : '티켓',
@@ -167,6 +168,7 @@ export const useMyOrdersData = () => {
             : Array.from({ length: order.totalQuantity }, (_, i) => `좌석${i + 1}`);
         return {
             id: order.ticketId ?? order.orderId,
+            rawOrderId: order.orderId,
             orderId: formatTicketNumber(order.orderNumber, 'ticket'),
             orderDate: formatDate(order.orderedAt),
             type: '티켓' as TicketType,

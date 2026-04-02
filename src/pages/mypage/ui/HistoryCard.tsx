@@ -19,6 +19,7 @@ export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판
 
 export interface PurchaseHistoryItem {
    id: string;
+   rawOrderId?: string;
    orderId: string;
    orderDate: string;
    type: TicketType;
@@ -35,6 +36,7 @@ export interface PurchaseHistoryItem {
    deliveryType: string;
    /** 모바일 티켓이고 판매 등록 가능한 경우 */
    canSell: boolean;
+   ticketIds?: string[];
 }
 
 export interface SaleHistoryItem {
@@ -143,7 +145,7 @@ export default function HistoryCard(props: HistoryCardProps) {
             <CancelBookingDialog
                open={cancelOpen}
                onClose={() => setCancelOpen(false)}
-               itemId={item.id}
+               orderId={purchaseItem.rawOrderId ?? purchaseItem.id}
                game={{ teams: item.game.teams, datetime: item.game.datetime }}
                seats={item.game.seats.map(seat => ({
                   orderId: item.orderId,
@@ -160,7 +162,8 @@ export default function HistoryCard(props: HistoryCardProps) {
             <QrViewDialog
                open={qrOpen}
                onClose={() => setQrOpen(false)}
-               seats={item.game.seats.map(seat => ({
+               seats={item.game.seats.map((seat, index) => ({
+                  ticketId: purchaseItem?.ticketIds?.[index] ?? (purchaseItem?.ticketIds?.length ? undefined : purchaseItem?.id),
                   section: item.game.section,
                   seatDetail: seat,
                }))}
