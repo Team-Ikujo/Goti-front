@@ -1200,6 +1200,32 @@ export const paymentHandlers = [
       });
    }),
 
+   http.get('/api/v1/payments/orders/:orderId', async ({ params }) => {
+      const orderId = String(params.orderId);
+      const payment = Array.from(ticketPayments.values()).find((item) => item.orderId === orderId);
+
+      if (!payment) {
+         return buildErrorResponse('Payment not found.', 404);
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            paymentId: payment.paymentId,
+            orderId: payment.orderId,
+            paymentType: 'PAYMENT',
+            paymentMethod: payment.paymentMethod,
+            paymentAmount: payment.paymentAmount,
+            pgProvider: 'MOCK',
+            pgTid: payment.pgTid,
+            paymentStatus: payment.paymentStatus,
+            paidAt: payment.paidAt,
+            failedReason: null,
+         },
+      });
+   }),
+
    http.post('/api/v1/resales/holds', async ({ request }) => {
       const body = (await request.json()) as {
          listingId?: string;
