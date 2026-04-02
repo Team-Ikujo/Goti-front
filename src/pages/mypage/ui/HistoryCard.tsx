@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { Separator } from '@/shared/ui/separator';
 import { Button } from '@/shared/ui/button';
@@ -11,6 +12,7 @@ import ResellRegisterDialog from './ResellRegisterDialog';
 import QrViewDialog from './QrViewDialog';
 import CancelBookingDialog from './CancelBookingDialog';
 import NoAccountDialog from './NoAccountDialog';
+import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 
 // ── 타입 ────────────────────────────────────────────────────────────
 
@@ -98,21 +100,31 @@ export default function HistoryCard(props: HistoryCardProps) {
 
    const { mode, item } = props;
    const isPurchase = mode === 'purchase';
+   const purchaseItem = isPurchase ? (item as PurchaseHistoryItem) : null;
+   const purchaseOrderId = purchaseItem?.rawOrderId;
+   const actionTicketsQuery = useQuery({
+      queryKey: ['historyCardOrderTickets', purchaseOrderId],
+      queryFn: () => fetchOrderTickets(purchaseOrderId!),
+      enabled: isPurchase && Boolean(purchaseOrderId) && (qrOpen || resellOpen),
+      staleTime: 0,
+   });
 
    // 모드별 파생값
    const dateLabel = isPurchase ? '예약일자' : '판매일자';
    const detailLabel = isPurchase ? '예약상세' : '판매상세';
-   const detailRoute = isPurchase ? `/mypage/purchase/${item.id}` : `/mypage/sale/${item.id}`;
+   const detailRoute = isPurchase
+      ? `/mypage/purchase/${purchaseOrderId ?? item.id}`
+      : `/mypage/sale/${item.id}`;
    const priceLabel = isPurchase ? '구매가' : '판매가';
    const price = isPurchase ? (item as PurchaseHistoryItem).price : (item as SaleHistoryItem).salePrice;
    const status = isPurchase ? (item as PurchaseHistoryItem).paymentStatus : (item as SaleHistoryItem).saleStatus;
 
    // 구매 버튼 노출 조건
-   const purchaseItem = isPurchase ? (item as PurchaseHistoryItem) : null;
    const isBooked = purchaseItem?.paymentStatus === '예매 완료' || purchaseItem?.paymentStatus === '부분 처리';
-   const showSellBtn = isBooked || (purchaseItem?.canSell ?? false);
-   const showCancelBtn = isBooked || purchaseItem?.paymentStatus === '입금 대기';
-   const showQrBtn = isBooked && item.deliveryType === '모바일 티켓';
+   const showSellBtn = Boolean(purchaseOrderId) && (isBooked || (purchaseItem?.canSell ?? false));
+   const showCancelBtn = Boolean(purchaseOrderId) && (isBooked || purchaseItem?.paymentStatus === '입금 대기');
+   const actionTickets = actionTicketsQuery.data ?? [];
+   const showQrBtn = Boolean(purchaseOrderId) && isBooked && item.deliveryType === '모바일 티켓';
    // 판매 오픈 여부: 해당월 1일 11:00 이전 → 판매예정, ~13:00 이전 → 리셀예정
    const now = new Date();
    const saleOpenTime = getSaleOpenTime(item.game.datetime);
@@ -131,12 +143,17 @@ export default function HistoryCard(props: HistoryCardProps) {
       <>
          {/* 구매 전용 다이얼로그 */}
          {isPurchase && resellOpen && purchaseItem && (
-            <ResellRegisterDialog
-               open={resellOpen}
-               onClose={() => setResellOpen(false)}
-               onCompleteConfirm={props.onResellCompleteConfirm}
-               item={purchaseItem}
-            />
+            actionTicketsQuery.isLoading ? null : actionTickets.length > 0 ? (
+               <ResellRegisterDialog
+                  open={resellOpen}
+                  onClose={() => setResellOpen(false)}
+                  onCompleteConfirm={props.onResellCompleteConfirm}
+                  item={{
+                     ...purchaseItem,
+                     ticketIds: actionTickets.map((ticket) => ticket.ticketId),
+                  }}
+               />
+            ) : null
          )}
          {isPurchase && noAccountOpen && (
             <NoAccountDialog open={noAccountOpen} onClose={() => setNoAccountOpen(false)} />
@@ -159,15 +176,17 @@ export default function HistoryCard(props: HistoryCardProps) {
             />
          )}
          {isPurchase && qrOpen && (
-            <QrViewDialog
-               open={qrOpen}
-               onClose={() => setQrOpen(false)}
-               seats={item.game.seats.map((seat, index) => ({
-                  ticketId: purchaseItem?.ticketIds?.[index] ?? (purchaseItem?.ticketIds?.length ? undefined : purchaseItem?.id),
-                  section: item.game.section,
-                  seatDetail: seat,
-               }))}
-            />
+            actionTicketsQuery.isLoading ? null : actionTickets.length > 0 ? (
+               <QrViewDialog
+                  open={qrOpen}
+                  onClose={() => setQrOpen(false)}
+                  seats={actionTickets.map((ticket) => ({
+                     ticketId: ticket.ticketId,
+                     section: ticket.seatInfo.split(' ')[0] ?? '',
+                     seatDetail: ticket.seatInfo,
+                  }))}
+               />
+            ) : null
          )}
 
          <div
