@@ -24,6 +24,7 @@ interface Props {
    ticketCount: number;
    cancelFee: number;
    selectedOrderItemIds: string[];
+   selectedTicketIds: string[];
    totalSeatCount: number;
 }
 
@@ -39,6 +40,7 @@ export default function CancelConfirmDialog({
    ticketCount,
    cancelFee,
    selectedOrderItemIds,
+   selectedTicketIds,
    totalSeatCount,
 }: Props) {
    const navigate = useNavigate();
@@ -52,8 +54,13 @@ export default function CancelConfirmDialog({
             orderItemIds: selectedOrderItemIds.length === totalSeatCount ? undefined : selectedOrderItemIds,
          }),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['ticketDetail'] });
-         queryClient.invalidateQueries({ queryKey: ['orderTickets'] });
+         selectedTicketIds.forEach((ticketId) => {
+            queryClient.invalidateQueries({ queryKey: ['ticketDetail', ticketId] });
+            queryClient.invalidateQueries({ queryKey: ['ticketDetailFallback', ticketId] });
+         });
+         queryClient.invalidateQueries({ queryKey: ['orderTickets', orderId] });
+         queryClient.invalidateQueries({ queryKey: ['orderTicketsFallback', orderId] });
+         queryClient.invalidateQueries({ queryKey: ['cancelOrderTickets', orderId] });
          queryClient.invalidateQueries({ queryKey: ['myOrders'] });
          onClose();
          navigate(`/mypage/purchase/${orderId}`, { state: { showCancelSuccess: true } });

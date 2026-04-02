@@ -13,6 +13,8 @@ export interface CancelTicketItem {
    section: string;
    seatDetail: string;
    price: number;
+   orderItemId?: string;
+   ticketId?: string;
 }
 
 interface Props {
@@ -69,7 +71,7 @@ export default function CancelBookingDialog({
    onClose,
    orderId,
    game,
-   seats,
+   seats: _seats,
    isBankTransfer = false,
    paymentMethod,
 }: Props) {
@@ -93,18 +95,103 @@ export default function CancelBookingDialog({
 
    if (!open) return null;
 
-   const resolvedSeats = orderTicketsQuery.data?.length
-      ? orderTicketsQuery.data.map((ticket) => ({
-           orderId: ticket.ticketNumber,
-           orderItemId: ticket.orderItemId,
-           section: ticket.seatInfo.split(' ')[0] ?? '',
-           seatDetail: ticket.seatInfo,
-           price: ticket.ticketPrice,
-        }))
-      : seats.map((seat) => ({
-           ...seat,
-           orderItemId: undefined as string | undefined,
-        }));
+   if (orderTicketsQuery.isLoading) {
+      return createPortal(
+         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50" onClick={onClose}>
+            <div
+               className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
+               onClick={e => e.stopPropagation()}
+            >
+               <div className="relative flex items-center gap-2 p-5 shrink-0">
+                  <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">예매 취소</p>
+                  <button
+                     type="button"
+                     onClick={onClose}
+                     className="absolute right-5 top-1/2 -translate-y-1/2 text-[#161d24] hover:text-muted-foreground transition-colors"
+                     aria-label="닫기"
+                  >
+                     <X size={24} />
+                  </button>
+               </div>
+               <div className="px-5 pb-8 pt-2 text-center text-[16px] text-[#374553]">
+                  취소 가능한 티켓 정보를 불러오는 중입니다.
+               </div>
+            </div>
+         </div>,
+         document.body,
+      );
+   }
+
+   if (orderTicketsQuery.isError) {
+      return createPortal(
+         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50" onClick={onClose}>
+            <div
+               className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
+               onClick={e => e.stopPropagation()}
+            >
+               <div className="relative flex items-center gap-2 p-5 shrink-0">
+                  <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">예매 취소</p>
+                  <button
+                     type="button"
+                     onClick={onClose}
+                     className="absolute right-5 top-1/2 -translate-y-1/2 text-[#161d24] hover:text-muted-foreground transition-colors"
+                     aria-label="닫기"
+                  >
+                     <X size={24} />
+                  </button>
+               </div>
+               <div className="flex flex-col items-center gap-4 px-5 pb-8 pt-2">
+                  <p className="text-center text-[16px] text-[#374553]">
+                     취소 가능한 티켓 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+                  </p>
+                  <Button type="button" variant="tertiary" onClick={onClose}>
+                     닫기
+                  </Button>
+               </div>
+            </div>
+         </div>,
+         document.body,
+      );
+   }
+
+   const resolvedSeats = (orderTicketsQuery.data ?? []).map((ticket) => ({
+      orderId: ticket.ticketNumber,
+      orderItemId: ticket.orderItemId,
+      ticketId: ticket.ticketId,
+      section: ticket.seatInfo.split(' ')[0] ?? '',
+      seatDetail: ticket.seatInfo,
+      price: ticket.ticketPrice,
+   }));
+
+   if (resolvedSeats.length === 0) {
+      return createPortal(
+         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50" onClick={onClose}>
+            <div
+               className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
+               onClick={e => e.stopPropagation()}
+            >
+               <div className="relative flex items-center gap-2 p-5 shrink-0">
+                  <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">예매 취소</p>
+                  <button
+                     type="button"
+                     onClick={onClose}
+                     className="absolute right-5 top-1/2 -translate-y-1/2 text-[#161d24] hover:text-muted-foreground transition-colors"
+                     aria-label="닫기"
+                  >
+                     <X size={24} />
+                  </button>
+               </div>
+               <div className="flex flex-col items-center gap-4 px-5 pb-8 pt-2">
+                  <p className="text-center text-[16px] text-[#374553]">취소 가능한 티켓이 없습니다.</p>
+                  <Button type="button" variant="tertiary" onClick={onClose}>
+                     닫기
+                  </Button>
+               </div>
+            </div>
+         </div>,
+         document.body,
+      );
+   }
 
    const seatCount = resolvedSeats.length;
    const checkedCount = checkedSeats.size;
@@ -116,7 +203,7 @@ export default function CancelBookingDialog({
       if (isAllChecked) {
          setCheckedSeats(new Set());
       } else {
-         setCheckedSeats(new Set(seats.map((_, i) => i)));
+         setCheckedSeats(new Set(resolvedSeats.map((_, i) => i)));
       }
    };
 
@@ -147,6 +234,7 @@ export default function CancelBookingDialog({
             ticketCount={selectedSeats.length}
             cancelFee={MOCK_CANCEL_FEE}
             selectedOrderItemIds={selectedSeats.map((seat) => seat.orderItemId).filter(Boolean) as string[]}
+            selectedTicketIds={selectedSeats.map((seat) => seat.ticketId).filter(Boolean) as string[]}
             totalSeatCount={seatCount}
          />
 
