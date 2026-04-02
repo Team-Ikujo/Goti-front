@@ -46,6 +46,9 @@
     "typescript": "^5.9.3",
     "wrangler": "^4.76.0"
   },
+  "overrides": {
+    "@xmldom/xmldom": "^0.8.12"
+  },
   "msw": {
     "workerDirectory": [
       "public"
