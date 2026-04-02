@@ -6,7 +6,6 @@ import type {
    PaymentMethod,
    SupportedPaymentMethod,
 } from '../ui/payment/types';
-import type { BotReport } from '@/shared/lib/botDetector';
 import { type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
 
 interface CheckoutFormRequest {
@@ -21,7 +20,6 @@ interface CheckoutFormRequest {
    cashReceiptType?: CashReceiptType;
    cashReceiptNumType?: CashReceiptNumType;
    cashReceiptNum?: string;
-   botData?: BotReport;
 }
 
 export interface PaymentResponse {
