@@ -176,17 +176,20 @@ export default function HistoryCard(props: HistoryCardProps) {
             />
          )}
          {isPurchase && qrOpen && (
-            actionTicketsQuery.isLoading ? null : actionTickets.length > 0 ? (
-               <QrViewDialog
-                  open={qrOpen}
-                  onClose={() => setQrOpen(false)}
-                  seats={actionTickets.map((ticket) => ({
-                     ticketId: ticket.ticketId,
-                     section: ticket.seatInfo.split(' ')[0] ?? '',
-                     seatDetail: ticket.seatInfo,
-                  }))}
-               />
-            ) : null
+            <QrViewDialog
+               open={qrOpen}
+               onClose={() => setQrOpen(false)}
+               seats={actionTickets.map((ticket) => ({
+                  ticketId: ticket.ticketId,
+                  section: ticket.seatInfo.split(' ')[0] ?? '',
+                  seatDetail: ticket.seatInfo,
+               }))}
+               isTicketInfoLoading={actionTicketsQuery.isLoading}
+               isTicketInfoError={actionTicketsQuery.isError}
+               onRetryTicketInfo={() => {
+                  void actionTicketsQuery.refetch();
+               }}
+            />
          )}
 
          <div
