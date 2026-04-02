@@ -18,4 +18,4 @@ export const GOOGLE_CLIENT_ID = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID as
 export const GOOGLE_REDIRECT_URI = import.meta.env.PUBLIC_GOOGLE_REDIRECT_URI as
   | string
   | undefined;
-export const GOOGLE_SCOPES = ["openid"];
+export const GOOGLE_SCOPES = ["openid", "email", "profile"];
