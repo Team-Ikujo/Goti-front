@@ -5,19 +5,23 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import CancelConfirmDialog from './CancelConfirmDialog';
+import { useQuery } from '@tanstack/react-query';
+import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 
 export interface CancelTicketItem {
    orderId: string;
    section: string;
    seatDetail: string;
    price: number;
+   orderItemId?: string;
+   ticketId?: string;
 }
 
 interface Props {
    open: boolean;
    onClose: () => void;
-   /** 취소 완료 후 이동할 구매 상세 페이지 ID */
-   itemId: string;
+   /** 주문 취소 API에 전달할 원시 주문 ID */
+   orderId: string;
    game: { teams: string; datetime: string };
    seats: CancelTicketItem[];
    /** 무통장 입금 여부 */
@@ -65,9 +69,9 @@ function CheckboxIcon({ checked }: { checked: boolean }) {
 export default function CancelBookingDialog({
    open,
    onClose,
-   itemId,
+   orderId,
    game,
-   seats,
+   seats: _seats,
    isBankTransfer = false,
    paymentMethod,
 }: Props) {
@@ -82,19 +86,124 @@ export default function CancelBookingDialog({
       }
    }, [open]);
 
+   const orderTicketsQuery = useQuery({
+      queryKey: ['cancelOrderTickets', orderId],
+      queryFn: () => fetchOrderTickets(orderId),
+      enabled: open && Boolean(orderId),
+      staleTime: 0,
+   });
+
    if (!open) return null;
 
-   const seatCount = seats.length;
+   if (orderTicketsQuery.isLoading) {
+      return createPortal(
+         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50" onClick={onClose}>
+            <div
+               className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
+               onClick={e => e.stopPropagation()}
+            >
+               <div className="relative flex items-center gap-2 p-5 shrink-0">
+                  <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">예매 취소</p>
+                  <button
+                     type="button"
+                     onClick={onClose}
+                     className="absolute right-5 top-1/2 -translate-y-1/2 text-[#161d24] hover:text-muted-foreground transition-colors"
+                     aria-label="닫기"
+                  >
+                     <X size={24} />
+                  </button>
+               </div>
+               <div className="px-5 pb-8 pt-2 text-center text-[16px] text-[#374553]">
+                  취소 가능한 티켓 정보를 불러오는 중입니다.
+               </div>
+            </div>
+         </div>,
+         document.body,
+      );
+   }
+
+   if (orderTicketsQuery.isError) {
+      return createPortal(
+         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50" onClick={onClose}>
+            <div
+               className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
+               onClick={e => e.stopPropagation()}
+            >
+               <div className="relative flex items-center gap-2 p-5 shrink-0">
+                  <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">예매 취소</p>
+                  <button
+                     type="button"
+                     onClick={onClose}
+                     className="absolute right-5 top-1/2 -translate-y-1/2 text-[#161d24] hover:text-muted-foreground transition-colors"
+                     aria-label="닫기"
+                  >
+                     <X size={24} />
+                  </button>
+               </div>
+               <div className="flex flex-col items-center gap-4 px-5 pb-8 pt-2">
+                  <p className="text-center text-[16px] text-[#374553]">
+                     취소 가능한 티켓 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+                  </p>
+                  <Button type="button" variant="tertiary" onClick={onClose}>
+                     닫기
+                  </Button>
+               </div>
+            </div>
+         </div>,
+         document.body,
+      );
+   }
+
+   const resolvedSeats = (orderTicketsQuery.data ?? []).map((ticket) => ({
+      orderId: ticket.ticketNumber,
+      orderItemId: ticket.orderItemId,
+      ticketId: ticket.ticketId,
+      section: ticket.seatInfo.split(' ')[0] ?? '',
+      seatDetail: ticket.seatInfo,
+      price: ticket.ticketPrice,
+   }));
+
+   if (resolvedSeats.length === 0) {
+      return createPortal(
+         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50" onClick={onClose}>
+            <div
+               className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
+               onClick={e => e.stopPropagation()}
+            >
+               <div className="relative flex items-center gap-2 p-5 shrink-0">
+                  <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">예매 취소</p>
+                  <button
+                     type="button"
+                     onClick={onClose}
+                     className="absolute right-5 top-1/2 -translate-y-1/2 text-[#161d24] hover:text-muted-foreground transition-colors"
+                     aria-label="닫기"
+                  >
+                     <X size={24} />
+                  </button>
+               </div>
+               <div className="flex flex-col items-center gap-4 px-5 pb-8 pt-2">
+                  <p className="text-center text-[16px] text-[#374553]">취소 가능한 티켓이 없습니다.</p>
+                  <Button type="button" variant="tertiary" onClick={onClose}>
+                     닫기
+                  </Button>
+               </div>
+            </div>
+         </div>,
+         document.body,
+      );
+   }
+
+   const seatCount = resolvedSeats.length;
    const checkedCount = checkedSeats.size;
    const isAllChecked = seatCount > 0 && checkedCount === seatCount;
-   const selectedSeats = seats.filter((_, i) => checkedSeats.has(i));
+   const selectedSeats = resolvedSeats.filter((_, i) => checkedSeats.has(i));
    const totalPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
 
    const toggleAll = () => {
       if (isAllChecked) {
          setCheckedSeats(new Set());
       } else {
-         setCheckedSeats(new Set(seats.map((_, i) => i)));
+         setCheckedSeats(new Set(resolvedSeats.map((_, i) => i)));
       }
    };
 
@@ -114,7 +223,7 @@ export default function CancelBookingDialog({
             open={confirmOpen}
             onClose={onClose}
             onBack={() => setConfirmOpen(false)}
-            itemId={itemId}
+            orderId={orderId}
             isBankTransfer={isBankTransfer}
             account={isBankTransfer && MOCK_REGISTERED_ACCOUNT
                ? { bank: MOCK_REGISTERED_ACCOUNT.bank, number: MOCK_REGISTERED_ACCOUNT.number }
@@ -124,6 +233,9 @@ export default function CancelBookingDialog({
             ticketAmount={totalPrice}
             ticketCount={selectedSeats.length}
             cancelFee={MOCK_CANCEL_FEE}
+            selectedOrderItemIds={selectedSeats.map((seat) => seat.orderItemId).filter(Boolean) as string[]}
+            selectedTicketIds={selectedSeats.map((seat) => seat.ticketId).filter(Boolean) as string[]}
+            totalSeatCount={seatCount}
          />
 
          {/* 스크림 */}
@@ -173,7 +285,7 @@ export default function CancelBookingDialog({
 
                      {/* 좌석 목록 */}
                      <div className="flex flex-col gap-6 pb-5">
-                        {seats.map((seat, idx) => {
+                        {resolvedSeats.map((seat, idx) => {
                            const isChecked = checkedSeats.has(idx);
                            return (
                               <div key={idx} className="flex flex-col gap-6">
