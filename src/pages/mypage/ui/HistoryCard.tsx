@@ -12,6 +12,7 @@ import ResellRegisterDialog from './ResellRegisterDialog';
 import QrViewDialog from './QrViewDialog';
 import CancelBookingDialog from './CancelBookingDialog';
 import NoAccountDialog from './NoAccountDialog';
+import ActionStatusDialog from './ActionStatusDialog';
 import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 import { MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO } from '@/shared/api/mockScenarios';
 
@@ -149,7 +150,24 @@ export default function HistoryCard(props: HistoryCardProps) {
       <>
          {/* 구매 전용 다이얼로그 */}
          {isPurchase && resellOpen && purchaseItem && (
-            actionTicketsQuery.isLoading ? null : actionTickets.length > 0 ? (
+            actionTicketsQuery.isLoading ? (
+               <ActionStatusDialog
+                  open={resellOpen}
+                  title="리셀 판매 등록"
+                  message="판매 가능한 티켓 정보를 불러오는 중입니다."
+                  onClose={() => setResellOpen(false)}
+               />
+            ) : actionTicketsQuery.isError ? (
+               <ActionStatusDialog
+                  open={resellOpen}
+                  title="리셀 판매 등록"
+                  message="판매 가능한 티켓 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                  onClose={() => setResellOpen(false)}
+                  onRetry={() => {
+                     void actionTicketsQuery.refetch();
+                  }}
+               />
+            ) : actionTickets.length > 0 ? (
                <ResellRegisterDialog
                   open={resellOpen}
                   onClose={() => setResellOpen(false)}
@@ -159,7 +177,14 @@ export default function HistoryCard(props: HistoryCardProps) {
                      ticketIds: actionTickets.map((ticket) => ticket.ticketId),
                   }}
                />
-            ) : null
+            ) : (
+               <ActionStatusDialog
+                  open={resellOpen}
+                  title="리셀 판매 등록"
+                  message="판매 가능한 티켓이 없습니다."
+                  onClose={() => setResellOpen(false)}
+               />
+            )
          )}
          {isPurchase && noAccountOpen && (
             <NoAccountDialog open={noAccountOpen} onClose={() => setNoAccountOpen(false)} />
