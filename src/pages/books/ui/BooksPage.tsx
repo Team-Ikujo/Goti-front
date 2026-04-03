@@ -98,13 +98,6 @@ const BooksPage = () => {
             });
          }
 
-         const remainingBySectionId =
-            bookingFlowMode === 'resell'
-               ? await fetchResaleListingCountsBySections(
-                    bookingEntryState!.gameId!,
-                    sections.map((section) => section.sectionId),
-                 )
-               : undefined;
          const pricingByGradeId = resolvePricingByGradeId({
             policy: pricingPolicy,
             gameDate: bookingEntryState?.gameDate,

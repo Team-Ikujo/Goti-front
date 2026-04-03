@@ -48,7 +48,7 @@ const MOCK_GAME = {
 export default function TicketPaymentPage() {
    const navigate = useNavigate();
    const location = useLocation();
-   const locationState = location.state as (BookingEntryState & { botData?: TicketCheckoutRequest['botData'] }) | null;
+   const locationState = location.state as BookingEntryState | null;
    const routeBookingEntryState = locationState;
    const storedBookingEntryState = useBookingEntryStore(state => state.entry);
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
@@ -64,7 +64,6 @@ export default function TicketPaymentPage() {
       holdId: holdsBySeatId[seat.id]?.holdId ?? '',
       label: `${zoneName} ${seat.block}블록 ${seat.rowLabel} ${seat.seatNumber}번`,
    }));
-   const botData = locationState?.botData;
 
    // 주문자 정보
    const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('mobile');
@@ -164,7 +163,6 @@ export default function TicketPaymentPage() {
          ordererPhone: phoneDigits,
          ordererEmail: email,
          paymentMethod,
-         botData,
          ...(deliveryMethod === 'delivery' && { zipCode, address, addressDetail }),
          ...(paymentMethod === 'bank' && {
             cashReceiptType,

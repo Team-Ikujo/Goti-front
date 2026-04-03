@@ -9,6 +9,7 @@ import { Button } from '@/shared/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTicketDetail, fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 import type { OrderTicket } from '@/entities/ticket/api/ticketApi';
+import { fetchOrderPaymentDetail, formatOrderPaymentMethod } from '@/entities/payment/api/paymentApi';
 import StatusBadge from './StatusBadge';
 import type { BadgeVariant } from './StatusBadge';
 import TicketItem from './TicketItem';
@@ -118,7 +119,7 @@ function BulletItem({ text }: { text: string }) {
 // ─── 메인 컴포넌트 ──────────────────────────────────────────────
 
 export default function PurchaseDetailPage() {
-   const { id } = useParams<{ id: string }>();
+   const { id: orderId } = useParams<{ id: string }>();
    const navigate = useNavigate();
    const location = useLocation();
    const [showCancelSnackbar, setShowCancelSnackbar] = useState(false);
@@ -126,45 +127,36 @@ export default function PurchaseDetailPage() {
    const [cancelOpen, setCancelOpen] = useState(false);
    const [resellOpen, setResellOpen] = useState(false);
 
+   const orderTicketsQuery = useQuery({
+      queryKey: ['orderTickets', orderId],
+      queryFn: () => fetchOrderTickets(orderId!),
+      enabled: Boolean(orderId),
+      retry: false,
+   });
+
+   const orderTickets = orderTicketsQuery.data ?? [];
+   const primaryTicketId = orderTickets[0]?.ticketId;
+
    const ticketDetailQuery = useQuery({
-      queryKey: ['ticketDetail', id],
-      queryFn: () => fetchTicketDetail(id!),
-      enabled: !!id,
+      queryKey: ['ticketDetail', primaryTicketId],
+      queryFn: () => fetchTicketDetail(primaryTicketId!),
+      enabled: Boolean(primaryTicketId),
       retry: false,
    });
 
-   const fallbackTicketsQuery = useQuery({
-      queryKey: ['orderTicketsFallback', id],
-      queryFn: () => fetchOrderTickets(id!),
-      enabled: ticketDetailQuery.isError && !!id,
+   const orderPaymentQuery = useQuery({
+      queryKey: ['orderPaymentDetail', orderId],
+      queryFn: () => fetchOrderPaymentDetail(orderId!),
+      enabled: Boolean(orderId),
       retry: false,
    });
 
-   const fallbackTicketId = fallbackTicketsQuery.data?.[0]?.ticketId;
-
-   const fallbackTicketDetailQuery = useQuery({
-      queryKey: ['ticketDetailFallback', fallbackTicketId],
-      queryFn: () => fetchTicketDetail(fallbackTicketId!),
-      enabled: Boolean(ticketDetailQuery.isError && fallbackTicketId && fallbackTicketId !== id),
-      retry: false,
-   });
-
-   const apiDetail = ticketDetailQuery.data ?? fallbackTicketDetailQuery.data;
-   const isLoading =
-      ticketDetailQuery.isLoading ||
-      (ticketDetailQuery.isError &&
-         (fallbackTicketsQuery.isLoading || (Boolean(fallbackTicketId) && fallbackTicketDetailQuery.isLoading)));
+   const apiDetail = ticketDetailQuery.data;
+   const isLoading = orderTicketsQuery.isLoading || (Boolean(primaryTicketId) && ticketDetailQuery.isLoading);
    const isError =
-      ticketDetailQuery.isError &&
-      !apiDetail &&
-      !fallbackTicketsQuery.isLoading &&
-      (!fallbackTicketId || fallbackTicketDetailQuery.isError);
-
-   const { data: orderTickets = [] } = useQuery({
-      queryKey: ['orderTickets', apiDetail?.orderId],
-      queryFn: () => fetchOrderTickets(apiDetail!.orderId),
-      enabled: !!apiDetail?.orderId,
-   });
+      orderTicketsQuery.isError ||
+      (!primaryTicketId && !orderTicketsQuery.isLoading) ||
+      (Boolean(primaryTicketId) && ticketDetailQuery.isError);
 
    useEffect(() => {
       if ((location.state as { showCancelSuccess?: boolean } | null)?.showCancelSuccess) {
@@ -180,43 +172,27 @@ export default function PurchaseDetailPage() {
       const overallStatus = mapOverallStatus(apiDetail.ticketStatus);
       const isInvalid = apiDetail.ticketStatus === 'INVALID';
 
-      // 좌석 아이템 목록 구성 (orderTickets 우선, 없으면 단일 apiDetail 사용)
-      const seatItems =
-         orderTickets.length > 0
-            ? orderTickets.map(t => ({
-                 ticketId: t.ticketId,
-                 orderId: formatTicketNumber(
-                    t.ticketNumber,
-                    t.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(t.ticketNumber, 'ticket'),
-                 ),
-                 section: t.seatInfo.split(' ')[0] ?? '',
-                 seatDetail: t.seatInfo,
-                 status: mapTicketItemStatus(t.ticketStatus),
-                 price: t.ticketPrice,
-              }))
-            : [
-                 {
-                    ticketId: apiDetail.ticketId,
-                    orderId: formatTicketNumber(
-                       apiDetail.ticketNumber,
-                       apiDetail.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(apiDetail.ticketNumber, 'ticket'),
-                    ),
-                    section: apiDetail.seatInfo.split(' ')[0] ?? '',
-                    seatDetail: apiDetail.seatInfo,
-                    status: mapTicketItemStatus(apiDetail.ticketStatus),
-                    price: apiDetail.ticketPrice,
-                 },
-              ];
+      const seatItems = orderTickets.map(t => ({
+         ticketId: t.ticketId,
+         orderId: formatTicketNumber(
+            t.ticketNumber,
+            t.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(t.ticketNumber, 'ticket'),
+         ),
+         section: t.seatInfo.split(' ')[0] ?? '',
+         seatDetail: t.seatInfo,
+         status: mapTicketItemStatus(t.ticketStatus),
+         price: t.ticketPrice,
+      }));
 
       const ticketCount = seatItems.length;
       const ticketAmount = seatItems.reduce((sum, s) => sum + s.price, 0);
-      const fee =
-         orderTickets.length > 0
-            ? orderTickets.reduce((sum, t) => sum + (t.serviceFee ?? 0), 0)
-            : (apiDetail.serviceFee ?? 0);
+      const fee = orderTickets.reduce((sum, t) => sum + (t.serviceFee ?? 0), 0);
       const total = ticketAmount + fee;
-
-      const paymentMethodDisplay = apiDetail.paymentMethodDisplay ?? apiDetail.paymentMethod ?? '-';
+      const paymentMethodDisplay = orderPaymentQuery.data?.paymentMethod
+         ? formatOrderPaymentMethod(orderPaymentQuery.data.paymentMethod)
+         : (apiDetail.paymentMethodDisplay ?? apiDetail.paymentMethod ?? '-');
+      const paidAt = orderPaymentQuery.data?.paidAt ?? apiDetail.issuedAt;
+      const paymentAmount = orderPaymentQuery.data?.paymentAmount ?? total;
 
       return {
          id: apiDetail.ticketId,
@@ -239,14 +215,15 @@ export default function PurchaseDetailPage() {
          seatInfo: apiDetail.seatInfo,
          ticketPrice: apiDetail.ticketPrice,
          paymentMethodDisplay,
+         paidAt,
          seatItems,
          paymentSummary: {
             status: isInvalid ? '결제 완료' : '결제 완료',
             ticketCount,
             ticketAmount,
             fee,
-            total,
-            date: apiDetail.issuedAt,
+            total: paymentAmount,
+            date: paidAt,
             bankAccount: undefined as string | undefined,
             bankDeadline: undefined as string | undefined,
          },
@@ -257,7 +234,7 @@ export default function PurchaseDetailPage() {
                  cancelFee: 0,
                  refundTotal: ticketAmount,
                  method: paymentMethodDisplay,
-                 date: apiDetail.issuedAt,
+                 date: paidAt,
               }
             : undefined,
          canCancel: apiDetail.ticketStatus === 'ISSUED',
@@ -268,7 +245,7 @@ export default function PurchaseDetailPage() {
          deliveryCarrier: undefined as string | undefined,
          deliveryTrackingNumber: undefined as string | undefined,
       };
-   }, [apiDetail, orderTickets]);
+   }, [apiDetail, orderPaymentQuery.data, orderTickets]);
 
    if (isLoading) return <div className="py-24 text-center text-body-1-regular">정보를 불러오는 중입니다...</div>;
    if (isError || !detail) {
@@ -288,18 +265,7 @@ export default function PurchaseDetailPage() {
    const totalTicketPrice = detail.paymentSummary.ticketAmount;
    const totalPaid = detail.paymentSummary.total;
    const totalRefund = totalTicketPrice - serviceFee;
-
-   // 좌석 정보: orderTickets가 있으면 전체, 없으면 현재 티켓 1건
-   const seatTickets: OrderTicket[] = orderTickets.length
-      ? orderTickets
-      : [{
-           ticketId: detail.id,
-           ticketNumber: detail.orderId,
-           seatInfo: detail.seatInfo,
-           ticketPrice: detail.ticketPrice,
-           serviceFee,
-           ticketStatus: detail.ticketStatus,
-        }];
+   const seatTickets: OrderTicket[] = orderTickets;
 
    return (
       <div className="flex flex-col items-center pt-8 lg:pt-12.5 pb-40 px-4">
@@ -313,16 +279,17 @@ export default function PurchaseDetailPage() {
             <CancelBookingDialog
                open={cancelOpen}
                onClose={() => setCancelOpen(false)}
-               itemId={detail.id}
+               orderId={orderId!}
                game={{ teams: detail.game.teams, datetime: detail.game.datetime }}
-               seats={[
-                  {
-                     orderId: detail.orderId,
-                     section: detail.seatInfo.split(' ')[0],
-                     seatDetail: detail.seatInfo,
-                     price: detail.ticketPrice,
-                  },
-               ]}
+               seats={seatTickets.map((ticket) => ({
+                  orderId: formatTicketNumber(
+                     ticket.ticketNumber,
+                     ticket.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(ticket.ticketNumber, 'ticket'),
+                  ),
+                  section: ticket.seatInfo.split(' ')[0] ?? '',
+                  seatDetail: ticket.seatInfo,
+                  price: ticket.ticketPrice,
+               }))}
             />
          )}
 
@@ -333,6 +300,7 @@ export default function PurchaseDetailPage() {
                onCompleteConfirm={() => navigate('/mypage', { state: { activeTab: 'sale' } })}
                item={{
                   id: detail.id,
+                  rawOrderId: orderId,
                   orderId: detail.orderId,
                   orderDate: detail.orderDate,
                   type: '티켓',
@@ -348,6 +316,7 @@ export default function PurchaseDetailPage() {
                   paymentStatus: '예매 완료',
                   deliveryType: '모바일 티켓',
                   canSell: detail.canSell,
+                  ticketIds: orderTickets.map((ticket) => ticket.ticketId),
                }}
             />
          )}
@@ -442,7 +411,7 @@ export default function PurchaseDetailPage() {
                      {/* 결제 수단/일시 */}
                      <div className="flex flex-col gap-3">
                         <InfoRow label="결제 수단" value={detail.paymentMethodDisplay} />
-                        <InfoRow label="결제 일시" value={detail.issuedAt ? formatDateTime(detail.issuedAt) : '-'} />
+                        <InfoRow label="결제 일시" value={detail.paidAt ? formatDateTime(detail.paidAt) : '-'} />
                      </div>
                   </SectionCard>
                )}
@@ -466,7 +435,7 @@ export default function PurchaseDetailPage() {
                      {/* 환불 수단/일시 */}
                      <div className="flex flex-col gap-3">
                         <InfoRow label="환불 수단" value={detail.paymentMethodDisplay} />
-                        <InfoRow label="취소 일시" value={detail.issuedAt ? formatDateTime(detail.issuedAt) : '-'} />
+                        <InfoRow label="취소 일시" value={detail.paidAt ? formatDateTime(detail.paidAt) : '-'} />
                      </div>
                      {/* 안내 문구 */}
                      <div className="bg-[#f7f8f9] rounded-xl p-5">
