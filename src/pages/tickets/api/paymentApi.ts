@@ -6,7 +6,6 @@ import type {
    PaymentMethod,
    SupportedPaymentMethod,
 } from '../ui/payment/types';
-import type { BotReport } from '@/shared/lib/botDetector';
 import { type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
 import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 import { useAuthStore } from '@/entities/auth/model/authStore';

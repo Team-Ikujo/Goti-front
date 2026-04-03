@@ -2,6 +2,7 @@
 
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import { createGuardrailHeaders } from '@/shared/lib/guardrailHeaders';
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
 const shouldUseRelativeApiBase = import.meta.env.DEV;
@@ -76,6 +77,7 @@ export const releaseResaleListingHoldKeepalive = (holdId: string) => {
       method: 'PATCH',
       headers: {
          'Content-Type': 'application/json',
+         ...createGuardrailHeaders(),
       },
       credentials: 'omit',
       keepalive: true,
@@ -87,7 +89,11 @@ export interface CreateResaleListingRequest {
    listingPrice: number;
 }
 
-export const createResaleListing = async (body: CreateResaleListingRequest): Promise<void> => {
+export interface CreateResaleListingsRequest {
+   listings: CreateResaleListingRequest[];
+}
+
+export const createResaleListings = async (body: CreateResaleListingsRequest): Promise<void> => {
    await apiClient.post('/api/v1/resales/listings', body);
 };
 
@@ -116,6 +122,11 @@ export const cancelResaleListing = async (listingId: string): Promise<void> => {
 
 export interface ResaleGameListingCountResponse {
    count: number;
+}
+
+export interface MyResaleListingSummaryResponse {
+   listingCount: number;
+   soldCount: number;
 }
 
 export interface ResaleHistoryPointResponse {
@@ -175,6 +186,11 @@ export const fetchResaleListingCountsBySections = async (
 
 export const fetchResaleListings = async (): Promise<ResaleListingItem[]> => {
    const response = await apiClient.get<ApiEnvelope<ResaleListingItem[]>>('/api/v1/resales/listings');
+   return response.data.data;
+};
+
+export const fetchMyResaleListingSummary = async (): Promise<MyResaleListingSummaryResponse> => {
+   const response = await apiClient.get<ApiEnvelope<MyResaleListingSummaryResponse>>('/api/v1/resales/listings/count/listing');
    return response.data.data;
 };
 

@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/button';
 import CancelConfirmDialog from './CancelConfirmDialog';
 import { useQuery } from '@tanstack/react-query';
 import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
+import { MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO } from '@/shared/api/mockScenarios';
 
 export interface CancelTicketItem {
    orderId: string;
@@ -28,14 +29,8 @@ interface Props {
    isBankTransfer?: boolean;
    /** 무통장 입금이 아닐 때 결제 수단 표시용 */
    paymentMethod?: string;
+   mockTicketInfoError?: boolean;
 }
-
-// ─── Mock: 등록된 계좌 (없으면 null) ──────────────────────────────
-const MOCK_REGISTERED_ACCOUNT: { bank: string; number: string; holder: string } | null = {
-   bank: '카카오뱅크',
-   number: '3333-67-8765445',
-   holder: '홍길동',
-};
 
 // ─── Mock: 취소 수수료 (실제로는 API에서 수신) ────────────────────
 const MOCK_CANCEL_FEE = 0;
@@ -74,6 +69,7 @@ export default function CancelBookingDialog({
    seats: _seats,
    isBankTransfer = false,
    paymentMethod,
+   mockTicketInfoError = false,
 }: Props) {
    const [checkedSeats, setCheckedSeats] = useState<Set<number>>(new Set());
    const [confirmOpen, setConfirmOpen] = useState(false);
@@ -87,8 +83,11 @@ export default function CancelBookingDialog({
    }, [open]);
 
    const orderTicketsQuery = useQuery({
-      queryKey: ['cancelOrderTickets', orderId],
-      queryFn: () => fetchOrderTickets(orderId),
+      queryKey: ['cancelOrderTickets', orderId, mockTicketInfoError],
+      queryFn: () =>
+         fetchOrderTickets(orderId, {
+            mockScenario: mockTicketInfoError ? MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO : undefined,
+         }),
       enabled: open && Boolean(orderId),
       staleTime: 0,
    });
@@ -225,10 +224,6 @@ export default function CancelBookingDialog({
             onBack={() => setConfirmOpen(false)}
             orderId={orderId}
             isBankTransfer={isBankTransfer}
-            account={isBankTransfer && MOCK_REGISTERED_ACCOUNT
-               ? { bank: MOCK_REGISTERED_ACCOUNT.bank, number: MOCK_REGISTERED_ACCOUNT.number }
-               : undefined
-            }
             paymentMethod={paymentMethod}
             ticketAmount={totalPrice}
             ticketCount={selectedSeats.length}

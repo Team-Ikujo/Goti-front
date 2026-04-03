@@ -4,13 +4,15 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PurchaseHistoryItem } from './HistoryCard';
 import ResellRegisterCompleteDialog from './ResellRegisterCompleteDialog';
-import type { ResellZoneInsights } from '@/pages/books/model/resellData';
 import ResellPriceChart from '@/pages/books/ui/components/ResellPriceChart';
 import { formatPrice } from '@/pages/books/model/zoneData';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createResaleListing } from '@/entities/resale/api/resaleApi';
+import { fetchSeatGrades } from '@/pages/books/api/bookingApi';
+import { buildResellZoneInsightsFromApi } from '@/pages/books/model/resellData';
+import { createResaleListings, fetchResaleHistoryGraph } from '@/entities/resale/api/resaleApi';
+import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 
 interface Props {
    open: boolean;
@@ -19,42 +21,7 @@ interface Props {
    item: PurchaseHistoryItem;
 }
 
-// ─── 정적 mock 데이터 (실제로는 API에서 수신) ──────────────────────
-const MOCK_INSIGHTS: ResellZoneInsights = {
-   changeAmount: 6000,
-   changeRate: 25,
-   previousClose: 15000,
-   recentTrade: 21000,
-   dayLow: 16800,
-   dayHigh: 31200,
-   pricePointsByRange: {
-      minute: [
-         { time: '14:00', price: 13000, occurredAt: '2026-03-20T14:00:00+09:00' },
-         { time: '14:45', price: 15500, occurredAt: '2026-03-20T14:45:00+09:00' },
-         { time: '15:30', price: 18500, occurredAt: '2026-03-20T15:30:00+09:00' },
-         { time: '16:15', price: 21000, occurredAt: '2026-03-20T16:15:00+09:00' },
-         { time: '17:00', price: 19500, occurredAt: '2026-03-20T17:00:00+09:00' },
-         { time: '17:45', price: 23000, occurredAt: '2026-03-20T17:45:00+09:00' },
-         { time: '18:30', price: 22000, occurredAt: '2026-03-20T18:30:00+09:00' },
-      ],
-      day: [
-         { time: '03/14', price: 12000, occurredAt: '2026-03-14T18:00:00+09:00' },
-         { time: '03/15', price: 13500, occurredAt: '2026-03-15T18:00:00+09:00' },
-         { time: '03/16', price: 15500, occurredAt: '2026-03-16T18:00:00+09:00' },
-         { time: '03/17', price: 16500, occurredAt: '2026-03-17T18:00:00+09:00' },
-         { time: '03/18', price: 17800, occurredAt: '2026-03-18T18:00:00+09:00' },
-         { time: '03/19', price: 19200, occurredAt: '2026-03-19T18:00:00+09:00' },
-         { time: '03/20', price: 21000, occurredAt: '2026-03-20T18:00:00+09:00' },
-      ],
-   },
-   tradeHistory: [
-      { id: 't1', price: 52000, seatLabel: '110구역 0열 0번', tradedAt: '40분 전' },
-      { id: 't2', price: 81000, seatLabel: '110구역 10열 11번', tradedAt: '6시간 전' },
-      { id: 't3', price: 1052000, seatLabel: '110구역 27열 9번', tradedAt: '03/07 14:23' },
-      { id: 't4', price: 52000, seatLabel: '110구역 0열 0번', tradedAt: '03/07 14:23' },
-   ],
-   listings: [],
-};
+const normalizeGradeName = (value?: string) => (value ?? '').replace(/\s+/g, '').trim().toLowerCase();
 
 // ─── 체크박스 아이콘 ────────────────────────────────────────────────
 function CheckboxIcon({ checked }: { checked: boolean }) {
@@ -107,17 +74,74 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
 
    const [isSubmitting, setIsSubmitting] = useState(false);
    const queryClient = useQueryClient();
-   const mutation = useMutation({
-      mutationFn: createResaleListing,
-      onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['myResales'] });
-         setCompleteOpen(true);
+   const unitPrice = item.game.quantity > 0 ? Math.round(item.price / item.game.quantity) : item.price;
+
+   const resaleInsightsQuery = useQuery({
+      queryKey: ['mypage-resell-register-insights', item.gameId, item.seatGradeName, item.game.section, unitPrice],
+      enabled: open && Boolean(item.gameId),
+      queryFn: async () => {
+         if (!item.gameId) {
+            return { status: 'missing-game-id' as const };
+         }
+
+         const seatGrades = await fetchSeatGrades({ gameId: item.gameId });
+         const normalizedTargetGradeName = normalizeGradeName(item.seatGradeName ?? item.game.section);
+         const matchedGrade = seatGrades.find((seatGrade) => {
+            const normalizedSeatGradeName = normalizeGradeName(seatGrade.name);
+
+            return (
+               normalizedSeatGradeName === normalizedTargetGradeName ||
+               normalizedSeatGradeName.includes(normalizedTargetGradeName) ||
+               normalizedTargetGradeName.includes(normalizedSeatGradeName)
+            );
+         });
+
+         if (!matchedGrade) {
+            return { status: 'missing-grade' as const };
+         }
+
+         const [minuteGraph, dayGraph] = await Promise.all([
+            fetchResaleHistoryGraph(item.gameId, matchedGrade.seatGradeId, 'HOUR'),
+            fetchResaleHistoryGraph(item.gameId, matchedGrade.seatGradeId, 'DAY'),
+         ]);
+
+         if (minuteGraph.length === 0 && dayGraph.length === 0) {
+            return { status: 'empty' as const };
+         }
+
+         return {
+            status: 'success' as const,
+            insights: buildResellZoneInsightsFromApi({
+               zone: {
+                  id: matchedGrade.seatGradeId,
+                  name: matchedGrade.name,
+                  price: unitPrice,
+                  remaining: matchedGrade.availableSeatCount,
+                  color: matchedGrade.displayColorHex,
+                  hotspot: [],
+                  sectionCode: item.game.section,
+                  gradeIds: [matchedGrade.seatGradeId],
+               },
+               listings: [],
+               minuteGraph,
+               dayGraph,
+            }),
+         };
       },
-      onError: (error) => {
-         alert('판매 등록에 실패했습니다. 다시 시도해주세요.');
-         console.error('Resale listing failed:', error);
-      }
+      staleTime: 60_000,
    });
+
+   const getResaleRegisterAlertMessage = (error: unknown) => {
+      const message = getErrorMessage(error, '판매 등록에 실패했습니다. 다시 시도해주세요.');
+
+      switch (message) {
+         case '이미 등록된 티켓입니다':
+         case '판매가는 35000원 ~ 65000원 이내여야 합니다.':
+            return message;
+         default:
+            return '판매 등록에 실패했습니다. 다시 시도해주세요.';
+      }
+   };
 
    // 열릴 때마다 상태 초기화
    useEffect(() => {
@@ -134,7 +158,8 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
 
    const checkedCount = checkedSeats.size;
    const showBulkToggle = checkedCount >= 2;
-   const unitPrice = item.game.quantity > 0 ? Math.round(item.price / item.game.quantity) : item.price;
+   const resaleInsightsState = resaleInsightsQuery.data;
+   const insights = resaleInsightsState?.status === 'success' ? resaleInsightsState.insights : null;
 
    const toggleSeat = (idx: number) => {
       setCheckedSeats(prev => {
@@ -174,11 +199,12 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
 
       setIsSubmitting(true);
       try {
-         await Promise.all(requests.map(r => createResaleListing(r)));
+         await createResaleListings({ listings: requests });
          queryClient.invalidateQueries({ queryKey: ['myResales'] });
+         queryClient.invalidateQueries({ queryKey: ['myResaleSummary'] });
          setCompleteOpen(true);
-      } catch {
-         alert('판매 등록에 실패했습니다. 다시 시도해주세요.');
+      } catch (error) {
+         alert(getResaleRegisterAlertMessage(error));
       } finally {
          setIsSubmitting(false);
       }
@@ -336,29 +362,69 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                   </div>
 
                   {/* 거래 변동 + 차트 */}
-                  <ResellPriceChart insights={MOCK_INSIGHTS} />
+                  {resaleInsightsQuery.isLoading ? (
+                     <div className="bg-surface rounded-xl px-5 py-10 text-center text-[14px] text-[#646f7c]">
+                        거래 변동 정보를 불러오는 중입니다.
+                     </div>
+                  ) : resaleInsightsQuery.isError ? (
+                     <div className="bg-surface rounded-xl px-5 py-8 flex flex-col items-center gap-3 text-center">
+                        <p className="text-[14px] text-[#374553]">
+                           리셀 그래프 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+                        </p>
+                        <Button
+                           variant="tertiary"
+                           type="button"
+                           className="px-4 py-2"
+                           onClick={() => {
+                              void resaleInsightsQuery.refetch();
+                           }}
+                        >
+                           다시 시도
+                        </Button>
+                     </div>
+                  ) : resaleInsightsState?.status === 'missing-game-id' ? (
+                     <div className="bg-surface rounded-xl px-5 py-10 text-center text-[14px] text-[#646f7c]">
+                        경기 정보가 없어 리셀 그래프를 표시할 수 없습니다.
+                     </div>
+                  ) : resaleInsightsState?.status === 'missing-grade' ? (
+                     <div className="bg-surface rounded-xl px-5 py-10 text-center text-[14px] text-[#646f7c]">
+                        좌석 등급 정보를 찾지 못해 리셀 그래프를 표시할 수 없습니다.
+                     </div>
+                  ) : resaleInsightsState?.status === 'empty' ? (
+                     <div className="bg-surface rounded-xl px-5 py-10 text-center text-[14px] text-[#646f7c]">
+                        아직 해당 좌석 등급의 최근 거래 내역이 없습니다.
+                     </div>
+                  ) : insights ? (
+                     <ResellPriceChart insights={insights} />
+                  ) : null}
 
                   {/* 최근 거래 내역 */}
                   <div className="flex flex-col gap-3">
                      <p className="text-[20px] font-bold text-[#161d24] leading-normal">최근 거래 내역</p>
-                     <ul className="flex flex-col gap-1">
-                        {MOCK_INSIGHTS.tradeHistory.map(trade => (
-                           <li
-                              key={trade.id}
-                              className="grid grid-cols-[max-content_minmax(0,1fr)_66px] items-center gap-x-3"
-                           >
-                              <span className="whitespace-nowrap text-[14px] font-semibold text-[#374553]">
-                                 {formatPrice(trade.price)}
-                              </span>
-                              <span className="min-w-0 truncate text-right text-[14px] text-[#374553]">
-                                 {trade.seatLabel}
-                              </span>
-                              <span className="whitespace-nowrap text-right text-[12px] text-[#646f7c]">
-                                 {trade.tradedAt}
-                              </span>
-                           </li>
-                        ))}
-                     </ul>
+                     {insights ? (
+                        <ul className="flex flex-col gap-1">
+                           {insights.tradeHistory.map(trade => (
+                              <li
+                                 key={trade.id}
+                                 className="grid grid-cols-[max-content_minmax(0,1fr)_66px] items-center gap-x-3"
+                              >
+                                 <span className="whitespace-nowrap text-[14px] font-semibold text-[#374553]">
+                                    {formatPrice(trade.price)}
+                                 </span>
+                                 <span className="min-w-0 truncate text-right text-[14px] text-[#374553]">
+                                    {trade.seatLabel}
+                                 </span>
+                                 <span className="whitespace-nowrap text-right text-[12px] text-[#646f7c]">
+                                    {trade.tradedAt}
+                                 </span>
+                              </li>
+                           ))}
+                        </ul>
+                     ) : (
+                        <div className="rounded-xl bg-surface px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                           최근 거래 내역을 표시할 수 없습니다.
+                        </div>
+                     )}
                   </div>
 
                   {/* 판매 유의사항 */}

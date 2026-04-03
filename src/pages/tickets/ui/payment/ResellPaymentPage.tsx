@@ -5,7 +5,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Button } from '@/shared/ui/button';
 import type { ResaleCheckoutRequest } from '@/pages/tickets/api/paymentApi';
-import type { BotReport } from '@/shared/lib/botDetector';
 import {
    CashReceiptCard,
    DiscountCard,

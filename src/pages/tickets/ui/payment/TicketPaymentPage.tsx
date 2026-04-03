@@ -48,7 +48,7 @@ const MOCK_GAME = {
 export default function TicketPaymentPage() {
    const navigate = useNavigate();
    const location = useLocation();
-   const locationState = location.state as (BookingEntryState & { botData?: TicketCheckoutRequest['botData'] }) | null;
+   const locationState = location.state as BookingEntryState | null;
    const routeBookingEntryState = locationState;
    const storedBookingEntryState = useBookingEntryStore(state => state.entry);
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;

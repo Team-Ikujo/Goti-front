@@ -45,3 +45,37 @@ export const resolveUserIdFromJwt = (accessToken: string | null) => {
 
    return typeof userId === 'string' && userId.length > 0 ? userId : null;
 };
+
+type JwtProfileField = 'name' | 'email' | 'mobile';
+
+const resolveStringClaim = (payload: Record<string, unknown>, keys: string[]) => {
+   for (const key of keys) {
+      const value = payload[key];
+
+      if (typeof value === 'string' && value.length > 0) {
+         return value;
+      }
+   }
+
+   return undefined;
+};
+
+export const resolveProfileFromJwt = (accessToken: string | null) => {
+   const payload = decodeJwtPayload(accessToken);
+
+   if (!payload) {
+      return null;
+   }
+
+   const claimMap: Record<JwtProfileField, string[]> = {
+      name: ['name'],
+      email: ['email'],
+      mobile: ['mobile', 'phone', 'phoneNumber', 'phone_number'],
+   };
+
+   return {
+      name: resolveStringClaim(payload, claimMap.name),
+      email: resolveStringClaim(payload, claimMap.email),
+      mobile: resolveStringClaim(payload, claimMap.mobile),
+   };
+};

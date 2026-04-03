@@ -25,7 +25,6 @@ import SeatMapStage from './components/SeatMapStage';
 import ResellSeatSidebar from './components/ResellSeatSidebar';
 import ResellZonePreviewSheet from './components/ResellZonePreviewSheet';
 import SelectedSeatSummaryList from './components/SelectedSeatSummaryList';
-import { useBotDetector } from '@/shared/lib/useBotDetector';
 
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
@@ -74,7 +73,6 @@ function SeatsPage() {
    const storedBookingEntryState = useBookingEntryStore((state) => state.entry);
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
-   const { getBotReport } = useBotDetector();
    const bookingZones = useMemo(
       () => bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId),
       [bookingEntryState?.bookingZones, bookingEntryState?.homeTeamId],
@@ -399,8 +397,6 @@ function SeatsPage() {
    };
 
    const handleProceedToPayment = () => {
-      const botData = getBotReport();
-
       if (isResellMode) {
          if (!selectedResellListing) {
             return;
@@ -431,10 +427,7 @@ function SeatsPage() {
       }
 
       navigate('/tickets/payment', {
-         state: {
-            ...bookingEntryState,
-            botData,
-         },
+         state: bookingEntryState,
       });
    };
 
