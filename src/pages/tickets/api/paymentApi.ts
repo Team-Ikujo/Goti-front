@@ -7,6 +7,8 @@ import type {
    SupportedPaymentMethod,
 } from '../ui/payment/types';
 import { type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
+import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
+import { useAuthStore } from '@/entities/auth/model/authStore';
 
 interface CheckoutFormRequest {
    deliveryMethod: 'mobile' | 'onsite' | 'delivery';
@@ -175,14 +177,15 @@ const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
 const shouldUseRelativeApiBase = import.meta.env.DEV;
 
 const formatOrderedAt = (date: Date) => {
-   return date.toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-   });
+   const pad = (n: number) => String(n).padStart(2, '0');
+   const year = date.getFullYear();
+   const month = pad(date.getMonth() + 1);
+   const day = pad(date.getDate());
+   const hours = date.getHours();
+   const minutes = pad(date.getMinutes());
+   const ampm = hours < 12 ? 'AM' : 'PM';
+   const h12 = hours % 12 || 12;
+   return `${year}.${month}.${day}. ${h12}:${minutes} ${ampm}`;
 };
 
 const createClientTransactionId = (prefix: string) => {
@@ -460,7 +463,7 @@ const buildOptimisticResalePaymentResponse = ({
       paymentId: createClientTransactionId('resale-payment'),
       orderId: fallbackOrder.orderId,
       paymentType: 'PAYMENT',
-      paymentMethod: toPaymentMethodCode(payload.paymentMethod),
+      paymentMethod: toPaymentMethodCode(payload.paymentMethod as SupportedPaymentMethod),
       paymentAmount: payload.totalAmount,
       pgProvider: 'FALLBACK',
       pgTid: createClientTransactionId('resale-pg-tid'),

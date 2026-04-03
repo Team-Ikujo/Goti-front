@@ -14,6 +14,10 @@ export type StoredPaymentCompleteItem = {
    orderStatus?: string;
    paymentStatus?: string;
    paidAt?: string;
+   issuedTicketCount?: number;
+   recipientName?: string;
+   recipientPhone?: string;
+   recipientAddress?: string;
    resaleListingId?: string;
 };
 

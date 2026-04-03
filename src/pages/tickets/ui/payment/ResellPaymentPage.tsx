@@ -45,6 +45,7 @@ const MOCK_RESALE_ENTRY = {
 };
 
 type ResellPaymentEntryState = Partial<typeof MOCK_RESALE_ENTRY> & {
+   holdId?: string;
    matchTitle?: string;
    venue?: string;
    dateTime?: string;
@@ -135,6 +136,7 @@ export default function ResellPaymentPage() {
       const paymentRequest: ResaleCheckoutRequest = {
          buyerId: resolvedBuyerId,
          listingId: resaleEntry.listingId,
+         holdId: resellEntryState?.holdId,
          queueTokenJti: resaleEntry.queueTokenJti,
          sellerId: resaleEntry.sellerId,
          settlementAmount: resaleEntry.settlementAmount,
