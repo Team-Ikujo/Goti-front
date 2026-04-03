@@ -18,11 +18,20 @@ export interface OrderPaymentDetail {
    failedReason?: string | null;
 }
 
+export interface ResaleUnsettledAmountResponse {
+   unsettledAmount: number;
+}
+
 export const fetchOrderPaymentDetail = async (orderId: string): Promise<OrderPaymentDetail> => {
    const response = await apiClient.get<ApiEnvelope<OrderPaymentDetail>>(
       `/api/v1/payments/orders/${encodeURIComponent(orderId)}`,
    );
 
+   return response.data.data;
+};
+
+export const fetchResaleUnsettledAmount = async (): Promise<ResaleUnsettledAmountResponse> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleUnsettledAmountResponse>>('/api/v1/payments/resales/unsettled');
    return response.data.data;
 };
 
