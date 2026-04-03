@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/entities/auth/model/authStore";
 import { redirectToErrorPage } from '@/shared/lib/error-navigation';
+import { applyGuardrailHeadersToAxiosConfig } from '@/shared/lib/guardrailHeaders';
 
 export class ApiError extends Error {
    status?: number;
@@ -36,6 +37,21 @@ const PUBLIC_API_PATH_PATTERNS = [
   /^\/api\/v1\/resales\/orders(?:\/|$)/,
   /^\/api\/v1\/payments\/resales(?:\/|$)/,
   /^\/api\/v1\/resales\/listings\/games(?:\/|$)/,
+  /^\/api\/v1\/game-seats(?:\/|$)/,
+  /^\/api\/v1\/stadium-seats(?:\/|$)/,
+  /^\/api\/v1\/seats(?:\/|$)/,
+  /^\/api\/v1\/teams\/[^/]+\/ticket-pricing-policies(?:\/|$)/,
+];
+
+const GUARDRAIL_HEADER_API_PATH_PATTERNS = [
+  /^\/api\/v1\/seat-reservations(?:\/|$)/,
+  /^\/api\/v1\/orders(?:\/|$)/,
+  /^\/api\/v1\/payments\/orders(?:\/|$)/,
+  /^\/api\/v1\/resales\/holds(?:\/|$)/,
+  /^\/api\/v1\/resales\/orders(?:\/|$)/,
+  /^\/api\/v1\/payments\/resales(?:\/|$)/,
+  /^\/api\/v1\/resales\/listings(?:\/|$)/,
+  /^\/api\/v1\/resales\/histories(?:\/|$)/,
   /^\/api\/v1\/game-seats(?:\/|$)/,
   /^\/api\/v1\/stadium-seats(?:\/|$)/,
   /^\/api\/v1\/seats(?:\/|$)/,
@@ -139,6 +155,17 @@ const shouldSkipCredentials = (config: AxiosRequestConfig) => {
   }
 };
 
+const shouldAttachGuardrailHeaders = (config: AxiosRequestConfig) => {
+  const requestUrl = toAbsoluteUrl(config);
+
+  try {
+    const { pathname } = new URL(requestUrl, window.location.origin);
+    return GUARDRAIL_HEADER_API_PATH_PATTERNS.some((pattern) => pattern.test(pathname));
+  } catch {
+    return false;
+  }
+};
+
 const isAuthorizationConflictMessage = (message: string) => {
   const normalizedMessage = message.trim().toLowerCase();
 
@@ -222,9 +249,14 @@ apiClient.interceptors.request.use((config) => {
   const accessToken = useAuthStore.getState().accessToken;
   const shouldSkipAuth = shouldSkipAuthorizationHeader(config);
   const shouldOmitCredentials = shouldSkipCredentials(config);
+  const shouldIncludeGuardrailHeaders = shouldAttachGuardrailHeaders(config);
 
   if (shouldOmitCredentials) {
     config.withCredentials = false;
+  }
+
+  if (shouldIncludeGuardrailHeaders) {
+    applyGuardrailHeadersToAxiosConfig(config);
   }
 
   if (accessToken && !shouldSkipAuth) {
@@ -268,6 +300,10 @@ apiClient.interceptors.response.use(
       requestConfig._retry = true;
 
       return reissueAccessTokenFromCookie().then((accessToken) => {
+        if (shouldAttachGuardrailHeaders(requestConfig)) {
+          applyGuardrailHeadersToAxiosConfig(requestConfig);
+        }
+
         if (!shouldSkipAuthorizationHeader(requestConfig)) {
           const nextHeaders = AxiosHeaders.from(requestConfig.headers);
           nextHeaders.set("Authorization", `Bearer ${accessToken}`);

@@ -1,5 +1,6 @@
 import apiClient, { unwrapApiData } from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import { createGuardrailHeaders } from '@/shared/lib/guardrailHeaders';
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
 const shouldUseRelativeApiBase = import.meta.env.DEV;
@@ -53,6 +54,7 @@ export const releaseSeatReservationKeepalive = (holdId: string) => {
       method: 'POST',
       headers: {
          'Content-Type': 'application/json',
+         ...createGuardrailHeaders(),
       },
       credentials: 'omit',
       keepalive: true,
