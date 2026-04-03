@@ -419,6 +419,8 @@ function SeatsPage() {
                matchTitle: bookingEntryState?.matchTitle,
                venue: bookingEntryState?.venue,
                dateTime: bookingEntryState?.dateTime,
+               turnstileToken: bookingEntryState?.turnstileToken,
+               botData,
             },
          });
          return;

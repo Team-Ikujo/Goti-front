@@ -49,6 +49,8 @@ type ResellPaymentEntryState = Partial<typeof MOCK_RESALE_ENTRY> & {
    matchTitle?: string;
    venue?: string;
    dateTime?: string;
+   turnstileToken?: string;
+   botData?: BotReport;
 };
 
 const resolveUserIdFromAccessToken = (accessToken: string | null) => {
@@ -152,6 +154,8 @@ export default function ResellPaymentPage() {
          ordererPhone: phone,
          ordererEmail: email,
          paymentMethod,
+         botData: resellEntryState?.botData,
+         cfTurnstileToken: resellEntryState?.turnstileToken,
          ...(paymentMethod === 'bank' && {
             cashReceiptType,
             cashReceiptNumType,

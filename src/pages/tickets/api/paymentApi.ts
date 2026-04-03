@@ -22,6 +22,8 @@ interface CheckoutFormRequest {
    cashReceiptType?: CashReceiptType;
    cashReceiptNumType?: CashReceiptNumType;
    cashReceiptNum?: string;
+   botData?: BotReport;
+   cfTurnstileToken?: string;
 }
 
 export interface PaymentResponse {
@@ -85,6 +87,7 @@ type CreateOrderRequest = {
    ordererName: string;
    ordererPhone: string;
    ordererEmail: string;
+   cfTurnstileToken?: string;
 };
 
 type CreateOrderResponse = {
@@ -117,6 +120,7 @@ type OrderPaymentResponse = {
 type ResaleHoldRequest = {
    listingId: string;
    queueTokenJti: string;
+   cfTurnstileToken?: string;
 };
 
 type ResaleHoldResponse = {
@@ -512,6 +516,7 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       ordererName: payload.ordererName,
       ordererPhone: payload.ordererPhone,
       ordererEmail: payload.ordererEmail,
+      cfTurnstileToken: payload.cfTurnstileToken,
    });
 
    const payment = await createOrderPayment(order.orderId, {
@@ -571,6 +576,7 @@ export const submitResaleOrder = async (
          const hold = await createResaleHold({
             listingId: payload.listingId,
             queueTokenJti: payload.queueTokenJti,
+            cfTurnstileToken: payload.cfTurnstileToken,
          });
          resaleHoldId = hold.holdId;
          options?.onHoldCreated?.(hold.holdId);

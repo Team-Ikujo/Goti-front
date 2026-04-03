@@ -19,6 +19,7 @@ export type BookingEntryState = {
    matchTitle?: string;
    venue?: string;
    dateTime?: string;
+   turnstileToken?: string;
    bookingZones?: ZoneItem[];
 };
 
