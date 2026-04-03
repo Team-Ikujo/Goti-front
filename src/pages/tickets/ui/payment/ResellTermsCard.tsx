@@ -57,8 +57,16 @@ export function ResellTermsCard({ agreedPrivacy, agreedResell, onChangePrivacy, 
             </div>
          </PaymentCard>
 
-         <PrivacyDialog open={openModal === 'privacy'} onClose={() => setOpenModal(null)} />
-         <ResellPolicyDialog open={openModal === 'resell'} onClose={() => setOpenModal(null)} />
+         <PrivacyDialog
+            open={openModal === 'privacy'}
+            onClose={() => setOpenModal(null)}
+            onAgree={() => { onChangePrivacy(true); setOpenModal(null); }}
+         />
+         <ResellPolicyDialog
+            open={openModal === 'resell'}
+            onClose={() => setOpenModal(null)}
+            onAgree={() => { onChangeResell(true); setOpenModal(null); }}
+         />
       </>
    );
 }
