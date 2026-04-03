@@ -190,8 +190,8 @@ export default function PurchaseDetailPage() {
       const total = ticketAmount + fee;
       const paymentMethodDisplay = orderPaymentQuery.data?.paymentMethod
          ? formatOrderPaymentMethod(orderPaymentQuery.data.paymentMethod)
-         : (apiDetail.paymentMethodDisplay ?? apiDetail.paymentMethod ?? '-');
-      const paidAt = orderPaymentQuery.data?.paidAt ?? apiDetail.issuedAt;
+         : undefined;
+      const paidAt = orderPaymentQuery.data?.paidAt;
       const paymentAmount = orderPaymentQuery.data?.paymentAmount ?? total;
 
       return {
@@ -228,12 +228,12 @@ export default function PurchaseDetailPage() {
             bankDeadline: undefined as string | undefined,
          },
          paymentEvents: [{ type: '결제 완료' as const, method: paymentMethodDisplay }],
-         refundInfo: isInvalid
+         refundInfo: isInvalid && orderPaymentQuery.data
             ? {
                  ticketAmount,
                  cancelFee: 0,
                  refundTotal: ticketAmount,
-                 method: paymentMethodDisplay,
+                 method: paymentMethodDisplay ?? '정보 없음',
                  date: paidAt,
               }
             : undefined,
@@ -281,6 +281,8 @@ export default function PurchaseDetailPage() {
                onClose={() => setCancelOpen(false)}
                orderId={orderId!}
                game={{ teams: detail.game.teams, datetime: detail.game.datetime }}
+               isBankTransfer={orderPaymentQuery.data?.paymentMethod === 'ACCOUNT_TRANSFER'}
+               paymentMethod={detail.paymentMethodDisplay}
                seats={seatTickets.map((ticket) => ({
                   orderId: formatTicketNumber(
                      ticket.ticketNumber,
@@ -394,26 +396,36 @@ export default function PurchaseDetailPage() {
 
                {/* 결제 정보 — 취소/환불 상태에서는 숨김 */}
                {detail.ticketStatus !== 'INVALID' && (
-                  <SectionCard>
-                     <div className="flex items-start justify-between text-[20px] font-bold">
+               <SectionCard>
+                  <div className="flex items-start justify-between text-[20px] font-bold">
                         <span className="text-[#161d24] leading-normal">결제 정보</span>
                         <span className="text-primary leading-normal">결제 완료</span>
+                  </div>
+                  {orderPaymentQuery.isLoading ? (
+                     <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                        결제 정보를 불러오는 중입니다.
                      </div>
-                     {/* 금액 요약 */}
-                     <div className="bg-[#f7f8f9] rounded-xl p-5 flex flex-col gap-3">
-                        <InfoRow label={`티켓 금액 (${totalQuantity}매)`} value={formatPrice(totalTicketPrice)} />
-                        <InfoRow label="수수료" value={formatPrice(serviceFee)} />
-                        <div className="flex items-center justify-between font-bold">
-                           <span className="text-[16px] text-[#374553] leading-normal">총 결제 금액</span>
-                           <span className="text-[20px] text-primary leading-normal">{formatPrice(totalPaid)}</span>
+                  ) : orderPaymentQuery.isError ? (
+                     <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                        결제 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+                     </div>
+                  ) : (
+                     <>
+                        <div className="bg-[#f7f8f9] rounded-xl p-5 flex flex-col gap-3">
+                           <InfoRow label={`티켓 금액 (${totalQuantity}매)`} value={formatPrice(totalTicketPrice)} />
+                           <InfoRow label="수수료" value={formatPrice(serviceFee)} />
+                           <div className="flex items-center justify-between font-bold">
+                              <span className="text-[16px] text-[#374553] leading-normal">총 결제 금액</span>
+                              <span className="text-[20px] text-primary leading-normal">{formatPrice(totalPaid)}</span>
+                           </div>
                         </div>
-                     </div>
-                     {/* 결제 수단/일시 */}
-                     <div className="flex flex-col gap-3">
-                        <InfoRow label="결제 수단" value={detail.paymentMethodDisplay} />
-                        <InfoRow label="결제 일시" value={detail.paidAt ? formatDateTime(detail.paidAt) : '-'} />
-                     </div>
-                  </SectionCard>
+                        <div className="flex flex-col gap-3">
+                           <InfoRow label="결제 수단" value={detail.paymentMethodDisplay ?? '-'} />
+                           <InfoRow label="결제 일시" value={detail.paidAt ? formatDateTime(detail.paidAt) : '-'} />
+                        </div>
+                     </>
+                  )}
+               </SectionCard>
                )}
 
                {/* 취소/환불 정보 — INVALID 상태일 때만 표시 */}
@@ -433,10 +445,20 @@ export default function PurchaseDetailPage() {
                         </div>
                      </div>
                      {/* 환불 수단/일시 */}
-                     <div className="flex flex-col gap-3">
-                        <InfoRow label="환불 수단" value={detail.paymentMethodDisplay} />
-                        <InfoRow label="취소 일시" value={detail.paidAt ? formatDateTime(detail.paidAt) : '-'} />
-                     </div>
+                     {orderPaymentQuery.isLoading ? (
+                        <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                           환불 정보를 불러오는 중입니다.
+                        </div>
+                     ) : orderPaymentQuery.isError ? (
+                        <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                           환불 수단 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+                        </div>
+                     ) : (
+                        <div className="flex flex-col gap-3">
+                           <InfoRow label="환불 수단" value={detail.paymentMethodDisplay ?? '정보 없음'} />
+                           <InfoRow label="취소 일시" value={detail.paidAt ? formatDateTime(detail.paidAt) : '정보 없음'} />
+                        </div>
+                     )}
                      {/* 안내 문구 */}
                      <div className="bg-[#f7f8f9] rounded-xl p-5">
                         <div className="flex flex-col gap-1 text-[13px] font-medium text-[#646f7c] leading-normal">
@@ -448,7 +470,7 @@ export default function PurchaseDetailPage() {
                )}
 
                {/* 취소/환불 정보 (InfoItem) */}
-               {detail.refundInfo && (
+               {detail.refundInfo && !orderPaymentQuery.isError && (
                   <InfoItem
                      type="payment"
                      heading="취소/환불 정보"
@@ -466,7 +488,7 @@ export default function PurchaseDetailPage() {
                      totalColor="text-destructive"
                      infoRows={[
                         { label: '환불 수단', value: detail.refundInfo.method },
-                        { label: '환불 일시', value: detail.refundInfo.date },
+                        { label: '환불 일시', value: detail.refundInfo.date ?? '-' },
                      ]}
                      helperTexts={[
                         '• 판매 취소된 티켓은 예매 내역에서 확인하실 수 있습니다.',

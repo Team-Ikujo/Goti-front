@@ -24,9 +24,11 @@ export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판
 export interface PurchaseHistoryItem {
    id: string;
    rawOrderId?: string;
+   gameId?: string;
    orderId: string;
    orderDate: string;
    type: TicketType;
+   seatGradeName?: string;
    game: {
       teams: string;
       venue: string;
@@ -47,6 +49,8 @@ export interface SaleHistoryItem {
    id: string;
    orderId: string;
    orderDate: string;
+   soldAt?: string;
+   canceledAt?: string;
    type: TicketType;
    game: {
       teams: string;

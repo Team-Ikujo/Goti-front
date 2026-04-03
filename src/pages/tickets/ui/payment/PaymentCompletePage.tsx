@@ -37,6 +37,46 @@ const DELIVERY_LABELS: Record<DeliveryMethod, string> = {
    delivery: '배송 수령',
 };
 
+// 예매번호: ORD + 숫자 13자리 보장
+const formatOrderNumber = (orderNumber: string): string => {
+   if (/^ORD\d{13}$/.test(orderNumber)) return orderNumber;
+   const digits = orderNumber.replace(/\D/g, '');
+   return `ORD${digits.slice(0, 13).padStart(13, '0')}`;
+};
+
+// 주문상태 → 한국어
+const ORDER_STATUS_LABELS: Record<string, string> = {
+   CONFIRMED: '결제완료',
+   COMPLETED: '결제완료',
+   SUCCESS: '결제완료',
+   PENDING: '입금대기',
+   PARTIALLY_CANCELED: '부분취소',
+   CANCELED: '취소됨',
+};
+
+const formatOrderStatus = (status: string | undefined): string =>
+   (status && ORDER_STATUS_LABELS[status.toUpperCase()]) ?? '결제완료';
+
+// 주문접수일시: YYYY.MM.DD H:MM AM/PM
+const formatPaymentDateTime = (dateStr: string): string => {
+   // ISO 8601 형식인 경우 파싱하여 재포맷
+   if (/^\d{4}-\d{2}-\d{2}T/.test(dateStr)) {
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+         const pad = (n: number) => String(n).padStart(2, '0');
+         const h = date.getHours();
+         return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}. ${h % 12 || 12}:${pad(date.getMinutes())} ${h < 12 ? 'AM' : 'PM'}`;
+      }
+   }
+   // 한국어 로케일 포맷 처리: "2026. 03. 13. 오전 11:26" → "2026.03.13. 11:26 AM"
+   const koreanMatch = dateStr.match(/(\d{4})\.\s*(\d{2})\.\s*(\d{2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2})/);
+   if (koreanMatch) {
+      const [, year, month, day, ampm, h, min] = koreanMatch;
+      return `${year}.${month}.${day}. ${h}:${min} ${ampm === '오전' ? 'AM' : 'PM'}`;
+   }
+   return dateStr;
+};
+
 const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
 
 const readStoredPaymentCompleteState = (orderId: string | null) => {
@@ -284,6 +324,9 @@ export default function PaymentCompletePage() {
          {/* 데스크톱 헤더 */}
          <div className="hidden lg:block">
             <BooksHeader
+               matchTitle={order.gameTitle}
+               venue={order.gameVenue}
+               dateTime={order.gameDate}
                confirmBeforeExit={false}
                showTimer={false}
                currentStepIndex={3}
@@ -345,7 +388,7 @@ export default function PaymentCompletePage() {
                   {/* 예매 번호 */}
                   <div className="flex flex-col gap-1">
                      <span className="text-[16px] font-bold leading-normal text-disabled-foreground">예매 번호</span>
-                     <span className="text-[18px] font-bold leading-[1.55] text-foreground">{order.orderNumber}</span>
+                     <span className="text-[18px] font-bold leading-[1.55] text-foreground">{formatOrderNumber(order.orderNumber)}</span>
                   </div>
 
                   {/* 경기 정보 */}
@@ -409,8 +452,8 @@ export default function PaymentCompletePage() {
                   <div className="flex flex-col gap-3">
                      {[
                         { label: '결제 방법', value: order.paymentMethod },
-                        { label: '주문상태', value: order.orderStatus ?? 'PENDING' },
-                        { label: '주문접수일시', value: order.paidAt ?? order.orderedAt },
+                        { label: '주문상태', value: formatOrderStatus(order.orderStatus) },
+                        { label: '주문접수일시', value: formatPaymentDateTime(order.orderedAt) },
                         { label: '수령 방식', value: DELIVERY_LABELS[deliveryMethod] },
                      ].map(({ label, value }) => (
                         <div key={label} className="flex items-start justify-between text-[16px] leading-normal">

@@ -116,6 +116,12 @@ export default function CancelConfirmDialog({
                            계좌변경
                         </button>
                      </>
+                  ) : isBankTransfer ? (
+                     <p className="text-[14px] text-[#374553] leading-normal w-[260px] whitespace-pre-wrap">
+                        등록된 환불 계좌로 환불되며, 은행 영업일 기준 1~3일 정도 소요됩니다.
+                        {'\n\n'}
+                        현재 마이페이지에서는 환불 계좌 조회 API가 없어 상세 계좌번호를 표시하지 않습니다.
+                     </p>
                   ) : (
                      <p className="text-[14px] text-[#374553] leading-normal w-[260px]">
                         기존 결제 수단{paymentMethod && <span className="font-bold">({paymentMethod})</span>}으로 환불되며,{' '}

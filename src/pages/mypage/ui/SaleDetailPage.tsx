@@ -4,8 +4,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import { Separator } from '@/shared/ui/separator';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchResaleListingDetail, cancelResaleListing } from '@/entities/resale/api/resaleApi';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { cancelResaleListing } from '@/entities/resale/api/resaleApi';
+import { useMyResaleListData } from '../model/useMypageData';
 import StatusBadge from './StatusBadge';
 import type { BadgeVariant } from './StatusBadge';
 import TicketItem from './TicketItem';
@@ -21,18 +22,6 @@ const SALE_BADGE: Record<SaleStatus, BadgeVariant> = {
    '판매 완료': 'success',
    '취소 대기': 'disabled',
    '취소 완료': 'disabled',
-};
-
-const mapSaleStatus = (status: string): SaleStatus => {
-   switch (status) {
-      case 'LISTING': return '판매 중';
-      case 'HOLD':    return '판매 중';
-      case 'SOLD':    return '정산 대기';
-      case 'SETTLED': return '판매 완료';
-      case 'CANCEL_REQUESTED': return '취소 대기';
-      case 'CANCELED': return '취소 완료';
-      default:        return '판매 중';
-   }
 };
 
 const FEE_RATE = 5;
@@ -51,45 +40,45 @@ export default function SaleDetailPage() {
    const { id } = useParams<{ id: string }>();
    const navigate = useNavigate();
    const queryClient = useQueryClient();
-
-   const { data: apiDetail, isLoading, isError } = useQuery({
-      queryKey: ['resaleListingDetail', id],
-      queryFn: () => fetchResaleListingDetail(id!),
-      enabled: !!id,
-   });
+   const resaleListQuery = useMyResaleListData();
+   const apiDetail = (resaleListQuery.data ?? []).find((item) => item.id === id);
 
    const { mutate: cancelListing, isPending: isCanceling } = useMutation({
       mutationFn: () => cancelResaleListing(id!),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['resaleListingDetail', id] });
          queryClient.invalidateQueries({ queryKey: ['myResales'] });
+         queryClient.invalidateQueries({ queryKey: ['myResaleSummary'] });
+         queryClient.invalidateQueries({ queryKey: ['myResaleUnsettledAmount'] });
       },
    });
 
-   if (isLoading) return <div className="py-24 text-center text-body-1-regular">정보를 불러오는 중입니다...</div>;
-   if (isError || !apiDetail) {
+   if (resaleListQuery.isLoading) return <div className="py-24 text-center text-body-1-regular">정보를 불러오는 중입니다...</div>;
+   if (resaleListQuery.isError || !apiDetail) {
       return (
          <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <p className="text-body-1-regular text-muted-foreground">판매 내역을 찾을 수 없습니다.</p>
+            <p className="text-body-1-regular text-muted-foreground">
+               판매 내역을 불러오지 못했거나 존재하지 않습니다.
+            </p>
             <Button variant="tertiary" onClick={() => navigate('/mypage')}>마이페이지로 돌아가기</Button>
          </div>
       );
    }
 
-   const overallStatus = mapSaleStatus(apiDetail.listingStatus);
+   const overallStatus = apiDetail.saleStatus as SaleStatus;
    const isCancelPending = overallStatus === '취소 대기' || overallStatus === '취소 완료';
    const isSoldComplete = overallStatus === '판매 완료';
+   const firstSeatDetail = apiDetail.game.seats[0] ?? '-';
 
    const seatItem = {
-      orderId: apiDetail.listingId.slice(0, 8).toUpperCase(),
-      section: apiDetail.seatInfo.split(' ')[0] ?? '',
-      seatDetail: apiDetail.seatInfo,
+      orderId: apiDetail.orderId,
+      section: apiDetail.game.section,
+      seatDetail: firstSeatDetail,
       status: isCancelPending ? '판매취소' : '판매중',
-      price: apiDetail.listingPrice,
+      price: apiDetail.salePrice,
    } as const;
 
-   const estimatedFee = -Math.round(apiDetail.listingPrice * FEE_RATE / 100);
-   const estimatedTotal = apiDetail.listingPrice + estimatedFee;
+   const estimatedFee = -Math.round(apiDetail.salePrice * FEE_RATE / 100);
+   const estimatedTotal = apiDetail.salePrice + estimatedFee;
 
    return (
       <div className="flex flex-col items-center pt-12.5 pb-30 px-4">
@@ -107,11 +96,11 @@ export default function SaleDetailPage() {
                   <StatusBadge label={overallStatus} variant={SALE_BADGE[overallStatus]} />
                   <div className="flex flex-col gap-4">
                      <p className="text-[32px] font-bold text-[#161d24] tracking-[-0.032px] leading-[1.45]">
-                        {apiDetail.gameTitle}
+                        {apiDetail.game.teams}
                      </p>
                      <div className="flex flex-col gap-1 text-[18px] font-medium text-[#374553]">
-                        <p className="leading-[1.55]">{apiDetail.gameDate}</p>
-                        <p className="leading-[1.55]">{apiDetail.stadiumName}</p>
+                        <p className="leading-[1.55]">{apiDetail.game.datetime}</p>
+                        <p className="leading-[1.55]">{apiDetail.game.venue}</p>
                      </div>
                   </div>
                </SectionCard>
@@ -121,8 +110,8 @@ export default function SaleDetailPage() {
                   <InfoItem
                      heading="취소 정보"
                      rows={[
-                        { label: '등록번호', value: apiDetail.listingId.slice(0, 8).toUpperCase() },
-                        { label: '취소일시', value: apiDetail.canceledAt ?? '' },
+                        { label: '등록번호', value: apiDetail.orderId },
+                        { label: '취소일시', value: apiDetail.canceledAt ?? '-' },
                      ]}
                      helperTexts={[
                         '• 판매 취소된 티켓은 예매 내역에서 확인하실 수 있습니다.',
@@ -133,9 +122,9 @@ export default function SaleDetailPage() {
                   <InfoItem
                      heading="판매 정보"
                      rows={[
-                        { label: '등록번호', value: apiDetail.listingId.slice(0, 8).toUpperCase() },
-                        { label: '판매일시', value: apiDetail.listedAt },
-                        ...(isSoldComplete ? [{ label: '정산일시', value: apiDetail.listedAt }] : []),
+                        { label: '등록번호', value: apiDetail.orderId },
+                        { label: '판매일시', value: apiDetail.orderDate },
+                        ...(isSoldComplete ? [{ label: '판매완료일시', value: apiDetail.soldAt ?? '-' }] : []),
                      ]}
                      helperTexts={[
                         isSoldComplete
@@ -172,7 +161,7 @@ export default function SaleDetailPage() {
                      statusText={isSoldComplete ? '정산 완료' : '정산 대기'}
                      statusColor={isSoldComplete ? 'text-primary' : 'text-muted-foreground'}
                      summaryRows={[
-                        { label: '티켓 금액 (1매)', amount: apiDetail.listingPrice },
+                        { label: '티켓 금액 (1매)', amount: apiDetail.salePrice },
                         { label: `수수료(${FEE_RATE}%)`, amount: estimatedFee },
                      ]}
                      totalLabel="예상 정산 금액"
@@ -183,7 +172,7 @@ export default function SaleDetailPage() {
             </div>
 
             {/* 판매 취소 버튼 — 판매 중일 때만 */}
-            {apiDetail.isCancelable && (
+            {apiDetail.canCancel && (
                <Button
                   variant="tertiary"
                   className="w-full py-3"
