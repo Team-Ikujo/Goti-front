@@ -9,8 +9,9 @@ import ResellRegisterCompleteDialog from './ResellRegisterCompleteDialog';
 import type { ResellZoneInsights } from '@/pages/books/model/resellData';
 import ResellPriceChart from '@/pages/books/ui/components/ResellPriceChart';
 import { formatPrice } from '@/pages/books/model/zoneData';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { createResaleListing } from '@/entities/resale/api/resaleApi';
+import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 
 interface Props {
    open: boolean;
@@ -107,17 +108,18 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
 
    const [isSubmitting, setIsSubmitting] = useState(false);
    const queryClient = useQueryClient();
-   const mutation = useMutation({
-      mutationFn: createResaleListing,
-      onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['myResales'] });
-         setCompleteOpen(true);
-      },
-      onError: (error) => {
-         alert('판매 등록에 실패했습니다. 다시 시도해주세요.');
-         console.error('Resale listing failed:', error);
+
+   const getResaleRegisterAlertMessage = (error: unknown) => {
+      const message = getErrorMessage(error, '판매 등록에 실패했습니다. 다시 시도해주세요.');
+
+      switch (message) {
+         case '이미 등록된 티켓입니다':
+         case '판매가는 35000원 ~ 65000원 이내여야 합니다.':
+            return message;
+         default:
+            return '판매 등록에 실패했습니다. 다시 시도해주세요.';
       }
-   });
+   };
 
    // 열릴 때마다 상태 초기화
    useEffect(() => {
@@ -177,8 +179,8 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
          await Promise.all(requests.map(r => createResaleListing(r)));
          queryClient.invalidateQueries({ queryKey: ['myResales'] });
          setCompleteOpen(true);
-      } catch {
-         alert('판매 등록에 실패했습니다. 다시 시도해주세요.');
+      } catch (error) {
+         alert(getResaleRegisterAlertMessage(error));
       } finally {
          setIsSubmitting(false);
       }

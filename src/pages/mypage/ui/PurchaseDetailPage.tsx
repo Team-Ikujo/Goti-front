@@ -9,6 +9,7 @@ import { Button } from '@/shared/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTicketDetail, fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 import type { OrderTicket } from '@/entities/ticket/api/ticketApi';
+import { fetchOrderPaymentDetail, formatOrderPaymentMethod } from '@/entities/payment/api/paymentApi';
 import StatusBadge from './StatusBadge';
 import type { BadgeVariant } from './StatusBadge';
 import TicketItem from './TicketItem';
@@ -143,6 +144,13 @@ export default function PurchaseDetailPage() {
       retry: false,
    });
 
+   const orderPaymentQuery = useQuery({
+      queryKey: ['orderPaymentDetail', orderId],
+      queryFn: () => fetchOrderPaymentDetail(orderId!),
+      enabled: Boolean(orderId),
+      retry: false,
+   });
+
    const apiDetail = ticketDetailQuery.data;
    const isLoading = orderTicketsQuery.isLoading || (Boolean(primaryTicketId) && ticketDetailQuery.isLoading);
    const isError =
@@ -180,8 +188,11 @@ export default function PurchaseDetailPage() {
       const ticketAmount = seatItems.reduce((sum, s) => sum + s.price, 0);
       const fee = orderTickets.reduce((sum, t) => sum + (t.serviceFee ?? 0), 0);
       const total = ticketAmount + fee;
-
-      const paymentMethodDisplay = apiDetail.paymentMethodDisplay ?? apiDetail.paymentMethod ?? '-';
+      const paymentMethodDisplay = orderPaymentQuery.data?.paymentMethod
+         ? formatOrderPaymentMethod(orderPaymentQuery.data.paymentMethod)
+         : (apiDetail.paymentMethodDisplay ?? apiDetail.paymentMethod ?? '-');
+      const paidAt = orderPaymentQuery.data?.paidAt ?? apiDetail.issuedAt;
+      const paymentAmount = orderPaymentQuery.data?.paymentAmount ?? total;
 
       return {
          id: apiDetail.ticketId,
@@ -204,14 +215,15 @@ export default function PurchaseDetailPage() {
          seatInfo: apiDetail.seatInfo,
          ticketPrice: apiDetail.ticketPrice,
          paymentMethodDisplay,
+         paidAt,
          seatItems,
          paymentSummary: {
             status: isInvalid ? '결제 완료' : '결제 완료',
             ticketCount,
             ticketAmount,
             fee,
-            total,
-            date: apiDetail.issuedAt,
+            total: paymentAmount,
+            date: paidAt,
             bankAccount: undefined as string | undefined,
             bankDeadline: undefined as string | undefined,
          },
@@ -222,7 +234,7 @@ export default function PurchaseDetailPage() {
                  cancelFee: 0,
                  refundTotal: ticketAmount,
                  method: paymentMethodDisplay,
-                 date: apiDetail.issuedAt,
+                 date: paidAt,
               }
             : undefined,
          canCancel: apiDetail.ticketStatus === 'ISSUED',
@@ -233,7 +245,7 @@ export default function PurchaseDetailPage() {
          deliveryCarrier: undefined as string | undefined,
          deliveryTrackingNumber: undefined as string | undefined,
       };
-   }, [apiDetail, orderTickets]);
+   }, [apiDetail, orderPaymentQuery.data, orderTickets]);
 
    if (isLoading) return <div className="py-24 text-center text-body-1-regular">정보를 불러오는 중입니다...</div>;
    if (isError || !detail) {
@@ -399,7 +411,7 @@ export default function PurchaseDetailPage() {
                      {/* 결제 수단/일시 */}
                      <div className="flex flex-col gap-3">
                         <InfoRow label="결제 수단" value={detail.paymentMethodDisplay} />
-                        <InfoRow label="결제 일시" value={detail.issuedAt ? formatDateTime(detail.issuedAt) : '-'} />
+                        <InfoRow label="결제 일시" value={detail.paidAt ? formatDateTime(detail.paidAt) : '-'} />
                      </div>
                   </SectionCard>
                )}
@@ -423,7 +435,7 @@ export default function PurchaseDetailPage() {
                      {/* 환불 수단/일시 */}
                      <div className="flex flex-col gap-3">
                         <InfoRow label="환불 수단" value={detail.paymentMethodDisplay} />
-                        <InfoRow label="취소 일시" value={detail.issuedAt ? formatDateTime(detail.issuedAt) : '-'} />
+                        <InfoRow label="취소 일시" value={detail.paidAt ? formatDateTime(detail.paidAt) : '-'} />
                      </div>
                      {/* 안내 문구 */}
                      <div className="bg-[#f7f8f9] rounded-xl p-5">
