@@ -109,13 +109,16 @@ export function useBookingEntryFlow() {
     <BookingGuideDialog
       open={isGuideOpen}
       onOpenChange={setIsGuideOpen}
-      onConfirm={() => {
+      onConfirm={(turnstileToken: string) => {
         setIsGuideOpen(false);
         navigate({
           pathname: '/books',
           search: createBookingFlowSearch(pendingEntry?.mode ?? 'standard'),
         }, {
-          state: pendingEntry?.entryState ?? { requireCaptcha: true },
+          state: {
+            ...(pendingEntry?.entryState ?? { requireCaptcha: true }),
+            turnstileToken,
+          },
         });
       }}
     />

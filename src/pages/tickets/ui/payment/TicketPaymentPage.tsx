@@ -65,6 +65,7 @@ export default function TicketPaymentPage() {
       label: `${zoneName} ${seat.block}블록 ${seat.rowLabel} ${seat.seatNumber}번`,
    }));
    const botData = locationState?.botData;
+   const cfTurnstileToken = bookingEntryState?.turnstileToken;
 
    // 주문자 정보
    const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('mobile');
@@ -165,6 +166,7 @@ export default function TicketPaymentPage() {
          ordererEmail: email,
          paymentMethod,
          botData,
+         cfTurnstileToken,
          ...(deliveryMethod === 'delivery' && { zipCode, address, addressDetail }),
          ...(paymentMethod === 'bank' && {
             cashReceiptType,
