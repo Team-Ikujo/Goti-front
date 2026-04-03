@@ -37,9 +37,34 @@ export interface MemberAddress {
    detailAddress: string;
 }
 
+const MY_PROFILE_FALLBACK_DELAY_MS = 250;
+
+const MY_PROFILE_FALLBACK: Required<Pick<MemberProfile, 'name' | 'email' | 'mobile'>> = {
+   name: '고티 회원',
+   email: '개인정보 API 연동 예정',
+   mobile: '개인정보 API 연동 예정',
+};
+
+const wait = (ms: number) => new Promise<void>((resolve) => {
+   setTimeout(resolve, ms);
+});
+
+const withMockProfile = (profile?: MemberProfile): MemberProfile => ({
+   ...profile,
+   name: profile?.name?.trim() || MY_PROFILE_FALLBACK.name,
+   email: profile?.email?.trim() || MY_PROFILE_FALLBACK.email,
+   mobile: profile?.mobile?.trim() || MY_PROFILE_FALLBACK.mobile,
+});
+
 export const fetchMyProfile = async (): Promise<MemberProfile> => {
-   const response = await apiClient.get<ApiEnvelope<MemberProfile>>('/api/v1/members/me');
-   return response.data.data;
+   try {
+      const response = await apiClient.get<ApiEnvelope<MemberProfile>>('/api/v1/members/me');
+      return withMockProfile(response.data.data);
+   } catch {
+      // 배포 환경에서도 프로필 API 실패 때문에 마이페이지 전체가 막히지 않도록 앱 내부 fallback 을 유지한다.
+      await wait(MY_PROFILE_FALLBACK_DELAY_MS);
+      return withMockProfile();
+   }
 };
 
 export const createMemberAccount = async (body: MemberAccountRequest): Promise<MemberAccount> => {

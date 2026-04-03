@@ -11,7 +11,6 @@ import {
 } from '@/entities/resale/api/resaleApi';
 import { fetchResaleUnsettledAmount, type ResaleUnsettledAmountResponse } from '@/entities/payment/api/paymentApi';
 import { teams } from '@/entities/team/model/teams';
-import { resolveProfileFromJwt } from '@/shared/lib/jwt';
 import type { PurchaseHistoryItem, SaleHistoryItem, PurchaseStatus, SaleStatus } from '../ui/HistoryCard';
 import type { TicketType } from '../ui/TicketTypeBadge';
 import { formatTicketNumber } from './ticketNumber';
@@ -87,19 +86,11 @@ const mapSaleStatus = (status: ResaleListingItem['listingStatus']): SaleStatus =
 
 export const useMyProfileData = () => {
    const accessToken = useAuthStore(s => s.accessToken);
-   const tokenProfile = useMemo(() => resolveProfileFromJwt(accessToken), [accessToken]);
 
    return useQuery({
       queryKey: ['myProfile', accessToken],
       queryFn: fetchMyProfile,
       enabled: !!accessToken,
-      select: (profile) => ({
-         ...profile,
-         name: profile.name ?? tokenProfile?.name,
-         email: profile.email ?? tokenProfile?.email,
-         mobile: profile.mobile ?? tokenProfile?.mobile,
-      }),
-      placeholderData: tokenProfile ?? undefined,
    });
 };
 
