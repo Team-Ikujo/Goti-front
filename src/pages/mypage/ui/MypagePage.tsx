@@ -7,6 +7,9 @@ import HistoryCard from './HistoryCard';
 import { Button } from '@/shared/ui/button';
 import { DatePicker } from '@/shared/ui/date-picker';
 import { useMyProfileData, useMyOrdersData, useMyResaleListData } from '../model/useMypageData';
+import { isMswEnabled } from '@/shared/config/runtime';
+
+const MYPAGE_MSW_TICKET_INFO_ERROR_KEY = '__mypage_msw_ticket_info_error__';
 
 type HistoryTab = 'purchase' | 'sale';
 type PurchaseStatusFilter = '전체' | '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
@@ -77,6 +80,7 @@ export default function MypagePage() {
    const [searchQuery, setSearchQuery] = useState('');
    const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
    const [searchError, setSearchError] = useState('');
+   const [mockTicketInfoError, setMockTicketInfoError] = useState(false);
 
    useEffect(() => {
       const handleClickOutside = (e: MouseEvent) => {
@@ -89,6 +93,11 @@ export default function MypagePage() {
       };
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
+   }, []);
+
+   useEffect(() => {
+      if (!isMswEnabled || typeof window === 'undefined') return;
+      setMockTicketInfoError(window.localStorage.getItem(MYPAGE_MSW_TICKET_INFO_ERROR_KEY) === 'true');
    }, []);
 
    const [appliedStartDate, setAppliedStartDate] = useState('');
@@ -194,6 +203,32 @@ export default function MypagePage() {
          <div className="flex-1 bg-background px-4">
             <div className="mx-auto max-w-300 pt-7.5 lg:pt-12.5 pb-30">
                <h1 className="text-[30px] font-bold text-foreground mb-8">MY고티</h1>
+
+               {isMswEnabled && (
+                  <div className="mb-4 rounded-[14px] border border-[#d0d6db] bg-[#f7f8f9] p-4">
+                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex flex-col gap-1">
+                           <p className="text-body-1-bold text-foreground">MSW 테스트</p>
+                           <p className="text-caption-1-regular text-muted-foreground">
+                              켜두면 구매 내역의 QR 확인, 예매 취소에서 티켓 정보 조회를 실패시켜 팝업 예외 상태를 확인할 수 있습니다.
+                           </p>
+                        </div>
+                        <label className="flex items-center gap-2 text-body-2-medium text-foreground">
+                           <input
+                              type="checkbox"
+                              checked={mockTicketInfoError}
+                              onChange={(e) => {
+                                 const nextValue = e.target.checked;
+                                 setMockTicketInfoError(nextValue);
+                                 window.localStorage.setItem(MYPAGE_MSW_TICKET_INFO_ERROR_KEY, String(nextValue));
+                              }}
+                              className="size-4 rounded border border-[#acb4bb]"
+                           />
+                           티켓 정보 조회 실패
+                        </label>
+                     </div>
+                  </div>
+               )}
 
                <div className="flex flex-col gap-4">
                   {/* 유저 정보 카드 */}
@@ -518,7 +553,12 @@ export default function MypagePage() {
                                     {pageItems.length > 0 ? (
                                        activeTab === 'purchase' ? (
                                           (pageItems as typeof filteredPurchaseItems).map(item => (
-                                             <HistoryCard key={item.id} mode="purchase" item={item} />
+                                             <HistoryCard
+                                                key={item.id}
+                                                mode="purchase"
+                                                item={item}
+                                                mockTicketInfoError={mockTicketInfoError}
+                                             />
                                           ))
                                        ) : (
                                           (pageItems as typeof filteredSaleItems).map(item => (

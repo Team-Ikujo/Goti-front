@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrderPayment, type PaymentResponse } from '@/pages/tickets/api/paymentApi';
+import { fetchResaleLedgerByOrderId } from '@/entities/resale/api/resaleApi';
 import { Calendar, CheckCircle, ChevronLeft, MapPin } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
@@ -228,6 +229,45 @@ export default function PaymentCompletePage() {
       };
 
       void restorePayment();
+
+      return () => {
+         isCancelled = true;
+      };
+   }, [orderId]);
+
+   // 리셀 주문 완료 후 원장(ledger)으로 결제 금액 확인
+   useEffect(() => {
+      let isCancelled = false;
+
+      const fallbackOrder = locationOrder ?? readStoredPaymentCompleteState(orderId);
+
+      if (!orderId || !isResalePaymentResponse(fallbackOrder)) {
+         return;
+      }
+
+      const restoreResalePayment = async () => {
+         try {
+            const ledger = await fetchResaleLedgerByOrderId(orderId);
+
+            if (isCancelled) {
+               return;
+            }
+
+            setOrder((currentOrder) => {
+               const nextOrder: PaymentResponse = {
+                  ...currentOrder,
+                  amount: ledger.totalAmount,
+               };
+
+               writeStoredPaymentCompleteState(nextOrder);
+               return nextOrder;
+            });
+         } catch {
+            // sessionStorage / location state에 이미 완료 데이터가 있으므로 조회 실패 시 무시
+         }
+      };
+
+      void restoreResalePayment();
 
       return () => {
          isCancelled = true;
