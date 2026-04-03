@@ -324,6 +324,9 @@ export default function PaymentCompletePage() {
          {/* 데스크톱 헤더 */}
          <div className="hidden lg:block">
             <BooksHeader
+               matchTitle={order.gameTitle}
+               venue={order.gameVenue}
+               dateTime={order.gameDate}
                confirmBeforeExit={false}
                showTimer={false}
                currentStepIndex={3}
