@@ -204,7 +204,7 @@ const TicketsPage = () => {
    };
 
    return (
-      <div className="w-full px-4 py-12.5 pb-30 flex justify-center bg-white h-full">
+      <div className="w-full px-4 py-12.5 pb-30 flex justify-center bg-white flex-1">
          <div className="flex items-start justify-between max-w-300 w-full gap-5 ">
             <div className="hidden md:block">
                <FilterSidebar activeTab={activeTab} filters={appliedFilters} onApply={handleApply} />
