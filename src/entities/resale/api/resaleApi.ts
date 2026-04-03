@@ -189,3 +189,45 @@ export const fetchResaleHistoryGraph = async (
 
    return response.data.data;
 };
+
+export interface ResaleLedger {
+   id: string;
+   orderId: string;
+   paymentId: string;
+   totalAmount: number;
+   buyerFee: number;
+   sellerFee: number;
+   vat: number;
+   netProfit: number;
+   settlementAmount: number;
+   createdAt: string;
+}
+
+interface ResaleLedgerPageResponse {
+   content: ResaleLedger[];
+   totalElements: number;
+   totalPages: number;
+   number: number;
+   size: number;
+   empty: boolean;
+}
+
+export const fetchResaleLedgers = async (params?: {
+   page?: number;
+   size?: number;
+}): Promise<ResaleLedgerPageResponse> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleLedgerPageResponse>>(
+      '/api/v1/payments/resales/ledgers',
+      { params },
+   );
+
+   return response.data.data;
+};
+
+export const fetchResaleLedgerByOrderId = async (orderId: string): Promise<ResaleLedger> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleLedger>>(
+      `/api/v1/payments/resales/ledgers/orders/${encodeURIComponent(orderId)}`,
+   );
+
+   return response.data.data;
+};
