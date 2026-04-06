@@ -6,14 +6,39 @@ type MockAuthSession = {
    provider: string;
    isRegistered: boolean;
    userId: string;
+   name?: string;
    mobile?: string;
    smsCode?: string;
    // authCode 패턴으로 로그인 시나리오 결정
    loginScenario?: MockLoginScenario;
 };
 
+type MockRefreshSession = {
+   userId: string;
+   provider: string;
+   name?: string;
+   mobile?: string;
+};
+
+type MockMemberAccount = {
+   accountId: string;
+   accountNumber: string;
+   bankName: string;
+   accountHolder: string;
+};
+
+type MockMemberAddress = {
+   addressId: string;
+   zipCode: string;
+   baseAddress: string;
+   detailAddress: string;
+};
+
 // 팝업 창과 부모 창 간 세션 공유를 위해 localStorage 사용
 const MOCK_AUTH_SESSIONS_KEY = '__mock_auth_sessions__';
+const MOCK_REFRESH_SESSION_KEY = '__mock_refresh_session__';
+const MOCK_MEMBER_ACCOUNTS_KEY = '__mock_member_accounts__';
+const MOCK_MEMBER_ADDRESSES_KEY = '__mock_member_addresses__';
 
 const mockAuthSessions = {
    get(token: string): MockAuthSession | undefined {
@@ -31,6 +56,75 @@ const mockAuthSessions = {
          const map: Record<string, MockAuthSession> = raw ? JSON.parse(raw) : {};
          map[token] = session;
          localStorage.setItem(MOCK_AUTH_SESSIONS_KEY, JSON.stringify(map));
+      } catch {
+         // ignore
+      }
+   },
+};
+
+const mockRefreshSession = {
+   get(): MockRefreshSession | undefined {
+      try {
+         const raw = localStorage.getItem(MOCK_REFRESH_SESSION_KEY);
+         return raw ? (JSON.parse(raw) as MockRefreshSession) : undefined;
+      } catch {
+         return undefined;
+      }
+   },
+   set(session: MockRefreshSession) {
+      try {
+         localStorage.setItem(MOCK_REFRESH_SESSION_KEY, JSON.stringify(session));
+      } catch {
+         // ignore
+      }
+   },
+   clear() {
+      try {
+         localStorage.removeItem(MOCK_REFRESH_SESSION_KEY);
+      } catch {
+         // ignore
+      }
+   },
+};
+
+const mockMemberAccounts = {
+   get(memberKey: string): MockMemberAccount | undefined {
+      try {
+         const raw = localStorage.getItem(MOCK_MEMBER_ACCOUNTS_KEY);
+         const map: Record<string, MockMemberAccount> = raw ? JSON.parse(raw) : {};
+         return map[memberKey];
+      } catch {
+         return undefined;
+      }
+   },
+   set(memberKey: string, account: MockMemberAccount) {
+      try {
+         const raw = localStorage.getItem(MOCK_MEMBER_ACCOUNTS_KEY);
+         const map: Record<string, MockMemberAccount> = raw ? JSON.parse(raw) : {};
+         map[memberKey] = account;
+         localStorage.setItem(MOCK_MEMBER_ACCOUNTS_KEY, JSON.stringify(map));
+      } catch {
+         // ignore
+      }
+   },
+};
+
+const mockMemberAddresses = {
+   get(memberKey: string): MockMemberAddress | undefined {
+      try {
+         const raw = localStorage.getItem(MOCK_MEMBER_ADDRESSES_KEY);
+         const map: Record<string, MockMemberAddress> = raw ? JSON.parse(raw) : {};
+         return map[memberKey];
+      } catch {
+         return undefined;
+      }
+   },
+   set(memberKey: string, address: MockMemberAddress) {
+      try {
+         const raw = localStorage.getItem(MOCK_MEMBER_ADDRESSES_KEY);
+         const map: Record<string, MockMemberAddress> = raw ? JSON.parse(raw) : {};
+         map[memberKey] = address;
+         localStorage.setItem(MOCK_MEMBER_ADDRESSES_KEY, JSON.stringify(map));
       } catch {
          // ignore
       }
@@ -59,6 +153,34 @@ const buildMockAccessToken = (payload: Record<string, unknown>) => {
    const signature = encodeBase64Url('mock-signature');
 
    return `${header}.${body}.${signature}`;
+};
+
+const parseMockTokenPayload = (token: string): Record<string, string> | null => {
+   if (!token) {
+      return null;
+   }
+
+   try {
+      const payloadB64 = token.split('.')[1] ?? '';
+      return JSON.parse(
+         decodeURIComponent(
+            atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'))
+               .split('')
+               .map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
+               .join(''),
+         ),
+      ) as Record<string, string>;
+   } catch {
+      return null;
+   }
+};
+
+const getMockMemberKey = (request: Request) => {
+   const authHeader = request.headers.get('Authorization') ?? '';
+   const token = authHeader.replace(/^Bearer\s+/i, '');
+   const decoded = parseMockTokenPayload(token);
+
+   return decoded?.userId || decoded?.sub || decoded?.email || 'guest';
 };
 
 const resolveRegisteredState = (authCode: string) => {
@@ -138,6 +260,13 @@ export const authHandlers = [
          failed_over_5: 5,
       };
 
+      mockRefreshSession.set({
+         userId: session.userId,
+         provider: session.provider,
+         name: session.name,
+         mobile: session.mobile,
+      });
+
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
@@ -146,6 +275,8 @@ export const authHandlers = [
                sub: session.userId,
                userId: session.userId,
                provider: session.provider,
+               name: '테스트 유저',
+               mobile: '010-0000-0000',
             }),
             ...(scenario !== 'normal' && { accountStatus: scenario }),
             ...(failCountByScenario[scenario] !== undefined && { failCount: failCountByScenario[scenario] }),
@@ -218,6 +349,14 @@ export const authHandlers = [
       mockAuthSessions.set(body.socialVerifyToken, {
          ...session,
          isRegistered: true,
+         name: body.name,
+         mobile: body.mobile,
+      });
+
+      mockRefreshSession.set({
+         userId: session.userId,
+         provider: session.provider,
+         name: body.name,
          mobile: body.mobile,
       });
 
@@ -229,7 +368,115 @@ export const authHandlers = [
                sub: session.userId,
                userId: session.userId,
                mobile: body.mobile,
-               name: body.name,
+            name: body.name,
+            }),
+         },
+      });
+   }),
+
+   // 내 프로필 조회 — Authorization 헤더의 JWT에서 유저 정보 파싱
+   http.get('/api/v1/members/me', async ({ request }) => {
+      const authHeader = request.headers.get('Authorization') ?? '';
+      const token = authHeader.replace(/^Bearer\s+/i, '');
+
+      let name = '테스트 유저';
+      let mobile = '010-0000-0000';
+      let email = '';
+
+      const decoded = parseMockTokenPayload(token);
+
+      if (decoded) {
+         if (decoded.name) name = decoded.name;
+         if (decoded.mobile) mobile = decoded.mobile;
+         if (decoded.email) email = decoded.email;
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            name,
+            email,
+            mobile,
+            gender: 'MALE',
+            birthDate: '1990-01-01',
+         },
+      });
+   }),
+
+   http.post('/api/v1/members/accounts', async ({ request }) => {
+      const body = (await request.json()) as {
+         accountNumber?: string;
+         bankName?: string;
+         accountHolder?: string;
+      };
+
+      if (!body?.accountNumber || !body?.bankName || !body?.accountHolder) {
+         return HttpResponse.json({ message: 'Missing member account fields.' }, { status: 400 });
+      }
+
+      const memberKey = getMockMemberKey(request);
+      const savedAccount = {
+         accountId: createId('account'),
+         accountNumber: body.accountNumber,
+         bankName: body.bankName,
+         accountHolder: body.accountHolder,
+      };
+
+      mockMemberAccounts.set(memberKey, savedAccount);
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: savedAccount,
+      });
+   }),
+
+   http.post('/api/v1/members/addresses', async ({ request }) => {
+      const body = (await request.json()) as {
+         zipCode?: string;
+         baseAddress?: string;
+         detailAddress?: string;
+      };
+
+      if (!body?.zipCode || !body?.baseAddress || !body?.detailAddress) {
+         return HttpResponse.json({ message: 'Missing member address fields.' }, { status: 400 });
+      }
+
+      const memberKey = getMockMemberKey(request);
+      const savedAddress = {
+         addressId: createId('address'),
+         zipCode: body.zipCode,
+         baseAddress: body.baseAddress,
+         detailAddress: body.detailAddress,
+      };
+
+      mockMemberAddresses.set(memberKey, savedAddress);
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: savedAddress,
+      });
+   }),
+
+   http.post('/api/v1/auth/reissue', async () => {
+      const session = mockRefreshSession.get();
+
+      if (!session) {
+         return HttpResponse.json({ message: 'Mock refresh token session is missing.' }, { status: 401 });
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            accessToken: buildMockAccessToken({
+               sub: session.userId,
+               userId: session.userId,
+               provider: session.provider,
+               ...(session.mobile ? { mobile: session.mobile } : {}),
+               ...(session.name ? { name: session.name } : {}),
             }),
          },
       });

@@ -1,4 +1,4 @@
-import type { PointerEvent as ReactPointerEvent, ReactNode, RefObject } from 'react';
+import { useMemo, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
 
 import type { SeatBlock, SeatItem } from '@/pages/books/model/types';
@@ -34,6 +34,10 @@ type MinimapViewport = {
 } | null;
 
 type SeatMapStageProps = {
+   directionBadgePosition: {
+      left: number;
+      top: number;
+   } | null;
    isSeatMapDragging: boolean;
    mapViewportRef: RefObject<HTMLDivElement | null>;
    minimapLayout: MinimapLayout;
@@ -45,7 +49,7 @@ type SeatMapStageProps = {
    };
    seatMapScale: number;
    seats: SeatItem[];
-   selectedSeatIds: string[];
+   selectedSeatIdSet: Set<string>;
    zoneColor: string;
    onMapPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
    onMapPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -57,6 +61,7 @@ type SeatMapStageProps = {
 };
 
 function SeatMapStage({
+   directionBadgePosition,
    isSeatMapDragging,
    mapViewportRef,
    minimapLayout,
@@ -65,7 +70,7 @@ function SeatMapStage({
    seatMapOffset,
    seatMapScale,
    seats,
-   selectedSeatIds,
+   selectedSeatIdSet,
    zoneColor,
    onMapPointerDown,
    onMapPointerMove,
@@ -75,6 +80,21 @@ function SeatMapStage({
    onUpdateSeatMapScale,
    zoneName,
 }: SeatMapStageProps) {
+   const seatsByBlock = useMemo(() => {
+      return seats.reduce<Record<string, SeatItem[]>>((groups, seat) => {
+         const key = seat.block;
+         const currentSeats = groups[key];
+
+         if (currentSeats) {
+            currentSeats.push(seat);
+         } else {
+            groups[key] = [seat];
+         }
+
+         return groups;
+      }, {});
+   }, [seats]);
+
    return (
       <div className="relative h-full min-h-[516px] overflow-hidden bg-[#eef0f3] lg:min-h-[560px] lg:rounded-[24px]">
          <div ref={mapViewportRef} className="absolute inset-0 overflow-hidden">
@@ -95,24 +115,26 @@ function SeatMapStage({
                onPointerUp={onMapPointerUp}
                onPointerCancel={onMapPointerUp}
             >
-               <div
-                  className="absolute rounded-[10px] bg-[rgba(233,235,238,0.72)] px-8 py-3 text-body-1-bold text-muted-foreground shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur lg:rounded-xl lg:bg-white/70 lg:text-body-2-semibold"
-                  style={{
-                     left: '50%',
-                     top: '24px',
-                     transform: 'translateX(-50%)',
-                  }}
-               >
-                  경기장 방향
-               </div>
+               {directionBadgePosition ? (
+                  <div
+                     className="pointer-events-none absolute z-10 whitespace-nowrap rounded-[10px] bg-[rgba(233,235,238,0.72)] px-8 py-3 text-body-1-bold text-muted-foreground shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur lg:rounded-xl lg:bg-white/70 lg:text-body-2-semibold"
+                     style={{
+                        left: `${directionBadgePosition.left}px`,
+                        top: `${directionBadgePosition.top}px`,
+                        transform: 'translateX(-50%)',
+                     }}
+                  >
+                     경기장 방향
+                  </div>
+               ) : null}
 
                {seatBlocks.map((block, index) => (
                   <SeatBlockGrid
                      key={block.id}
                      block={block}
                      blockIndex={index}
-                     seats={seats.filter((seat) => seat.block === block.id || seat.block === block.label)}
-                     selectedSeatIds={selectedSeatIds}
+                     seats={seatsByBlock[block.id] ?? seatsByBlock[block.label] ?? []}
+                     selectedSeatIdSet={selectedSeatIdSet}
                      onToggleSeat={onToggleSeat}
                   />
                ))}

@@ -3,33 +3,60 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { createSeatsForZone } from '@/pages/books/model/seatData';
-import { getResellZoneInsights, type ResellListingItem } from '@/pages/books/model/resellData';
+import type { ResellListingItem } from '@/pages/books/model/resellData';
 import { getSelectedSeatDetails } from '@/pages/books/model/selectedSeats';
+import { useSeatHoldActions } from '@/pages/books/model/useSeatHoldActions';
+import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { useSeatMapData } from '@/pages/books/model/useSeatMapData';
-import { useSeatSelectionStore } from '@/pages/books/model/useSeatSelectionStore';
+import { useResellZoneInsights } from '@/pages/books/model/useResellZoneInsights';
+import {
+   holdResaleListing,
+   releaseResaleListingHold,
+   releaseResaleListingHoldKeepalive,
+} from '@/entities/resale/api/resaleApi';
 import { formatPrice, getBookingZones, getZoneOverviewImage, getStadiumName } from '@/pages/books/model/zoneData';
 import type { SeatItem } from '@/pages/books/model/types';
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
+import { useBotDetector } from '@/shared/lib/useBotDetector';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 import SeatMapStage from './components/SeatMapStage';
 import ResellSeatSidebar from './components/ResellSeatSidebar';
 import ResellZonePreviewSheet from './components/ResellZonePreviewSheet';
 import SelectedSeatSummaryList from './components/SelectedSeatSummaryList';
-import { useBotDetector } from '@/shared/lib/useBotDetector';
 
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
 const STAGE_WIDTH = 1240;
-const STAGE_HEIGHT = 620;
 const BLOCK_SEAT_SIZE = 18;
 const BLOCK_SEAT_GAP = 2;
+const BLOCK_CARD_COLUMN_GAP = 48;
+const DEFAULT_SEAT_MAP_LEFT_PADDING = 24;
+const DEFAULT_SEAT_MAP_TOP_PADDING = 24;
 const MINIMAP_WIDTH = 215;
 const MINIMAP_HEIGHT = 140;
 const MINIMAP_PADDING_X = 24;
 const MINIMAP_PADDING_Y = 18;
 
-const stepLabels = ['구역 선택', '좌석 선택', '배송/주문자 확인', '결제'];
+const normalizeSeatLookupToken = (value: string) => value.replace(/\s+/g, '').toUpperCase();
+
+const parseResellSeatInfo = (seatInfo: string) => {
+   const sectionMatch = seatInfo.match(/([A-Z0-9-]+)구역/i);
+   const rowMatch = seatInfo.match(/([A-Z0-9가-힣]+)열/i);
+   const seatNumberMatch = seatInfo.match(/(\d+)번/);
+
+   if (!sectionMatch || !rowMatch || !seatNumberMatch) {
+      return null;
+   }
+
+   return {
+      sectionCode: normalizeSeatLookupToken(sectionMatch[1]),
+      rowLabel: `${rowMatch[1]}열`,
+      seatNumber: Number(seatNumberMatch[1]),
+   };
+};
 
 function SeatsPage() {
    const navigate = useNavigate();
@@ -38,40 +65,55 @@ function SeatsPage() {
    const bookingFlowMode = getBookingFlowMode(location.search);
    const isResellMode = bookingFlowMode === 'resell';
    const routeBookingEntryState = location.state as BookingEntryState | null;
-   const bookingEntryState = useBookingEntryStore((state) => state.entry) ?? routeBookingEntryState;
-   const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
+   const storedBookingEntryState = useBookingEntryStore(state => state.entry);
+   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
+   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
    const { getBotReport } = useBotDetector();
+   const botData = getBotReport();
    const bookingZones = useMemo(
       () => bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId),
       [bookingEntryState?.bookingZones, bookingEntryState?.homeTeamId],
    );
 
-   const zone = useMemo(
-      () => bookingZones.find((item) => item.id === zoneId) ?? bookingZones[0],
-      [bookingZones, zoneId],
+   const zone = useMemo(() => bookingZones.find(item => item.id === zoneId) ?? bookingZones[0], [bookingZones, zoneId]);
+   const zoneOverviewImage = useMemo(
+      () => getZoneOverviewImage(bookingEntryState?.homeTeamId, zone.id),
+      [bookingEntryState?.homeTeamId, zone.id],
    );
-   const zoneOverviewImage = useMemo(() => getZoneOverviewImage(bookingEntryState?.homeTeamId, zone.id), [bookingEntryState?.homeTeamId, zone.id]);
    const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
-   const { apiSeatItems, seatBlocks, hasApiSeatMap } = useSeatMapData({
+   const { apiSeatItems, seatBlocks, hasApiSeatMap, isSeatMapLoading, refetchSeatMap } = useSeatMapData({
       gameId: bookingEntryState?.gameId,
       stadiumId: bookingEntryState?.stadiumId,
       zone,
    });
-   const zonesState = useSeatSelectionStore((state) => state.zones);
-   const zoneSeatState = useSeatSelectionStore((state) => state.zones[zone.id]);
-   const initializeZone = useSeatSelectionStore((state) => state.initializeZone);
-   const applyServerSeatSnapshot = useSeatSelectionStore((state) => state.applyServerSeatSnapshot);
-   const toggleSelectedSeat = useSeatSelectionStore((state) => state.toggleSelectedSeat);
-   const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
+   const zonesState = useSeatSelectionStore(state => state.zones);
+   const zoneSeatState = useSeatSelectionStore(state => state.zones[zone.id]);
+   const initializeZone = useSeatSelectionStore(state => state.initializeZone);
+   const applyServerSeatSnapshot = useSeatSelectionStore(state => state.applyServerSeatSnapshot);
+   const clearAllSelections = useSeatSelectionStore(state => state.clearAllSelections);
+   const holdsBySeatId = useSeatHoldStore(state => state.holdsBySeatId);
+   const { clearSelectedSeats, holdSeat, pendingSeatIds, releaseSeat, syncHeldSeatsIntoZone } = useSeatHoldActions(
+      bookingEntryState,
+      {
+         onSeatHoldConflict: async () => {
+            await refetchSeatMap();
+         },
+      },
+   );
 
    const [seatMapScale, setSeatMapScale] = useState(1);
    const [seatMapOffset, setSeatMapOffset] = useState({ x: 0, y: 0 });
    const [isSeatMapDragging, setIsSeatMapDragging] = useState(false);
    const [isSeatDrawerOpen, setIsSeatDrawerOpen] = useState(true);
+   const [isResellHoldPending, setIsResellHoldPending] = useState(false);
+   const [selectedResellHoldId, setSelectedResellHoldId] = useState<string | null>(null);
+   const [selectedResellSeatId, setSelectedResellSeatId] = useState<string | null>(null);
    const dragStartRef = useRef<{ x: number; y: number } | null>(null);
    const mapViewportRef = useRef<HTMLDivElement | null>(null);
+   const selectedResellHoldIdRef = useRef<string | null>(null);
+   const persistResellHoldRef = useRef(false);
    const [mapViewportSize, setMapViewportSize] = useState({ width: 0, height: 0 });
 
    useEffect(() => {
@@ -81,13 +123,23 @@ function SeatsPage() {
    }, [routeBookingEntryState, setBookingEntry]);
 
    useEffect(() => {
+      const syncedInitialSeats = syncHeldSeatsIntoZone(zone.id, initialSeats);
+
       if (hasApiSeatMap && apiSeatItems.length > 0) {
-         applyServerSeatSnapshot(zone.id, apiSeatItems);
+         applyServerSeatSnapshot(zone.id, syncHeldSeatsIntoZone(zone.id, apiSeatItems));
          return;
       }
 
-      initializeZone(zone.id, initialSeats);
-   }, [apiSeatItems, applyServerSeatSnapshot, hasApiSeatMap, initialSeats, initializeZone, zone.id]);
+      initializeZone(zone.id, syncedInitialSeats);
+   }, [
+      apiSeatItems,
+      applyServerSeatSnapshot,
+      hasApiSeatMap,
+      initialSeats,
+      initializeZone,
+      syncHeldSeatsIntoZone,
+      zone.id,
+   ]);
 
    useEffect(() => {
       const updateViewportSize = () => {
@@ -129,11 +181,52 @@ function SeatsPage() {
 
    useEffect(() => {
       if (!isResellMode) {
+         setSelectedResellHoldId(null);
+         setSelectedResellSeatId(null);
+         persistResellHoldRef.current = false;
          return;
       }
 
       clearAllSelections();
    }, [clearAllSelections, isResellMode, zone.id]);
+
+   useEffect(() => {
+      selectedResellHoldIdRef.current = selectedResellHoldId;
+   }, [selectedResellHoldId]);
+
+   useEffect(() => {
+      if (!isResellMode) {
+         return;
+      }
+
+      const handlePageHide = () => {
+         const holdId = selectedResellHoldIdRef.current;
+
+         if (!holdId || persistResellHoldRef.current) {
+            return;
+         }
+
+         releaseResaleListingHoldKeepalive(holdId);
+      };
+
+      window.addEventListener('pagehide', handlePageHide);
+
+      return () => {
+         window.removeEventListener('pagehide', handlePageHide);
+      };
+   }, [isResellMode]);
+
+   useEffect(() => {
+      return () => {
+         const holdId = selectedResellHoldIdRef.current;
+
+         if (!isResellMode || !holdId || persistResellHoldRef.current) {
+            return;
+         }
+
+         releaseResaleListingHoldKeepalive(holdId);
+      };
+   }, [isResellMode]);
 
    const seats = useMemo(() => {
       if (!zoneSeatState) {
@@ -146,48 +239,102 @@ function SeatsPage() {
    }, [initialSeats, zoneSeatState]);
 
    const selectedSeatIds = zoneSeatState?.selectedSeatIds ?? [];
-
-   const selectedSeats = useMemo(
-      () => getSelectedSeatDetails(zonesState, bookingZones),
-      [bookingZones, zonesState],
+   const selectedSeatIdSet = useMemo(
+      () => new Set(isResellMode ? (selectedResellSeatId ? [selectedResellSeatId] : []) : selectedSeatIds),
+      [isResellMode, selectedResellSeatId, selectedSeatIds],
    );
+
+   const selectedSeats = useMemo(() => getSelectedSeatDetails(zonesState, bookingZones), [bookingZones, zonesState]);
 
    const selectedPrice = selectedSeats.reduce((total, item) => total + item.price, 0);
-   const resellInsights = useMemo(
-      () =>
-         isResellMode
-            ? getResellZoneInsights({
-                 zone,
-                 seats,
-              })
-            : null,
-      [isResellMode, seats, zone],
-   );
-   const resellListingBySeatId = useMemo(
-      () => new Map((resellInsights?.listings ?? []).map((listing) => [listing.seatId, listing])),
-      [resellInsights?.listings],
-   );
+   const isSeatInteractionLocked = Boolean(bookingEntryState?.gameId) && isSeatMapLoading;
+   const resellInsightsQuery = useResellZoneInsights({
+      enabled: isResellMode,
+      gameId: bookingEntryState?.gameId,
+      zone,
+      seats,
+   });
+   const resellInsights = resellInsightsQuery.data ?? null;
+   const resellListingBySeatId = useMemo(() => {
+      const listingBySeatIdentifier = new Map(
+         (resellInsights?.listings ?? []).map(listing => [listing.seatId, listing]),
+      );
+      const seatByLookupKey = new Map(
+         seats.map(seat => [`${normalizeSeatLookupToken(seat.block)}::${seat.rowLabel}::${seat.seatNumber}`, seat]),
+      );
+      const nextMap = new Map<string, ResellListingItem>();
+
+      seats.forEach(seat => {
+         const matchedListing = listingBySeatIdentifier.get(seat.id) ?? listingBySeatIdentifier.get(seat.apiSeatId);
+
+         if (matchedListing) {
+            nextMap.set(seat.id, matchedListing);
+         }
+      });
+
+      (resellInsights?.listings ?? []).forEach(listing => {
+         if ([...nextMap.values()].some(mappedListing => mappedListing.listingId === listing.listingId)) {
+            return;
+         }
+
+         const parsedSeatInfo = parseResellSeatInfo(listing.seatInfo);
+
+         if (!parsedSeatInfo) {
+            return;
+         }
+
+         const matchedSeat = seatByLookupKey.get(
+            `${parsedSeatInfo.sectionCode}::${parsedSeatInfo.rowLabel}::${parsedSeatInfo.seatNumber}`,
+         );
+
+         if (matchedSeat) {
+            nextMap.set(matchedSeat.id, listing);
+         }
+      });
+
+      return nextMap;
+   }, [resellInsights?.listings, seats]);
+   const seatIdByResellListingId = useMemo(() => {
+      return new Map(
+         [...resellListingBySeatId.entries()].map(([seatId, listing]) => [listing.listingId, seatId] as const),
+      );
+   }, [resellListingBySeatId]);
    const selectedResellListing = useMemo(() => {
       if (!isResellMode) {
          return null;
       }
 
-      const selectedSeatId = selectedSeats[0]?.seat.id;
-
-      return selectedSeatId ? resellListingBySeatId.get(selectedSeatId) ?? null : null;
-   }, [isResellMode, resellListingBySeatId, selectedSeats]);
+      return selectedResellSeatId ? (resellListingBySeatId.get(selectedResellSeatId) ?? null) : null;
+   }, [isResellMode, resellListingBySeatId, selectedResellSeatId]);
+   const selectedSeatCount = isResellMode ? (selectedResellListing ? 1 : 0) : selectedSeats.length;
    const summaryPrice = isResellMode
       ? (selectedResellListing?.totalAmount ?? selectedResellListing?.listingPrice ?? 0)
       : selectedPrice;
+   const allSelectedSeatsAreHeld = isResellMode
+      ? Boolean(selectedResellSeatId) && Boolean(selectedResellHoldId)
+      : selectedSeats.every(selectedSeat => Boolean(holdsBySeatId[selectedSeat.seat.id]?.holdId));
    const bookingButtonLabel = isResellMode ? '예매하기' : `${selectedSeats.length}매 예매하기`;
    const displaySeats = useMemo(() => {
+      if (isSeatInteractionLocked) {
+         return seats.map(
+            seat =>
+               ({
+                  ...seat,
+                  status: 'disabled',
+               }) satisfies SeatItem,
+         );
+      }
+
       if (!isResellMode) {
          return seats;
       }
 
-      return seats.map((seat) => {
+      return seats.map(seat => {
          if (resellListingBySeatId.has(seat.id)) {
-            return seat;
+            return {
+               ...seat,
+               status: selectedSeatIdSet.has(seat.id) ? 'selected' : 'available',
+            } satisfies SeatItem;
          }
 
          return {
@@ -195,19 +342,70 @@ function SeatsPage() {
             status: 'disabled',
          } satisfies SeatItem;
       });
-   }, [isResellMode, resellListingBySeatId, seats]);
+   }, [isResellMode, isSeatInteractionLocked, resellListingBySeatId, seats, selectedSeatIdSet]);
+
+   const releaseSelectedResellHold = async () => {
+      if (!selectedResellHoldIdRef.current) {
+         setSelectedResellHoldId(null);
+         setSelectedResellSeatId(null);
+         return;
+      }
+
+      const holdId = selectedResellHoldIdRef.current;
+
+      await releaseResaleListingHold(holdId);
+      selectedResellHoldIdRef.current = null;
+      setSelectedResellHoldId(null);
+      setSelectedResellSeatId(null);
+   };
+
+   const handleSelectResellListing = async (seatId: string, listing: ResellListingItem) => {
+      if (!bookingEntryState?.queueTokenJti || isResellHoldPending) {
+         return;
+      }
+
+      setIsResellHoldPending(true);
+
+      try {
+         const isAlreadySelected = selectedResellSeatId === seatId;
+
+         if (isAlreadySelected && selectedResellHoldIdRef.current) {
+            await releaseSelectedResellHold();
+            return;
+         }
+
+         if (selectedResellHoldIdRef.current) {
+            await releaseSelectedResellHold();
+         }
+
+         const hold = await holdResaleListing({
+            listingId: listing.listingId,
+            queueTokenJti: bookingEntryState.queueTokenJti,
+         });
+
+         selectedResellHoldIdRef.current = hold.holdId;
+         setSelectedResellHoldId(hold.holdId);
+         setSelectedResellSeatId(seatId);
+      } catch (error) {
+         window.alert(getErrorMessage(error, '리셀 좌석 점유 중 오류가 발생했습니다.'));
+      } finally {
+         setIsResellHoldPending(false);
+      }
+   };
 
    const handleProceedToPayment = () => {
-      const botData = getBotReport();
-
       if (isResellMode) {
          if (!selectedResellListing) {
             return;
          }
 
+         persistResellHoldRef.current = true;
+
          navigate('/tickets/resell-payment', {
             state: {
+               buyerId: bookingEntryState?.userId,
                listingId: selectedResellListing.listingId,
+               holdId: selectedResellHoldId,
                queueTokenJti: bookingEntryState?.queueTokenJti,
                sellerId: selectedResellListing.sellerId,
                settlementAmount: selectedResellListing.settlementAmount,
@@ -218,6 +416,7 @@ function SeatsPage() {
                matchTitle: bookingEntryState?.matchTitle,
                venue: bookingEntryState?.venue,
                dateTime: bookingEntryState?.dateTime,
+               turnstileToken: bookingEntryState?.turnstileToken,
                botData,
             },
          });
@@ -225,10 +424,7 @@ function SeatsPage() {
       }
 
       navigate('/tickets/payment', {
-         state: {
-            ...bookingEntryState,
-            botData,
-         },
+         state: bookingEntryState,
       });
    };
 
@@ -237,27 +433,44 @@ function SeatsPage() {
          return null;
       }
 
-      const blockMetrics = seatBlocks.map(block => {
+      const blockMetrics = seatBlocks.map((block, index) => {
          const width = block.cols * (BLOCK_SEAT_SIZE + BLOCK_SEAT_GAP) - BLOCK_SEAT_GAP;
          const height = block.rows * (BLOCK_SEAT_SIZE + BLOCK_SEAT_GAP) - BLOCK_SEAT_GAP;
+         const renderedOffsetX = block.offsetX + index * BLOCK_CARD_COLUMN_GAP;
 
          return {
             ...block,
             width,
             height,
-            right: block.offsetX + width,
+            renderedOffsetX,
+            right: renderedOffsetX + width,
             bottom: block.offsetY + height,
          };
       });
 
       return {
-         left: Math.min(...blockMetrics.map(block => block.offsetX)),
+         left: Math.min(...blockMetrics.map(block => block.renderedOffsetX)),
          top: Math.min(...blockMetrics.map(block => block.offsetY)),
          right: Math.max(...blockMetrics.map(block => block.right)),
          bottom: Math.max(...blockMetrics.map(block => block.bottom)),
          blocks: blockMetrics,
       };
    }, [seatBlocks]);
+
+   const directionBadgePosition = useMemo(() => {
+      if (!sectionBounds) {
+         return null;
+      }
+
+      const badgeHeight = 48;
+      const sectionHeight = sectionBounds.bottom - sectionBounds.top;
+      const badgeOffset = Math.max(156, Math.min(260, Math.round(sectionHeight * 0.44)));
+
+      return {
+         left: (sectionBounds.left + sectionBounds.right) / 2,
+         top: Math.max(-160, sectionBounds.top - badgeHeight - badgeOffset),
+      };
+   }, [sectionBounds]);
 
    const minimapLayout = useMemo(() => {
       if (!sectionBounds) {
@@ -280,7 +493,7 @@ function SeatsPage() {
          offsetY,
          blocks: sectionBounds.blocks.map(block => ({
             id: block.id,
-            x: offsetX + (block.offsetX - sectionBounds.left) * scale,
+            x: offsetX + (block.renderedOffsetX - sectionBounds.left) * scale,
             y: offsetY + (block.offsetY - sectionBounds.top) * scale,
             width: block.width * scale,
             height: block.height * scale,
@@ -299,15 +512,15 @@ function SeatsPage() {
 
       const stageLeft = (mapViewportSize.width - STAGE_WIDTH * seatMapScale) / 2 + seatMapOffset.x;
       const stageTop = 56 + seatMapOffset.y;
-      const visibleX = Math.max(0, (0 - stageLeft) / seatMapScale);
-      const visibleY = Math.max(0, (0 - stageTop) / seatMapScale);
-      const visibleWidth = Math.min(STAGE_WIDTH - visibleX, mapViewportSize.width / seatMapScale);
-      const visibleHeight = Math.min(STAGE_HEIGHT - visibleY, mapViewportSize.height / seatMapScale);
+      const visibleLeft = (0 - stageLeft) / seatMapScale;
+      const visibleTop = (0 - stageTop) / seatMapScale;
+      const visibleRight = (mapViewportSize.width - stageLeft) / seatMapScale;
+      const visibleBottom = (mapViewportSize.height - stageTop) / seatMapScale;
 
-      const intersectLeft = Math.max(sectionBounds.left, visibleX);
-      const intersectTop = Math.max(sectionBounds.top, visibleY);
-      const intersectRight = Math.min(sectionBounds.right, visibleX + visibleWidth);
-      const intersectBottom = Math.min(sectionBounds.bottom, visibleY + visibleHeight);
+      const intersectLeft = Math.max(sectionBounds.left, visibleLeft);
+      const intersectTop = Math.max(sectionBounds.top, visibleTop);
+      const intersectRight = Math.min(sectionBounds.right, visibleRight);
+      const intersectBottom = Math.min(sectionBounds.bottom, visibleBottom);
 
       if (intersectRight <= intersectLeft || intersectBottom <= intersectTop || !minimapLayout) {
          return null;
@@ -329,46 +542,102 @@ function SeatsPage() {
       sectionBounds,
    ]);
 
+   const getDefaultSeatMapView = () => {
+      if (!sectionBounds || mapViewportSize.width === 0 || mapViewportSize.height === 0) {
+         return {
+            scale: 1,
+            offset: { x: 0, y: 0 },
+         };
+      }
+
+      const contentWidth = sectionBounds.right - sectionBounds.left;
+      const contentHeight = sectionBounds.bottom - sectionBounds.top;
+      const availableWidth = Math.max(1, mapViewportSize.width - DEFAULT_SEAT_MAP_LEFT_PADDING * 2);
+      const availableHeight = Math.max(1, mapViewportSize.height - 56 - DEFAULT_SEAT_MAP_TOP_PADDING * 2);
+      const scale = Math.min(
+         MAX_SCALE,
+         Math.max(MIN_SCALE, Math.min(availableWidth / contentWidth, availableHeight / contentHeight)),
+      );
+      const contentCenterX = (sectionBounds.left + sectionBounds.right) / 2;
+      const contentCenterY = (sectionBounds.top + sectionBounds.bottom) / 2;
+      const targetCenterY = 56 + DEFAULT_SEAT_MAP_TOP_PADDING + availableHeight / 2;
+
+      return {
+         scale: Number(scale.toFixed(2)),
+         offset: {
+            x: (STAGE_WIDTH / 2 - contentCenterX) * scale,
+            y: targetCenterY - 56 - contentCenterY * scale,
+         },
+      };
+   };
+
    const updateSeatMapScale = (nextScale: number) => {
       setSeatMapScale(Math.min(MAX_SCALE, Math.max(MIN_SCALE, Number(nextScale.toFixed(2)))));
    };
 
    const resetSeatMapView = () => {
-      setSeatMapScale(1);
-      setSeatMapOffset({ x: 0, y: 0 });
+      const nextView = getDefaultSeatMapView();
+
+      setSeatMapScale(nextView.scale);
+      setSeatMapOffset(nextView.offset);
    };
 
+   useEffect(() => {
+      const nextView = getDefaultSeatMapView();
+
+      setSeatMapScale(nextView.scale);
+      setSeatMapOffset(nextView.offset);
+   }, [mapViewportSize.height, mapViewportSize.width, sectionBounds, zone.id]);
+
    const toggleSeat = (seat: SeatItem) => {
+      if (isSeatInteractionLocked) {
+         return;
+      }
+
+      if (pendingSeatIds.includes(seat.id) || isResellHoldPending) {
+         return;
+      }
+
       if (seat.status === 'disabled' || seat.status === 'held') {
          return;
       }
 
       if (isResellMode) {
-         if (!resellListingBySeatId.has(seat.id)) {
+         const listing = resellListingBySeatId.get(seat.id);
+
+         if (!listing) {
             return;
          }
 
-         const isAlreadySelected = selectedSeatIds.includes(seat.id);
-
-         if (!isAlreadySelected) {
-            clearAllSelections();
-         }
-
-         toggleSelectedSeat(zone.id, seat.id);
+         void handleSelectResellListing(seat.id, listing);
          return;
       }
 
-      toggleSelectedSeat(zone.id, seat.id);
+      void holdSeat(zone.id, seat);
    };
 
-   const handleSelectResellListing = (listing: ResellListingItem) => {
-      const isAlreadySelected = selectedSeatIds.includes(listing.seatId);
-
-      if (!isAlreadySelected) {
-         clearAllSelections();
+   const handleRemoveSelectedSeat = (selectedZoneId: string, seatId: string) => {
+      if (isResellMode) {
+         void releaseSelectedResellHold();
+         return;
       }
 
-      toggleSelectedSeat(zone.id, listing.seatId);
+      const seatHold = holdsBySeatId[seatId];
+
+      void releaseSeat({
+         zoneId: selectedZoneId,
+         seatId,
+         holdId: seatHold?.holdId,
+      });
+   };
+
+   const handleClearSelectedSeats = () => {
+      if (isResellMode) {
+         void releaseSelectedResellHold();
+         return;
+      }
+
+      void clearSelectedSeats(selectedSeats);
    };
 
    const handleMapPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -416,37 +685,11 @@ function SeatsPage() {
                      </span>
                      <span className="truncate text-body-1-bold text-foreground">{zone.name}</span>
                   </div>
-
-                  <div className="hidden items-center lg:flex" aria-label="예매 단계">
-                     {stepLabels.map((label, index) => {
-                        const isCurrent = index === 1;
-
-                        return (
-                           <div key={label} className="flex items-center">
-                              <span
-                                 className={[
-                                    'px-4 py-2 text-label-3-semibold whitespace-nowrap',
-                                    isCurrent ? 'text-[#646f7c]' : 'text-[#9ba3ae]',
-                                 ].join(' ')}
-                              >
-                                 {label}
-                              </span>
-                              {index < stepLabels.length - 1 ? (
-                                 <span
-                                    className="text-[18px] leading-none font-bold text-border-light"
-                                    aria-hidden="true"
-                                 >
-                                    ›
-                                 </span>
-                              ) : null}
-                           </div>
-                        );
-                     })}
-                  </div>
                </div>
 
                <div className="relative flex-1 overflow-hidden px-0 pb-[144px] lg:px-8 lg:pb-6 xl:pb-6">
                   <SeatMapStage
+                     directionBadgePosition={directionBadgePosition}
                      isSeatMapDragging={isSeatMapDragging}
                      mapViewportRef={mapViewportRef}
                      minimapLayout={minimapLayout}
@@ -455,7 +698,7 @@ function SeatsPage() {
                      seatMapOffset={seatMapOffset}
                      seatMapScale={seatMapScale}
                      seats={displaySeats}
-                     selectedSeatIds={selectedSeatIds}
+                     selectedSeatIdSet={selectedSeatIdSet}
                      zoneColor={zone.color}
                      zoneName={zone.name}
                      onMapPointerDown={handleMapPointerDown}
@@ -481,10 +724,10 @@ function SeatsPage() {
                               <div className="flex items-center justify-between gap-3">
                                  <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
                                     <span>{isResellMode ? '리셀 예매' : '선택 좌석'}</span>
-                                    <span className="text-primary">{selectedSeats.length}</span>
+                                    <span className="text-primary">{selectedSeatCount}</span>
                                  </div>
                                  <span className="text-body-1-medium text-tertiary">
-                                    {selectedSeats.length > 0 ? formatPrice(summaryPrice) : '열기'}
+                                    {selectedSeatCount > 0 ? formatPrice(summaryPrice) : '열기'}
                                  </span>
                               </div>
                            </button>
@@ -500,12 +743,28 @@ function SeatsPage() {
                      className="overflow-hidden border-none p-0 xl:hidden"
                   >
                      <div className="h-full overflow-y-auto">
-                        {isResellMode && resellInsights ? (
+                        {isResellMode && resellInsightsQuery.isPending ? (
+                           <div className="flex h-full min-h-[240px] items-center justify-center px-5 text-center text-body-1-medium text-muted-foreground">
+                              리셀 좌석 정보를 불러오는 중입니다.
+                           </div>
+                        ) : isResellMode && resellInsightsQuery.isError ? (
+                           <div className="flex h-full min-h-[240px] items-center justify-center px-5 text-center text-body-1-medium text-muted-foreground">
+                              리셀 좌석 정보를 불러오지 못했습니다.
+                           </div>
+                        ) : isResellMode && resellInsights ? (
                            <ResellZonePreviewSheet
                               insights={resellInsights}
                               zone={zone}
                               selectedListingId={selectedResellListing?.listingId}
-                              onSelectListing={handleSelectResellListing}
+                              onSelectListing={listing => {
+                                 const mappedSeatId = seatIdByResellListingId.get(listing.listingId);
+
+                                 if (!mappedSeatId) {
+                                    return;
+                                 }
+
+                                 void handleSelectResellListing(mappedSeatId, listing);
+                              }}
                               submitLabel={bookingButtonLabel}
                               submitDisabled={!selectedResellListing}
                               onSubmit={handleProceedToPayment}
@@ -520,7 +779,7 @@ function SeatsPage() {
                                  {selectedSeats.length > 0 ? (
                                     <button
                                        type="button"
-                                       onClick={clearAllSelections}
+                                       onClick={handleClearSelectedSeats}
                                        className="text-body-1-medium text-tertiary transition-colors hover:text-foreground"
                                     >
                                        전체 삭제
@@ -531,7 +790,7 @@ function SeatsPage() {
                               <div className="px-5 pb-4">
                                  <SelectedSeatSummaryList
                                     items={selectedSeats}
-                                    onRemove={toggleSelectedSeat}
+                                    onRemove={handleRemoveSelectedSeat}
                                     emptyClassName="h-full min-h-[220px] bg-transparent"
                                  />
                               </div>
@@ -539,15 +798,17 @@ function SeatsPage() {
                               <div className="px-5 pb-5">
                                  <div className="flex items-center justify-between gap-3 px-1 pb-5 text-heading-4-medium text-secondary">
                                     <span>총 결제 금액</span>
-                                    <span className="text-heading-4-bold text-primary">{formatPrice(summaryPrice)}</span>
+                                    <span className="text-heading-4-bold text-primary">
+                                       {formatPrice(summaryPrice)}
+                                    </span>
                                  </div>
                                  <button
                                     type="button"
-                                    disabled={selectedSeats.length === 0}
+                                    disabled={selectedSeats.length === 0 || !allSelectedSeatsAreHeld}
                                     onClick={handleProceedToPayment}
                                     className={[
                                        'h-12 w-full rounded-[8px] text-label-1-bold transition-colors',
-                                       selectedSeats.length === 0
+                                       selectedSeats.length === 0 || !allSelectedSeatsAreHeld
                                           ? 'bg-fill-disabled text-disabled-foreground'
                                           : 'bg-primary text-white hover:bg-primary-strong',
                                     ].join(' ')}
@@ -562,16 +823,32 @@ function SeatsPage() {
                </Drawer>
             </section>
 
-            {isResellMode && resellInsights ? (
+            {isResellMode && resellInsightsQuery.isPending ? (
+               <aside className="hidden w-full shrink-0 items-center justify-center border-l border-border-light bg-background px-5 text-center text-body-1-medium text-muted-foreground xl:flex xl:w-[420px]">
+                  리셀 좌석 정보를 불러오는 중입니다.
+               </aside>
+            ) : isResellMode && resellInsights ? (
                <ResellSeatSidebar
                   insights={resellInsights}
                   selectedListingId={selectedResellListing?.listingId}
                   zone={zone}
                   zoneOverviewImage={zoneOverviewImage}
                   stadiumName={stadiumName}
-                  onSelectListing={handleSelectResellListing}
+                  onSelectListing={listing => {
+                     const mappedSeatId = seatIdByResellListingId.get(listing.listingId);
+
+                     if (!mappedSeatId) {
+                        return;
+                     }
+
+                     void handleSelectResellListing(mappedSeatId, listing);
+                  }}
                   onSubmit={handleProceedToPayment}
                />
+            ) : isResellMode && resellInsightsQuery.isError ? (
+               <aside className="hidden w-full shrink-0 items-center justify-center border-l border-border-light bg-background px-5 text-center text-body-1-medium text-muted-foreground xl:flex xl:w-[420px]">
+                  리셀 좌석 정보를 불러오지 못했습니다.
+               </aside>
             ) : (
                <aside className="hidden w-full shrink-0 flex-col border-l border-border-light bg-background xl:flex xl:w-[420px]">
                   <div className="relative h-[220px] overflow-hidden border-b border-border-light bg-[#e9ebee] px-5 py-4">
@@ -595,7 +872,7 @@ function SeatsPage() {
                      {selectedSeats.length > 0 ? (
                         <button
                            type="button"
-                           onClick={clearAllSelections}
+                           onClick={handleClearSelectedSeats}
                            className="text-body-2-medium text-muted-foreground transition-colors hover:text-foreground"
                         >
                            전체 삭제
@@ -607,7 +884,7 @@ function SeatsPage() {
                      <div className="flex-1 overflow-y-auto rounded-2xl bg-background">
                         <SelectedSeatSummaryList
                            items={selectedSeats}
-                           onRemove={toggleSelectedSeat}
+                           onRemove={handleRemoveSelectedSeat}
                            emptyClassName="h-full min-h-[220px] bg-transparent"
                         />
                      </div>
@@ -619,11 +896,11 @@ function SeatsPage() {
 
                      <button
                         type="button"
-                        disabled={selectedSeats.length === 0}
+                        disabled={selectedSeats.length === 0 || !allSelectedSeatsAreHeld}
                         onClick={handleProceedToPayment}
                         className={[
                            'h-[56px] w-full rounded-[8px] text-label-1-bold transition-colors',
-                           selectedSeats.length === 0
+                           selectedSeats.length === 0 || !allSelectedSeatsAreHeld
                               ? 'bg-fill-disabled text-disabled-foreground'
                               : 'bg-primary text-white hover:bg-primary-strong',
                         ].join(' ')}

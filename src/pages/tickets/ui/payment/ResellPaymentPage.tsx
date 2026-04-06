@@ -20,6 +20,7 @@ import {
    type CashReceiptNumType,
    type CashReceiptType,
    type PaymentMethod,
+   isSupportedPaymentMethod,
 } from './_shared';
 
 import { ResellNotesCard } from './ResellNotesCard';
@@ -45,9 +46,11 @@ const MOCK_RESALE_ENTRY = {
 };
 
 type ResellPaymentEntryState = Partial<typeof MOCK_RESALE_ENTRY> & {
+   holdId?: string;
    matchTitle?: string;
    venue?: string;
    dateTime?: string;
+   turnstileToken?: string;
    botData?: BotReport;
 };
 
@@ -64,12 +67,7 @@ const resolveUserIdFromAccessToken = (accessToken: string | null) => {
 
    try {
       const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>;
-      const userId =
-         payload.userId ??
-         payload.user_id ??
-         payload.memberId ??
-         payload.member_id ??
-         payload.sub;
+      const userId = payload.userId ?? payload.user_id ?? payload.memberId ?? payload.member_id ?? payload.sub;
 
       return typeof userId === 'string' && userId.length > 0 ? userId : undefined;
    } catch {
@@ -80,7 +78,7 @@ const resolveUserIdFromAccessToken = (accessToken: string | null) => {
 export default function ResellPaymentPage() {
    const navigate = useNavigate();
    const location = useLocation();
-   const accessToken = useAuthStore((state) => state.accessToken);
+   const accessToken = useAuthStore(state => state.accessToken);
    const resellEntryState = location.state as ResellPaymentEntryState | null;
    const resaleEntry = {
       ...MOCK_RESALE_ENTRY,
@@ -102,7 +100,13 @@ export default function ResellPaymentPage() {
 
    // 무통장 입금 + 미발행이 아닌 경우 현금영수증 번호 필수
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
-   const isFormValid = !!name && phone.length === 11 && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
+   const isFormValid =
+      !!name &&
+      phone.replace(/\D/g, '').length === 11 &&
+      !!email &&
+      isCashReceiptValid &&
+      agreedPrivacy &&
+      agreedResell;
    const resolvedBuyerId = resellEntryState?.buyerId ?? resolveUserIdFromAccessToken(accessToken);
 
    const orderInfo = {
@@ -118,6 +122,15 @@ export default function ResellPaymentPage() {
    const totalPayment = resaleEntry.totalAmount;
    const ticketPrice = Math.max(totalPayment - fee, 0);
 
+   const handleSelectPaymentMethod = (method: PaymentMethod) => {
+      if (!isSupportedPaymentMethod(method)) {
+         window.alert('아직 지원하지 않는 결제수단입니다.');
+         return;
+      }
+
+      setPaymentMethod(method);
+   };
+
    const handlePay = () => {
       if (!resolvedBuyerId) {
          window.alert('구매자 정보를 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.');
@@ -127,6 +140,7 @@ export default function ResellPaymentPage() {
       const paymentRequest: ResaleCheckoutRequest = {
          buyerId: resolvedBuyerId,
          listingId: resaleEntry.listingId,
+         holdId: resellEntryState?.holdId,
          queueTokenJti: resaleEntry.queueTokenJti,
          sellerId: resaleEntry.sellerId,
          settlementAmount: resaleEntry.settlementAmount,
@@ -143,6 +157,7 @@ export default function ResellPaymentPage() {
          ordererEmail: email,
          paymentMethod,
          botData: resellEntryState?.botData,
+         cfTurnstileToken: resellEntryState?.turnstileToken,
          ...(paymentMethod === 'bank' && {
             cashReceiptType,
             cashReceiptNumType,
@@ -167,10 +182,6 @@ export default function ResellPaymentPage() {
                <div className="flex flex-col lg:flex-row gap-8 items-start">
                   {/* 왼쪽: 주문자 정보 */}
                   <div className="w-full lg:flex-1 min-w-0 flex flex-col gap-[10px]">
-                     <h2 className="hidden lg:block text-heading-1-bold leading-normal text-foreground h-9">
-                        주문자 정보 입력
-                     </h2>
-
                      <div className="flex flex-col gap-6">
                         {/* 수령 방식 — 리셀은 모바일 티켓만 가능 */}
                         <PaymentCard>
@@ -179,7 +190,7 @@ export default function ResellPaymentPage() {
                               selected
                               onSelect={() => {}}
                               disabled
-                              label="모바일 티켓 (추천)"
+                              label="모바일 티켓"
                               description="QR코드로 바로 입장 · 무료"
                            />
                         </PaymentCard>
@@ -198,7 +209,7 @@ export default function ResellPaymentPage() {
                         <DiscountCard />
 
                         {/* 결제 방법 */}
-                        <PaymentMethodCard selected={paymentMethod} onSelect={setPaymentMethod} />
+                        <PaymentMethodCard selected={paymentMethod} onSelect={handleSelectPaymentMethod} />
 
                         {/* 현금영수증 (무통장 입금 선택 시에만 표시) */}
                         {paymentMethod === 'bank' && (
@@ -252,8 +263,6 @@ export default function ResellPaymentPage() {
 
                   {/* 오른쪽: 주문 정보 — 데스크톱 전용 */}
                   <div className="hidden lg:flex flex-col flex-1 max-w-100 shrink-0 gap-[10px]">
-                     <h2 className="text-heading-1-bold leading-normal text-foreground h-9">주문 정보 확인</h2>
-
                      <div className="flex flex-col gap-6">
                         <OrderSummaryCard orderInfo={orderInfo} />
 

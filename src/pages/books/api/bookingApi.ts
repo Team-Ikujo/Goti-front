@@ -11,6 +11,12 @@ export type SeatGradeResponse = {
    availableSeatCount: number;
 };
 
+export type SeatGradeSearchResultResponse = {
+   sessionId: string;
+   sessionExpiresAt: string;
+   seatGrades: SeatGradeResponse[];
+};
+
 export type SeatSectionResponse = {
    sectionId: string;
    gradeId: string;
@@ -21,6 +27,7 @@ export type SeatSectionResponse = {
 
 export type SeatResponse = {
    seatId: string;
+   apiSeatId: string;
    sectionId: string;
    rowName: string;
    seatNum: number;
@@ -37,8 +44,7 @@ export type TicketPricingPolicyPriceResponse = {
    gradeId: string;
    ticketType: string;
    dayType: string;
-   leagueType?: string;
-   matchType?: string;
+   leagueType: string;
    price: number;
 };
 
@@ -55,6 +61,53 @@ const DEFAULT_ZONE_COLOR = '#64748b';
 const API_BLOCK_OFFSET_X = 120;
 const API_BLOCK_OFFSET_Y = 160;
 const SEAT_STEP = 20;
+
+type RawSeatResponse = Partial<SeatResponse> & {
+   id?: string;
+   seatNumber?: number;
+   row?: string;
+   isAvailable?: boolean;
+};
+
+const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
+const toOptionalFiniteNumber = (value: unknown) => {
+   if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+   }
+
+   if (typeof value === 'string' && value.trim()) {
+      const parsedValue = Number(value);
+
+      if (Number.isFinite(parsedValue)) {
+         return parsedValue;
+      }
+   }
+
+   return undefined;
+};
+
+const normalizeSeatResponse = (seat: RawSeatResponse): SeatResponse | null => {
+   const rawSeatId = isNonEmptyString(seat.seatId) ? seat.seatId : undefined;
+   const rawId = isNonEmptyString(seat.id) ? seat.id : undefined;
+   const seatId = rawSeatId ?? rawId;
+   const apiSeatId = rawSeatId ?? rawId;
+   const sectionId = isNonEmptyString(seat.sectionId) ? seat.sectionId : undefined;
+   const rowName = isNonEmptyString(seat.rowName) ? seat.rowName : isNonEmptyString(seat.row) ? seat.row : undefined;
+   const seatNum = toOptionalFiniteNumber(seat.seatNum) ?? toOptionalFiniteNumber(seat.seatNumber);
+
+   if (!seatId || !apiSeatId || !sectionId || !rowName || seatNum === undefined) {
+      return null;
+   }
+
+   return {
+      seatId,
+      apiSeatId,
+      sectionId,
+      rowName,
+      seatNum,
+      available: typeof seat.available === 'boolean' ? seat.available : typeof seat.isAvailable === 'boolean' ? seat.isAvailable : true,
+   };
+};
 
 const normalizeSectionCode = (value: string) => value.replace(/\s+/g, '').toUpperCase();
 
@@ -106,12 +159,34 @@ export const matchesSectionExpression = (expression: string, rawSectionCode: str
    });
 };
 
-const resolveZoneTemplate = (teamId: string | undefined, sectionCode: string) => {
+const normalizeZoneName = (value: string) => value.replace(/[\s()]/g, '').toUpperCase();
+
+const resolveZoneTemplate = ({
+   teamId,
+   sectionCode,
+   gradeName,
+}: {
+   teamId?: string;
+   sectionCode: string;
+   gradeName?: string;
+}) => {
    if (!teamId) {
       return undefined;
    }
 
-   return getBookingZones(teamId).find((zone) => matchesSectionExpression(zone.sectionCode, sectionCode));
+   const bookingZones = getBookingZones(teamId);
+
+   // 삼성처럼 sectionCode 체계가 자주 달라지는 구장은 grade 이름이 더 안정적이다.
+   if (gradeName) {
+      const normalizedGradeName = normalizeZoneName(gradeName);
+      const matchedZoneByGradeName = bookingZones.find((zone) => normalizeZoneName(zone.name) === normalizedGradeName);
+
+      if (matchedZoneByGradeName) {
+         return matchedZoneByGradeName;
+      }
+   }
+
+   return bookingZones.find((zone) => matchesSectionExpression(zone.sectionCode, sectionCode));
 };
 
 const toSeatStatus = (status: string | undefined, available: boolean): SeatStatus => {
@@ -164,24 +239,85 @@ export const getPricingDayType = (gameDate: string) => {
    return dayOfWeek === 0 || dayOfWeek === 6 ? 'WEEKEND' : 'WEEKDAY';
 };
 
-export const fetchSeatGrades = async (gameId: string, stadiumId: string) => {
-   const response = await apiClient.get<ApiEnvelope<SeatGradeResponse[]>>(
-      `/api/v1/stadium-seats/stadiums/${stadiumId}/games/${gameId}/seat-grades`,
+export const fetchSeatGrades = async ({
+   gameId,
+   forceNewSession,
+}: {
+   gameId: string;
+   forceNewSession?: boolean;
+}) => {
+   const response = await apiClient.get<ApiEnvelope<SeatGradeSearchResultResponse>>(
+      `/api/v1/stadium-seats/games/${gameId}/seat-grades`,
+      {
+         params: forceNewSession ? { forceNewSession: true } : undefined,
+      },
    );
 
+   return response.data.data?.seatGrades ?? [];
+};
+
+export const fetchSeatSections = async ({
+   stadiumId,
+   gameId,
+}: {
+   stadiumId: string;
+   gameId?: string;
+}) => {
+   const response = await apiClient.get<ApiEnvelope<SeatSectionResponse[]>>(`/api/v1/stadium-seats/stadiums/${stadiumId}/seat-sections`, {
+      params: gameId ? { gameId } : undefined,
+   });
+
    return response.data.data;
 };
 
-export const fetchSeatSections = async (stadiumId: string) => {
-   const response = await apiClient.get<ApiEnvelope<SeatSectionResponse[]>>(`/api/v1/stadium-seats/stadiums/${stadiumId}/seat-sections`);
+export const resolveSeatSectionByCode = async ({
+   stadiumId,
+   gameId,
+   sectionCode,
+}: {
+   stadiumId?: string;
+   gameId?: string;
+   sectionCode: string;
+}) => {
+   if (!stadiumId) {
+      return null;
+   }
 
-   return response.data.data;
+   const sections = await fetchSeatSections({
+      stadiumId,
+      gameId,
+   });
+   const normalizedTargetSectionCode = normalizeSectionCode(sectionCode);
+
+   return sections.find((section) => normalizeSectionCode(section.sectionCode) === normalizedTargetSectionCode) ?? null;
 };
 
-export const fetchSeats = async (sectionId: string) => {
-   const response = await apiClient.get<ApiEnvelope<SeatResponse[]>>(`/api/v1/seats/seat-sections/${sectionId}/seats`);
+export const fetchSeats = async ({
+   sectionId,
+   gameId,
+}: {
+   sectionId: string;
+   gameId: string;
+}) => {
+   const response = await apiClient.get<ApiEnvelope<RawSeatResponse[]>>(`/api/v1/seats/seat-sections/${sectionId}/seats`, {
+      params: { gameId },
+   });
 
-   return response.data.data;
+   return (response.data.data ?? []).flatMap((seat) => {
+      const normalizedSeat = normalizeSeatResponse(seat);
+
+      if (normalizedSeat) {
+         return [normalizedSeat];
+      }
+
+      console.error('[bookingApi] 좌석 응답 정규화 실패', {
+         sectionId,
+         gameId,
+         seat,
+      });
+
+      return [];
+   });
 };
 
 export const fetchSeatStatuses = async (gameId: string, sectionId: string) => {
@@ -190,6 +326,16 @@ export const fetchSeatStatuses = async (gameId: string, sectionId: string) => {
    );
 
    return response.data.data;
+};
+
+export const summarizeSeatStatusSnapshot = (statuses: SeatStatusResponse[]) => {
+   return statuses.reduce<Record<string, number>>((summary, seatStatus) => {
+      const key = seatStatus.status?.toUpperCase?.() || 'UNKNOWN';
+
+      summary[key] = (summary[key] ?? 0) + 1;
+
+      return summary;
+   }, {});
 };
 
 export const fetchTicketPricingPolicy = async (teamId: string) => {
@@ -246,7 +392,7 @@ export const resolvePricingByGradeId = ({
    }
 
    const filteredPrices = policy.prices.filter((price) => {
-      const normalizedPriceLeagueType = normalizePolicyLeagueType(price.leagueType ?? price.matchType);
+      const normalizedPriceLeagueType = normalizePolicyLeagueType(price.leagueType);
 
       return (
          normalizePolicyLeagueType(price.ticketType) === 'ADULT' &&
@@ -263,26 +409,39 @@ export const mapSeatSectionsToZones = ({
    grades,
    teamId,
    pricingByGradeId,
+   remainingBySectionId,
 }: {
    sections: SeatSectionResponse[];
    grades: SeatGradeResponse[];
    teamId?: string;
    pricingByGradeId?: Map<string, number>;
+   remainingBySectionId?: Map<string, number>;
 }): ZoneItem[] => {
    const gradeById = Object.fromEntries(grades.map((grade) => [grade.seatGradeId, grade]));
    const aggregatedZones = new Map<string, ZoneItem>();
    const aggregatedZoneGradeIds = new Map<string, Set<string>>();
+   const aggregatedZoneSectionIds = new Map<string, Set<string>>();
    const unmatchedZones: ZoneItem[] = [];
 
    sections.forEach((section) => {
-      const matchedZone = resolveZoneTemplate(teamId, section.sectionCode);
       const grade = gradeById[section.gradeId];
+      const matchedZone = resolveZoneTemplate({
+         teamId,
+         sectionCode: section.sectionCode,
+         gradeName: grade?.name,
+      });
+      const remainingCount = remainingBySectionId?.get(section.sectionId) ?? grade?.availableSeatCount ?? section.capacity;
+
       if (matchedZone) {
          const existingZone = aggregatedZones.get(matchedZone.id);
          const zoneGradeIds = aggregatedZoneGradeIds.get(matchedZone.id) ?? new Set<string>();
+         const zoneSectionIds = aggregatedZoneSectionIds.get(matchedZone.id) ?? new Set<string>();
          const shouldAddGradeAvailability = Boolean(grade && !zoneGradeIds.has(section.gradeId));
+
          zoneGradeIds.add(section.gradeId);
+         zoneSectionIds.add(section.sectionId);
          aggregatedZoneGradeIds.set(matchedZone.id, zoneGradeIds);
+         aggregatedZoneSectionIds.set(matchedZone.id, zoneSectionIds);
 
          if (existingZone) {
             aggregatedZones.set(matchedZone.id, {
@@ -292,9 +451,13 @@ export const mapSeatSectionsToZones = ({
                   gradeIds: zoneGradeIds,
                   pricingByGradeId: pricingByGradeId ?? new Map<string, number>(),
                }),
-               remaining: shouldAddGradeAvailability
-                  ? existingZone.remaining + grade.availableSeatCount
-                  : existingZone.remaining,
+               remaining: remainingBySectionId
+                  ? existingZone.remaining + remainingCount
+                  : shouldAddGradeAvailability
+                     ? existingZone.remaining + (grade?.availableSeatCount ?? section.capacity)
+                     : existingZone.remaining,
+               sectionIds: [...zoneSectionIds],
+               gradeIds: [...zoneGradeIds],
             });
             return;
          }
@@ -306,8 +469,10 @@ export const mapSeatSectionsToZones = ({
                gradeIds: zoneGradeIds,
                pricingByGradeId: pricingByGradeId ?? new Map<string, number>(),
             }),
-            remaining: grade?.availableSeatCount ?? section.capacity,
+            remaining: remainingCount,
             color: grade?.displayColorHex ?? matchedZone.color ?? DEFAULT_ZONE_COLOR,
+            sectionIds: [...zoneSectionIds],
+            gradeIds: [...zoneGradeIds],
          });
          return;
       }
@@ -321,10 +486,12 @@ export const mapSeatSectionsToZones = ({
             gradeIds: [section.gradeId],
             pricingByGradeId: pricingByGradeId ?? new Map<string, number>(),
          }),
-         remaining: grade?.availableSeatCount ?? section.capacity,
+         remaining: remainingCount,
          color: grade?.displayColorHex ?? DEFAULT_ZONE_COLOR,
          hotspot: [],
          sectionCode: section.sectionCode,
+         sectionIds: [section.sectionId],
+         gradeIds: [section.gradeId],
       } satisfies ZoneItem);
    });
 
@@ -356,6 +523,8 @@ export const mergeBookingZones = ({
          price: apiZone.price,
          remaining: apiZone.remaining,
          color: apiZone.color,
+         sectionIds: apiZone.sectionIds,
+         gradeIds: apiZone.gradeIds,
       } satisfies ZoneItem;
    });
 };
@@ -398,16 +567,18 @@ export const mapApiSeatsToSeatItems = ({
 
    return seats.map((seat) => {
       const rowIndex = rowIndexByName[seat.rowName] ?? 0;
+      const status = statusBySeatId[seat.apiSeatId] ?? statusBySeatId[seat.seatId];
 
       return {
          id: seat.seatId,
+         apiSeatId: seat.apiSeatId,
          zoneId: sectionId,
          block: sectionCode,
          rowLabel: `${seat.rowName}열`,
          seatNumber: seat.seatNum,
          x: API_BLOCK_OFFSET_X + (seat.seatNum - 1) * SEAT_STEP,
          y: API_BLOCK_OFFSET_Y + rowIndex * SEAT_STEP,
-         status: toSeatStatus(statusBySeatId[seat.seatId], seat.available),
+         status: toSeatStatus(status, seat.available),
       } satisfies SeatItem;
    });
 };

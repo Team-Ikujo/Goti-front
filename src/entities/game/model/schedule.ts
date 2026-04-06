@@ -6,8 +6,8 @@ import {
   fetchBaseballTeamDetails,
   fetchGameSchedules,
   type FetchGameSchedulesParams,
-  type GameScheduleResponse,
 } from '@/entities/game/api/scheduleApi';
+import type { GameScheduleResponse } from '@/shared/types/game';
 import { teams } from '@/entities/team/model/teams';
 import type { DaySchedule, GameRow, GameStatus, ReselStatus, TicketStatus } from '@/pages/home/ui/game-schedule/types';
 
@@ -36,6 +36,8 @@ export type NormalizedScheduleGame = {
   reselInfo?: string;
   isToday: boolean;
   ticketingOpenedAt?: string;
+  ticketingEndAt?: string;
+  remainingSeatCount?: number;
 };
 
 type TeamReference = {
@@ -161,12 +163,13 @@ const needsTeamLookup = (
   teamId: string | undefined,
   teamCode: string | undefined,
   teamName: string | undefined,
+  displayName: string | undefined,
 ) => {
   if (!teamId) {
     return false;
   }
 
-  if (findTeamReference(teamCode, teamName, teamId)) {
+  if (findTeamReference(displayName, teamCode, teamName, teamId)) {
     return false;
   }
 
@@ -177,11 +180,11 @@ const collectLookupTeamIds = (games: GameScheduleResponse[]) => {
   const ids = new Set<string>();
 
   games.forEach((game) => {
-    if (needsTeamLookup(game.homeTeamId, game.homeTeamCode, game.homeTeamName)) {
+    if (needsTeamLookup(game.homeTeamId, game.homeTeamCode, game.homeTeamName, game.homeTeamDisplayName)) {
       ids.add(game.homeTeamId);
     }
 
-    if (needsTeamLookup(game.awayTeamId, game.awayTeamCode, game.awayTeamName)) {
+    if (needsTeamLookup(game.awayTeamId, game.awayTeamCode, game.awayTeamName, game.awayTeamDisplayName)) {
       ids.add(game.awayTeamId);
     }
   });
@@ -245,27 +248,40 @@ const toDateLabel = (date: string) => {
   return `${month}월 ${day}일 (${DAY_LABELS[parsed.getDay()]})`;
 };
 
-const formatOpenedAtInfo = (value?: string) => {
-  if (!value) {
-    return undefined;
+const parseScheduleBoundary = (value?: string) => {
+  if (!value?.trim()) {
+    return null;
   }
 
-  const { date, time } = parseApiDateTime(value);
-  const [, month = '', day = ''] = date.split('-');
-  const [hour = '', minute = ''] = time.split(':');
-  const meridiem = Number(hour) < 12 ? '오전' : '오후';
-  const displayHour = (() => {
-    const numericHour = Number(hour);
-    if (!Number.isFinite(numericHour)) {
-      return hour;
-    }
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+  const parsedDate = new Date(normalized);
 
-    const converted = numericHour % 12;
-    return String(converted === 0 ? 12 : converted);
-  })();
-
-  return `${Number(month)}월 ${Number(day)}일\n${meridiem} ${displayHour}시${minute ? ` ${minute}분` : ''} 오픈`;
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
 };
+
+const formatOpenBoundaryLabel = (value?: string, fallbackDate?: string): string => {
+  const parsedDate = parseScheduleBoundary(value);
+
+  if (parsedDate) {
+    const month = parsedDate.getMonth() + 1;
+    const day = parsedDate.getDate();
+    const hours = parsedDate.getHours();
+    const minutes = parsedDate.getMinutes();
+    const meridiem = hours < 12 ? '오전' : '오후';
+    const displayHour = hours % 12 || 12;
+    const minuteLabel = minutes === 0 ? '' : ` ${minutes}분`;
+
+    return `${month}월 ${day}일\n${meridiem} ${displayHour}시${minuteLabel} 오픈`;
+  }
+
+  if (fallbackDate) {
+    const [, month, day] = fallbackDate.split('-').map(Number);
+    return `${month}월 ${day}일\n오픈 예정`;
+  }
+
+  return '오픈 예정';
+};
+
 
 const mapGameStatus = (value: string): GameStatus => {
   switch (value.toUpperCase()) {
@@ -273,9 +289,12 @@ const mapGameStatus = (value: string): GameStatus => {
       return '종료';
     case 'CANCELED':
     case 'CANCELLED':
+    case 'RAIN_CANCELLED':
       return '취소';
     case 'IN_PROGRESS':
     case 'LIVE':
+    case 'SUSPENDED':
+    case 'RAIN_DELAY':
       return '경기중';
     default:
       return '예정';
@@ -290,7 +309,12 @@ const mapTicketStatus = (value: string): TicketStatus => {
     case 'SOLD_OUT':
     case 'CLOSED':
     case 'ENDED':
+    case 'EXHAUSTED':
+    case 'TERMINATED':
+    case 'CANCELED':
       return '매진';
+    case 'PAUSED':
+      return '판매예정';
     default:
       return '판매예정';
   }
@@ -307,11 +331,23 @@ const mapResellStatus = (ticketStatus: TicketStatus): ReselStatus => {
   }
 };
 
+const closeTicketStatusForUnavailableGame = (ticketStatus: TicketStatus, gameStatus: GameStatus): TicketStatus => {
+  if (gameStatus !== '예정') {
+    return '매진';
+  }
+
+  return ticketStatus;
+};
+
 const resolveVenueNameFromGame = (game: GameScheduleResponse, homeTeamName: string) => {
   const stadiumById = STADIUM_REFERENCES[game.stadiumId];
 
   if (stadiumById) {
     return stadiumById.displayName;
+  }
+
+  if (game.stadiumLocation) {
+    return game.stadiumLocation;
   }
 
   if (game.stadiumName) {
@@ -333,12 +369,17 @@ const isSameCalendarDate = (date: string, target: Date) => {
 
 const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGame => {
   const { date, time } = parseApiDateTime(game.startAt);
-  const homeTeam = findTeamReference(game.homeTeamCode, game.homeTeamName, game.homeTeamId);
-  const awayTeam = findTeamReference(game.awayTeamCode, game.awayTeamName, game.awayTeamId);
-  const status = mapGameStatus(game.gameStatus);
-  const ticket = mapTicketStatus(game.ticketingStatus);
-  const fallbackHomeName = game.homeTeamName ?? game.homeTeamCode ?? game.homeTeamId;
-  const fallbackAwayName = game.awayTeamName ?? game.awayTeamCode ?? game.awayTeamId;
+  const homeTeam = findTeamReference(game.homeTeamDisplayName, game.homeTeamCode, game.homeTeamName, game.homeTeamId);
+  const awayTeam = findTeamReference(game.awayTeamDisplayName, game.awayTeamCode, game.awayTeamName, game.awayTeamId);
+
+  // API 상태와 무관하게 경기 시각이 지났으면 종료 처리
+  const apiStatus = mapGameStatus(game.gameStatus);
+  const gameDateTime = date && time ? new Date(`${date}T${time}`) : null;
+  const status: GameStatus = (apiStatus !== '종료' && gameDateTime && gameDateTime < new Date()) ? '종료' : apiStatus;
+
+  const ticket = closeTicketStatusForUnavailableGame(mapTicketStatus(game.ticketingStatus), status);
+  const fallbackHomeName = game.homeTeamDisplayName ?? game.homeTeamName ?? game.homeTeamCode ?? game.homeTeamId;
+  const fallbackAwayName = game.awayTeamDisplayName ?? game.awayTeamName ?? game.awayTeamCode ?? game.awayTeamId;
 
   return {
     id: game.gameId,
@@ -361,10 +402,12 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
     status,
     ticket,
     resell: mapResellStatus(ticket),
-    ticketInfo: ticket === '판매예정' ? formatOpenedAtInfo(game.ticketingOpenedAt) : undefined,
-    reselInfo: ticket === '판매예정' ? '정식 예매 오픈 후\n리셀 오픈 예정' : undefined,
+    ticketInfo: ticket === '판매예정' ? formatOpenBoundaryLabel(game.ticketingOpenedAt, date) : undefined,
+    reselInfo: ticket === '판매예정' ? '정식 예매 오픈\n2시간 후' : undefined,
     isToday: isSameCalendarDate(date, new Date()),
     ticketingOpenedAt: game.ticketingOpenedAt,
+    ticketingEndAt: game.ticketingEndAt,
+    remainingSeatCount: game.remainingSeatCount,
   };
 };
 
@@ -382,8 +425,13 @@ export const mapGamesToDaySchedules = (games: NormalizedScheduleGame[]): DaySche
       gameId: game.id,
       homeTeamId: game.homeTeamId,
       awayTeamId: game.awayTeamId,
+      serverHomeTeamId: game.serverHomeTeamId,
       stadiumId: game.stadiumId,
+      leagueType: game.leagueType,
       queueTokenJti: game.queueTokenJti,
+      rawDate: game.date,
+      ticketingOpenedAt: game.ticketingOpenedAt,
+      ticketingEndAt: game.ticketingEndAt,
       time: game.time,
       venue: game.venue,
       away: game.awayTeamName,

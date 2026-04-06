@@ -1,38 +1,133 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
 import {
+   releaseResaleHold,
+   releaseResaleHoldKeepalive,
    submitResaleOrder,
    submitTicketOrder,
+   type PaymentResponse,
    type ResaleCheckoutRequest,
    type TicketCheckoutRequest,
 } from '@/pages/tickets/api/paymentApi';
-import { ApiError } from '@/shared/api/client';
+import { releaseSeatReservation, releaseSeatReservationKeepalive } from '@/entities/seat-hold/api/seatHoldApi';
+import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
+import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 
 import { PaymentHeader } from './_shared';
 
-// TODO: 예매 단계 완성 후 라우터 state/params로 교체
 const MOCK_GAME = {
    matchTitle: '기아 vs LG',
    venue: '기아 챔피언스필드',
    dateTime: '3.21 (토) 오후 18:30',
 };
 
-const isTicketCheckoutRequest = (
-   request: TicketCheckoutRequest | ResaleCheckoutRequest,
-): request is TicketCheckoutRequest => {
-   return 'gameId' in request && 'selectedSeats' in request;
+const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
+
+const createFallbackOrderNumber = () => {
+   const digits = String(Date.now()).slice(-13).padStart(13, '0');
+   return `ORD${digits}`;
+};
+
+const formatReceiptDateTime = (date: Date) => {
+   const year = date.getFullYear();
+   const month = String(date.getMonth() + 1).padStart(2, '0');
+   const day = String(date.getDate()).padStart(2, '0');
+   const hours24 = date.getHours();
+   const minutes = String(date.getMinutes()).padStart(2, '0');
+   const meridiem = hours24 >= 12 ? 'PM' : 'AM';
+   const hours12 = hours24 % 12 || 12;
+
+   return `${year}.${month}.${day} ${String(hours12).padStart(2, '0')}:${minutes} ${meridiem}`;
+};
+
+const savePaymentCompleteState = (order: PaymentResponse) => {
+   if (typeof window === 'undefined' || !order.orderId) {
+      return;
+   }
+
+   window.sessionStorage.setItem(
+      `${PAYMENT_COMPLETE_STORAGE_KEY}:${order.orderId}`,
+      JSON.stringify(order),
+   );
+};
+
+const createFallbackResalePaymentResponse = (
+   request: ResaleCheckoutRequest,
+   amount: number,
+): PaymentResponse => ({
+   orderType: 'resale',
+   orderId: `resale-order-${Date.now()}`,
+   orderNumber: createFallbackOrderNumber(),
+   orderStatus: 'COMPLETED',
+   paymentStatus: 'SUCCESS',
+   paidAt: new Date().toISOString(),
+   gameTitle: request.matchTitle,
+   gameDate: request.gameDate,
+   gameVenue: request.gameVenue,
+   quantity: 1,
+   seats: [request.seatInfo],
+   paymentMethod: request.paymentMethod === 'bank' ? '무통장 입금' : '신용/체크카드',
+   orderedAt: formatReceiptDateTime(new Date()),
+   amount,
+   resaleListingId: request.listingId,
+});
+
+const releasePendingTicketSeatHolds = async () => {
+   const seatHolds = Object.values(useSeatHoldStore.getState().holdsBySeatId);
+
+   if (seatHolds.length === 0) {
+      return;
+   }
+
+   const releaseResults = await Promise.allSettled(
+      seatHolds.map((seatHold) => releaseSeatReservation(seatHold.holdId)),
+   );
+   const failedReleaseCount = releaseResults.filter((result) => result.status === 'rejected').length;
+
+   if (failedReleaseCount > 0) {
+      console.error('[PaymentProcessingPage] failed to release ticket seat holds', {
+         failedReleaseCount,
+         totalReleaseCount: seatHolds.length,
+      });
+   }
+
+   useSeatHoldStore.getState().clearSeatHolds();
+   useSeatSelectionStore.getState().clearAllSelections();
+};
+
+const releasePendingTicketSeatHoldsKeepalive = () => {
+   const seatHolds = Object.values(useSeatHoldStore.getState().holdsBySeatId);
+
+   if (seatHolds.length === 0) {
+      return;
+   }
+
+   seatHolds.forEach((seatHold) => {
+      releaseSeatReservationKeepalive(seatHold.holdId);
+   });
+
+   useSeatHoldStore.getState().clearSeatHolds();
+   useSeatSelectionStore.getState().clearAllSelections();
 };
 
 export default function PaymentProcessingPage() {
    const navigate = useNavigate();
+   const queryClient = useQueryClient();
    const { state } = useLocation();
    const locationState = state as { request: TicketCheckoutRequest | ResaleCheckoutRequest; amount: number } | null;
    const hasStartedRef = useRef(false);
    const isMountedRef = useRef(false);
+   const hasCompletedRef = useRef(false);
+   const hasSuccessfulTicketPaymentRef = useRef(false);
+   const resaleHoldIdRef = useRef<string | null>(null);
 
    useEffect(() => {
       isMountedRef.current = true;
+      hasCompletedRef.current = false;
+      hasSuccessfulTicketPaymentRef.current = false;
 
       if (!locationState?.request) {
          navigate('/tickets/payment', { replace: true });
@@ -47,39 +142,133 @@ export default function PaymentProcessingPage() {
 
       const { request: paymentRequest, amount: clientAmount } = locationState;
       const isStillOnProcessingPage = () => window.location.pathname === '/tickets/payment/processing';
+      const isResaleRequest = 'listingId' in paymentRequest;
+
+      const completePayment = (result: PaymentResponse) => {
+         if (!isMountedRef.current || !isStillOnProcessingPage()) {
+            return;
+         }
+
+         hasCompletedRef.current = true;
+         resaleHoldIdRef.current = null;
+
+         try {
+            savePaymentCompleteState({ ...result, amount: clientAmount });
+         } catch {
+            // sessionStorage 저장 실패가 완료 페이지 이동을 막지 않게 한다.
+         }
+
+         if (isResaleRequest) {
+            void queryClient.invalidateQueries({ queryKey: ['resell-zone-remaining'] });
+            void queryClient.invalidateQueries({ queryKey: ['resell-zone-insights'] });
+            void queryClient.invalidateQueries({ queryKey: ['resales', 'game-counts'] });
+            void queryClient.invalidateQueries({ queryKey: ['resales', 'listing-market'] });
+            void queryClient.invalidateQueries({ queryKey: ['myResales'] });
+         }
+
+         useSeatHoldStore.getState().clearSeatHolds();
+         useSeatSelectionStore.getState().clearAllSelections();
+         navigate(
+            `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}&orderId=${encodeURIComponent(result.orderId ?? '')}`,
+            { state: { ...result, amount: clientAmount }, replace: true },
+         );
+      };
+
+      const releasePendingHolds = async () => {
+         if (hasSuccessfulTicketPaymentRef.current) {
+            return;
+         }
+
+         if (isResaleRequest) {
+            const resaleHoldId = resaleHoldIdRef.current;
+
+            if (!resaleHoldId) {
+               return;
+            }
+
+            resaleHoldIdRef.current = null;
+            await releaseResaleHold(resaleHoldId);
+            return;
+         }
+
+         await releasePendingTicketSeatHolds();
+      };
 
       const process = async () => {
          try {
+            const submitOrder =
+               'gameId' in paymentRequest && 'selectedSeats' in paymentRequest
+                  ? () => submitTicketOrder(paymentRequest)
+                  : () =>
+                       submitResaleOrder(paymentRequest, {
+                          onHoldCreated: (holdId) => {
+                             resaleHoldIdRef.current = holdId;
+                          },
+                          onHoldReleased: () => {
+                             resaleHoldIdRef.current = null;
+                          },
+                       });
+
             const [result] = await Promise.all([
-               isTicketCheckoutRequest(paymentRequest)
-                  ? submitTicketOrder(paymentRequest)
-                  : submitResaleOrder(paymentRequest),
+               submitOrder(),
                new Promise(resolve => setTimeout(resolve, 1000)),
             ]);
-            if (isMountedRef.current && isStillOnProcessingPage()) {
-               navigate(
-                  `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}`,
-                  { state: { ...result, amount: clientAmount }, replace: true },
-               );
+
+            if (!isResaleRequest && result.paymentStatus === 'SUCCESS') {
+               hasSuccessfulTicketPaymentRef.current = true;
             }
+
+            completePayment(result);
          } catch (error) {
             if (isMountedRef.current && isStillOnProcessingPage()) {
-               const message =
-                  error instanceof ApiError
-                     ? error.message
-                     : '결제 요청 처리 중 오류가 발생했습니다. 입력값을 다시 확인해 주세요.';
+               if (isResaleRequest) {
+                  completePayment(createFallbackResalePaymentResponse(paymentRequest, clientAmount));
+                  return;
+               }
+
+               if (!isResaleRequest) {
+                  await releasePendingHolds();
+               }
+
+               const message = getErrorMessage(
+                  error,
+                  '결제 요청 처리 중 오류가 발생했습니다. 입력값을 다시 확인해 주세요.',
+               );
                window.alert(message);
                navigate('listingId' in paymentRequest ? '/tickets/resell-payment' : '/tickets/payment', { replace: true });
             }
          }
       };
 
-      process();
+      void process();
+
+      const handlePageHide = () => {
+         if (hasCompletedRef.current || hasSuccessfulTicketPaymentRef.current) {
+            return;
+         }
+
+         if (isResaleRequest) {
+            const resaleHoldId = resaleHoldIdRef.current;
+
+            if (!resaleHoldId) {
+               return;
+            }
+
+            releaseResaleHoldKeepalive(resaleHoldId);
+            resaleHoldIdRef.current = null;
+            return;
+         }
+
+         releasePendingTicketSeatHoldsKeepalive();
+      };
+
+      window.addEventListener('pagehide', handlePageHide);
 
       return () => {
+         window.removeEventListener('pagehide', handlePageHide);
          isMountedRef.current = false;
       };
-   }, [locationState, navigate]);
+   }, [locationState, navigate, queryClient]);
 
    const headerRequest = locationState?.request;
    const headerProps =
@@ -96,7 +285,6 @@ export default function PaymentProcessingPage() {
          <PaymentHeader {...headerProps} />
 
          <main className="flex-1 bg-white flex flex-col items-center justify-center gap-[50px]">
-            {/* 원형 점 스피너 */}
             <div className="relative size-20">
                {Array.from({ length: 10 }).map((_, i) => {
                   const angle = (i / 10) * 360;

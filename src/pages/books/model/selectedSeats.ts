@@ -1,20 +1,21 @@
-import type { SeatItem, ZoneItem } from './types';
+import type { SeatSelectionItem } from '@/entities/seat-selection/model/types';
+import type { ZoneItem } from './types';
 
 export type ZoneSeatSelectionState = {
-   seatMap: Record<string, SeatItem>;
+   seatMap: Record<string, SeatSelectionItem>;
    selectedSeatIds: string[];
 };
 
 export type SeatSelectionZonesState = Record<string, ZoneSeatSelectionState>;
 
 export type SelectedSeatDetail = {
-   seat: SeatItem;
+   seat: SeatSelectionItem;
    zoneId: string;
    zoneName: string;
    price: number;
 };
 
-export const formatSelectedSeatLabel = (zoneName: string, seat: SeatItem) =>
+export const formatSelectedSeatLabel = (zoneName: string, seat: SeatSelectionItem) =>
    `${zoneName} ${seat.block}구역 ${seat.rowLabel} ${seat.seatNumber}번`;
 
 export const getSelectedSeatDetails = (
@@ -30,7 +31,7 @@ export const getSelectedSeatDetails = (
 
       return zoneState.selectedSeatIds
          .map((seatId) => zoneState.seatMap[seatId])
-         .filter((seat): seat is SeatItem => Boolean(seat))
+         .filter((seat): seat is SeatSelectionItem => Boolean(seat))
          .map((seat) => ({
             seat,
             zoneId,

@@ -7,6 +7,7 @@ import TicketTypeBadge from './TicketTypeBadge';
 import type { TicketType } from './TicketTypeBadge';
 import ResellRegisterDialog from './ResellRegisterDialog';
 import QrViewDialog from './QrViewDialog';
+import type { PurchaseHistoryItem as HistoryCardPurchaseHistoryItem } from './HistoryCard';
 
 export type PurchaseStatus =
    | '입금 대기'
@@ -66,7 +67,13 @@ export default function PurchaseHistoryCard({ item }: PurchaseHistoryCardProps) 
 
    return (
       <>
-         {resellOpen && <ResellRegisterDialog open={resellOpen} onClose={() => setResellOpen(false)} item={item} />}
+         {resellOpen && (
+            <ResellRegisterDialog
+               open={resellOpen}
+               onClose={() => setResellOpen(false)}
+               item={item as unknown as HistoryCardPurchaseHistoryItem}
+            />
+         )}
          {qrOpen && (
             <QrViewDialog
                open={qrOpen}

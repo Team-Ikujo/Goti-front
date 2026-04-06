@@ -15,6 +15,7 @@ import {
   OAUTH_SUCCESS_MESSAGE_TYPE,
   type OAuthSuccessMessage,
 } from "@/shared/lib/oauthMessage";
+import { isMswEnabled } from "@/shared/config/runtime";
 import {
   clearIssuedSocialState,
   getIssuedSocialState,
@@ -62,6 +63,33 @@ const formatErrorMessage = (error: unknown): string => {
   return String(error);
 };
 
+const waitForMswControl = async () => {
+  if (
+    !isMswEnabled ||
+    typeof window === "undefined" ||
+    !("serviceWorker" in navigator)
+  ) {
+    return;
+  }
+
+  if (navigator.serviceWorker.controller) {
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    const timeoutId = window.setTimeout(resolve, 2000);
+
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      () => {
+        window.clearTimeout(timeoutId);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+};
+
 type UseOAuthCallbackFlowParams = {
   provider?: string;
 };
@@ -74,6 +102,10 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
   const submitAuthCodeMutation = useSubmitAuthCode();
   const socialLoginMutation = useSocialLogin();
   const setAuthTokens = useAuthStore((state) => state.setAuthTokens);
+  const clearLoginPopupTimer = useAuthStore(
+    (state) => state.clearLoginPopupTimer,
+  );
+  const setLoginAlert = useAuthStore((state) => state.setLoginAlert);
   const setRecentLoginProvider = useAuthStore(
     (state) => state.setRecentLoginProvider,
   );
@@ -133,17 +165,14 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
 
     const run = async () => {
       try {
+        await waitForMswControl();
+
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
 
         if (!code) {
           throw new Error("Missing authorization code.");
         }
-
-        console.log("[OAuth] Provider authorization code received.", {
-          provider: normalizedProvider,
-          authCode: code,
-        });
 
         if (!isSocialProvider(normalizedProvider)) {
           throw new Error(`Unsupported provider: ${normalizedProvider ?? "none"}`);
@@ -182,8 +211,35 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
             loginResponse.failCount,
             "/",
           );
+          const accessToken =
+            typeof loginResponse.accessToken === "string" &&
+            loginResponse.accessToken.length > 0
+              ? loginResponse.accessToken
+              : null;
+
+          if (!accessToken) {
+            if (loginAlert) {
+              const nextPath = "/auth/login";
+              const tokens = {
+                accessToken: null,
+                socialVerifyToken: null,
+              };
+
+              setAuthTokens(tokens);
+              setMessage("로그인 상태를 확인하고 있어요.");
+
+              if (!redirectFromPopup(nextPath, tokens, normalizedProvider, loginAlert)) {
+                setLoginAlert(loginAlert);
+                navigate(nextPath, { replace: true });
+              }
+              return;
+            }
+
+            throw new Error("로그인 응답에 accessToken이 없습니다.");
+          }
+
           const tokens = {
-            accessToken: loginResponse.accessToken,
+            accessToken,
             socialVerifyToken: null,
           };
           setAuthTokens(tokens);
@@ -209,15 +265,18 @@ export const useOAuthCallbackFlow = ({ provider }: UseOAuthCallbackFlowParams) =
         }
         setMessage("로그인에 실패했어요. 다시 시도해 주세요.");
         setErrorMessage(formatErrorMessage(error));
-        console.error(error);
+      } finally {
+        clearLoginPopupTimer();
       }
     };
 
     void run();
   }, [
+    clearLoginPopupTimer,
     navigate,
     normalizedProvider,
     setAuthTokens,
+    setLoginAlert,
     setRecentLoginProvider,
     socialLoginMutation,
     submitAuthCodeMutation,

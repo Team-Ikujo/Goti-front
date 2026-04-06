@@ -17,13 +17,20 @@ export type ApiTicketingStatus =
    | 'CANCELED'
    | 'PAUSED';
 
-export type ApiGameResult = 'NONE' | 'HOME_WIN' | 'AWAY_WIN' | 'DRAW' | 'CANCELLED';
+export type ApiGameResult =
+   | 'NONE'
+   | 'HOME_WIN'
+   | 'AWAY_WIN'
+   | 'WIN'
+   | 'LOSE'
+   | 'DRAW'
+   | 'CANCELLED';
 
-export type ApiLeagueType = 'PRE_SEASON' | 'REGULAR' | 'POSTSEASON';
+export type ApiLeagueType = 'EXHIBITION' | 'REGULAR' | 'POST_SEASON';
 
 export interface GameScheduleResponse {
    gameId: string;
-   startAt: string; // ISO 8601 date-time
+   startAt: string;
    leagueType: ApiLeagueType;
    homeTeamId: string;
    awayTeamId: string;
@@ -33,7 +40,17 @@ export interface GameScheduleResponse {
    awayTeamScore: number;
    gameResult: ApiGameResult;
    ticketingStatus: ApiTicketingStatus;
-   ticketingOpenedAt: string;
+   ticketingOpenedAt?: string;
+   ticketingEndAt?: string;
+   remainingSeatCount?: number;
+   homeTeamDisplayName?: string;
+   awayTeamDisplayName?: string;
+   stadiumLocation?: string;
+   homeTeamCode?: string;
+   awayTeamCode?: string;
+   homeTeamName?: string;
+   awayTeamName?: string;
+   stadiumName?: string;
 }
 
 export interface GetGameSchedulesParams {
@@ -44,13 +61,19 @@ export interface GetGameSchedulesParams {
    today?: boolean;
 }
 
-// GET /api/v1/stadium-seats/stadiums/{stadiumId}/games/{gameId}/seat-grades 응답 타입
+// GET /api/v1/stadium-seats/games/{gameId}/seat-grades 응답 타입
 export interface SeatGradeResponse {
    seatGradeId: string;
    stadiumId: string;
    name: string;
    displayColorHex: string;
    availableSeatCount: number;
+}
+
+export interface SeatGradeSearchResultResponse {
+   sessionId: string;
+   sessionExpiresAt: string;
+   seatGrades: SeatGradeResponse[];
 }
 
 // GET /api/v1/stadium-seats/stadiums/{stadiumId}/seat-sections 응답 타입

@@ -116,7 +116,7 @@ export class GuardrailTelemetry {
 
    // 상태 변수
    private windowStartTs = performance.now();
-   private behaviorIntervalId: any = null;
+   private behaviorIntervalId: ReturnType<typeof setInterval> | null = null;
 
    // 스로틀링 제어용 타임스탬프
    private lastPmTime = 0;
@@ -376,9 +376,7 @@ export class GuardrailTelemetry {
             headers: this.getHeaders(),
             body: JSON.stringify(payload),
          });
-         console.log('High Risk: Raw Capture Uploaded');
-      } catch (e) {
-         console.error('Raw Capture API Error:', e);
+      } catch {
       }
    }
 

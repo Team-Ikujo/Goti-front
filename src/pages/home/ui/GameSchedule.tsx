@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameSchedules, mapGamesToDaySchedules } from '@/entities/game/model/schedule';
+import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
 
 import {
    AVAILABLE_YEARS,
@@ -18,6 +19,15 @@ import ScheduleList from './game-schedule/ScheduleList';
 import TeamLogoNav from './game-schedule/TeamLogoNav';
 import WeekNavigator from './game-schedule/WeekNavigator';
 import { filterScheduleData } from './game-schedule/utils';
+import type { DaySchedule, ReselStatus } from './game-schedule/types';
+
+const getResellStatus = (resaleCount: number | undefined, fallbackStatus: ReselStatus): ReselStatus => {
+   if (typeof resaleCount === 'number') {
+      return resaleCount > 0 ? '리셀예매' : '리셀매진';
+   }
+
+   return fallbackStatus;
+};
 
 const GameSchedule = () => {
    const navigate = useNavigate();
@@ -50,11 +60,32 @@ const GameSchedule = () => {
    })();
 
    const scheduleQuery = useGameSchedules(scheduleParams);
+   const resaleGameIds = useMemo(() => (scheduleQuery.data ?? []).map(game => game.id), [scheduleQuery.data]);
+   const resaleCountsQuery = useResaleGameCounts(resaleGameIds);
 
-   const scheduleData = useMemo(
-      () => mapGamesToDaySchedules(scheduleQuery.data ?? []),
-      [scheduleQuery.data],
-   );
+   const scheduleData = useMemo(() => {
+      const TARGET_TEAMS = ['kia', 'samsung'];
+      const filtered = (scheduleQuery.data ?? []).filter(
+         game => TARGET_TEAMS.includes(game.homeTeamId ?? '') || TARGET_TEAMS.includes(game.awayTeamId ?? ''),
+      );
+      const daySchedules = mapGamesToDaySchedules(filtered);
+
+      return daySchedules.map(
+         (day): DaySchedule => ({
+            ...day,
+            games: day.games.map(game => {
+               const resaleCount = game.gameId ? resaleCountsQuery.data?.get(game.gameId) : undefined;
+               const resell = getResellStatus(resaleCount, game.resell);
+
+               return {
+                  ...game,
+                  resell,
+                  reselInfo: resell === '리셀예정' ? '정식 예매 오픈\n2시간 후' : undefined,
+               };
+            }),
+         }),
+      );
+   }, [resaleCountsQuery.data, scheduleQuery.data]);
 
    const filteredData = useMemo(
       () =>

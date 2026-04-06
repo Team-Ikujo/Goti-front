@@ -31,11 +31,10 @@ export default function TicketItem({ orderId, section, seatDetail, status, price
                <p className="text-body-1-regular leading-[1.5]">{seatDetail}</p>
             </div>
          </div>
-         {/* 상태 + 가격 — 상태는 w-[90px] 고정, 가격은 우측 정렬 */}
-         <div className="flex items-center w-[186px] shrink-0">
-            <p className={`text-body-1-medium ${statusColor} w-[90px] shrink-0`}>{status}</p>
-            <p className={`text-body-1-bold ${infoColor} flex-1 text-right`}>{price.toLocaleString()}원</p>
-         </div>
+         {/* 상태 */}
+         <p className={`text-body-1-medium shrink-0 ${statusColor}`}>{status}</p>
+         {/* 가격 */}
+         <p className={`text-body-1-bold shrink-0 ${infoColor}`}>{price.toLocaleString()}원</p>
       </div>
    );
 }

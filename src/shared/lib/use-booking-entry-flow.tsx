@@ -1,13 +1,19 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-import { createBookingFlowSearch, type BookingFlowMode } from '@/shared/lib/booking-flow';
+import {
+  createBookingEntrySourcePath,
+  createBookingFlowSearch,
+  type BookingFlowMode,
+} from '@/shared/lib/booking-flow';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 import type { ApiLeagueType } from '@/shared/types/game';
 import BookingGuideDialog from '@/shared/ui/booking-guide-dialog';
 
 export type OpenBookingEntryOptions = {
+  entrySourcePath?: string;
   homeTeamId?: string;
   serverHomeTeamId?: string;
   gameId?: string;
@@ -24,6 +30,8 @@ export type OpenBookingEntryOptions = {
 const createBookingEntryState = (options?: OpenBookingEntryOptions): BookingEntryState => {
   return {
     requireCaptcha: true,
+    forceNewSession: true,
+    entrySourcePath: options?.entrySourcePath,
     homeTeamId: options?.homeTeamId,
     serverHomeTeamId: options?.serverHomeTeamId,
     gameId: options?.gameId,
@@ -48,13 +56,20 @@ type PendingEntry = {
  */
 export function useBookingEntryFlow() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const hasResolvedSession = useAuthStore(state => state.hasResolvedSession);
   const accessToken = useAuthStore(state => state.accessToken);
+  const currentUserId = useAuthStore(state => state.currentUserId);
   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [pendingEntry, setPendingEntry] = useState<PendingEntry | null>(null);
 
   const openEntryWithGuide = (mode: BookingFlowMode, options?: OpenBookingEntryOptions) => {
-    const nextEntryState = createBookingEntryState(options);
+    const nextEntryState = createBookingEntryState({
+      ...options,
+      userId: options?.userId ?? currentUserId ?? resolveUserIdFromJwt(accessToken) ?? undefined,
+      entrySourcePath: createBookingEntrySourcePath(location),
+    });
 
     setBookingEntry(nextEntryState);
     setPendingEntry({
@@ -65,6 +80,10 @@ export function useBookingEntryFlow() {
   };
 
   const openBookingEntry = (options?: OpenBookingEntryOptions) => {
+    if (!hasResolvedSession) {
+      return;
+    }
+
     if (!accessToken) {
       navigate('/auth/login');
       return;
@@ -74,6 +93,10 @@ export function useBookingEntryFlow() {
   };
 
   const openResellEntry = (options?: OpenBookingEntryOptions) => {
+    if (!hasResolvedSession) {
+      return;
+    }
+
     if (!accessToken) {
       navigate('/auth/login');
       return;
@@ -86,13 +109,28 @@ export function useBookingEntryFlow() {
     <BookingGuideDialog
       open={isGuideOpen}
       onOpenChange={setIsGuideOpen}
-      onConfirm={() => {
+      onConfirm={(turnstileToken: string) => {
         setIsGuideOpen(false);
+        const nextEntryState = {
+          ...(pendingEntry?.entryState ?? { requireCaptcha: true }),
+          turnstileToken,
+        } satisfies BookingEntryState;
+
+        setBookingEntry(nextEntryState);
         navigate({
-          pathname: '/books',
-          search: createBookingFlowSearch(pendingEntry?.mode ?? 'standard'),
+          pathname: '/queue',
+          search: (() => {
+            const modeSearch = createBookingFlowSearch(pendingEntry?.mode ?? 'standard');
+            const params = new URLSearchParams(modeSearch);
+            params.set('rank', '120');
+            params.set('tickMs', '300');
+            params.set('step', '8');
+            const nextSearch = params.toString();
+
+            return nextSearch ? `?${nextSearch}` : '';
+          })(),
         }, {
-          state: pendingEntry?.entryState ?? { requireCaptcha: true },
+          state: nextEntryState,
         });
       }}
     />

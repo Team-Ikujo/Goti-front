@@ -1,4 +1,4 @@
-import { RefreshCcw, Volume2 } from 'lucide-react';
+import { RefreshCcw } from 'lucide-react';
 
 import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
@@ -29,6 +29,7 @@ function BookingCaptchaGate({
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
             className="w-[calc(100%-40px)] max-w-[426px] gap-0 overflow-hidden rounded-[12px] border-0 bg-(--background-elevated) p-0"
+            closeOnlyWithButton
             showCloseButton={false}
          >
             <DialogHeader className="px-5 pb-5 pt-5">
@@ -44,19 +45,19 @@ function BookingCaptchaGate({
                      <span className="pointer-events-none absolute h-px w-[190px] -rotate-[16deg] bg-[#abdb58]" />
                   </div>
 
-                  <button
+                  {/* <button
                      type="button"
                      aria-label="보안 문자 음성 안내"
                      className="absolute right-3 top-3 flex size-10 items-center justify-center rounded-[8px] border border-(--border-light) bg-white shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
                   >
                      <Volume2 className="size-6 text-(--text-primary)" />
-                  </button>
+                  </button> */}
 
                   <button
                      type="button"
                      aria-label="보안 문자 새로고침"
                      onClick={onRefresh}
-                     className="absolute right-3 top-16 flex size-10 items-center justify-center rounded-[8px] border border-(--border-light) bg-white shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
+                     className="absolute right-3 top-3 flex size-10 items-center justify-center rounded-[8px] border border-(--border-light) bg-white shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
                   >
                      <RefreshCcw className="size-6 text-(--text-primary)" />
                   </button>
@@ -66,9 +67,17 @@ function BookingCaptchaGate({
             <div className="px-5 pb-5">
                <Input
                   autoFocus
-                  placeholder="화면의 문자를 입력해주세요 (대소문자 구분없음)"
+                  placeholder="화면의 문자를 입력해주세요 (대소문자 구분)"
                   value={value}
-                  onChange={(event) => onChangeValue(event.target.value)}
+                  onChange={event => onChangeValue(event.target.value)}
+                  onKeyDown={event => {
+                     if (event.key !== 'Enter' || value.trim().length === 0) {
+                        return;
+                     }
+
+                     event.preventDefault();
+                     onSubmit();
+                  }}
                   error={Boolean(error)}
                   helpText={error || undefined}
                   className="[&_input]:border-(--border-heavy) [&_input]:text-[16px]"

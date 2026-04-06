@@ -1,34 +1,8 @@
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import type { GameScheduleResponse, GetGameSchedulesParams } from '@/shared/types/game';
 
-export type FetchGameSchedulesParams = {
-  teamId?: string;
-  year?: number;
-  month?: number;
-  week?: number;
-  today?: boolean;
-};
-
-export type GameScheduleResponse = {
-  gameId: string;
-  startAt: string;
-  leagueType: string;
-  homeTeamId: string;
-  awayTeamId: string;
-  stadiumId: string;
-  gameStatus: string;
-  homeTeamScore: number;
-  awayTeamScore: number;
-  gameResult: string;
-  ticketingStatus: string;
-  ticketingOpenedAt?: string;
-  ticketingEndAt?: string;
-  homeTeamCode?: string;
-  awayTeamCode?: string;
-  homeTeamName?: string;
-  awayTeamName?: string;
-  stadiumName?: string;
-};
+export type FetchGameSchedulesParams = GetGameSchedulesParams;
 
 export type BaseballTeamDetailResponse = {
   id: string;
