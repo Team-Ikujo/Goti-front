@@ -8,7 +8,7 @@ import IdentityVerificationForm from '@/features/auth/ui/IdentityVerificationFor
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import LoginRetryDialog from '@/pages/signup/ui/LoginRetryDialog';
 import { ApiError } from '@/shared/api/client';
-import { Alert } from '@/shared/ui/alert';
+import { Snackbar } from '@/shared/ui/snackbar';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -139,16 +139,7 @@ const SignUpPage = () => {
             {submitError && <p className="text-center text-sm text-destructive">{submitError}</p>}
          </section>
 
-         <Alert
-            open={showAlert}
-            title="인증 번호 전송"
-            description="인증번호가 전송되었습니다."
-            onOpenChange={open => {
-               if (!open) {
-                  setShowAlert(false);
-               }
-            }}
-         />
+         <Snackbar open={showAlert} message="인증번호가 전송되었습니다." onClose={() => setShowAlert(false)} />
 
          <LoginRetryDialog
             open={showLoginRetryDialog}

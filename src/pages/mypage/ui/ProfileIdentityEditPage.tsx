@@ -10,7 +10,7 @@ import {
 import IdentityVerificationForm from '@/features/auth/ui/IdentityVerificationForm';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { ApiError } from '@/shared/api/client';
-import { Alert } from '@/shared/ui/alert';
+import { Snackbar } from '@/shared/ui/snackbar';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -129,16 +129,7 @@ const ProfileIdentityEditPage = () => {
             {submitError && <p className="text-center text-sm text-destructive">{submitError}</p>}
          </section>
 
-         <Alert
-            open={showAlert}
-            title="인증 번호 전송"
-            description="인증번호가 전송되었습니다."
-            onOpenChange={open => {
-               if (!open) {
-                  setShowAlert(false);
-               }
-            }}
-         />
+         <Snackbar open={showAlert} message="인증번호가 전송되었습니다." onClose={() => setShowAlert(false)} />
       </div>
    );
 };

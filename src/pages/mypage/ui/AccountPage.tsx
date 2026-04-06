@@ -332,7 +332,7 @@ export default function AccountPage() {
                navigate('/mypage/account/identity', {
                   state: {
                      name: profile.name,
-                     phone: profile.mobile,
+                     phone: profile.mobile?.replace(/\D/g, '') ?? '',
                   },
                })
             }
