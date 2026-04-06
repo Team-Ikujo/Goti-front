@@ -158,7 +158,7 @@ export const useMyResaleListData = () => {
       select: (data): SaleHistoryItem[] => {
          return data.map((listing) => ({
             id: listing.listingId,
-            orderId: listing.listingId.replace(/^listing-/i, '').slice(0, 8).toUpperCase(),
+            orderId: formatTicketNumber(listing.ticketNumber ?? listing.ticketId, 'ticket'),
             orderDate: formatDate(listing.listedAt),
             soldAt: listing.soldAt ? formatDateTime(listing.soldAt) : undefined,
             canceledAt: listing.canceledAt ? formatDateTime(listing.canceledAt) : undefined,

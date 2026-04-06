@@ -6,6 +6,8 @@ import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSe
 import { formatBookingHeaderDateTime } from '@/shared/lib/bookingDateTime';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { DEFAULT_BOOKING_TIMER_SECONDS, useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
+import { mockGameSchedules } from '@/shared/api/mocks/handlers/game';
+import { teams } from '@/entities/team/model/teams';
 
 import BooksExitDialog from './BooksExitDialog';
 import BooksTimeoutDialog from './BooksTimeoutDialog';
@@ -29,6 +31,36 @@ const VENUE_FALLBACK_TOKENS_BY_TEAM = {
 } as const;
 
 const normalizeVenueValue = (value: string) => value.trim().toLowerCase().replace(/\s+/g, '');
+const teamNameByServerId = new Map(
+   teams
+      .filter((team) => team.serverTeamId)
+      .map((team) => [team.serverTeamId as string, team.name]),
+);
+
+const resolveBookingEntryGameFallback = (entry?: BookingEntryState | null) => {
+   if (!entry?.gameId) {
+      return null;
+   }
+
+   const matchedGame = mockGameSchedules.find((game) => game.gameId === entry.gameId);
+
+   if (!matchedGame) {
+      return null;
+   }
+
+   const homeTeamName = teamNameByServerId.get(matchedGame.homeTeamId);
+   const awayTeamName = teamNameByServerId.get(matchedGame.awayTeamId);
+   const homeTeam = teams.find((team) => team.serverTeamId === matchedGame.homeTeamId);
+
+   return {
+      matchTitle:
+         awayTeamName && homeTeamName
+            ? `${awayTeamName} vs ${homeTeamName}`
+            : undefined,
+      venue: entry.venue ?? homeTeam?.stadiumName,
+      dateTime: matchedGame.startAt,
+   };
+};
 
 const resolveHeaderVenue = ({
    venue,
@@ -106,6 +138,7 @@ const BooksHeader = ({
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const clearBookingEntry = useBookingEntryStore((store) => store.clearEntry);
    const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
+   const bookingEntryGameFallback = resolveBookingEntryGameFallback(bookingEntryState);
    const resolvedCurrentStepIndex = currentStepIndex ?? (pathname.includes('/books/seats/') ? 1 : 0);
    const shouldShowBackButton = showBackButton ?? resolvedCurrentStepIndex > 0;
    const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
@@ -146,14 +179,19 @@ const BooksHeader = ({
    const timeStr = `${mm}:${ss}`;
    const currentStepLabel = steps[resolvedCurrentStepIndex] ?? '';
    const resolvedMatchTitle =
-      matchTitle ?? bookingEntryState?.matchTitle ?? `${bookingTeamConfig.displayName} 홈경기`;
+      matchTitle ??
+      bookingEntryState?.matchTitle ??
+      bookingEntryGameFallback?.matchTitle ??
+      `${bookingTeamConfig.displayName} 홈경기`;
    const resolvedVenue = resolveHeaderVenue({
-      venue: venue ?? bookingEntryState?.venue,
+      venue: venue ?? bookingEntryState?.venue ?? bookingEntryGameFallback?.venue,
       fallbackVenue: bookingTeamConfig.stadiumName,
       teamId: bookingEntryState?.homeTeamId,
       teamDisplayName: bookingTeamConfig.displayName,
    });
-   const resolvedDateTime = formatBookingHeaderDateTime(dateTime ?? bookingEntryState?.dateTime ?? DEFAULT_MATCH_INFO.dateTime);
+   const resolvedDateTime = formatBookingHeaderDateTime(
+      dateTime ?? bookingEntryState?.dateTime ?? bookingEntryGameFallback?.dateTime ?? DEFAULT_MATCH_INFO.dateTime,
+   );
 
    useEffect(() => {
       if (!showTimer || expiresAt === null || remainingSeconds > 0) {

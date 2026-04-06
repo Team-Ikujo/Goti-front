@@ -1,5 +1,6 @@
 // src/pages/mypage/ui/SaleDetailPage.tsx
 
+import { type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
@@ -28,7 +29,7 @@ const FEE_RATE = 5;
 
 // ─── 로컬 서브 컴포넌트 ────────────────────────────────────────
 
-function SectionCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+function SectionCard({ children, className = '' }: { children: ReactNode; className?: string }) {
    return (
       <div className={`border border-[#e9ebee] rounded-2xl p-[25px] flex flex-col gap-6 ${className}`}>{children}</div>
    );

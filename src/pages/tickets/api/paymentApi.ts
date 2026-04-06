@@ -6,6 +6,7 @@ import type {
    PaymentMethod,
    SupportedPaymentMethod,
 } from '../ui/payment/types';
+import type { BotReport } from '@/shared/lib/botDetector';
 import { type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
 import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 import { useAuthStore } from '@/entities/auth/model/authStore';
@@ -200,7 +201,7 @@ const createClientTransactionId = (prefix: string) => {
    return `${prefix}-${Date.now()}`;
 };
 
-const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms));
 
 const isAuthorizationConflictError = (error: unknown) => {
    if (!(error instanceof ApiError)) {
@@ -454,14 +455,13 @@ const buildOptimisticResalePaymentResponse = ({
    order?: ResaleOrderResponse | null;
    payload: ResaleCheckoutRequest;
 }): PaymentResponse => {
-   const fallbackOrder: ResaleOrderResponse =
-      order ?? {
-         orderId: createClientTransactionId('resale-order'),
-         orderNumber: `RESALE${Date.now()}`,
-         orderStatus: 'COMPLETED',
-         totalQuantity: 1,
-         totalAmount: payload.totalAmount,
-      };
+   const fallbackOrder: ResaleOrderResponse = order ?? {
+      orderId: createClientTransactionId('resale-order'),
+      orderNumber: `RESALE${Date.now()}`,
+      orderStatus: 'COMPLETED',
+      totalQuantity: 1,
+      totalAmount: payload.totalAmount,
+   };
 
    const syntheticPayment: OrderPaymentResponse = {
       paymentId: createClientTransactionId('resale-payment'),
@@ -602,7 +602,7 @@ export const submitResaleOrder = async (
          totalAmount: payload.totalAmount,
          totalBuyerFee: payload.totalBuyerFee,
          totalSellerFee: payload.totalSellerFee,
-         items: transactionIds.map((transactionId) => ({
+         items: transactionIds.map(transactionId => ({
             transactionId,
             sellerId: payload.sellerId,
             settlementAmount: payload.settlementAmount,
@@ -634,7 +634,7 @@ export const submitResaleOrder = async (
          gameTitle: payload.matchTitle,
          gameDate: payload.gameDate,
          gameVenue: payload.gameVenue,
-         seats: completedOrder?.items?.map((item) => item.seatInfo) ?? [payload.seatInfo],
+         seats: completedOrder?.items?.map(item => item.seatInfo) ?? [payload.seatInfo],
          resaleListingId: payload.listingId,
          ticketId: completedOrder?.ticketIds?.[0],
       });

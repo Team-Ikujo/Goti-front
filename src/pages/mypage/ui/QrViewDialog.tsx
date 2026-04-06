@@ -95,7 +95,7 @@ export default function QrViewDialog({
    }, [currentTicketId, qrQuery]);
 
    const renderStatusContent = () => {
-      switch (true) {
+      switch (true as boolean) {
          case isTicketInfoLoading:
             return (
                <div className="flex flex-col items-center gap-4 px-5 pt-[30px] pb-5 text-center">

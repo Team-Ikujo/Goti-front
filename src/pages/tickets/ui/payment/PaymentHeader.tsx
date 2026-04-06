@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { formatBookingHeaderDateTime } from '@/shared/lib/bookingDateTime';
 import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 
@@ -34,6 +35,7 @@ function useTimerStr() {
 export function PaymentHeader({ matchTitle, venue, dateTime }: PaymentHeaderProps) {
    const navigate = useNavigate();
    const timeStr = useTimerStr();
+   const formattedDateTime = formatBookingHeaderDateTime(dateTime) ?? dateTime;
 
    return (
       <>
@@ -61,7 +63,7 @@ export function PaymentHeader({ matchTitle, venue, dateTime }: PaymentHeaderProp
                <div className="flex items-center gap-1 text-[12px] font-medium leading-[1.5] text-muted-foreground">
                   <span>{venue}</span>
                   <span>∙</span>
-                  <span>{dateTime}</span>
+                  <span>{formattedDateTime}</span>
                </div>
             </div>
          </header>

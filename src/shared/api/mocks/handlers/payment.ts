@@ -503,6 +503,7 @@ const resaleLedgers = new Map<string, ResaleLedger>();
 type ResaleListing = {
    listingId: string;
    ticketId: string;
+   ticketNumber?: string;
    sellerId: string;
    seatInfo: string;
    listingPrice: number;
@@ -1759,12 +1760,13 @@ export const paymentHandlers = [
 
    // 리셀 등록
    http.post('/api/v1/resales/listings', async ({ request }) => {
+      type ListingItem = { ticketId?: string; listingPrice?: number };
       const body = (await request.json()) as
-         | { ticketId?: string; listingPrice?: number }
-         | { listings?: Array<{ ticketId?: string; listingPrice?: number }> }
+         | ListingItem
+         | { listings?: Array<ListingItem> }
          | null;
 
-      const listings = 'listings' in (body ?? {}) ? body?.listings ?? [] : body ? [body] : [];
+      const listings: ListingItem[] = 'listings' in (body ?? {}) ? (body as { listings?: ListingItem[] })?.listings ?? [] : body ? [body as ListingItem] : [];
 
       if (listings.length === 0 || listings.some((item) => !item?.ticketId || !item?.listingPrice)) {
          return buildErrorResponse('Missing ticketId or listingPrice.');
@@ -1809,6 +1811,7 @@ export const paymentHandlers = [
       const listings = Array.from(resaleListings.values()).map((l) => ({
          listingId: l.listingId,
          ticketId: l.ticketId,
+         ticketNumber: l.ticketNumber,
          sellerId: l.sellerId,
          gameId: '',
          seatId: '',
@@ -1860,6 +1863,7 @@ export const paymentHandlers = [
          data: {
             listingId: listing.listingId,
             ticketId: listing.ticketId,
+            ticketNumber: listing.ticketNumber,
             seatInfo: listing.seatInfo,
             listingPrice: listing.listingPrice,
             listingStatus: listing.listingStatus,

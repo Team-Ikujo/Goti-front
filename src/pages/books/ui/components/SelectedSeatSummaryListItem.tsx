@@ -1,11 +1,11 @@
 import { X } from 'lucide-react';
 
 import { formatPrice } from '@/pages/books/model/zoneData';
-import type { SeatItem } from '@/pages/books/model/types';
+import type { SeatSelectionItem } from '@/entities/seat-selection/model/types';
 
 type SelectedSeatSummaryListItemProps = {
    item: {
-      seat: SeatItem;
+      seat: SeatSelectionItem;
       zoneId: string;
       zoneName: string;
       price: number;

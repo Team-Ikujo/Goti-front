@@ -10,6 +10,7 @@ const shouldUseRelativeApiBase = import.meta.env.DEV;
 export interface ResaleListingItem {
    listingId: string;
    ticketId: string;
+   ticketNumber?: string;
    sellerId: string;
    gameId: string;
    seatId: string;
@@ -100,6 +101,7 @@ export const createResaleListings = async (body: CreateResaleListingsRequest): P
 export interface ResaleListingDetail {
    listingId: string;
    ticketId: string;
+   ticketNumber?: string;
    seatInfo: string;
    listingPrice: number;
    listingStatus: 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCEL_REQUESTED' | 'CANCELED';

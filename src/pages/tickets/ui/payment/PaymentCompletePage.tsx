@@ -102,10 +102,7 @@ const writeStoredPaymentCompleteState = (order: PaymentResponse) => {
       return;
    }
 
-   window.sessionStorage.setItem(
-      `${PAYMENT_COMPLETE_STORAGE_KEY}:${order.orderId}`,
-      JSON.stringify(order),
-   );
+   window.sessionStorage.setItem(`${PAYMENT_COMPLETE_STORAGE_KEY}:${order.orderId}`, JSON.stringify(order));
 };
 
 const isResalePaymentResponse = (order: PaymentResponse | null) => {
@@ -118,6 +115,69 @@ const isResalePaymentResponse = (order: PaymentResponse | null) => {
    }
 
    return order.orderId?.toLowerCase().includes('resale') ?? false;
+};
+
+const _formatReceiptDateTime = (value: string | undefined) => {
+   if (!value) {
+      return '-';
+   }
+
+   const directDate = new Date(value);
+   if (!Number.isNaN(directDate.getTime())) {
+      const year = directDate.getFullYear();
+      const month = String(directDate.getMonth() + 1).padStart(2, '0');
+      const day = String(directDate.getDate()).padStart(2, '0');
+      const hours24 = directDate.getHours();
+      const minutes = String(directDate.getMinutes()).padStart(2, '0');
+      const meridiem = hours24 >= 12 ? 'PM' : 'AM';
+      const hours12 = hours24 % 12 || 12;
+
+      return `${year}.${month}.${day} ${String(hours12).padStart(2, '0')}:${minutes} ${meridiem}`;
+   }
+
+   const normalized = value
+      .replace(/\.(오전|오후)/g, ' $1')
+      .replace(/\s+/g, ' ')
+      .replace(/\.$/, '')
+      .trim();
+   const match = normalized.match(
+      /^(\d{4})[.\-]\s?(\d{2})[.\-]\s?(\d{2})(?:\s(?:\(([^)]+)\)\s)?)?(?:(오전|오후)\s)?(\d{1,2}):(\d{2})(?::\d{2})?\s?(AM|PM)?$/i,
+   );
+
+   if (!match) {
+      return value;
+   }
+
+   const [, year, month, day, , meridiemKo, rawHour, minute, meridiemEn] = match;
+   let hour = Number(rawHour);
+   const meridiem = (meridiemEn?.toUpperCase() ?? (meridiemKo === '오후' ? 'PM' : 'AM')) as 'AM' | 'PM';
+
+   if (meridiem === 'PM' && hour < 12) {
+      hour += 12;
+   }
+
+   if (meridiem === 'AM' && hour === 12) {
+      hour = 0;
+   }
+
+   const hours12 = hour % 12 || 12;
+   return `${year}.${month}.${day} ${String(hours12).padStart(2, '0')}:${minute} ${meridiem}`;
+};
+
+const _formatOrderStatusLabel = (value: string | undefined) => {
+   switch (value) {
+      case 'SUCCESS':
+      case 'CONFIRMED':
+      case 'COMPLETED':
+      case 'PENDING':
+         return '결제완료';
+      case 'FAILED':
+         return '결제실패';
+      case 'CANCELED':
+         return '취소됨';
+      default:
+         return '결제완료';
+   }
 };
 
 const ENTRANCE_GUIDES: Record<DeliveryMethod, string[]> = {
@@ -234,7 +294,7 @@ export default function PaymentCompletePage() {
             }
 
             setPaymentReloadError(null);
-            setOrder((currentOrder) => {
+            setOrder(currentOrder => {
                const nextOrder: PaymentResponse = {
                   ...currentOrder,
                   orderId: payment.orderId,
@@ -252,8 +312,7 @@ export default function PaymentCompletePage() {
                return;
             }
 
-            const hasFallbackOrder =
-               Boolean(locationOrder) || Boolean(readStoredPaymentCompleteState(orderId));
+            const hasFallbackOrder = Boolean(locationOrder) || Boolean(readStoredPaymentCompleteState(orderId));
 
             // 완료 페이지는 결제 직전 state/sessionStorage에 이미 결과를 저장해두므로
             // 후속 조회가 RBAC 등 권한 문제로 실패해도 사용자 경험을 깨지 않게 기존 완료 데이터를 우선 유지한다.
@@ -262,9 +321,7 @@ export default function PaymentCompletePage() {
                return;
             }
 
-            setPaymentReloadError(
-               error instanceof ApiError ? error.message : '결제 정보를 다시 불러오지 못했습니다.',
-            );
+            setPaymentReloadError(error instanceof ApiError ? error.message : '결제 정보를 다시 불러오지 못했습니다.');
          }
       };
 

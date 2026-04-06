@@ -6,8 +6,8 @@ import {
   fetchBaseballTeamDetails,
   fetchGameSchedules,
   type FetchGameSchedulesParams,
-  type GameScheduleResponse,
 } from '@/entities/game/api/scheduleApi';
+import type { GameScheduleResponse } from '@/shared/types/game';
 import { teams } from '@/entities/team/model/teams';
 import type { DaySchedule, GameRow, GameStatus, ReselStatus, TicketStatus } from '@/pages/home/ui/game-schedule/types';
 
@@ -152,6 +152,7 @@ const findTeamReference = (...candidates: Array<string | undefined>) => {
       reference.fullName,
       ...reference.aliases,
     ]
+      .filter((v): v is string => v !== undefined)
       .map(normalizeLookupValue);
 
     return normalizedCandidates.some((candidate) => referenceCandidates.includes(candidate));

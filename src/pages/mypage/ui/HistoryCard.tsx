@@ -74,7 +74,6 @@ type HistoryCardProps = ({ mode: 'purchase'; item: PurchaseHistoryItem } | { mod
 
 // ── 유틸 ─────────────────────────────────────────────────────────────
 
-
 /** 경기 일자 기준으로 판매 오픈 시각 계산: 해당월 1일 11:00 */
 const getSaleOpenTime = (datetime: string): Date => {
    const parts = datetime.split('.');
@@ -233,7 +232,9 @@ export default function HistoryCard(props: HistoryCardProps) {
             onClick={() => navigate(detailRoute)}
             role="button"
             tabIndex={0}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') navigate(detailRoute); }}
+            onKeyDown={e => {
+               if (e.key === 'Enter' || e.key === ' ') navigate(detailRoute);
+            }}
             aria-label={`${item.game.teams} ${detailLabel}`}
          >
             {/* 상단: 일자 / 상세 링크 */}
@@ -246,7 +247,10 @@ export default function HistoryCard(props: HistoryCardProps) {
                   variant="none"
                   size="xs"
                   className="flex items-center text-body-2-regular text-foreground shrink-0 px-0 hover:text-primary transition-colors gap-0"
-                  onClick={e => { e.stopPropagation(); navigate(detailRoute); }}
+                  onClick={e => {
+                     e.stopPropagation();
+                     navigate(detailRoute);
+                  }}
                >
                   {detailLabel} <ChevronRight size={16} />
                </Button>
@@ -288,7 +292,10 @@ export default function HistoryCard(props: HistoryCardProps) {
                   <div className="flex flex-col gap-1">
                      <button
                         className="flex items-center gap-1 text-left"
-                        onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
+                        onClick={e => {
+                           e.stopPropagation();
+                           setExpanded(v => !v);
+                        }}
                         aria-expanded={expanded}
                      >
                         <span className="text-foreground text-body-2-medium whitespace-nowrap">
@@ -340,7 +347,10 @@ export default function HistoryCard(props: HistoryCardProps) {
                                  variant="secondary"
                                  size="sm"
                                  className="w-full"
-                                 onClick={e => { e.stopPropagation(); setResellOpen(true); }}
+                                 onClick={e => {
+                                    e.stopPropagation();
+                                    setResellOpen(true);
+                                 }}
                               >
                                  판매 등록
                               </Button>
@@ -352,7 +362,10 @@ export default function HistoryCard(props: HistoryCardProps) {
                                  variant="tertiary"
                                  size="sm"
                                  className="w-full"
-                                 onClick={e => { e.stopPropagation(); setCancelOpen(true); }}
+                                 onClick={e => {
+                                    e.stopPropagation();
+                                    setCancelOpen(true);
+                                 }}
                               >
                                  예매 취소
                               </Button>
@@ -360,7 +373,15 @@ export default function HistoryCard(props: HistoryCardProps) {
                               <div className="h-8.25 w-full" />
                            )}
                            {showQrBtn ? (
-                              <Button variant="tertiary" size="sm" className="w-full" onClick={e => { e.stopPropagation(); setQrOpen(true); }}>
+                              <Button
+                                 variant="tertiary"
+                                 size="sm"
+                                 className="w-full"
+                                 onClick={e => {
+                                    e.stopPropagation();
+                                    setQrOpen(true);
+                                 }}
+                              >
                                  QR 확인
                               </Button>
                            ) : (
@@ -397,9 +418,7 @@ export default function HistoryCard(props: HistoryCardProps) {
 
                   {/* 경기 정보 — Figma: teams fs=16/fw=700, meta fs=14/fw=400 color=#646f7c */}
                   <div className="flex flex-col gap-1">
-                     <p className="text-[16px] font-bold leading-6 text-black whitespace-nowrap">
-                        {item.game.teams}
-                     </p>
+                     <p className="text-[16px] font-bold leading-6 text-black whitespace-nowrap">{item.game.teams}</p>
                      <div className="flex items-center gap-2">
                         <span className="text-[14px] text-[#646f7c] whitespace-nowrap">{item.game.venue}</span>
                         <span className="w-px h-2.5 bg-[#d1d5dc] shrink-0" />
@@ -412,12 +431,13 @@ export default function HistoryCard(props: HistoryCardProps) {
                   {/* 좌석 / 수령방법 / 가격 — Figma: label w=42px fs=12/fw=400, value fs=14/fw=400 */}
                   <div className="flex flex-col gap-1">
                      <div className="flex items-center gap-2.5">
-                        <span className="text-[12px] font-normal leading-4.5 text-[#646f7c] w-10.5 shrink-0">
-                           좌석
-                        </span>
+                        <span className="text-[12px] font-normal leading-4.5 text-[#646f7c] w-10.5 shrink-0">좌석</span>
                         <button
                            className="flex items-center gap-1 text-left"
-                           onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
+                           onClick={e => {
+                              e.stopPropagation();
+                              setExpanded(v => !v);
+                           }}
                            aria-expanded={expanded}
                         >
                            <span className="text-[14px] font-medium leading-5.25 text-[#161d24]">
@@ -445,9 +465,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                         <span className="text-[12px] font-normal leading-4.5 text-[#646f7c] w-10.5 shrink-0">
                            수령방법
                         </span>
-                        <span className="text-[14px] font-normal leading-5.25 text-[#374553]">
-                           {item.deliveryType}
-                        </span>
+                        <span className="text-[14px] font-normal leading-5.25 text-[#374553]">{item.deliveryType}</span>
                      </div>
                      <div className="flex items-center gap-2.5">
                         <span className="text-[12px] font-normal leading-4.5 text-[#646f7c] w-10.5 shrink-0">
@@ -461,45 +479,57 @@ export default function HistoryCard(props: HistoryCardProps) {
                </div>
 
                {/* 액션 버튼 — Figma: gap=8, each flex-1 */}
-               {isPurchase ? (
-                  !showDash && (
-                     <div className="flex gap-2">
-                        {showSellBtn && (
-                           <Button
-                              variant="secondary"
-                              size="sm"
-                              className="flex-1"
-                              onClick={e => { e.stopPropagation(); setResellOpen(true); }}
-                           >
-                              판매 등록
-                           </Button>
-                        )}
-                        {showCancelBtn && (
-                           <Button
-                              variant="tertiary"
-                              size="sm"
-                              className="flex-1"
-                              onClick={e => { e.stopPropagation(); setCancelOpen(true); }}
-                           >
-                              예매 취소
-                           </Button>
-                        )}
-                        {showQrBtn && (
-                           <Button variant="tertiary" size="sm" className="flex-1" onClick={e => { e.stopPropagation(); setQrOpen(true); }}>
-                              QR 확인
-                           </Button>
-                        )}
-                     </div>
-                  )
-               ) : (
-                  canCancelSale && (
-                     <div className="flex gap-2">
-                        <Button variant="tertiary" size="sm" className="flex-1" onClick={e => e.stopPropagation()}>
-                           판매 취소
-                        </Button>
-                     </div>
-                  )
-               )}
+               {isPurchase
+                  ? !showDash && (
+                       <div className="flex gap-2">
+                          {showSellBtn && (
+                             <Button
+                                variant="secondary"
+                                size="sm"
+                                className="flex-1"
+                                onClick={e => {
+                                   e.stopPropagation();
+                                   setResellOpen(true);
+                                }}
+                             >
+                                판매 등록
+                             </Button>
+                          )}
+                          {showCancelBtn && (
+                             <Button
+                                variant="tertiary"
+                                size="sm"
+                                className="flex-1"
+                                onClick={e => {
+                                   e.stopPropagation();
+                                   setCancelOpen(true);
+                                }}
+                             >
+                                예매 취소
+                             </Button>
+                          )}
+                          {showQrBtn && (
+                             <Button
+                                variant="tertiary"
+                                size="sm"
+                                className="flex-1"
+                                onClick={e => {
+                                   e.stopPropagation();
+                                   setQrOpen(true);
+                                }}
+                             >
+                                QR 확인
+                             </Button>
+                          )}
+                       </div>
+                    )
+                  : canCancelSale && (
+                       <div className="flex gap-2">
+                          <Button variant="tertiary" size="sm" className="flex-1" onClick={e => e.stopPropagation()}>
+                             판매 취소
+                          </Button>
+                       </div>
+                    )}
             </div>
          </div>
       </>

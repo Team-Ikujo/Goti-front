@@ -1,29 +1,167 @@
 // src/pages/mypage/ui/PurchaseDetailPage.tsx
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import CancelBookingDialog from './CancelBookingDialog';
+import ResellRegisterDialog from './ResellRegisterDialog';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
-import type { OrderTicket } from '@/entities/ticket/api/ticketApi';
+import { useQuery } from '@tanstack/react-query';
+import { fetchTicketDetail, fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
+import { fetchOrderPaymentDetail, formatOrderPaymentMethod } from '@/entities/payment/api/paymentApi';
 import StatusBadge from './StatusBadge';
 import TicketItem from './TicketItem';
 import InfoItem from './InfoItem';
 import { Snackbar } from '@/shared/ui/snackbar';
-import { formatTicketNumber, getTicketNumberKind } from '../model/ticketNumber';
-import {
-   mapStatusLabel,
-   mapTicketItemStatus,
-   PURCHASE_BADGE,
-   usePurchaseDetailData,
-} from '../model/usePurchaseDetailData';
-import { PurchaseDetailDialogs } from './PurchaseDetailDialogs';
+import { readStoredPaymentCompleteItems } from '@/shared/lib/paymentCompleteStorage';
+import { useAuthStore } from '@/entities/auth/model/authStore';
+import { decodeJwtPayload } from '@/shared/lib/jwt';
+import { formatReservationNumber, formatTicketNumber, getTicketNumberKind } from '../model/ticketNumber';
+
+// ─── 타입 ──────────────────────────────────────────────────────
+
+type PurchaseStatus = '예매 완료' | '관람 완료' | '취소/환불';
+type PaymentEventType = '결제 완료';
+
+type PurchaseSeatItem = {
+   ticketId: string;
+   orderId: string;
+   section: string;
+   seatDetail: string;
+   status: TicketItemStatus;
+   price: number;
+};
+
+type PurchasePaymentSummary = {
+   status: string;
+   ticketCount: number;
+   ticketAmount: number;
+   fee: number;
+   total: number;
+   date?: string;
+   bankAccount?: string;
+   bankDeadline?: string;
+};
+
+type PurchaseRefundInfo = {
+   ticketAmount: number;
+   cancelFee: number;
+   refundTotal: number;
+   method: string;
+   date?: string;
+};
+
+type PurchaseDetailViewModel = {
+   id: string;
+   rawOrderId: string;
+   overallStatus: PurchaseStatus;
+   ticketStatus: string;
+   game: {
+      teams: string;
+      venue: string;
+      datetime: string;
+   };
+   orderId: string;
+   orderDate?: string;
+   orderer: string;
+   issuedAt?: string;
+   cancelDeadline?: string;
+   cancelDate?: string;
+   seatInfo: string;
+   ticketPrice: number;
+   paymentMethodDisplay: string | undefined;
+   paidAt?: string;
+   seatItems: PurchaseSeatItem[];
+   paymentSummary: PurchasePaymentSummary;
+   paymentEvents: Array<{ type: PaymentEventType; method: string }>;
+   refundInfo?: PurchaseRefundInfo;
+   canCancel: boolean;
+   canSell: boolean;
+   deliveryMethod: string;
+   deliveryAddress?: string;
+   deliveryStatus?: string;
+   deliveryCarrier?: string;
+   deliveryTrackingNumber?: string;
+};
+
+// ─── 상태 → 배지 매핑 ──────────────────────────────────────────
+
+const PURCHASE_BADGE: Record<string, BadgeVariant> = {
+   ISSUED: 'success',
+   USED: 'disabled',
+   INVALID: 'warning',
+   RESALE_ISSUED: 'success',
+};
+
+const mapStatusLabel = (status: string): string => {
+   switch (status) {
+      case 'ISSUED':
+         return '예매 완료';
+      case 'USED':
+         return '관람 완료';
+      case 'INVALID':
+         return '취소/환불';
+      case 'RESALE_ISSUED':
+         return '예매 완료';
+      default:
+         return '예매 완료';
+   }
+};
 
 // ─── 유틸 ──────────────────────────────────────────────────────
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
+const parseDateValue = (value: string | undefined | null) => {
+   if (!value) {
+      return null;
+   }
+
+   const normalizedForDate = value.replace(/\.\s/g, '.').replace(/\.$/, '').trim();
+   const directDate = new Date(normalizedForDate);
+   if (!Number.isNaN(directDate.getTime())) {
+      return directDate;
+   }
+
+   const normalized = value
+      .replace(/\s+/g, ' ')
+      .replace(/\(([^)]+)\)/g, '')
+      .replace(/\.\s/g, '.')
+      .replace(/\.$/, '')
+      .trim();
+
+   const match = normalized.match(
+      /^(\d{4})\.(\d{2})\.(\d{2})(?:\s(?:(오전|오후)\s(\d{1,2}):(\d{2})(?::(\d{2}))?|(\d{1,2}):(\d{2})(?::(\d{2}))?))?$/,
+   );
+
+   if (!match) {
+      return null;
+   }
+
+   const [, year, month, day, meridiem, meridiemHour, meridiemMinute, meridiemSecond, hour24, minute24, second24] =
+      match;
+   let hours = Number(meridiemHour ?? hour24 ?? 0);
+   const minutes = Number(meridiemMinute ?? minute24 ?? 0);
+   const seconds = Number(meridiemSecond ?? second24 ?? 0);
+
+   if (meridiem === '오후' && hours < 12) {
+      hours += 12;
+   }
+
+   if (meridiem === '오전' && hours === 12) {
+      hours = 0;
+   }
+
+   return new Date(Number(year), Number(month) - 1, Number(day), hours, minutes, seconds);
+};
+
 const formatDateTime = (isoStr: string): string => {
-   const d = new Date(isoStr);
+   const d = parseDateValue(isoStr);
+
+   if (!d) {
+      return '-';
+   }
+
    const y = d.getFullYear();
    const m = String(d.getMonth() + 1).padStart(2, '0');
    const day = String(d.getDate()).padStart(2, '0');
@@ -33,11 +171,81 @@ const formatDateTime = (isoStr: string): string => {
    return `${y}.${m}.${day} (${dow}) ${h}:${min}`;
 };
 
+const parseGradeName = (seatInfo: string): string => {
+   const tokens = seatInfo.split(' ');
+   const sectionIndex = tokens.findIndex(token => token.endsWith('구역'));
+   if (sectionIndex > 0) {
+      return tokens.slice(0, sectionIndex).join(' ');
+   }
+
+   const rowIndex = tokens.findIndex(token => /^[A-Z가-힣\d]+열$/.test(token));
+   return rowIndex > 0 ? tokens.slice(0, rowIndex).join(' ') : (tokens[0] ?? '');
+};
+
+const isLikelyOrderReference = (value: string | undefined) => {
+   if (!value) {
+      return false;
+   }
+
+   return /^resale-order-/i.test(value) || /^order-/i.test(value);
+};
+
+const getFallbackCancelableUntil = (orderedAt: string | undefined) => {
+   const orderedDate = parseDateValue(orderedAt);
+
+   if (!orderedDate) {
+      return undefined;
+   }
+
+   return new Date(orderedDate.getFullYear(), orderedDate.getMonth(), orderedDate.getDate(), 23, 59, 0).toISOString();
+};
+
+const formatGameTitle = (value: string) => {
+   const [left, right] = value.split(/\s+vs\s+/i);
+
+   if (!left || !right) {
+      return value.trim();
+   }
+
+   return `${left.trim()} vs ${right.trim()}`;
+};
+
+const mapOverallStatus = (status: string): PurchaseStatus => {
+   switch (status) {
+      case 'ISSUED':
+         return '예매 완료';
+      case 'USED':
+         return '관람 완료';
+      case 'INVALID':
+         return '취소/환불';
+      case 'RESALE_ISSUED':
+         return '예매 완료';
+      default:
+         return '예매 완료';
+   }
+};
+
+const mapTicketItemStatus = (status: string): TicketItemStatus => {
+   switch (status) {
+      case 'ISSUED':
+         return '예매완료';
+      case 'USED':
+         return '취소대기';
+      case 'INVALID':
+         return '취소완료';
+      case 'RESALE_ISSUED':
+         return '예매완료';
+      default:
+         return '예매완료';
+   }
+};
+
+// ─── 로컬 서브 컴포넌트 ────────────────────────────────────────
 const formatPrice = (amount: number): string => `${amount.toLocaleString()}원`;
 
 // ─── 서브 컴포넌트 ──────────────────────────────────────────────
 
-function SectionCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+function SectionCard({ children, className = '' }: { children: ReactNode; className?: string }) {
    return (
       <div className={`border border-[#e9ebee] rounded-2xl p-6.25 flex flex-col gap-6 ${className}`}>{children}</div>
    );
@@ -65,19 +273,220 @@ function BulletItem({ text }: { text: string }) {
 
 export default function PurchaseDetailPage() {
    const navigate = useNavigate();
+   const location = useLocation();
+   const accessToken = useAuthStore(state => state.accessToken);
+   const [showCancelSnackbar, setShowCancelSnackbar] = useState(false);
    const [qrOpen, setQrOpen] = useState(false);
    const [cancelOpen, setCancelOpen] = useState(false);
    const [resellOpen, setResellOpen] = useState(false);
-   const {
-      orderId,
-      orderTickets,
-      orderPaymentQuery,
-      detail,
-      isLoading,
-      isError,
-      showCancelSnackbar,
-      setShowCancelSnackbar,
-   } = usePurchaseDetailData();
+
+   const fallbackOrdererName = useMemo(() => {
+      const payload = decodeJwtPayload(accessToken);
+      const candidates = [payload?.name, payload?.nickname, payload?.preferred_username, payload?.email, payload?.sub];
+      const resolved = candidates.find(value => typeof value === 'string' && value.trim().length > 0);
+      return typeof resolved === 'string' ? resolved : '예매자';
+   }, [accessToken]);
+
+   const orderTicketsQuery = useQuery({
+      queryKey: ['orderTickets', orderId],
+      queryFn: () => fetchOrderTickets(orderId!),
+      enabled: Boolean(orderId),
+      retry: false,
+   });
+
+   const orderTickets = orderTicketsQuery.data ?? [];
+   const primaryTicketId = orderTickets[0]?.ticketId;
+
+   const ticketDetailQuery = useQuery({
+      queryKey: ['ticketDetail', primaryTicketId],
+      queryFn: () => fetchTicketDetail(primaryTicketId!),
+      enabled: Boolean(primaryTicketId),
+      retry: false,
+   });
+
+   const orderPaymentQuery = useQuery({
+      queryKey: ['orderPaymentDetail', orderId],
+      queryFn: () => fetchOrderPaymentDetail(orderId!),
+      enabled: Boolean(orderId),
+      retry: false,
+   });
+
+   const apiDetail = ticketDetailQuery.data;
+   const storedPaymentDetail = useMemo(() => {
+      if (!orderId) return undefined;
+      return readStoredPaymentCompleteItems().find(item => {
+         return item.ticketId === orderId || item.orderId === orderId || item.orderNumber === orderId;
+      });
+   }, [orderId]);
+   const isLoading = orderTicketsQuery.isLoading || (Boolean(primaryTicketId) && ticketDetailQuery.isLoading);
+   const isError =
+      orderTicketsQuery.isError ||
+      (!primaryTicketId && !orderTicketsQuery.isLoading && !storedPaymentDetail) ||
+      (Boolean(primaryTicketId) && ticketDetailQuery.isError);
+
+   useEffect(() => {
+      if ((location.state as { showCancelSuccess?: boolean } | null)?.showCancelSuccess) {
+         setShowCancelSnackbar(true);
+         window.history.replaceState({}, '');
+      }
+   }, [location.state]);
+
+   // ─── API 데이터를 UI 형태로 변환 ────────────────────────────
+   const detail = useMemo<PurchaseDetailViewModel | undefined>(() => {
+      if (!apiDetail && !storedPaymentDetail) return undefined;
+
+      if (!apiDetail && storedPaymentDetail) {
+         const seats = storedPaymentDetail.seats.length > 0 ? storedPaymentDetail.seats : ['좌석 정보'];
+         const isCanceledOrder =
+            storedPaymentDetail.orderStatus === 'CANCELED' || storedPaymentDetail.paymentStatus === 'CANCELED';
+         const seatItems: PurchaseSeatItem[] = seats.map((seatInfo, index) => ({
+            ticketId:
+               storedPaymentDetail.ticketId ??
+               `${storedPaymentDetail.orderId ?? storedPaymentDetail.orderNumber}-${index}`,
+            orderId: formatTicketNumber(storedPaymentDetail.orderNumber, 'ticket'),
+            section: parseGradeName(seatInfo),
+            seatDetail: seatInfo,
+            status: '예매완료',
+            price: Math.round(storedPaymentDetail.amount / Math.max(seats.length, 1)),
+         }));
+
+         return {
+            id: storedPaymentDetail.ticketId ?? storedPaymentDetail.orderId ?? storedPaymentDetail.orderNumber,
+            rawOrderId: storedPaymentDetail.orderId ?? storedPaymentDetail.orderNumber,
+            overallStatus: '예매 완료' as const,
+            ticketStatus: storedPaymentDetail.orderType === 'resale' ? 'RESALE_ISSUED' : 'ISSUED',
+            game: {
+               teams: formatGameTitle(storedPaymentDetail.gameTitle),
+               venue: storedPaymentDetail.gameVenue,
+               datetime: storedPaymentDetail.gameDate,
+            },
+            orderId: formatReservationNumber(storedPaymentDetail.orderNumber),
+            orderDate: storedPaymentDetail.orderedAt,
+            orderer: fallbackOrdererName,
+            issuedAt: storedPaymentDetail.paidAt ?? storedPaymentDetail.orderedAt,
+            cancelDeadline: getFallbackCancelableUntil(storedPaymentDetail.paidAt ?? storedPaymentDetail.orderedAt),
+            cancelDate: undefined,
+            seatInfo: seats[0],
+            ticketPrice: Math.round(storedPaymentDetail.amount / Math.max(seats.length, 1)),
+            paymentMethodDisplay: storedPaymentDetail.paymentMethod,
+            seatItems,
+            paymentSummary: {
+               status: '결제 완료',
+               ticketCount: seats.length,
+               ticketAmount: storedPaymentDetail.amount,
+               fee: 0,
+               total: storedPaymentDetail.amount,
+               date: storedPaymentDetail.paidAt ?? storedPaymentDetail.orderedAt,
+            },
+            paymentEvents: [{ type: '결제 완료', method: storedPaymentDetail.paymentMethod }],
+            refundInfo: undefined,
+            canCancel: !isCanceledOrder,
+            canSell: !isCanceledOrder,
+            deliveryMethod: '모바일 QR',
+         };
+      }
+
+      if (!apiDetail) {
+         return undefined;
+      }
+
+      const currentApiDetail = apiDetail;
+
+      const overallStatus = mapOverallStatus(currentApiDetail.ticketStatus);
+      const isInvalid = currentApiDetail.ticketStatus === 'INVALID';
+      const isActionableTicket = currentApiDetail.ticketStatus !== 'INVALID';
+
+      const seatItems: PurchaseSeatItem[] =
+         orderTickets.length > 0
+            ? orderTickets.map(t => ({
+                 ticketId: t.ticketId,
+                 orderId: formatTicketNumber(
+                    t.ticketNumber,
+                    t.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(t.ticketNumber, 'ticket'),
+                 ),
+                 section: parseGradeName(t.seatInfo),
+                 seatDetail: t.seatInfo,
+                 status: mapTicketItemStatus(t.ticketStatus),
+                 price: t.ticketPrice,
+              }))
+            : [
+                 {
+                    ticketId: currentApiDetail.ticketId,
+                    orderId: formatTicketNumber(
+                       currentApiDetail.ticketNumber,
+                       currentApiDetail.ticketStatus === 'RESALE_ISSUED'
+                          ? 'resale'
+                          : getTicketNumberKind(currentApiDetail.ticketNumber, 'ticket'),
+                    ),
+                    section: parseGradeName(currentApiDetail.seatInfo),
+                    seatDetail: currentApiDetail.seatInfo,
+                    status: mapTicketItemStatus(currentApiDetail.ticketStatus),
+                    price: currentApiDetail.ticketPrice,
+                 },
+              ];
+
+      const ticketCount = seatItems.length;
+      const ticketAmount = seatItems.reduce((sum, s) => sum + s.price, 0);
+      const fee =
+         orderTickets.length > 0
+            ? orderTickets.reduce((sum, t) => sum + (t.serviceFee ?? 0), 0)
+            : (currentApiDetail.serviceFee ?? 0);
+      const total = ticketAmount + fee;
+      const paymentMethodDisplay = orderPaymentQuery.data?.paymentMethod
+         ? formatOrderPaymentMethod(orderPaymentQuery.data.paymentMethod)
+         : (currentApiDetail.paymentMethodDisplay ?? currentApiDetail.paymentMethod ?? undefined);
+      const paidAt = orderPaymentQuery.data?.paidAt;
+      const paymentAmount = orderPaymentQuery.data?.paymentAmount ?? total;
+
+      return {
+         id: currentApiDetail.ticketId,
+         rawOrderId: currentApiDetail.orderId,
+         overallStatus,
+         ticketStatus: currentApiDetail.ticketStatus,
+         game: {
+            teams: currentApiDetail.gameTitle,
+            venue: currentApiDetail.stadiumName ?? '',
+            datetime: currentApiDetail.gameDate,
+         },
+         orderId: formatReservationNumber(currentApiDetail.ticketNumber),
+         orderDate: currentApiDetail.orderedAt ?? currentApiDetail.issuedAt,
+         orderer: currentApiDetail.ordererName ?? fallbackOrdererName,
+         issuedAt: currentApiDetail.issuedAt,
+         cancelDeadline: isInvalid
+            ? undefined
+            : (currentApiDetail.cancelableUntil ??
+              getFallbackCancelableUntil(currentApiDetail.orderedAt ?? currentApiDetail.issuedAt)),
+         cancelDate: isInvalid ? (currentApiDetail.issuedAt ?? '-') : undefined,
+         seatInfo: currentApiDetail.seatInfo,
+         ticketPrice: currentApiDetail.ticketPrice,
+         paymentMethodDisplay,
+         paidAt,
+         seatItems,
+         paymentSummary: {
+            status: isInvalid ? '결제 완료' : '결제 완료',
+            ticketCount,
+            ticketAmount,
+            fee,
+            total: paymentAmount,
+            date: paidAt,
+            bankAccount: undefined as string | undefined,
+            bankDeadline: undefined as string | undefined,
+         },
+         paymentEvents: [{ type: '결제 완료' as const, method: paymentMethodDisplay ?? '-' }],
+         refundInfo: isInvalid
+            ? {
+                 ticketAmount,
+                 cancelFee: 0,
+                 refundTotal: ticketAmount,
+                 method: paymentMethodDisplay ?? '정보 없음',
+                 date: paidAt,
+              }
+            : undefined,
+         canCancel: isActionableTicket,
+         canSell: isActionableTicket,
+         deliveryMethod: '모바일 QR',
+      };
+   }, [apiDetail, fallbackOrdererName, orderPaymentQuery.data, orderTickets, storedPaymentDetail]);
 
    if (isLoading) return <div className="py-24 text-center text-body-1-regular">정보를 불러오는 중입니다...</div>;
    if (isError || !detail) {
@@ -93,11 +502,12 @@ export default function PurchaseDetailPage() {
 
    const statusLabel = mapStatusLabel(detail.ticketStatus);
    const serviceFee = detail.paymentSummary.fee;
-   const totalQuantity = orderTickets.length || 1;
+   const totalQuantity = detail.paymentSummary.ticketCount;
    const totalTicketPrice = detail.paymentSummary.ticketAmount;
    const totalPaid = detail.paymentSummary.total;
    const totalRefund = totalTicketPrice - serviceFee;
-   const seatTickets: OrderTicket[] = orderTickets;
+
+   const seatTickets = detail.seatItems;
 
    return (
       <div className="flex flex-col items-center pt-8 lg:pt-12.5 pb-40 px-4">
@@ -106,6 +516,52 @@ export default function PurchaseDetailPage() {
             message="취소가 완료되었습니다."
             onClose={() => setShowCancelSnackbar(false)}
          />
+
+         {cancelOpen && (
+            <CancelBookingDialog
+               open={cancelOpen}
+               onClose={() => setCancelOpen(false)}
+               orderId={orderId!}
+               game={{ teams: detail.game.teams, datetime: detail.game.datetime }}
+               isBankTransfer={orderPaymentQuery.data?.paymentMethod === 'ACCOUNT_TRANSFER'}
+               paymentMethod={detail.paymentMethodDisplay}
+               seats={seatTickets.map((seat) => ({
+                  orderId: seat.orderId,
+                  section: seat.section,
+                  seatDetail: seat.seatDetail,
+                  price: seat.price,
+                  ticketId: seat.ticketId,
+               }))}
+            />
+         )}
+
+         {resellOpen && (
+            <ResellRegisterDialog
+               open={resellOpen}
+               onClose={() => setResellOpen(false)}
+               onCompleteConfirm={() => navigate('/mypage', { state: { activeTab: 'sale' } })}
+               item={{
+                  id: detail.id,
+                  rawOrderId: orderId,
+                  orderId: detail.orderId,
+                  orderDate: detail.orderDate ?? '-',
+                  type: '티켓',
+                  game: {
+                     teams: detail.game.teams,
+                     venue: detail.game.venue || '홈구장',
+                     datetime: detail.game.datetime,
+                     quantity: 1,
+                     section: parseGradeName(detail.seatInfo),
+                     seats: [detail.seatInfo],
+                  },
+                  price: detail.ticketPrice,
+                  paymentStatus: '예매 완료',
+                  deliveryType: '모바일 티켓',
+                  canSell: detail.canSell,
+                  ticketIds: orderTickets.map((ticket) => ticket.ticketId),
+               }}
+            />
+         )}
          <PurchaseDetailDialogs
             orderId={orderId!}
             detail={detail}
@@ -138,9 +594,7 @@ export default function PurchaseDetailPage() {
                      </p>
                      <div className="flex flex-col gap-1 text-[18px] font-medium text-[#374553]">
                         <p className="leading-[1.55]">{formatDateTime(detail.game.datetime)}</p>
-                        {detail.game.venue && (
-                           <p className="leading-[1.55]">{detail.game.venue}</p>
-                        )}
+                        {detail.game.venue && <p className="leading-[1.55]">{detail.game.venue}</p>}
                      </div>
                   </div>
                </SectionCard>
@@ -167,14 +621,11 @@ export default function PurchaseDetailPage() {
                         <div key={ticket.ticketId}>
                            {idx > 0 && <div className="h-px bg-[#e9ebee] mb-6" />}
                            <TicketItem
-                              orderId={formatTicketNumber(
-                                 ticket.ticketNumber,
-                                 ticket.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(ticket.ticketNumber, 'ticket'),
-                              )}
-                              section={ticket.seatInfo.split(' ')[0]}
-                              seatDetail={ticket.seatInfo}
-                              status={mapTicketItemStatus(ticket.ticketStatus)}
-                              price={ticket.ticketPrice}
+                              orderId={ticket.orderId}
+                              section={ticket.section}
+                              seatDetail={ticket.seatDetail}
+                              status={ticket.status}
+                              price={ticket.price}
                            />
                         </div>
                      ))}
@@ -237,7 +688,9 @@ export default function PurchaseDetailPage() {
                         <InfoRow label="수수료" value={`-${formatPrice(serviceFee)}`} />
                         <div className="flex items-center justify-between font-bold">
                            <span className="text-[16px] text-[#374553] leading-normal">환불 금액</span>
-                           <span className="text-[20px] text-destructive leading-normal">{formatPrice(totalRefund)}</span>
+                           <span className="text-[20px] text-destructive leading-normal">
+                              {formatPrice(totalRefund)}
+                           </span>
                         </div>
                      </div>
                      {/* 환불 수단/일시 */}
@@ -297,20 +750,12 @@ export default function PurchaseDetailPage() {
             {/* 액션 버튼 */}
             <div className="flex gap-3">
                {detail.canCancel && (
-                  <Button
-                     variant="tertiary"
-                     className="flex-1 py-3"
-                     onClick={() => setCancelOpen(true)}
-                  >
+                  <Button variant="tertiary" className="flex-1 py-3" onClick={() => setCancelOpen(true)}>
                      예매 취소하기
                   </Button>
                )}
                {detail.canSell && (
-                  <Button
-                     variant="secondary"
-                     className="flex-1 py-3"
-                     onClick={() => setResellOpen(true)}
-                  >
+                  <Button variant="secondary" className="flex-1 py-3" onClick={() => setResellOpen(true)}>
                      판매 등록하기
                   </Button>
                )}

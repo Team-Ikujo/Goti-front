@@ -6,7 +6,6 @@ import { PaymentCard } from './PaymentCard';
 export function OrderSummaryCard({ orderInfo }: { orderInfo: OrderInfo }) {
    return (
       <PaymentCard>
-         <h3 className="text-[20px] font-bold leading-[1.5] text-foreground mb-10">주문 정보 확인</h3>
          <div className="flex flex-col gap-3">
             {/* 경기 */}
             <div className="flex justify-between">
