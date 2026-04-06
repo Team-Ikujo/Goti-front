@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { fetchMyProfile, MY_PROFILE_MOCK } from '@/entities/user/api/memberApi';
 import { fetchMyOrders, type OrderListItem } from '@/entities/order/api/orderApi';
+import { fetchOrderTickets, fetchTicketDetail, type OrderTicket, type TicketDetail } from '@/entities/ticket/api/ticketApi';
 import {
    fetchMyResaleListingSummary,
    fetchMyResaleListings,
@@ -84,6 +85,38 @@ const mapSaleStatus = (status: ResaleListingItem['listingStatus']): SaleStatus =
    }
 };
 
+type EnrichedOrderListItem = {
+   order: OrderListItem;
+   tickets: OrderTicket[];
+   primaryTicketDetail?: TicketDetail;
+};
+
+const fetchMyOrderSummaries = async (): Promise<EnrichedOrderListItem[]> => {
+   const orders = await fetchMyOrders();
+
+   return Promise.all(
+      orders.map(async (order) => {
+         try {
+            const tickets = await fetchOrderTickets(order.orderId);
+            const primaryTicketId = tickets[0]?.ticketId;
+            const primaryTicketDetail = primaryTicketId ? await fetchTicketDetail(primaryTicketId) : undefined;
+
+            return {
+               order,
+               tickets,
+               primaryTicketDetail,
+            };
+         } catch {
+            return {
+               order,
+               tickets: [],
+               primaryTicketDetail: undefined,
+            };
+         }
+      }),
+   );
+};
+
 export const useMyProfileData = () => {
    const accessToken = useAuthStore(s => s.accessToken);
 
@@ -99,23 +132,23 @@ export const useMyProfileData = () => {
 export const useMyOrdersData = () => {
    const query = useQuery({
       queryKey: ['myOrders'],
-      queryFn: fetchMyOrders,
+      queryFn: fetchMyOrderSummaries,
    });
 
    const data = useMemo((): PurchaseHistoryItem[] => {
-      return (query.data ?? []).map((order) => {
-         const stadiumName = order.stadiumName || teamStadiumMap[order.stadiumId] || '야구장';
-         const gameTitle = order.homeTeamName && order.awayTeamName
-            ? `${order.awayTeamName} vs ${order.homeTeamName}`
-            : order.homeTeamName
-               ? `${order.homeTeamName} 홈경기`
-               : 'KBO 리그 경기';
-         const sectionLabel = order.seatGradeName ?? '좌석 정보';
-         const seats = order.seatInfos?.length
-            ? order.seatInfos
+      return (query.data ?? []).map(({ order, tickets, primaryTicketDetail }) => {
+         const stadiumName =
+            primaryTicketDetail?.stadiumName || teamStadiumMap[order.stadiumId] || '야구장';
+         const gameTitle = primaryTicketDetail?.gameTitle ?? 'KBO 리그 경기';
+         const sectionLabel =
+            tickets[0]?.seatInfo ? parseGradeName(tickets[0].seatInfo) : '좌석 정보';
+         const seats = tickets.length > 0
+            ? tickets.map((ticket) => ticket.seatInfo)
             : Array.from({ length: order.totalQuantity }, (_, i) => `좌석${i + 1}`);
+         const ticketIds = tickets.map((ticket) => ticket.ticketId);
+
         return {
-            id: order.ticketId ?? order.orderId,
+            id: ticketIds[0] ?? order.orderId,
             rawOrderId: order.orderId,
             gameId: order.gameId,
             orderId: formatTicketNumber(order.orderNumber, 'ticket'),
@@ -125,7 +158,7 @@ export const useMyOrdersData = () => {
             game: {
                teams: gameTitle,
                venue: stadiumName,
-               datetime: formatDate(order.gameStartAt ?? order.orderedAt),
+               datetime: formatDate(primaryTicketDetail?.gameDate ?? order.orderedAt),
                quantity: order.totalQuantity,
                section: sectionLabel,
                seats,
@@ -134,7 +167,7 @@ export const useMyOrdersData = () => {
             paymentStatus: mapPurchaseStatus(order.orderStatus),
             deliveryType: '모바일 티켓',
             canSell: order.orderStatus === 'CONFIRMED',
-            ticketIds: order.ticketIds?.length ? order.ticketIds : (order.ticketId ? [order.ticketId] : undefined),
+            ticketIds: ticketIds.length > 0 ? ticketIds : undefined,
          };
       });
    }, [query.data]);

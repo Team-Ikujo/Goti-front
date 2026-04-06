@@ -274,6 +274,7 @@ function BulletItem({ text }: { text: string }) {
 export default function PurchaseDetailPage() {
    const navigate = useNavigate();
    const location = useLocation();
+   const { id: orderId } = useParams<{ id: string }>();
    const accessToken = useAuthStore(state => state.accessToken);
    const [showCancelSnackbar, setShowCancelSnackbar] = useState(false);
    const [qrOpen, setQrOpen] = useState(false);
