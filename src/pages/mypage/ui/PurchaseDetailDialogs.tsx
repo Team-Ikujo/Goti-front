@@ -10,7 +10,7 @@ interface PurchaseDetailDialogsProps {
    detail: {
       id: string;
       orderId: string;
-      orderDate: string;
+      orderDate?: string;
       game: { teams: string; venue: string; datetime: string };
       seatInfo: string;
       ticketPrice: number;
@@ -74,7 +74,7 @@ export function PurchaseDetailDialogs({
                   id: detail.id,
                   rawOrderId: orderId,
                   orderId: detail.orderId,
-                  orderDate: detail.orderDate,
+                  orderDate: detail.orderDate ?? '-',
                   type: '티켓',
                   game: {
                      teams: detail.game.teams,
