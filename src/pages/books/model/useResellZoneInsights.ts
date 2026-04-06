@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import {
@@ -11,6 +10,8 @@ import {
    buildResellZoneInsightsFromApi,
    type ResellListingItem,
 } from './resellData';
+import { isPurchasableResaleListing, matchesResaleListingToZone } from './resellMatching';
+import { getCompletedResalePurchaseLookup } from '@/shared/lib/paymentCompleteStorage';
 
 const sortListings = (left: ApiResaleListingItem, right: ApiResaleListingItem) => {
    const leftTime = new Date(left.listedAt).getTime();
@@ -23,9 +24,7 @@ const sortListings = (left: ApiResaleListingItem, right: ApiResaleListingItem) =
    return left.listingPrice - right.listingPrice;
 };
 
-const buildSeatLabel = (zone: ZoneItem, seatInfo: string) => {
-   return seatInfo.includes(zone.sectionCode) ? seatInfo : `${zone.name} ${seatInfo}`.trim();
-};
+const buildSeatLabel = (_zone: ZoneItem, seatInfo: string) => seatInfo;
 
 const toResellListingItem = (zone: ZoneItem, listing: ApiResaleListingItem): ResellListingItem => ({
    listingId: listing.listingId,
@@ -37,9 +36,12 @@ const toResellListingItem = (zone: ZoneItem, listing: ApiResaleListingItem): Res
    totalAmount: listing.listingPrice + 2000,
    totalBuyerFee: 2000,
    totalSellerFee: Math.max(1000, Math.round(listing.listingPrice * 0.05 / 1000) * 1000),
-   settlementAmount: Math.max(0, listing.listingPrice - Math.max(1000, Math.round(listing.listingPrice * 0.05 / 1000) * 1000)),
+   settlementAmount: Math.max(
+      0,
+      listing.listingPrice - Math.max(1000, Math.round(listing.listingPrice * 0.05 / 1000) * 1000),
+   ),
    listedAt: listing.listedAt,
-   isPurchasable: listing.isPurchasable,
+   isPurchasable: listing.isPurchasable ?? true,
 });
 
 export const useResellZoneInsights = ({
@@ -53,11 +55,11 @@ export const useResellZoneInsights = ({
    zone: ZoneItem;
    seats: SeatItem[];
 }) => {
-   const seatIdSet = useMemo(() => new Set(seats.map((seat) => seat.id)), [seats]);
    const primaryGradeId = zone.gradeIds?.[0];
+   const seatIdentifierSet = new Set(seats.flatMap((seat) => [seat.id, seat.apiSeatId]));
 
    return useQuery({
-      queryKey: ['resell-zone-insights', gameId, zone.id, primaryGradeId, [...seatIdSet].sort()],
+      queryKey: ['resell-zone-insights', gameId, zone.id, primaryGradeId, [...seatIdentifierSet].sort()],
       enabled: enabled && Boolean(gameId),
       queryFn: async () => {
          if (!gameId) {
@@ -69,14 +71,15 @@ export const useResellZoneInsights = ({
             primaryGradeId ? fetchResaleHistoryGraph(gameId, primaryGradeId, 'HOUR') : Promise.resolve([]),
             primaryGradeId ? fetchResaleHistoryGraph(gameId, primaryGradeId, 'DAY') : Promise.resolve([]),
          ]);
+         const completedResaleLookup = getCompletedResalePurchaseLookup();
 
          const filteredListings = listings
-            .filter((listing) =>
-               listing.gameId === gameId &&
-               seatIdSet.has(listing.seatId) &&
-               listing.listingStatus === 'LISTING' &&
-               listing.availableStatus === 'ENABLED' &&
-               listing.isPurchasable,
+            .filter(
+               (listing) =>
+                  !completedResaleLookup.listingIds.has(listing.listingId) &&
+                  !completedResaleLookup.seatInfos.has(listing.seatInfo) &&
+                  isPurchasableResaleListing(listing, gameId) &&
+                  matchesResaleListingToZone({ zone, listing }),
             )
             .sort(sortListings)
             .map((listing) => toResellListingItem(zone, listing));

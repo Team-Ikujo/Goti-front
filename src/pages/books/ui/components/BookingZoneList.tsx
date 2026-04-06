@@ -32,12 +32,14 @@ function BookingZoneList({ zones, selectedZoneId, onSelectZone, variant = 'panel
                      <button
                         type="button"
                         onClick={() => onSelectZone(zone.id)}
+                        disabled={!hasRemaining}
                         className={[
-                           'flex min-h-12 w-full items-center gap-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
+                           'flex min-h-12 w-full items-center gap-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset disabled:cursor-not-allowed disabled:bg-transparent',
                            isDrawer ? 'rounded-[12px] px-2 py-3' : 'px-0',
-                           isSelected ? 'bg-fill-hoveraccent' : 'hover:bg-fill-hover',
+                           hasRemaining ? (isSelected ? 'bg-fill-hoveraccent' : 'hover:bg-fill-hover') : '',
                         ].join(' ')}
                         aria-pressed={isSelected}
+                        aria-disabled={!hasRemaining}
                      >
                         <div className={isDrawer ? 'ml-1 flex h-full w-4 shrink-0 items-center' : 'ml-1 h-12 w-3 shrink-0'} aria-hidden="true">
                            <div

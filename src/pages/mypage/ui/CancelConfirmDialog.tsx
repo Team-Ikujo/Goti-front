@@ -6,14 +6,14 @@ import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui/button';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { cancelTicket } from '@/entities/ticket/api/ticketApi';
+import { cancelOrder } from '@/entities/order/api/orderApi';
 
 interface Props {
    open: boolean;
    onClose: () => void;
    onBack: () => void;
-   /** 취소 완료 후 이동할 구매 상세 페이지 ID */
-   itemId: string;
+   /** 주문 취소 API에 전달할 원시 주문 ID */
+   orderId: string;
    /** 무통장 입금 여부 */
    isBankTransfer: boolean;
    /** 무통장 입금일 때 표시할 등록 계좌 */
@@ -23,31 +23,47 @@ interface Props {
    ticketAmount: number;
    ticketCount: number;
    cancelFee: number;
+   selectedOrderItemIds: string[];
+   selectedTicketIds: string[];
+   totalSeatCount: number;
 }
 
 export default function CancelConfirmDialog({
    open,
    onClose,
    onBack,
-   itemId,
+   orderId,
    isBankTransfer,
    account,
    paymentMethod,
    ticketAmount,
    ticketCount,
    cancelFee,
+   selectedOrderItemIds,
+   selectedTicketIds,
+   totalSeatCount,
 }: Props) {
    const navigate = useNavigate();
    const queryClient = useQueryClient();
    const [isLoading, setIsLoading] = useState(false);
 
    const { mutate: cancel } = useMutation({
-      mutationFn: () => cancelTicket(itemId),
+      mutationFn: () =>
+         cancelOrder(orderId, {
+            requestType: selectedOrderItemIds.length === totalSeatCount ? 'ORDER_FULL' : 'ORDER_PARTIAL',
+            orderItemIds: selectedOrderItemIds.length === totalSeatCount ? undefined : selectedOrderItemIds,
+         }),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['ticketDetail', itemId] });
+         selectedTicketIds.forEach((ticketId) => {
+            queryClient.invalidateQueries({ queryKey: ['ticketDetail', ticketId] });
+            queryClient.invalidateQueries({ queryKey: ['ticketDetailFallback', ticketId] });
+         });
+         queryClient.invalidateQueries({ queryKey: ['orderTickets', orderId] });
+         queryClient.invalidateQueries({ queryKey: ['orderTicketsFallback', orderId] });
+         queryClient.invalidateQueries({ queryKey: ['cancelOrderTickets', orderId] });
          queryClient.invalidateQueries({ queryKey: ['myOrders'] });
          onClose();
-         navigate(`/mypage/purchase/${itemId}`, { state: { showCancelSuccess: true } });
+         navigate(`/mypage/purchase/${orderId}`, { state: { showCancelSuccess: true } });
       },
       onError: () => {
          setIsLoading(false);
@@ -100,6 +116,12 @@ export default function CancelConfirmDialog({
                            계좌변경
                         </button>
                      </>
+                  ) : isBankTransfer ? (
+                     <p className="text-[14px] text-[#374553] leading-normal w-[260px] whitespace-pre-wrap">
+                        등록된 환불 계좌로 환불되며, 은행 영업일 기준 1~3일 정도 소요됩니다.
+                        {'\n\n'}
+                        현재 마이페이지에서는 환불 계좌 조회 API가 없어 상세 계좌번호를 표시하지 않습니다.
+                     </p>
                   ) : (
                      <p className="text-[14px] text-[#374553] leading-normal w-[260px]">
                         기존 결제 수단{paymentMethod && <span className="font-bold">({paymentMethod})</span>}으로 환불되며,{' '}

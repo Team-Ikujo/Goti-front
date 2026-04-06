@@ -7,6 +7,14 @@ import SessionWarningDialog from '@/shared/widgets/layout/auth/SessionWarningDia
 const shouldKeepSessionAlivePath = (pathname: string) =>
    pathname.startsWith('/books') || pathname.startsWith('/tickets');
 
+const shouldAttemptInitialSessionResolve = (pathname: string) => {
+   if (pathname === '/session-expired') {
+      return false;
+   }
+
+   return !pathname.startsWith('/auth');
+};
+
 const AuthSessionController = () => {
    const { pathname } = useLocation();
    const navigate = useNavigate();
@@ -32,6 +40,7 @@ const AuthSessionController = () => {
       sessionRemainingSeconds <= 60 &&
       pathname !== '/session-expired' &&
       !isWarningDismissed;
+   const shouldResolveInitialSession = shouldAttemptInitialSessionResolve(pathname);
 
    useEffect(() => {
       if (!hasHydrated) {
@@ -48,6 +57,11 @@ const AuthSessionController = () => {
       }
 
       if (isManualLogout) {
+         setHasResolvedSession(true);
+         return;
+      }
+
+      if (!shouldResolveInitialSession) {
          setHasResolvedSession(true);
          return;
       }
@@ -76,7 +90,15 @@ const AuthSessionController = () => {
       return () => {
          cancelled = true;
       };
-   }, [accessToken, hasHydrated, hasResolvedSession, isManualLogout, setAccessToken, setHasResolvedSession]);
+   }, [
+      accessToken,
+      hasHydrated,
+      hasResolvedSession,
+      isManualLogout,
+      setAccessToken,
+      setHasResolvedSession,
+      shouldResolveInitialSession,
+   ]);
 
    useEffect(() => {
       if (!hasHydrated || !hasResolvedSession) {

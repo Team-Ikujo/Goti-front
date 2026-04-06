@@ -8,7 +8,7 @@ import { KeyValueTable } from '@/shared/ui/table';
 import { PaymentCard } from './PaymentCard';
 
 // ─── 개인정보 수집·이용 동의 (기존 SignUpTermsDialog와 동일한 구조) ─────────
-export function PrivacyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function PrivacyDialog({ open, onClose, onAgree }: { open: boolean; onClose: () => void; onAgree: () => void }) {
    return (
       <Dialog open={open} onOpenChange={v => !v && onClose()}>
          <DialogContent className="flex flex-col overflow-hidden max-w-147 w-[calc(100%-40px)] max-h-[80vh] gap-0 border-0 p-0">
@@ -29,19 +29,21 @@ export function PrivacyDialog({ open, onClose }: { open: boolean; onClose: () =>
                      className="mt-4"
                      rows={[
                         { label: '수집·이용 목적', value: '관리자 페이지 접근 권한 부여' },
-                        { label: '수집하는 개인정보 항목', value: '담당자 식별정보, 부서명, 직위, 성명, 전화번호, 이메일' },
+                        {
+                           label: '수집하는 개인정보 항목',
+                           value: '담당자 식별정보, 부서명, 직위, 성명, 전화번호, 이메일',
+                        },
                         { label: '보유·이용하는 기간', value: '개인정보의 수집·이용 동의일부터 계약종료일' },
                         { label: '수집·이용하는 자', value: 'GoTi, 각 구단, KBO' },
                      ]}
                   />
                   <p className="mt-4 text-body-2-regular leading-6 text-muted-foreground">
-                     ※ 위 사항에 대하여 설명 받고 이해하였으며, GoTi가 위 개인정보를 수집·이용하는 것에 대해
-                     동의합니다.
+                     ※ 위 사항에 대하여 설명 받고 이해하였으며, GoTi가 위 개인정보를 수집·이용하는 것에 대해 동의합니다.
                   </p>
                </div>
             </div>
             <DialogFooter className="p-5 pt-0 shrink-0">
-               <Button type="button" variant="primary" className="h-12 w-full" onClick={onClose}>
+               <Button type="button" variant="primary" className="h-12 w-full" onClick={onAgree}>
                   동의 후 닫기
                </Button>
             </DialogFooter>
@@ -51,7 +53,7 @@ export function PrivacyDialog({ open, onClose }: { open: boolean; onClose: () =>
 }
 
 // ─── 취소/환불 정책 ─────────────────────────────────────────────────────────
-function PolicyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function PolicyDialog({ open, onClose, onAgree }: { open: boolean; onClose: () => void; onAgree: () => void }) {
    return (
       <Dialog open={open} onOpenChange={v => !v && onClose()}>
          <DialogContent className="flex flex-col overflow-hidden max-w-147 w-[calc(100%-40px)] max-h-[80vh] gap-0 border-0 p-0">
@@ -66,19 +68,22 @@ function PolicyDialog({ open, onClose }: { open: boolean; onClose: () => void })
                   <div>
                      <p className="font-semibold text-foreground mb-1">1. 예매 취소 및 환불 기준</p>
                      <ul className="list-disc pl-5 flex flex-col gap-1">
-                        <li>예매 당일 취소 시
+                        <li>
+                           예매 당일 취소 시
                            <ul className="list-disc pl-5">
                               <li>예매수수료 전액 환불</li>
                               <li>취소수수료 없음</li>
                            </ul>
                         </li>
-                        <li>예매 익일 이후 취소 시
+                        <li>
+                           예매 익일 이후 취소 시
                            <ul className="list-disc pl-5">
                               <li>티켓 금액의 10% 취소수수료 발생</li>
                               <li>예매수수료는 환불되지 않음</li>
                            </ul>
                         </li>
-                        <li>경기 시작 4시간 전 이후
+                        <li>
+                           경기 시작 4시간 전 이후
                            <ul className="list-disc pl-5">
                               <li>취소 및 환불 불가</li>
                            </ul>
@@ -89,7 +94,8 @@ function PolicyDialog({ open, onClose }: { open: boolean; onClose: () => void })
                      <p className="font-semibold text-foreground mb-1">2. 예매 변경 및 부분 취소</p>
                      <ul className="list-disc pl-5 flex flex-col gap-1">
                         <li>경기일자 및 좌석 변경 불가</li>
-                        <li>부분 취소 불가
+                        <li>
+                           부분 취소 불가
                            <ul className="list-disc pl-5">
                               <li>전체 취소 후 재예매해야 합니다.</li>
                            </ul>
@@ -100,8 +106,15 @@ function PolicyDialog({ open, onClose }: { open: boolean; onClose: () => void })
                   <div>
                      <p className="font-semibold text-foreground mb-1">3. 구매 방법별 환불 안내</p>
                      <ul className="list-disc pl-5 flex flex-col gap-1">
-                        <li>온라인 / 모바일 / 전화 예매 티켓<br />→ 해당 예매처에서만 환불 가능 (현장 매표소 환불 불가)</li>
-                        <li>현장 구매 티켓<br />→ 경기 시작 전까지 환불 가능<br />→ 경기 시작 이후 환불 불가</li>
+                        <li>
+                           온라인 / 모바일 / 전화 예매 티켓
+                           <br />→ 해당 예매처에서만 환불 가능 (현장 매표소 환불 불가)
+                        </li>
+                        <li>
+                           현장 구매 티켓
+                           <br />→ 경기 시작 전까지 환불 가능
+                           <br />→ 경기 시작 이후 환불 불가
+                        </li>
                      </ul>
                   </div>
                   <div>
@@ -127,14 +140,22 @@ function PolicyDialog({ open, onClose }: { open: boolean; onClose: () => void })
                   <div>
                      <p className="font-semibold text-foreground mb-1">6. 기타 안내</p>
                      <ul className="list-disc pl-5 flex flex-col gap-1">
-                        <li>테이블석 등 묶음 좌석은 분할 구매가 불가합니다.<br />(예: 4인 테이블 → 4매 동시 구매 필수)</li>
-                        <li>경기장 입장은 경기 시작 2시간 전부터 가능합니다.<br />(구단 사정에 따라 변경될 수 있습니다.)</li>
+                        <li>
+                           테이블석 등 묶음 좌석은 분할 구매가 불가합니다.
+                           <br />
+                           (예: 4인 테이블 → 4매 동시 구매 필수)
+                        </li>
+                        <li>
+                           경기장 입장은 경기 시작 2시간 전부터 가능합니다.
+                           <br />
+                           (구단 사정에 따라 변경될 수 있습니다.)
+                        </li>
                      </ul>
                   </div>
                </div>
             </div>
             <DialogFooter className="p-5 pt-0 shrink-0">
-               <Button type="button" variant="primary" className="h-12 w-full" onClick={onClose}>
+               <Button type="button" variant="primary" className="h-12 w-full" onClick={onAgree}>
                   동의 후 닫기
                </Button>
             </DialogFooter>
@@ -144,7 +165,7 @@ function PolicyDialog({ open, onClose }: { open: boolean; onClose: () => void })
 }
 
 // ─── 리셀 정책 ──────────────────────────────────────────────────────────────
-export function ResellPolicyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ResellPolicyDialog({ open, onClose, onAgree }: { open: boolean; onClose: () => void; onAgree: () => void }) {
    return (
       <Dialog open={open} onOpenChange={v => !v && onClose()}>
          <DialogContent className="flex flex-col overflow-hidden max-w-147 w-[calc(100%-40px)] max-h-[80vh] gap-0 border-0 p-0">
@@ -155,7 +176,11 @@ export function ResellPolicyDialog({ open, onClose }: { open: boolean; onClose: 
                <div className="rounded-lg border border-(--neutral-200) p-4 text-body-2-regular leading-6 text-muted-foreground flex flex-col gap-3">
                   <div>
                      <p className="font-semibold text-foreground mb-1">리셀(Resell) 거래 및 취소·환불 정책</p>
-                     <p>본 서비스의 리셀(Resell) 기능은 이용자가 구매한 티켓을 다른 이용자에게 재판매할 수 있도록 제공되는 플랫폼 거래 서비스입니다. 리셀 거래는 이용자 간 거래를 기반으로 이루어지며, 아래 정책을 확인하고 동의한 경우에만 이용할 수 있습니다.</p>
+                     <p>
+                        본 서비스의 리셀(Resell) 기능은 이용자가 구매한 티켓을 다른 이용자에게 재판매할 수 있도록
+                        제공되는 플랫폼 거래 서비스입니다. 리셀 거래는 이용자 간 거래를 기반으로 이루어지며, 아래 정책을
+                        확인하고 동의한 경우에만 이용할 수 있습니다.
+                     </p>
                   </div>
                   <div>
                      <p className="font-semibold text-foreground mb-1">1. 리셀 서비스 이용 기준</p>
@@ -182,12 +207,18 @@ export function ResellPolicyDialog({ open, onClose }: { open: boolean; onClose: 
                   </div>
                   <div>
                      <p className="font-semibold text-foreground mb-1">3.1 리셀 시작가</p>
-                     <p>리셀 거래가 처음 시작되는 날에는 기준 데이터가 존재하지 않으므로 기존 티켓 판매 가격을 해당 경기의 리셀 시작가(금일 시작가)로 설정합니다.</p>
+                     <p>
+                        리셀 거래가 처음 시작되는 날에는 기준 데이터가 존재하지 않으므로 기존 티켓 판매 가격을 해당
+                        경기의 리셀 시작가(금일 시작가)로 설정합니다.
+                     </p>
                   </div>
                   <div>
                      <p className="font-semibold text-foreground mb-1">3.2 가격 변동 기준</p>
                      <p>리셀 가격은 전일 마감가 기준 ±30% 범위 내에서 설정할 수 있습니다.</p>
-                     <p>리셀 최소 가격은 별도의 고정 가격이 존재하지 않으며 전일 마감가 기준 가격 변동 범위에 따라 자동 결정됩니다.</p>
+                     <p>
+                        리셀 최소 가격은 별도의 고정 가격이 존재하지 않으며 전일 마감가 기준 가격 변동 범위에 따라 자동
+                        결정됩니다.
+                     </p>
                   </div>
                   <div>
                      <p className="font-semibold text-foreground mb-1">4. 리셀 거래 방식</p>
@@ -211,7 +242,10 @@ export function ResellPolicyDialog({ open, onClose }: { open: boolean; onClose: 
                   </div>
                   <div>
                      <p className="font-semibold text-foreground mb-1">6. 리셀 거래 취소 및 환불 정책</p>
-                     <p>리셀 거래는 이용자 간 거래 성격을 가지므로 원칙적으로 구매 후 단순 변심에 의한 취소 및 환불이 제한됩니다.</p>
+                     <p>
+                        리셀 거래는 이용자 간 거래 성격을 가지므로 원칙적으로 구매 후 단순 변심에 의한 취소 및 환불이
+                        제한됩니다.
+                     </p>
                      <p className="mt-1">다만 다음의 경우 예외적으로 환불이 처리될 수 있습니다.</p>
                      <ul className="list-disc pl-5 flex flex-col gap-1">
                         <li>좌석 정보 오류</li>
@@ -249,12 +283,14 @@ export function ResellPolicyDialog({ open, onClose }: { open: boolean; onClose: 
                         <li>시장 가격 변화</li>
                      </ul>
                      <p className="mt-1">등 거래 과정에서 발생할 수 있는 위험은 이용자가 인지하고 이용해야 합니다.</p>
-                     <p className="mt-2">리셀 서비스를 이용하기 위해서는 본 취소/환불 및 리셀 정책에 대한 동의가 필요합니다.</p>
+                     <p className="mt-2">
+                        리셀 서비스를 이용하기 위해서는 본 취소/환불 및 리셀 정책에 대한 동의가 필요합니다.
+                     </p>
                   </div>
                </div>
             </div>
             <DialogFooter className="p-5 pt-0 shrink-0">
-               <Button type="button" variant="primary" className="h-12 w-full" onClick={onClose}>
+               <Button type="button" variant="primary" className="h-12 w-full" onClick={onAgree}>
                   동의 후 닫기
                </Button>
             </DialogFooter>
@@ -330,9 +366,21 @@ export function TermsCard({
             </div>
          </PaymentCard>
 
-         <PrivacyDialog open={openModal === 'privacy'} onClose={() => setOpenModal(null)} />
-         <PolicyDialog open={openModal === 'policy'} onClose={() => setOpenModal(null)} />
-         <ResellPolicyDialog open={openModal === 'resell'} onClose={() => setOpenModal(null)} />
+         <PrivacyDialog
+            open={openModal === 'privacy'}
+            onClose={() => setOpenModal(null)}
+            onAgree={() => { onChangePrivacy(true); setOpenModal(null); }}
+         />
+         <PolicyDialog
+            open={openModal === 'policy'}
+            onClose={() => setOpenModal(null)}
+            onAgree={() => { onChangePolicy(true); setOpenModal(null); }}
+         />
+         <ResellPolicyDialog
+            open={openModal === 'resell'}
+            onClose={() => setOpenModal(null)}
+            onAgree={() => { onChangeResell(true); setOpenModal(null); }}
+         />
       </>
    );
 }

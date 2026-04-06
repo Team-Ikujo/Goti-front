@@ -6,10 +6,12 @@ import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 
 const isSeatHoldManagedPath = (pathname: string) =>
-   pathname.startsWith('/books') || pathname.startsWith('/tickets/payment');
+   pathname.startsWith('/books') || pathname === '/tickets/payment' || pathname === '/tickets/payment/processing';
+
+const getSeatHolds = () => Object.values(useSeatHoldStore.getState().holdsBySeatId);
 
 const releaseAllSeatHolds = async () => {
-   const seatHolds = Object.values(useSeatHoldStore.getState().holdsBySeatId);
+   const seatHolds = getSeatHolds();
 
    if (seatHolds.length === 0) {
       return;
@@ -32,7 +34,7 @@ const releaseAllSeatHolds = async () => {
 };
 
 const releaseAllSeatHoldsKeepalive = () => {
-   const seatHolds = Object.values(useSeatHoldStore.getState().holdsBySeatId);
+   const seatHolds = getSeatHolds();
 
    if (seatHolds.length === 0) {
       return;
@@ -53,7 +55,7 @@ const SeatHoldLifecycleController = () => {
    useEffect(() => {
       const previousPathname = previousPathnameRef.current;
 
-      if (isSeatHoldManagedPath(previousPathname) && !isSeatHoldManagedPath(pathname)) {
+      if (getSeatHolds().length > 0 && isSeatHoldManagedPath(previousPathname) && !isSeatHoldManagedPath(pathname)) {
          void releaseAllSeatHolds();
       }
 
@@ -62,7 +64,7 @@ const SeatHoldLifecycleController = () => {
 
    useEffect(() => {
       const handlePageHide = () => {
-         if (!isSeatHoldManagedPath(window.location.pathname)) {
+         if (!isSeatHoldManagedPath(window.location.pathname) || getSeatHolds().length === 0) {
             return;
          }
 

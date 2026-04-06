@@ -35,7 +35,10 @@ function toTicketStatus(status: ApiTicketingStatus): TicketStatus {
       case 'AVAILABLE':
          return '예매하기';
       case 'EXHAUSTED':
+      case 'TERMINATED':
+      case 'CANCELED':
          return '매진';
+      case 'PAUSED':
       default:
          return '판매예정';
    }
@@ -46,7 +49,10 @@ function toResellStatus(status: ApiTicketingStatus): ReselStatus {
       case 'AVAILABLE':
          return '리셀예매';
       case 'EXHAUSTED':
+      case 'TERMINATED':
+      case 'CANCELED':
          return '리셀매진';
+      case 'PAUSED':
       default:
          return '리셀예정';
    }

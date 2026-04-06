@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { fetchResaleListingCountsBySections } from '@/entities/resale/api/resaleApi';
+import { fetchResaleListingCountsBySections, fetchResaleListings } from '@/entities/resale/api/resaleApi';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 
@@ -16,6 +16,7 @@ import {
 import { getBookingTeamConfig, getZoneDisplayOrder, getBookingZones } from '@/pages/books/model/zoneData';
 import type { ZoneItem } from '@/pages/books/model/types';
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
+import { getCompletedResalePurchaseLookup } from '@/shared/lib/paymentCompleteStorage';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 
@@ -23,29 +24,31 @@ import BookingCaptchaGate from './components/BookingCaptchaGate';
 import BookingZoneDesktopLayout from './components/BookingZoneDesktopLayout';
 import BookingZoneMobileLayout from './components/BookingZoneMobileLayout';
 import BooksExitDialog from '@/shared/widgets/layout/books/BooksExitDialog';
+import { isPurchasableResaleListing, resolveResaleListingZoneId } from '@/pages/books/model/resellMatching';
 
 const CAPTCHA_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function createMockCaptcha(length = 6): string {
-   return Array.from(
-      { length },
-      () => CAPTCHA_CHARS[Math.floor(Math.random() * CAPTCHA_CHARS.length)],
-   ).join('');
+   return Array.from({ length }, () => CAPTCHA_CHARS[Math.floor(Math.random() * CAPTCHA_CHARS.length)]).join('');
 }
 const BooksPage = () => {
    const navigate = useNavigate();
    const location = useLocation();
    const routeBookingEntryState = location.state as BookingEntryState | null;
    const bookingFlowMode = getBookingFlowMode(location.search);
-   const storedBookingEntryState = useBookingEntryStore((state) => state.entry);
+   const storedBookingEntryState = useBookingEntryStore(state => state.entry);
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
-   const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
-   const patchBookingEntry = useBookingEntryStore((state) => state.patchEntry);
-   const clearBookingEntry = useBookingEntryStore((state) => state.clearEntry);
-   const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
-   const clearSeatHolds = useSeatHoldStore((state) => state.clearSeatHolds);
-   const clearTimer = useBookingFlowTimerStore((state) => state.clearTimer);
-   const bookingTeamConfig = useMemo(() => getBookingTeamConfig(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
+   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
+   const patchBookingEntry = useBookingEntryStore(state => state.patchEntry);
+   const clearBookingEntry = useBookingEntryStore(state => state.clearEntry);
+   const clearAllSelections = useSeatSelectionStore(state => state.clearAllSelections);
+   const clearSeatHolds = useSeatHoldStore(state => state.clearSeatHolds);
+   const clearTimer = useBookingFlowTimerStore(state => state.clearTimer);
+   const shouldForceNewSessionRef = useRef(Boolean(bookingEntryState?.forceNewSession));
+   const bookingTeamConfig = useMemo(
+      () => getBookingTeamConfig(bookingEntryState?.homeTeamId),
+      [bookingEntryState?.homeTeamId],
+   );
    const requiresCaptcha = Boolean(bookingEntryState?.requireCaptcha);
    const localZones = useMemo(
       () =>
@@ -74,19 +77,32 @@ const BooksPage = () => {
             bookingEntryState?.gameDate,
       ),
       queryFn: async () => {
-         const [grades, sections, pricingPolicy] = await Promise.all([
-            fetchSeatGrades(bookingEntryState!.gameId!, bookingEntryState!.stadiumId!),
+         const shouldForceNewSession = shouldForceNewSessionRef.current;
+         const grades = await fetchSeatGrades({
+            gameId: bookingEntryState!.gameId!,
+            forceNewSession: shouldForceNewSession,
+         });
+
+         const [sections, pricingPolicy] = await Promise.all([
             fetchSeatSections({
                stadiumId: bookingEntryState!.stadiumId!,
                gameId: bookingEntryState!.gameId!,
             }),
             fetchTicketPricingPolicy(bookingEntryState!.serverHomeTeamId!).catch(() => undefined),
          ]);
+
+         if (shouldForceNewSession) {
+            shouldForceNewSessionRef.current = false;
+            patchBookingEntry({
+               forceNewSession: false,
+            });
+         }
+
          const remainingBySectionId =
             bookingFlowMode === 'resell'
                ? await fetchResaleListingCountsBySections(
                     bookingEntryState!.gameId!,
-                    sections.map((section) => section.sectionId),
+                    sections.map(section => section.sectionId),
                  )
                : undefined;
          const pricingByGradeId = resolvePricingByGradeId({
@@ -95,27 +111,86 @@ const BooksPage = () => {
             leagueType: bookingEntryState?.leagueType,
          });
 
+         if (bookingFlowMode === 'resell') {
+            return mapSeatSectionsToZones({
+               sections,
+               grades,
+               teamId: bookingEntryState?.homeTeamId,
+               pricingByGradeId,
+               remainingBySectionId,
+            });
+         }
+
          return mapSeatSectionsToZones({
             sections,
             grades,
             teamId: bookingEntryState?.homeTeamId,
             pricingByGradeId,
-            remainingBySectionId,
          });
       },
    });
-   const zones = useMemo<ZoneItem[]>(() => {
-      const mergedZones = mergeBookingZones({
-         localZones,
-         apiZones,
-      });
+   const mergedBaseZones = useMemo(
+      () =>
+         mergeBookingZones({
+            localZones,
+            apiZones,
+         }),
+      [apiZones, localZones],
+   );
+   const { data: resellRemainingByZoneId } = useQuery({
+      queryKey: ['resell-zone-remaining', bookingEntryState?.gameId, mergedBaseZones.map(zone => zone.id).sort()],
+      enabled: bookingFlowMode === 'resell' && Boolean(bookingEntryState?.gameId) && mergedBaseZones.length > 0,
+      queryFn: async () => {
+         if (!bookingEntryState?.gameId) {
+            return new Map<string, number>();
+         }
 
-      return [...mergedZones].sort(
+         const listings = await fetchResaleListings();
+         const completedResaleLookup = getCompletedResalePurchaseLookup();
+         const nextCounts = new Map<string, number>();
+
+         listings.forEach(listing => {
+            if (
+               completedResaleLookup.listingIds.has(listing.listingId) ||
+               completedResaleLookup.seatInfos.has(listing.seatInfo) ||
+               !isPurchasableResaleListing(listing, bookingEntryState.gameId)
+            ) {
+               return;
+            }
+
+            const zoneId = resolveResaleListingZoneId({
+               zones: mergedBaseZones,
+               listing,
+            });
+
+            if (!zoneId) {
+               return;
+            }
+
+            nextCounts.set(zoneId, (nextCounts.get(zoneId) ?? 0) + 1);
+         });
+
+         return nextCounts;
+      },
+      placeholderData: previousData => previousData,
+   });
+   const zones = useMemo<ZoneItem[]>(() => {
+      const normalizedZones =
+         bookingFlowMode === 'resell'
+            ? mergedBaseZones.map(zone => ({
+                 ...zone,
+                 remaining: resellRemainingByZoneId?.get(zone.id) ?? 0,
+              }))
+            : mergedBaseZones;
+
+      return [...normalizedZones].sort(
          (left, right) => right.remaining - left.remaining || left.name.localeCompare(right.name, 'ko-KR'),
       );
-   }, [apiZones, localZones]);
+   }, [bookingFlowMode, mergedBaseZones, resellRemainingByZoneId]);
 
-   const [selectedZoneId, setSelectedZoneId] = useState(zones[0]?.id ?? '');
+   const [selectedZoneId, setSelectedZoneId] = useState(
+      () => zones.find(zone => zone.remaining > 0)?.id ?? zones[0]?.id ?? '',
+   );
    const [isCaptchaOpen, setIsCaptchaOpen] = useState(requiresCaptcha);
    const [captchaInput, setCaptchaInput] = useState('');
    const [captchaError, setCaptchaError] = useState('');
@@ -141,7 +216,7 @@ const BooksPage = () => {
    }, [routeBookingEntryState, setBookingEntry]);
 
    useEffect(() => {
-      setSelectedZoneId(zones[0]?.id ?? '');
+      setSelectedZoneId(zones.find(zone => zone.remaining > 0)?.id ?? zones[0]?.id ?? '');
    }, [zones]);
 
    useEffect(() => {
@@ -161,7 +236,7 @@ const BooksPage = () => {
 
       setCaptchaInput('');
       setCaptchaError('');
-      setCaptchaSeed((prev) => prev + 1);
+      setCaptchaSeed(prev => prev + 1);
       setIsCaptchaOpen(true);
    }, [requiresCaptcha]);
 
@@ -210,22 +285,32 @@ const BooksPage = () => {
       return {
          ...bookingEntryState,
          requireCaptcha: undefined,
+         forceNewSession: undefined,
          bookingZones: zones,
       } satisfies BookingEntryState;
    }, [bookingEntryState, zones]);
 
    const handleSelectZone = (zoneId: string) => {
+      const selectedZone = zones.find(zone => zone.id === zoneId);
+
+      if (!selectedZone || selectedZone.remaining <= 0) {
+         return;
+      }
+
       setSelectedZoneId(zoneId);
-      navigate({
-         pathname: `/books/seats/${zoneId}`,
-         search: location.search,
-      }, {
-         state: resolvedBookingEntryState,
-      });
+      navigate(
+         {
+            pathname: `/books/seats/${zoneId}`,
+            search: location.search,
+         },
+         {
+            state: resolvedBookingEntryState,
+         },
+      );
    };
 
    const refreshCaptcha = () => {
-      setCaptchaSeed((prev) => prev + 1);
+      setCaptchaSeed(prev => prev + 1);
       setCaptchaError('');
    };
 
@@ -238,20 +323,23 @@ const BooksPage = () => {
       setIsCaptchaOpen(false);
       setCaptchaInput('');
       setCaptchaError('');
-      navigate({
-         pathname: location.pathname,
-         search: location.search,
-      }, {
-         replace: true,
-         state: resolvedBookingEntryState,
-      });
+      navigate(
+         {
+            pathname: location.pathname,
+            search: location.search,
+         },
+         {
+            replace: true,
+            state: resolvedBookingEntryState,
+         },
+      );
    };
 
    return (
       <div className="w-full bg-background text-foreground">
          <BooksExitDialog
             open={isExitDialogOpen}
-            onOpenChange={(open) => {
+            onOpenChange={open => {
                setIsExitDialogOpen(open);
 
                if (!open && shouldRestoreHistoryRef.current) {
@@ -270,7 +358,7 @@ const BooksPage = () => {
             captchaCode={captchaCode}
             value={captchaInput}
             error={captchaError}
-            onOpenChange={(open) => {
+            onOpenChange={open => {
                if (!requiresCaptcha) {
                   setIsCaptchaOpen(open);
                   return;
@@ -283,7 +371,7 @@ const BooksPage = () => {
 
                setIsCaptchaOpen(true);
             }}
-            onChangeValue={(value) => {
+            onChangeValue={value => {
                setCaptchaInput(value);
                if (captchaError) {
                   setCaptchaError('');

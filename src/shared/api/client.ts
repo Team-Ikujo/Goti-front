@@ -1,6 +1,7 @@
-import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig, type AxiosResponse } from "axios";
+import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/entities/auth/model/authStore";
 import { redirectToErrorPage } from '@/shared/lib/error-navigation';
+import { applyGuardrailHeadersToAxiosConfig } from '@/shared/lib/guardrailHeaders';
 
 export class ApiError extends Error {
    status?: number;
@@ -26,6 +27,36 @@ const authorizationOptionalApiPaths = new Set([
   tokenReissuePath,
 ]);
 const shouldKeepSessionAlivePathPrefixes = ["/books", "/tickets"];
+const PUBLIC_API_PATH_PATTERNS = [
+  /^\/api\/v1\/seat-reservations(?:\/|$)/,
+  // 예매/리셀 플로우 API는 queue token / hold 기반으로 동작하므로
+  // 로그인 쿠키 세션을 같이 보내면 RBAC 게이트웨이에 막힐 수 있다.
+  /^\/api\/v1\/orders(?:\/|$)/,
+  /^\/api\/v1\/payments\/orders(?:\/|$)/,
+  /^\/api\/v1\/resales\/holds(?:\/|$)/,
+  /^\/api\/v1\/resales\/orders(?:\/|$)/,
+  /^\/api\/v1\/payments\/resales(?:\/|$)/,
+  /^\/api\/v1\/resales\/listings\/games(?:\/|$)/,
+  /^\/api\/v1\/game-seats(?:\/|$)/,
+  /^\/api\/v1\/stadium-seats(?:\/|$)/,
+  /^\/api\/v1\/seats(?:\/|$)/,
+  /^\/api\/v1\/teams\/[^/]+\/ticket-pricing-policies(?:\/|$)/,
+];
+
+const GUARDRAIL_HEADER_API_PATH_PATTERNS = [
+  /^\/api\/v1\/seat-reservations(?:\/|$)/,
+  /^\/api\/v1\/orders(?:\/|$)/,
+  /^\/api\/v1\/payments\/orders(?:\/|$)/,
+  /^\/api\/v1\/resales\/holds(?:\/|$)/,
+  /^\/api\/v1\/resales\/orders(?:\/|$)/,
+  /^\/api\/v1\/payments\/resales(?:\/|$)/,
+  /^\/api\/v1\/resales\/listings(?:\/|$)/,
+  /^\/api\/v1\/resales\/histories(?:\/|$)/,
+  /^\/api\/v1\/game-seats(?:\/|$)/,
+  /^\/api\/v1\/stadium-seats(?:\/|$)/,
+  /^\/api\/v1\/seats(?:\/|$)/,
+  /^\/api\/v1\/teams\/[^/]+\/ticket-pricing-policies(?:\/|$)/,
+];
 
 type RetriableAxiosRequestConfig = AxiosRequestConfig & {
   _retry?: boolean;
@@ -79,30 +110,6 @@ const canAttemptTokenReissue = () => {
   );
 };
 
-const getConsoleTargets = (): Console[] => {
-  const targets: Console[] = [console];
-
-  if (typeof window === "undefined" || !window.opener || window.opener.closed) {
-    return targets;
-  }
-
-  try {
-    if (window.opener.location.origin === window.location.origin) {
-      targets.push(window.opener.console);
-    }
-  } catch {
-    // Cross-origin opener access is blocked by the browser.
-  }
-
-  return targets;
-};
-
-const logToConsoles = (method: "log" | "error", ...args: unknown[]) => {
-  getConsoleTargets().forEach((target) => {
-    target[method](...args);
-  });
-};
-
 const toAbsoluteUrl = (config?: AxiosRequestConfig) => {
   const baseURL = config?.baseURL ?? "";
   const url = config?.url ?? "";
@@ -137,49 +144,47 @@ const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
   }
 };
 
-const getSerializableData = (value: unknown) => {
-  if (value === undefined) {
-    return null;
+const shouldSkipCredentials = (config: AxiosRequestConfig) => {
+  const requestUrl = toAbsoluteUrl(config);
+
+  try {
+    const { pathname } = new URL(requestUrl, window.location.origin);
+    return PUBLIC_API_PATH_PATTERNS.some((pattern) => pattern.test(pathname));
+  } catch {
+    return false;
+  }
+};
+
+const shouldAttachGuardrailHeaders = (config: AxiosRequestConfig) => {
+  const requestUrl = toAbsoluteUrl(config);
+
+  try {
+    const { pathname } = new URL(requestUrl, window.location.origin);
+    return GUARDRAIL_HEADER_API_PATH_PATTERNS.some((pattern) => pattern.test(pathname));
+  } catch {
+    return false;
+  }
+};
+
+const isAuthorizationConflictMessage = (message: string) => {
+  const normalizedMessage = message.trim().toLowerCase();
+
+  return (
+    normalizedMessage.includes("rbac") ||
+    normalizedMessage.includes("access denied") ||
+    normalizedMessage.includes("jwt issuer") ||
+    normalizedMessage.includes("issuer is not configured") ||
+    normalizedMessage.includes("unauthorized") ||
+    normalizedMessage.includes("forbidden")
+  );
+};
+
+const normalizeApiErrorMessage = (message: string, status?: number) => {
+  if (status === 401 || status === 403 || isAuthorizationConflictMessage(message)) {
+    return "로그인 또는 권한 정보를 확인할 수 없습니다. 다시 시도해 주세요.";
   }
 
-  if (typeof FormData !== "undefined" && value instanceof FormData) {
-    const entries: Array<[string, FormDataEntryValue]> = [];
-    value.forEach((entryValue, entryKey) => {
-      entries.push([entryKey, entryValue]);
-    });
-    return Object.fromEntries(entries);
-  }
-
-  return value;
-};
-
-const logRequest = (config: AxiosRequestConfig) => {
-  logToConsoles("log", "[API REQUEST]", {
-    method: config.method?.toUpperCase() ?? "GET",
-    url: toAbsoluteUrl(config),
-    params: config.params ?? null,
-    data: getSerializableData(config.data),
-    headers: config.headers ?? null,
-  });
-};
-
-const logResponse = (response: AxiosResponse) => {
-  logToConsoles("log", "[API RESPONSE]", {
-    method: response.config.method?.toUpperCase() ?? "GET",
-    url: toAbsoluteUrl(response.config),
-    status: response.status,
-    data: response.data,
-  });
-};
-
-const logError = (error: AxiosError) => {
-  logToConsoles("error", "[API ERROR]", {
-    method: error.config?.method?.toUpperCase() ?? "UNKNOWN",
-    url: toAbsoluteUrl(error.config),
-    status: error.response?.status ?? null,
-    data: error.response?.data ?? null,
-    message: error.message,
-  });
+  return message;
 };
 
 const apiClient = axios.create({
@@ -243,6 +248,16 @@ const reissueAccessTokenFromCookie = async () => {
 apiClient.interceptors.request.use((config) => {
   const accessToken = useAuthStore.getState().accessToken;
   const shouldSkipAuth = shouldSkipAuthorizationHeader(config);
+  const shouldOmitCredentials = shouldSkipCredentials(config);
+  const shouldIncludeGuardrailHeaders = shouldAttachGuardrailHeaders(config);
+
+  if (shouldOmitCredentials) {
+    config.withCredentials = false;
+  }
+
+  if (shouldIncludeGuardrailHeaders) {
+    applyGuardrailHeadersToAxiosConfig(config);
+  }
 
   if (accessToken && !shouldSkipAuth) {
     if (config.headers && typeof config.headers.set === "function") {
@@ -253,8 +268,6 @@ apiClient.interceptors.request.use((config) => {
       config.headers = nextHeaders;
     }
   }
-
-  logRequest(config);
   return config;
 });
 
@@ -269,13 +282,9 @@ apiClient.interceptors.response.use(
         ),
       );
     }
-
-    logResponse(response);
     return response;
   },
   (error: AxiosError) => {
-    logError(error);
-
     const requestConfig = error.config as RetriableAxiosRequestConfig | undefined;
     const requestUrl = requestConfig?.url ?? "";
     const isReissueRequest = requestUrl.includes(tokenReissuePath);
@@ -283,6 +292,7 @@ apiClient.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       requestConfig &&
+      requestConfig.withCredentials !== false &&
       !requestConfig._retry &&
       !isReissueRequest &&
       canAttemptTokenReissue()
@@ -290,9 +300,15 @@ apiClient.interceptors.response.use(
       requestConfig._retry = true;
 
       return reissueAccessTokenFromCookie().then((accessToken) => {
-        const nextHeaders = AxiosHeaders.from(requestConfig.headers);
-        nextHeaders.set("Authorization", `Bearer ${accessToken}`);
-        requestConfig.headers = nextHeaders;
+        if (shouldAttachGuardrailHeaders(requestConfig)) {
+          applyGuardrailHeadersToAxiosConfig(requestConfig);
+        }
+
+        if (!shouldSkipAuthorizationHeader(requestConfig)) {
+          const nextHeaders = AxiosHeaders.from(requestConfig.headers as AxiosHeaders | undefined);
+          nextHeaders.set("Authorization", `Bearer ${accessToken}`);
+          requestConfig.headers = nextHeaders;
+        }
 
         return apiClient(requestConfig);
       });
@@ -305,15 +321,17 @@ apiClient.interceptors.response.use(
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data;
-      const message =
+      const message = normalizeApiErrorMessage(
         typeof data === "string"
           ? data
-          : (data as { message?: string })?.message ?? "Request failed";
+          : (data as { message?: string })?.message ?? "Request failed",
+        status,
+      );
 
          return Promise.reject(new ApiError(message, status, data));
       }
 
-      return Promise.reject(new ApiError(error.message));
+      return Promise.reject(new ApiError(normalizeApiErrorMessage(error.message)));
    },
 );
 

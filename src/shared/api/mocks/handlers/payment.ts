@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { teams } from '@/entities/team/model/teams';
+import { MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO } from '@/shared/api/mockScenarios';
 import { mockGameSchedules } from './game';
 
 // serverTeamId → 팀 단축명 조회 맵
@@ -71,6 +72,12 @@ type ResaleHold = {
    holdId: string;
    listingId: string;
    queueTokenJti: string;
+   // hold 생성 시점의 listing 스냅샷 (listing이 없는 경우 fallback용)
+   seatInfo?: string;
+   listingPrice?: number;
+   gameTitle?: string;
+   gameDate?: string;
+   stadiumName?: string;
 };
 
 type ResaleOrder = {
@@ -110,7 +117,7 @@ type TicketRecord = {
    serviceFee: number;
    paymentMethod?: string;
    paymentMethodDisplay?: string;
-   ticketStatus: 'ISSUED' | 'USED' | 'INVALID';
+   ticketStatus: 'ISSUED' | 'USED' | 'INVALID' | 'RESALE_ISSUED';
    resaleEnabledStatus: 'ENABLED' | 'DISABLED';
    frozen?: boolean;
    frozenUntil?: string;
@@ -436,7 +443,7 @@ const seatSectionsByStadium: Record<string, SeatSection[]> = {
 
 // ── MSW localStorage 영속화 ────────────────────────────────────────
 
-const MSW_STORAGE_VERSION = '5';
+const MSW_STORAGE_VERSION = '6';
 const MSW_VERSION_KEY = '__msw_storage_version__';
 const MSW_STORAGE_KEYS = ['__msw_ticket_orders__', '__msw_ticket_records__', '__msw_seat_holds__'];
 
@@ -496,6 +503,7 @@ const resaleLedgers = new Map<string, ResaleLedger>();
 type ResaleListing = {
    listingId: string;
    ticketId: string;
+   ticketNumber?: string;
    sellerId: string;
    seatInfo: string;
    listingPrice: number;
@@ -738,6 +746,78 @@ const isTicketPaymentMethod = (paymentMethod: unknown) => {
    );
 };
 
+const ensureMockPurchaseHistorySeed = () => {
+   const seedOrderId = 'mock-order-mypage-actions';
+   if (ticketOrders.has(seedOrderId)) {
+      return;
+   }
+
+   const seedGame = mockGameSchedules.find((game) => game.gameId === 'game-kia-home-tomorrow');
+   if (!seedGame) {
+      return;
+   }
+
+   const seedSeatIds = [
+      'section-stadium-kia-champions-field-104-A-9',
+      'section-stadium-kia-champions-field-104-A-10',
+   ];
+   const seedTicketIds = seedSeatIds.map((_, index) => `mock-ticket-mypage-actions-${index + 1}`);
+   const orderedAt = new Date(new Date(seedGame.startAt.replace(' ', 'T')).getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
+   const serviceFee = 1000;
+
+   const seatInfos = seedSeatIds.map((seatId) => buildSeatInfoStr(seatId));
+   const ticketPrices = seedSeatIds.map((seatId) => resolveSeatPrice(seedGame.homeTeamId, seatId, seedGame.startAt));
+   const totalAmount = ticketPrices.reduce((sum, price) => sum + price + serviceFee, 0);
+
+   ticketOrders.set(seedOrderId, {
+      orderId: seedOrderId,
+      orderNumber: 'T241231ABC123',
+      gameId: seedGame.gameId,
+      stadiumId: seedGame.stadiumId,
+      orderStatus: 'CONFIRMED',
+      totalQuantity: seedSeatIds.length,
+      totalAmount,
+      holdIds: [],
+      orderedAt,
+      homeTeamName: seedGame.homeTeamDisplayName,
+      awayTeamName: seedGame.awayTeamDisplayName,
+      stadiumName: `${seedGame.stadiumLocation} ${seedGame.homeTeamDisplayName} 홈구장`,
+      gameStartAt: seedGame.startAt,
+      seatGradeName: resolveSeatGradeName(seedSeatIds[0]) ?? '좌석 정보',
+      ticketIds: seedTicketIds,
+      seatInfos,
+      ordererName: '홍길동',
+   });
+
+   seedTicketIds.forEach((ticketId, index) => {
+      ticketRecords.set(ticketId, {
+         ticketId,
+         ticketNumber: `TKT-MOCK-${index + 1}`,
+         orderItemId: `mock-order-item-mypage-actions-${index + 1}`,
+         orderId: seedOrderId,
+         gameId: seedGame.gameId,
+         seatId: seedSeatIds[index],
+         qrToken: `mock-qr-mypage-actions-${index + 1}`,
+         gameTitle: `${seedGame.awayTeamDisplayName} vs ${seedGame.homeTeamDisplayName}`,
+         gameDate: seedGame.startAt,
+         stadiumName: `${seedGame.stadiumLocation} ${seedGame.homeTeamDisplayName} 홈구장`,
+         seatInfo: seatInfos[index],
+         ticketPrice: ticketPrices[index],
+         serviceFee,
+         paymentMethod: 'CARD',
+         paymentMethodDisplay: buildPaymentMethodDisplay('CARD'),
+         ticketStatus: 'ISSUED',
+         resaleEnabledStatus: 'ENABLED',
+         issuedAt: orderedAt,
+         orderedAt,
+         cancelableUntil: new Date(new Date(seedGame.startAt.replace(' ', 'T')).getTime() - 4 * 60 * 60 * 1000).toISOString(),
+         ordererName: '홍길동',
+      });
+   });
+};
+
+ensureMockPurchaseHistorySeed();
+
 const buildPageResponse = <T>(content: T[], page = 0, size = content.length || 10) => {
    const pageSize = size > 0 ? size : content.length || 10;
    const offset = page * pageSize;
@@ -856,10 +936,14 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/stadium-seats/stadiums/:stadiumId/games/:gameId/seat-grades', async ({ params }) => {
-      const seatGrades = seatGradesByStadium[String(params.stadiumId)] ?? [];
+   http.get('/api/v1/stadium-seats/games/:gameId/seat-grades', async ({ params, request }) => {
+      const requestUrl = new URL(request.url);
+      const forceNewSession = requestUrl.searchParams.get('forceNewSession');
+      const gameId = String(params.gameId);
+      const stadiumId = mockGameSchedules.find((game) => game.gameId === gameId)?.stadiumId;
+      const seatGrades = stadiumId ? seatGradesByStadium[stadiumId] ?? [] : [];
       const seatGradeResult: SeatGradeSearchResult = {
-         sessionId: `seat-session-${String(params.gameId)}`,
+         sessionId: forceNewSession === 'true' ? `seat-session-new-${gameId}` : `seat-session-${gameId}`,
          sessionExpiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
          seatGrades,
       };
@@ -989,6 +1073,9 @@ export const paymentHandlers = [
          const remainingSeatInfos = (order.seatInfos ?? []).filter((_, i) =>
             !activeListingTicketIds.has((order.ticketIds ?? [])[i] ?? ''),
          );
+         const remainingOrderItemIds = remainingTicketIds
+            .map((ticketId) => ticketRecords.get(ticketId)?.orderItemId)
+            .filter((orderItemId): orderItemId is string => Boolean(orderItemId));
 
          // 남은 티켓이 없으면 주문 자체를 숨김
          if (remainingCount === 0) return null;
@@ -1010,6 +1097,7 @@ export const paymentHandlers = [
             seatInfos: remainingSeatInfos,
             ticketId: remainingTicketIds[0],
             ticketIds: remainingTicketIds,
+            orderItemIds: remainingOrderItemIds,
          };
       }).filter(Boolean);
 
@@ -1054,7 +1142,7 @@ export const paymentHandlers = [
 
       const order: TicketOrder = {
          orderId,
-         orderNumber: `ORD-${Date.now()}`,
+         orderNumber: `ORD${Date.now()}`,
          gameId: body.gameId,
          stadiumId: matchedGame?.stadiumId ?? 'stadium-kia-champions-field',
          orderStatus: 'PENDING',
@@ -1186,6 +1274,32 @@ export const paymentHandlers = [
       });
    }),
 
+   http.get('/api/v1/payments/orders/:orderId', async ({ params }) => {
+      const orderId = String(params.orderId);
+      const payment = Array.from(ticketPayments.values()).find((item) => item.orderId === orderId);
+
+      if (!payment) {
+         return buildErrorResponse('Payment not found.', 404);
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            paymentId: payment.paymentId,
+            orderId: payment.orderId,
+            paymentType: 'PAYMENT',
+            paymentMethod: payment.paymentMethod,
+            paymentAmount: payment.paymentAmount,
+            pgProvider: 'MOCK',
+            pgTid: payment.pgTid,
+            paymentStatus: payment.paymentStatus,
+            paidAt: payment.paidAt,
+            failedReason: null,
+         },
+      });
+   }),
+
    http.post('/api/v1/resales/holds', async ({ request }) => {
       const body = (await request.json()) as {
          listingId?: string;
@@ -1197,10 +1311,16 @@ export const paymentHandlers = [
       }
 
       const holdId = createId('resale-hold');
+      const holdListing = resaleListings.get(body.listingId);
       resaleHolds.set(holdId, {
          holdId,
          listingId: body.listingId,
          queueTokenJti: body.queueTokenJti,
+         seatInfo: holdListing?.seatInfo,
+         listingPrice: holdListing?.listingPrice,
+         gameTitle: holdListing?.gameTitle,
+         gameDate: holdListing?.gameDate,
+         stadiumName: holdListing?.stadiumName,
       });
 
       return HttpResponse.json({
@@ -1244,7 +1364,7 @@ export const paymentHandlers = [
       const orderId = createId('resale-order');
       const order: ResaleOrder = {
          orderId,
-         orderNumber: `RESALE-ORD-${Date.now()}`,
+         orderNumber: `RESALE${Date.now()}`,
          orderStatus: 'PENDING',
          totalQuantity: body.holdIds.length,
          totalAmount: 54000 * body.holdIds.length,
@@ -1281,7 +1401,7 @@ export const paymentHandlers = [
       });
    }),
 
-   http.post('/api/v1/resales/payments', async ({ request }) => {
+   http.post('/api/v1/payments/resales', async ({ request }) => {
       const body = (await request.json()) as {
          orderId?: string;
          buyerId?: string;
@@ -1367,7 +1487,7 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/resales/payments/ledgers', async ({ request }) => {
+   http.get('/api/v1/payments/resales/ledgers', async ({ request }) => {
       const searchParams = new URL(request.url).searchParams;
       const page = Number(searchParams.get('page') ?? 0);
       const size = Number(searchParams.get('size') ?? 10);
@@ -1380,7 +1500,21 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/resales/payments/ledgers/orders/:orderId', async ({ params }) => {
+   http.get('/api/v1/payments/resales/unsettled', async () => {
+      const unsettledAmount = Array.from(resaleListings.values())
+         .filter((listing) => listing.listingStatus === 'SOLD')
+         .reduce((sum, listing) => sum + listing.listingPrice, 0);
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            unsettledAmount,
+         },
+      });
+   }),
+
+   http.get('/api/v1/payments/resales/ledgers/orders/:orderId', async ({ params }) => {
       const ledger = resaleLedgers.get(String(params.orderId));
 
       if (!ledger) {
@@ -1391,6 +1525,79 @@ export const paymentHandlers = [
          code: 'SUCCESS',
          message: 'ok',
          data: ledger,
+      });
+   }),
+
+   // 리셀 주문 완료: 구매자에게 RESALE_ISSUED 티켓 발급
+   http.patch('/api/v1/resales/orders/:orderId/complete', async ({ params }) => {
+      const orderId = String(params.orderId);
+      const order = resaleOrders.get(orderId);
+
+      if (!order) {
+         return buildErrorResponse('Resale order not found.', 404);
+      }
+
+      const paidAt = new Date().toISOString();
+      const newOrderNumber = `RESALE${Date.now()}`;
+
+      order.holdIds.forEach((holdId, idx) => {
+         const hold = resaleHolds.get(holdId);
+         if (!hold) return;
+
+         // listing이 없으면 hold에 저장된 스냅샷 또는 fallback 데이터 사용
+         const listing = resaleListings.get(hold.listingId);
+         const seatInfo = listing?.seatInfo ?? hold.seatInfo ?? '리셀 티켓';
+         const listingPrice = listing?.listingPrice ?? hold.listingPrice ?? order.totalAmount;
+         const gameTitle = listing?.gameTitle ?? hold.gameTitle ?? 'KBO 리그 경기';
+         const gameDate = listing?.gameDate ?? hold.gameDate ?? paidAt;
+         const stadiumName = listing?.stadiumName ?? hold.stadiumName;
+
+         const newTicketId = createId('resale-ticket');
+         ticketRecords.set(newTicketId, {
+            ticketId: newTicketId,
+            ticketNumber: `RSL-TKT-${Date.now()}-${idx}`,
+            orderItemId: createId('resale-order-item'),
+            orderId,
+            gameId: '',
+            seatId: '',
+            qrToken: createId('qr'),
+            gameTitle,
+            gameDate,
+            stadiumName,
+            seatInfo,
+            ticketPrice: listingPrice,
+            serviceFee: 1000,
+            ticketStatus: 'RESALE_ISSUED',
+            resaleEnabledStatus: 'DISABLED',
+            issuedAt: paidAt,
+            orderedAt: paidAt,
+            cancelableUntil: undefined,
+            ordererName: undefined,
+         });
+
+         if (listing) {
+            resaleListings.set(hold.listingId, { ...listing, listingStatus: 'SOLD' });
+         }
+      });
+
+      // 주문 상태 COMPLETED로 변경
+      resaleOrders.set(orderId, { ...order, orderStatus: 'COMPLETED', orderNumber: newOrderNumber });
+
+      const createdTicketIds = Array.from(ticketRecords.values())
+         .filter(t => t.orderId === orderId && t.ticketStatus === 'RESALE_ISSUED')
+         .map(t => t.ticketId);
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            orderId,
+            orderNumber: newOrderNumber,
+            buyerId: '',
+            totalAmount: order.totalAmount,
+            orderStatus: 'COMPLETED',
+            ticketIds: createdTicketIds,
+         },
       });
    }),
 
@@ -1430,7 +1637,12 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/orders/:orderId/tickets', async ({ params }) => {
+   http.get('/api/v1/orders/:orderId/tickets', async ({ params, request }) => {
+      const requestUrl = new URL(request.url);
+      if (requestUrl.searchParams.get('mockScenario') === MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO) {
+         return buildErrorResponse('Mock ticket info error.', 500);
+      }
+
       const orderId = String(params.orderId);
       const tickets = Array.from(ticketRecords.values()).filter((t) => t.orderId === orderId);
       return HttpResponse.json({
@@ -1439,6 +1651,7 @@ export const paymentHandlers = [
          data: tickets.map((t) => ({
             ticketId: t.ticketId,
             ticketNumber: t.ticketNumber,
+            orderItemId: t.orderItemId,
             seatInfo: t.seatInfo,
             ticketPrice: t.ticketPrice,
             serviceFee: t.serviceFee ?? 1000,
@@ -1454,80 +1667,198 @@ export const paymentHandlers = [
          return buildErrorResponse('Ticket not found.', 404);
       }
 
+      const refreshedQrToken = createId('qr');
+      ticketRecords.set(ticket.ticketId, {
+         ...ticket,
+         qrToken: refreshedQrToken,
+      });
+
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
          data: {
             ticketId: ticket.ticketId,
-            qrToken: ticket.qrToken,
+            qrToken: refreshedQrToken,
             expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
          },
       });
    }),
 
-   // 티켓 취소
-   http.post('/api/v1/tickets/:ticketId/cancel', async ({ params }) => {
-      const ticket = ticketRecords.get(String(params.ticketId));
+   // 주문 취소
+   http.post('/api/v1/orders/:orderId/cancellations', async ({ params, request }) => {
+      const orderId = String(params.orderId);
+      const order = ticketOrders.get(orderId);
+      const body = await parseJsonBody<{
+         requestType?: 'ORDER_PARTIAL' | 'ORDER_FULL' | 'GAME_CANCELED' | 'SCHEDULE_CHANGED';
+         orderItemIds?: string[];
+         idempotencyKey?: string;
+      }>(request);
 
-      if (!ticket) {
-         return buildErrorResponse('Ticket not found.', 404);
+      if (!order) {
+         return buildErrorResponse('Order not found.', 404);
       }
 
-      if (ticket.ticketStatus === 'INVALID') {
-         return buildErrorResponse('Already canceled.', 400);
+      if (!body?.requestType || !body?.idempotencyKey) {
+         return buildErrorResponse('Missing cancellation fields.');
       }
 
-      ticketRecords.set(ticket.ticketId, {
-         ...ticket,
-         ticketStatus: 'INVALID',
-         resaleEnabledStatus: 'DISABLED',
+      const orderTickets = Array.from(ticketRecords.values()).filter((ticket) => ticket.orderId === orderId);
+      const activeTickets = orderTickets.filter((ticket) => ticket.ticketStatus !== 'INVALID');
+
+      if (activeTickets.length === 0) {
+         return buildErrorResponse('No cancellable tickets found.', 400);
+      }
+
+      const targetTickets =
+         body.requestType === 'ORDER_FULL'
+            ? activeTickets
+            : activeTickets.filter((ticket) => body.orderItemIds?.includes(ticket.orderItemId));
+
+      if (targetTickets.length === 0) {
+         return buildErrorResponse('No cancellation targets found.', 400);
+      }
+
+      targetTickets.forEach((ticket) => {
+         ticketRecords.set(ticket.ticketId, {
+            ...ticket,
+            ticketStatus: 'INVALID',
+            resaleEnabledStatus: 'DISABLED',
+         });
       });
 
-      // 주문도 CANCELED로 변경
-      const order = ticketOrders.get(ticket.orderId);
-      if (order) {
-         ticketOrders.set(ticket.orderId, { ...order, orderStatus: 'CANCELED' });
-      }
+      const remainingActiveTickets = activeTickets.filter(
+         (ticket) => !targetTickets.some((target) => target.ticketId === ticket.ticketId),
+      );
+      const nextOrderStatus = remainingActiveTickets.length === 0 ? 'CANCELED' : 'PARTIALLY_CANCELED';
+      const canceledTicketAmount = targetTickets.reduce((sum, ticket) => sum + ticket.ticketPrice, 0);
+      const bookingFeeAmount = targetTickets.reduce((sum, ticket) => sum + (ticket.serviceFee ?? 0), 0);
 
-      return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: null });
+      ticketOrders.set(orderId, {
+         ...order,
+         orderStatus: nextOrderStatus,
+      });
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            cancellationId: createId('cancellation'),
+            orderId,
+            requestType: body.requestType,
+            orderStatus: nextOrderStatus,
+            refundAmount: canceledTicketAmount,
+            cancellationFeeAmount: 0,
+            bookingFeeAmount,
+            paymentStatus: 'CANCELED',
+            paymentMethod: 'CARD',
+            paymentType: 'REFUND',
+            refundAt: new Date().toISOString(),
+            canceledItemCount: targetTickets.length,
+         },
+      });
    }),
 
    // 리셀 등록
    http.post('/api/v1/resales/listings', async ({ request }) => {
-      const body = (await request.json()) as { ticketId?: string; listingPrice?: number } | null;
+      type ListingItem = { ticketId?: string; listingPrice?: number };
+      const body = (await request.json()) as
+         | ListingItem
+         | { listings?: Array<ListingItem> }
+         | null;
 
-      if (!body?.ticketId || !body?.listingPrice) {
+      const listings: ListingItem[] = 'listings' in (body ?? {}) ? (body as { listings?: ListingItem[] })?.listings ?? [] : body ? [body as ListingItem] : [];
+
+      if (listings.length === 0 || listings.some((item) => !item?.ticketId || !item?.listingPrice)) {
          return buildErrorResponse('Missing ticketId or listingPrice.');
       }
 
-      const ticket = ticketRecords.get(body.ticketId);
-      if (!ticket) {
-         return buildErrorResponse('Ticket not found.', 404);
+      const createdListings: Array<{
+         listingId: string;
+         orderId: string;
+         ticketId: string;
+         sellerId: string;
+         gameId: string;
+         seatId: string;
+         gradeId: string;
+         seatInfo: string;
+         dailyBasePrice: number;
+         listingPrice: number;
+         listingStatus: 'LISTING';
+         availableStatus: 'ENABLED';
+         lastTransactionPrice: number;
+         listedAt: string;
+         soldAt?: string;
+         canceledAt?: string;
+         isCancelable: boolean;
+         isPurchasable: boolean;
+         minPrice: number;
+         maxPrice: number;
+      }> = [];
+      const createdOrders: Array<{ orderId: string; orderNumber: string }> = [];
+
+      for (const item of listings) {
+         const ticket = ticketRecords.get(item.ticketId!);
+         if (!ticket) {
+            return buildErrorResponse('Ticket not found.', 404);
+         }
+
+         const listingId = createId('listing');
+         const orderId = createId('resale-order');
+         const listing: ResaleListing = {
+            listingId,
+            ticketId: ticket.ticketId,
+            sellerId: 'mock-seller',
+            seatInfo: ticket.seatInfo,
+            listingPrice: item.listingPrice!,
+            listingStatus: 'LISTING',
+            listedAt: new Date().toISOString(),
+            gameTitle: ticket.gameTitle,
+            gameDate: ticket.gameDate,
+            stadiumName: ticket.stadiumName,
+         };
+         resaleListings.set(listingId, listing);
+         createdOrders.push({
+            orderId,
+            orderNumber: `RSL-${orderId.replace(/^resale-order-/i, '').slice(0, 8).toUpperCase()}`,
+         });
+         createdListings.push({
+            listingId,
+            orderId,
+            ticketId: ticket.ticketId,
+            sellerId: 'mock-seller',
+            gameId: '',
+            seatId: '',
+            gradeId: '',
+            seatInfo: ticket.seatInfo,
+            dailyBasePrice: item.listingPrice!,
+            listingPrice: item.listingPrice!,
+            listingStatus: 'LISTING',
+            availableStatus: 'ENABLED',
+            lastTransactionPrice: 0,
+            listedAt: listing.listedAt,
+            soldAt: undefined,
+            canceledAt: undefined,
+            isCancelable: true,
+            isPurchasable: true,
+            minPrice: 0,
+            maxPrice: 999999,
+         });
+
+         ticketRecords.set(ticket.ticketId, {
+            ...ticket,
+            ticketStatus: 'ISSUED',
+            resaleEnabledStatus: 'DISABLED',
+         });
       }
 
-      const listingId = createId('listing');
-      const listing: ResaleListing = {
-         listingId,
-         ticketId: ticket.ticketId,
-         sellerId: 'mock-seller',
-         seatInfo: ticket.seatInfo,
-         listingPrice: body.listingPrice,
-         listingStatus: 'LISTING',
-         listedAt: new Date().toISOString(),
-         gameTitle: ticket.gameTitle,
-         gameDate: ticket.gameDate,
-         stadiumName: ticket.stadiumName,
-      };
-      resaleListings.set(listingId, listing);
-
-      // 티켓 상태 RESALE_ISSUED로 변경 및 리셀 등록 후 canSell 비활성화
-      ticketRecords.set(ticket.ticketId, {
-         ...ticket,
-         ticketStatus: 'ISSUED',
-         resaleEnabledStatus: 'DISABLED',
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            orders: createdOrders,
+            listings: createdListings,
+         },
       });
-
-      return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: { listingId } });
    }),
 
    // 내 리셀 목록 조회
@@ -1535,6 +1866,7 @@ export const paymentHandlers = [
       const listings = Array.from(resaleListings.values()).map((l) => ({
          listingId: l.listingId,
          ticketId: l.ticketId,
+         ticketNumber: l.ticketNumber,
          sellerId: l.sellerId,
          gameId: '',
          seatId: '',
@@ -1557,6 +1889,21 @@ export const paymentHandlers = [
       return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: listings });
    }),
 
+   http.get('/api/v1/resales/listings/count/listing', async () => {
+      const listings = Array.from(resaleListings.values());
+      const listingCount = listings.filter((item) => item.listingStatus === 'LISTING' || item.listingStatus === 'HOLD').length;
+      const soldCount = listings.filter((item) => item.listingStatus === 'SETTLED').length;
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            listingCount,
+            soldCount,
+         },
+      });
+   }),
+
    // 리셀 상세 조회
    http.get('/api/v1/resales/listings/:listingId', async ({ params }) => {
       const listing = resaleListings.get(String(params.listingId));
@@ -1571,6 +1918,7 @@ export const paymentHandlers = [
          data: {
             listingId: listing.listingId,
             ticketId: listing.ticketId,
+            ticketNumber: listing.ticketNumber,
             seatInfo: listing.seatInfo,
             listingPrice: listing.listingPrice,
             listingStatus: listing.listingStatus,
@@ -1585,8 +1933,9 @@ export const paymentHandlers = [
    }),
 
    // 리셀 취소
-   http.post('/api/v1/resales/listings/:listingId/cancel', async ({ params }) => {
-      const listing = resaleListings.get(String(params.listingId));
+   http.patch('/api/v1/resales/listings/cancel', async ({ request }) => {
+      const body = await parseJsonBody<{ listingId?: string }>(request);
+      const listing = body?.listingId ? resaleListings.get(body.listingId) : undefined;
 
       if (!listing) {
          return buildErrorResponse('Listing not found.', 404);
@@ -1596,11 +1945,9 @@ export const paymentHandlers = [
          return buildErrorResponse('Cannot cancel this listing.', 400);
       }
 
-      // LISTING → CANCEL_REQUESTED(취소 대기) → CANCELED(취소 완료) 2단계 처리
-      const nextStatus = listing.listingStatus === 'LISTING' ? 'CANCEL_REQUESTED' : 'CANCELED';
       resaleListings.set(listing.listingId, {
          ...listing,
-         listingStatus: nextStatus,
+         listingStatus: 'CANCELED',
          canceledAt: new Date().toISOString(),
       });
 
@@ -1610,6 +1957,15 @@ export const paymentHandlers = [
          ticketRecords.set(ticket.ticketId, { ...ticket, resaleEnabledStatus: 'ENABLED' });
       }
 
-      return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: null });
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            ...listing,
+            listingStatus: 'CANCELED',
+            canceledAt: new Date().toISOString(),
+            availableStatus: 'DISABLED',
+         },
+      });
    }),
 ];

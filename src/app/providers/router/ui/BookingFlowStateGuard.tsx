@@ -18,23 +18,16 @@ const BookingFlowStateGuard = () => {
    useEffect(() => {
       const previousPathname = previousPathnameRef.current;
       const isCurrentBookingFlow = isBookingFlowPath(pathname);
+      const didExitBookingFlow = Boolean(
+         previousPathname && isBookingFlowPath(previousPathname) && !isCurrentBookingFlow,
+      );
       const requiresEntry = requiresBookingEntry(pathname);
       const selectedSeatCount = Object.values(useSeatSelectionStore.getState().zones).reduce(
          (count, zone) => count + zone.selectedSeatIds.length,
          0,
       );
 
-      console.info('[BookingFlowStateGuard]', {
-         previousPathname,
-         pathname,
-         isCurrentBookingFlow,
-         requiresEntry,
-         hasBookingEntry: Boolean(bookingEntry),
-         selectedSeatCount,
-      });
-
       if (requiresEntry && !bookingEntry) {
-         console.info('[BookingFlowStateGuard] booking entry missing, redirecting to home');
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
@@ -42,16 +35,11 @@ const BookingFlowStateGuard = () => {
          return;
       }
 
-      if (!isCurrentBookingFlow) {
-         console.info('[BookingFlowStateGuard] booking flow exited, clearing seat selections and timer');
+      if (didExitBookingFlow) {
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
-      } else if (previousPathname && isBookingFlowPath(previousPathname) && !isCurrentBookingFlow) {
-         console.info('[BookingFlowStateGuard] moved out of booking flow, clearing seat selections and timer');
-         useSeatHoldStore.getState().clearSeatHolds();
-         useSeatSelectionStore.getState().clearAllSelections();
-         useBookingFlowTimerStore.getState().clearTimer();
+         useBookingEntryStore.getState().clearEntry();
       }
 
       previousPathnameRef.current = pathname;

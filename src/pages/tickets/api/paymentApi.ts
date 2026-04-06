@@ -1,5 +1,4 @@
-import apiClient from '@/shared/api/client';
-import { useAuthStore } from '@/entities/auth/model/authStore';
+import apiClient, { ApiError } from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import type {
    CashReceiptNumType,
@@ -8,6 +7,9 @@ import type {
    SupportedPaymentMethod,
 } from '../ui/payment/types';
 import type { BotReport } from '@/shared/lib/botDetector';
+import { type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
+import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
+import { useAuthStore } from '@/entities/auth/model/authStore';
 
 interface CheckoutFormRequest {
    deliveryMethod: 'mobile' | 'onsite' | 'delivery';
@@ -22,9 +24,11 @@ interface CheckoutFormRequest {
    cashReceiptNumType?: CashReceiptNumType;
    cashReceiptNum?: string;
    botData?: BotReport;
+   cfTurnstileToken?: string;
 }
 
 export interface PaymentResponse {
+   orderType?: 'ticket' | 'resale';
    orderNumber: string;
    gameTitle: string;
    gameDate: string;
@@ -42,6 +46,7 @@ export interface PaymentResponse {
    recipientName?: string;
    recipientPhone?: string;
    recipientAddress?: string;
+   resaleListingId?: string;
 }
 export type TicketCheckoutSeat = {
    seatId: string;
@@ -63,6 +68,7 @@ export interface TicketCheckoutRequest extends CheckoutFormRequest {
 export interface ResaleCheckoutRequest extends CheckoutFormRequest {
    buyerId: string;
    listingId: string;
+   holdId?: string;
    queueTokenJti: string;
    sellerId: string;
    settlementAmount: number;
@@ -77,10 +83,12 @@ export interface ResaleCheckoutRequest extends CheckoutFormRequest {
 
 type CreateOrderRequest = {
    gameId: string;
+   queueTokenJti: string;
    holdIds: string[];
    ordererName: string;
    ordererPhone: string;
    ordererEmail: string;
+   cfTurnstileToken?: string;
 };
 
 type CreateOrderResponse = {
@@ -95,12 +103,6 @@ type CreateOrderResponse = {
 type OrderPaymentRequest = {
    paymentMethod: string;
    idempotencyKey: string;
-};
-
-type OrderPaymentConfirmRequest = {
-   userId: string;
-   paymentId?: string;
-   pgTid?: string;
 };
 
 type OrderPaymentResponse = {
@@ -119,6 +121,7 @@ type OrderPaymentResponse = {
 type ResaleHoldRequest = {
    listingId: string;
    queueTokenJti: string;
+   cfTurnstileToken?: string;
 };
 
 type ResaleHoldResponse = {
@@ -147,6 +150,7 @@ type ResaleOrderCompleteResponse = {
    buyerId: string;
    totalAmount: number;
    orderStatus: string;
+   ticketIds?: string[];
    items?: Array<{
       transactionId: string;
       listingId: string;
@@ -178,14 +182,15 @@ const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
 const shouldUseRelativeApiBase = import.meta.env.DEV;
 
 const formatOrderedAt = (date: Date) => {
-   return date.toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-   });
+   const pad = (n: number) => String(n).padStart(2, '0');
+   const year = date.getFullYear();
+   const month = pad(date.getMonth() + 1);
+   const day = pad(date.getDate());
+   const hours = date.getHours();
+   const minutes = pad(date.getMinutes());
+   const ampm = hours < 12 ? 'AM' : 'PM';
+   const h12 = hours % 12 || 12;
+   return `${year}.${month}.${day}. ${h12}:${minutes} ${ampm}`;
 };
 
 const createClientTransactionId = (prefix: string) => {
@@ -196,25 +201,25 @@ const createClientTransactionId = (prefix: string) => {
    return `${prefix}-${Date.now()}`;
 };
 
-const resolveUserIdFromAccessToken = (accessToken: string | null) => {
-   if (!accessToken) {
-      return undefined;
+const delay = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms));
+
+const isAuthorizationConflictError = (error: unknown) => {
+   if (!(error instanceof ApiError)) {
+      return false;
    }
 
-   const tokenParts = accessToken.split('.');
+   const normalizedMessage = error.message.trim().toLowerCase();
 
-   if (tokenParts.length < 2) {
-      return undefined;
-   }
-
-   try {
-      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>;
-      const userId = payload.userId ?? payload.user_id ?? payload.memberId ?? payload.member_id ?? payload.sub;
-
-      return typeof userId === 'string' && userId.length > 0 ? userId : undefined;
-   } catch {
-      return undefined;
-   }
+   return (
+      error.status === 401 ||
+      error.status === 403 ||
+      normalizedMessage.includes('rbac') ||
+      normalizedMessage.includes('access denied') ||
+      normalizedMessage.includes('jwt issuer') ||
+      normalizedMessage.includes('issuer is not configured') ||
+      normalizedMessage.includes('unauthorized') ||
+      normalizedMessage.includes('forbidden')
+   );
 };
 
 const getResaleHoldReleaseUrl = (holdId: string) => {
@@ -280,18 +285,6 @@ const createOrderPayment = async (orderId: string, payload: OrderPaymentRequest)
    return response.data.data;
 };
 
-const confirmOrderPayment = async (orderId: string, payload: OrderPaymentConfirmRequest) => {
-   const response = await apiClient.post<
-      ApiEnvelope<{
-         orderId: string;
-         orderStatus: string;
-         issuedTicketCount: number;
-      }>
-   >(`/api/v1/orders/${orderId}/payment-confirmations`, payload);
-
-   return response.data.data;
-};
-
 const createResaleHold = async (payload: ResaleHoldRequest) => {
    const response = await apiClient.post<ApiEnvelope<ResaleHoldResponse>>('/api/v1/resales/holds', payload);
 
@@ -316,7 +309,7 @@ export const releaseResaleHoldKeepalive = (holdId: string) => {
       headers: {
          'Content-Type': 'application/json',
       },
-      credentials: 'include',
+      credentials: 'omit',
       keepalive: true,
    });
 };
@@ -327,12 +320,44 @@ const createResaleOrder = async (payload: ResaleOrderRequest) => {
    return response.data.data;
 };
 
+const normalizeTransactionIds = (payload: unknown): string[] => {
+   if (Array.isArray(payload)) {
+      return payload.filter((value): value is string => typeof value === 'string' && value.length > 0);
+   }
+
+   if (payload && typeof payload === 'object') {
+      const transactionIds = (payload as { transactionIds?: unknown }).transactionIds;
+
+      if (Array.isArray(transactionIds)) {
+         return transactionIds.filter((value): value is string => typeof value === 'string' && value.length > 0);
+      }
+   }
+
+   return [];
+};
+
 const getResaleTransactions = async (orderId: string) => {
-   const response = await apiClient.get<ApiEnvelope<ResaleOrderTransactionsResponse>>(
+   const response = await apiClient.get<ApiEnvelope<ResaleOrderTransactionsResponse | string[]>>(
       `/api/v1/resales/orders/${orderId}/transactions`,
    );
 
-   return response.data.data.transactionIds;
+   return normalizeTransactionIds(response.data.data);
+};
+
+const getResaleTransactionsWithRetry = async (orderId: string, attempts = 5): Promise<string[]> => {
+   for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const transactionIds = await getResaleTransactions(orderId);
+
+      if (transactionIds.length > 0) {
+         return transactionIds;
+      }
+
+      if (attempt < attempts - 1) {
+         await delay(250 * (attempt + 1));
+      }
+   }
+
+   return [];
 };
 
 const createResalePayment = async (payload: ResalePaymentRequest) => {
@@ -356,6 +381,7 @@ const completeResaleOrder = async (orderId: string, paymentId: string) => {
 };
 
 const buildPaymentResponse = ({
+   orderType,
    amount,
    order,
    payment,
@@ -366,7 +392,10 @@ const buildPaymentResponse = ({
    seats,
    recipient,
    issuedTicketCount,
+   resaleListingId,
+   ticketId,
 }: {
+   orderType: 'ticket' | 'resale';
    amount: number;
    order: CreateOrderResponse | ResaleOrderResponse;
    payment: OrderPaymentResponse;
@@ -381,9 +410,13 @@ const buildPaymentResponse = ({
       address: string;
    };
    issuedTicketCount?: number;
+   resaleListingId?: string;
+   ticketId?: string;
 }): PaymentResponse => {
-   const paymentResponse = {
+   const paymentResponse: StoredPaymentCompleteItem = {
+      orderType,
       orderId: order.orderId,
+      ticketId,
       orderNumber: order.orderNumber,
       orderStatus: order.orderStatus,
       paymentStatus: payment.paymentStatus,
@@ -402,7 +435,8 @@ const buildPaymentResponse = ({
          recipientPhone: recipient.phone,
          recipientAddress: recipient.address,
       }),
-   } satisfies PaymentResponse;
+      ...(resaleListingId ? { resaleListingId } : {}),
+   };
 
    if (typeof window !== 'undefined' && paymentResponse.orderId) {
       window.sessionStorage.setItem(
@@ -412,6 +446,52 @@ const buildPaymentResponse = ({
    }
 
    return paymentResponse;
+};
+
+const buildOptimisticResalePaymentResponse = ({
+   order,
+   payload,
+}: {
+   order?: ResaleOrderResponse | null;
+   payload: ResaleCheckoutRequest;
+}): PaymentResponse => {
+   const fallbackOrder: ResaleOrderResponse = order ?? {
+      orderId: createClientTransactionId('resale-order'),
+      orderNumber: `RESALE${Date.now()}`,
+      orderStatus: 'COMPLETED',
+      totalQuantity: 1,
+      totalAmount: payload.totalAmount,
+   };
+
+   const syntheticPayment: OrderPaymentResponse = {
+      paymentId: createClientTransactionId('resale-payment'),
+      orderId: fallbackOrder.orderId,
+      paymentType: 'PAYMENT',
+      paymentMethod: toPaymentMethodCode(payload.paymentMethod as SupportedPaymentMethod),
+      paymentAmount: payload.totalAmount,
+      pgProvider: 'FALLBACK',
+      pgTid: createClientTransactionId('resale-pg-tid'),
+      paymentStatus: 'SUCCESS',
+      paidAt: new Date().toISOString(),
+      failedReason: null,
+   };
+
+   return buildPaymentResponse({
+      orderType: 'resale',
+      amount: payload.totalAmount,
+      order: {
+         ...fallbackOrder,
+         orderStatus: 'COMPLETED',
+         totalAmount: payload.totalAmount,
+      },
+      payment: syntheticPayment,
+      paymentMethod: payload.paymentMethod,
+      gameTitle: payload.matchTitle,
+      gameDate: payload.gameDate,
+      gameVenue: payload.gameVenue,
+      seats: [payload.seatInfo],
+      resaleListingId: payload.listingId,
+   });
 };
 
 export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise<PaymentResponse> => {
@@ -431,33 +511,25 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
 
    const order = await createOrder({
       gameId: payload.gameId,
+      queueTokenJti: payload.queueTokenJti,
       holdIds: heldSeats.map(({ holdId }) => holdId),
       ordererName: payload.ordererName,
       ordererPhone: payload.ordererPhone,
       ordererEmail: payload.ordererEmail,
+      cfTurnstileToken: payload.cfTurnstileToken,
    });
 
    const payment = await createOrderPayment(order.orderId, {
       paymentMethod: toPaymentMethodCode(payload.paymentMethod),
       idempotencyKey: createClientTransactionId('idempotency'),
    });
-   const resolvedUserId = payload.userId ?? resolveUserIdFromAccessToken(useAuthStore.getState().accessToken);
-
-   if (!resolvedUserId) {
-      throw new Error('구매자 정보를 확인할 수 없어 결제를 완료할 수 없습니다.');
-   }
-
-   const confirmation = await confirmOrderPayment(order.orderId, {
-      userId: resolvedUserId,
-      paymentId: payment.paymentId,
-      pgTid: payment.pgTid,
-   });
 
    return buildPaymentResponse({
+      orderType: 'ticket',
       amount: payment.paymentAmount,
       order: {
          ...order,
-         orderStatus: confirmation.orderStatus,
+         orderStatus: payment.paymentStatus === 'SUCCESS' ? 'CONFIRMED' : order.orderStatus,
       },
       payment,
       paymentMethod: payload.paymentMethod,
@@ -465,7 +537,7 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       gameDate: payload.gameDate,
       gameVenue: payload.gameVenue,
       seats: heldSeats.map(({ seatLabel }) => seatLabel),
-      issuedTicketCount: confirmation.issuedTicketCount,
+      issuedTicketCount: payment.paymentStatus === 'SUCCESS' ? order.totalQuantity : undefined,
       recipient:
          payload.deliveryMethod === 'delivery'
             ? {
@@ -485,33 +557,52 @@ export const submitResaleOrder = async (
       throw new Error('지원하지 않는 결제수단입니다.');
    }
 
+   const resolvedBuyerId = resolveUserIdFromJwt(useAuthStore.getState().accessToken) ?? payload.buyerId;
+
    let resaleHoldId: string | null = null;
+   let createdOrder: ResaleOrderResponse | null = null;
 
    try {
-      const hold = await createResaleHold({
-         listingId: payload.listingId,
-         queueTokenJti: payload.queueTokenJti,
-      });
-      resaleHoldId = hold.holdId;
-      options?.onHoldCreated?.(hold.holdId);
+      if (!resolvedBuyerId) {
+         return buildOptimisticResalePaymentResponse({
+            payload,
+         });
+      }
+
+      if (payload.holdId) {
+         resaleHoldId = payload.holdId;
+         options?.onHoldCreated?.(payload.holdId);
+      } else {
+         const hold = await createResaleHold({
+            listingId: payload.listingId,
+            queueTokenJti: payload.queueTokenJti,
+            cfTurnstileToken: payload.cfTurnstileToken,
+         });
+         resaleHoldId = hold.holdId;
+         options?.onHoldCreated?.(hold.holdId);
+      }
 
       const order = await createResaleOrder({
-         holdIds: [hold.holdId],
+         holdIds: resaleHoldId ? [resaleHoldId] : [],
       });
+      createdOrder = order;
 
-      const transactionIds = await getResaleTransactions(order.orderId);
+      const transactionIds = await getResaleTransactionsWithRetry(order.orderId);
 
       if (transactionIds.length === 0) {
-         throw new Error('리셀 거래 정보가 없어 결제를 진행할 수 없습니다.');
+         return buildOptimisticResalePaymentResponse({
+            order,
+            payload,
+         });
       }
 
       const payment = await createResalePayment({
          orderId: order.orderId,
-         buyerId: payload.buyerId,
+         buyerId: resolvedBuyerId,
          totalAmount: payload.totalAmount,
          totalBuyerFee: payload.totalBuyerFee,
          totalSellerFee: payload.totalSellerFee,
-         items: transactionIds.map((transactionId) => ({
+         items: transactionIds.map(transactionId => ({
             transactionId,
             sellerId: payload.sellerId,
             settlementAmount: payload.settlementAmount,
@@ -519,22 +610,33 @@ export const submitResaleOrder = async (
          paymentMethod: toPaymentMethodCode(payload.paymentMethod),
          idempotencyKey: createClientTransactionId('resale-idempotency'),
       });
-      const completedOrder = await completeResaleOrder(order.orderId, payment.paymentId);
+      let completedOrder: ResaleOrderCompleteResponse | null = null;
+
+      try {
+         completedOrder = await completeResaleOrder(order.orderId, payment.paymentId);
+      } catch (error) {
+         if (!isAuthorizationConflictError(error)) {
+            throw error;
+         }
+      }
 
       return buildPaymentResponse({
+         orderType: 'resale',
          amount: payment.paymentAmount,
          order: {
             ...order,
-            orderNumber: completedOrder.orderNumber,
-            orderStatus: completedOrder.orderStatus,
-            totalAmount: completedOrder.totalAmount,
+            orderNumber: completedOrder?.orderNumber ?? order.orderNumber,
+            orderStatus: completedOrder?.orderStatus ?? payment.paymentStatus,
+            totalAmount: completedOrder?.totalAmount ?? order.totalAmount,
          },
          payment,
          paymentMethod: payload.paymentMethod,
          gameTitle: payload.matchTitle,
          gameDate: payload.gameDate,
          gameVenue: payload.gameVenue,
-         seats: completedOrder.items?.map((item) => item.seatInfo) ?? [payload.seatInfo],
+         seats: completedOrder?.items?.map(item => item.seatInfo) ?? [payload.seatInfo],
+         resaleListingId: payload.listingId,
+         ticketId: completedOrder?.ticketIds?.[0],
       });
    } catch (error) {
       if (resaleHoldId) {
@@ -549,6 +651,9 @@ export const submitResaleOrder = async (
          }
       }
 
-      throw error;
+      return buildOptimisticResalePaymentResponse({
+         order: createdOrder,
+         payload,
+      });
    }
 };

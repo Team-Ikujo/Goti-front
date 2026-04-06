@@ -60,31 +60,31 @@ const GameSchedule = () => {
    })();
 
    const scheduleQuery = useGameSchedules(scheduleParams);
-   const resaleGameIds = useMemo(() => (scheduleQuery.data ?? []).map((game) => game.id), [scheduleQuery.data]);
+   const resaleGameIds = useMemo(() => (scheduleQuery.data ?? []).map(game => game.id), [scheduleQuery.data]);
    const resaleCountsQuery = useResaleGameCounts(resaleGameIds);
 
    const scheduleData = useMemo(() => {
       const TARGET_TEAMS = ['kia', 'samsung'];
       const filtered = (scheduleQuery.data ?? []).filter(
-         (game) =>
-            TARGET_TEAMS.includes(game.homeTeamId ?? '') ||
-            TARGET_TEAMS.includes(game.awayTeamId ?? ''),
+         game => TARGET_TEAMS.includes(game.homeTeamId ?? '') || TARGET_TEAMS.includes(game.awayTeamId ?? ''),
       );
       const daySchedules = mapGamesToDaySchedules(filtered);
 
-      return daySchedules.map((day): DaySchedule => ({
-         ...day,
-         games: day.games.map((game) => {
-            const resaleCount = game.gameId ? resaleCountsQuery.data?.get(game.gameId) : undefined;
-            const resell = getResellStatus(resaleCount, game.resell);
+      return daySchedules.map(
+         (day): DaySchedule => ({
+            ...day,
+            games: day.games.map(game => {
+               const resaleCount = game.gameId ? resaleCountsQuery.data?.get(game.gameId) : undefined;
+               const resell = getResellStatus(resaleCount, game.resell);
 
-            return {
-               ...game,
-               resell,
-               reselInfo: resell === '리셀예정' ? '정식 예매 오픈\n2시간 후' : undefined,
-            };
+               return {
+                  ...game,
+                  resell,
+                  reselInfo: resell === '리셀예정' ? '정식 예매 오픈\n2시간 후' : undefined,
+               };
+            }),
          }),
-      }));
+      );
    }, [resaleCountsQuery.data, scheduleQuery.data]);
 
    const filteredData = useMemo(

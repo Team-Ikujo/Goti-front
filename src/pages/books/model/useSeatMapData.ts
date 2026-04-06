@@ -247,13 +247,6 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
                }));
 
             if (!resolvedSection) {
-               console.error('[SeatMapDebug] 좌석 구역 매핑 실패', {
-                  gameId,
-                  stadiumId,
-                  zoneId: zone.id,
-                  zoneSectionCode: zone.sectionCode,
-               });
-
                throw new Error(DEFAULT_SEAT_MAP_ERROR_MESSAGE);
             }
             const [seats, statuses] = await Promise.all([
@@ -263,20 +256,6 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
                }),
                fetchSeatStatuses(gameId, resolvedSection.sectionId),
             ]);
-
-            console.info('[SeatMapDebug] single section snapshot', {
-               gameId,
-               stadiumId,
-               zoneId: zone.id,
-               zoneSectionCode: zone.sectionCode,
-               resolvedSectionId: resolvedSection.sectionId,
-               resolvedSectionCode: resolvedSection.sectionCode,
-               seatsCount: seats.length,
-               statusesCount: statuses.length,
-               statusSummary: summarizeSeatStatusSnapshot(statuses),
-               seatIdsPreview: seats.slice(0, 10).map((seat) => seat.seatId),
-               statusSeatIdsPreview: statuses.slice(0, 10).map((seatStatus) => seatStatus.seatId),
-            });
 
            const [seatBlock] = buildSeatBlockFromApiSeats(zone.sectionCode, seats);
 
