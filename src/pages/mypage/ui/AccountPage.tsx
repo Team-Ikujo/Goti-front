@@ -1,10 +1,11 @@
 // src/pages/mypage/ui/AccountPage.tsx
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createMemberAccount, createMemberAddress, type MemberAccount, type MemberAddress } from '@/entities/user/api/memberApi';
+import { MY_PROFILE_MOCK } from '@/entities/user/api/memberApi';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { Input } from '@/shared/ui/input';
@@ -19,6 +20,7 @@ import {
    useMyResaleUnsettledAmountData,
 } from '../model/useMypageData';
 import { openDaumPostcode } from '../model/useDaumPostcode';
+import { PURCHASE_ITEMS, SALE_ITEMS } from '../model/mockData';
 const BANKS = [
    '국민은행',
    '신한은행',
@@ -69,14 +71,13 @@ function Toggle({ checked, onChange, disabled = false }: ToggleProps) {
 export default function AccountPage() {
    const navigate = useNavigate();
    const location = useLocation();
-   const queryClient = useQueryClient();
    const profileQuery = useMyProfileData();
    const ordersQuery = useMyOrdersData();
    const resaleListQuery = useMyResaleListData();
    const unsettledAmountQuery = useMyResaleUnsettledAmountData();
-   const profile = profileQuery.data;
-   const purchaseItems = ordersQuery.data ?? [];
-   const saleItems = resaleListQuery.data ?? [];
+   const profile = profileQuery.isError ? MY_PROFILE_MOCK : (profileQuery.data ?? MY_PROFILE_MOCK);
+   const purchaseItems = ordersQuery.isError ? PURCHASE_ITEMS : (ordersQuery.data ?? []);
+   const saleItems = resaleListQuery.isError ? SALE_ITEMS : (resaleListQuery.data ?? []);
 
    // 미정산 금액 존재 여부: 판매 완료 후 정산 대기 중인 항목
    const hasUnpaidAmount = (unsettledAmountQuery.data?.unsettledAmount ?? 0) > 0;
@@ -149,8 +150,6 @@ export default function AccountPage() {
    const clearAuth = useAuthStore(state => state.clearAuth);
    const isPageLoading =
       profileQuery.isLoading || ordersQuery.isLoading || resaleListQuery.isLoading || unsettledAmountQuery.isLoading;
-   const isPageError =
-      profileQuery.isError || ordersQuery.isError || resaleListQuery.isError || unsettledAmountQuery.isError;
 
    const { mutate: saveAccount, isPending: isSavingAccount } = useMutation({
       mutationFn: () =>
@@ -253,28 +252,6 @@ export default function AccountPage() {
 
    if (isPageLoading) {
       return <div className="py-24 text-center text-body-1-regular text-muted-foreground">계정 정보를 불러오는 중입니다.</div>;
-   }
-
-   if (isPageError) {
-      return (
-         <div className="flex flex-col items-center justify-center gap-4 py-24">
-            <p className="text-body-1-regular text-muted-foreground">
-               계정 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
-            </p>
-            <button
-               type="button"
-               onClick={() => {
-                  void queryClient.invalidateQueries({ queryKey: ['myProfile'] });
-                  void queryClient.invalidateQueries({ queryKey: ['myOrders'] });
-                  void queryClient.invalidateQueries({ queryKey: ['myResales'] });
-                  void queryClient.invalidateQueries({ queryKey: ['myResaleUnsettledAmount'] });
-               }}
-               className="rounded-lg border border-border px-6 py-3 text-body-1-bold text-muted-foreground hover:bg-surface transition-colors"
-            >
-               다시 시도
-            </button>
-         </div>
-      );
    }
 
    return (
