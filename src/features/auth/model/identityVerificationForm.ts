@@ -50,7 +50,7 @@ export const sendCodeSchema = z.object({
    requiredTermsAgreed: requiredTermsSchema,
 });
 
-export const signUpSchema = z.object({
+export const identityVerificationSchema = z.object({
    name: nameSchema,
    nationality: z.string().min(1, '국적을 선택해주세요'),
    birthDate: birthDateSchema,
@@ -61,17 +61,17 @@ export const signUpSchema = z.object({
    requiredTermsAgreed: requiredTermsSchema,
 });
 
-export type SignUpFormValues = z.infer<typeof signUpSchema>;
-export type SignUpFieldErrors = Partial<Record<keyof SignUpFormValues, string>>;
+export type IdentityVerificationFormValues = z.infer<typeof identityVerificationSchema>;
+export type IdentityVerificationFieldErrors = Partial<Record<keyof IdentityVerificationFormValues, string>>;
 
-export const getFieldErrorsFromZod = (error: z.ZodError): SignUpFieldErrors => {
-   const nextErrors: SignUpFieldErrors = {};
+export const getFieldErrorsFromZod = (error: z.ZodError): IdentityVerificationFieldErrors => {
+   const nextErrors: IdentityVerificationFieldErrors = {};
 
    error.issues.forEach(issue => {
       const field = issue.path[0];
       if (typeof field !== 'string') return;
-      if (nextErrors[field as keyof SignUpFormValues]) return;
-      nextErrors[field as keyof SignUpFormValues] = issue.message;
+      if (nextErrors[field as keyof IdentityVerificationFormValues]) return;
+      nextErrors[field as keyof IdentityVerificationFormValues] = issue.message;
    });
 
    return nextErrors;
@@ -80,3 +80,4 @@ export const getFieldErrorsFromZod = (error: z.ZodError): SignUpFieldErrors => {
 export const normalizeBirthDateInput = (value: string) => value.replace(/\D/g, '').slice(0, 8);
 export const normalizePhoneInput = (value: string) => value.replace(/\D/g, '').slice(0, 11);
 export const normalizeVerificationCodeInput = (value: string) => value.replace(/\D/g, '').slice(0, 6);
+export const formatIdentityBirthDate = (value: string) => `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
