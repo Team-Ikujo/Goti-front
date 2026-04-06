@@ -39,7 +39,7 @@ export interface MemberAddress {
 
 const MY_PROFILE_FALLBACK_DELAY_MS = 250;
 
-const MY_PROFILE_FALLBACK: Required<Pick<MemberProfile, 'name' | 'email' | 'mobile'>> = {
+export const MY_PROFILE_MOCK: Required<Pick<MemberProfile, 'name' | 'email' | 'mobile'>> = {
    name: '고티 회원',
    email: '개인정보 API 연동 예정',
    mobile: '개인정보 API 연동 예정',
@@ -51,9 +51,9 @@ const wait = (ms: number) => new Promise<void>((resolve) => {
 
 const withMockProfile = (profile?: MemberProfile): MemberProfile => ({
    ...profile,
-   name: profile?.name?.trim() || MY_PROFILE_FALLBACK.name,
-   email: profile?.email?.trim() || MY_PROFILE_FALLBACK.email,
-   mobile: profile?.mobile?.trim() || MY_PROFILE_FALLBACK.mobile,
+   name: profile?.name?.trim() || MY_PROFILE_MOCK.name,
+   email: profile?.email?.trim() || MY_PROFILE_MOCK.email,
+   mobile: profile?.mobile?.trim() || MY_PROFILE_MOCK.mobile,
 });
 
 export const fetchMyProfile = async (): Promise<MemberProfile> => {

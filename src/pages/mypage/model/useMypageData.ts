@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useAuthStore } from '@/entities/auth/model/authStore';
-import { fetchMyProfile } from '@/entities/user/api/memberApi';
+import { fetchMyProfile, MY_PROFILE_MOCK } from '@/entities/user/api/memberApi';
 import { fetchMyOrders, type OrderListItem } from '@/entities/order/api/orderApi';
 import {
    fetchMyResaleListingSummary,
@@ -90,6 +90,8 @@ export const useMyProfileData = () => {
    return useQuery({
       queryKey: ['myProfile', accessToken],
       queryFn: fetchMyProfile,
+      initialData: MY_PROFILE_MOCK,
+      placeholderData: MY_PROFILE_MOCK,
       enabled: !!accessToken,
    });
 };
