@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import Lottie from 'lottie-react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import type { AnimationData } from 'lottie-web';
+import { createBookingFlowSearch, getBookingFlowMode } from '@/shared/lib/booking-flow';
+import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 
 const DEFAULT_RANK = 9960;
 const DEFAULT_TICK_MS = 1200;
@@ -72,8 +74,15 @@ const QueueIllustration = () => {
 };
 
 const QueuePage = () => {
+   const navigate = useNavigate();
+   const location = useLocation();
    const [searchParams] = useSearchParams();
    const [currentRank, setCurrentRank] = useState(DEFAULT_RANK);
+   const routeBookingEntryState = location.state as BookingEntryState | null;
+   const storedBookingEntryState = useBookingEntryStore(state => state.entry);
+   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
+   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
+   const bookingFlowMode = getBookingFlowMode(location.search);
 
    const initialRank = useMemo(
       () => parsePositiveNumber(searchParams.get('rank'), DEFAULT_RANK),
@@ -95,6 +104,20 @@ const QueuePage = () => {
    }, [initialRank]);
 
    useEffect(() => {
+      if (routeBookingEntryState) {
+         setBookingEntry(routeBookingEntryState);
+      }
+   }, [routeBookingEntryState, setBookingEntry]);
+
+   useEffect(() => {
+      if (bookingEntryState) {
+         return;
+      }
+
+      navigate('/', { replace: true });
+   }, [bookingEntryState, navigate]);
+
+   useEffect(() => {
       if (currentRank <= 0) return;
 
       const timer = window.setInterval(() => {
@@ -105,6 +128,23 @@ const QueuePage = () => {
          window.clearInterval(timer);
       };
    }, [currentRank, step, tickMs]);
+
+   useEffect(() => {
+      if (!bookingEntryState || currentRank > 0) {
+         return;
+      }
+
+      navigate(
+         {
+            pathname: '/books',
+            search: createBookingFlowSearch(bookingFlowMode),
+         },
+         {
+            replace: true,
+            state: bookingEntryState,
+         },
+      );
+   }, [bookingEntryState, bookingFlowMode, currentRank, navigate]);
 
    const progress = useMemo(
       () => clamp(((initialRank - currentRank) / Math.max(initialRank, 1)) * 100, 0, 100),

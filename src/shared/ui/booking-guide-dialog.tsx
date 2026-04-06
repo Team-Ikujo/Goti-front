@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { useTurnstile } from '@/shared/lib/useTurnstile';
@@ -12,12 +13,35 @@ type BookingGuideDialogProps = {
  * 예매 진입 전에 공통으로 노출하는 안내 다이얼로그입니다.
  */
 function BookingGuideDialog({ open, onOpenChange, onConfirm }: BookingGuideDialogProps) {
-  const { token, reset, widget, isConfigured, errorMessage } = useTurnstile(open);
+  const { token, reset, execute, widget, isConfigured, errorMessage, isVerifying } = useTurnstile(open);
+  const [isConfirmPending, setIsConfirmPending] = useState(false);
 
-  const handleConfirm = () => {
-    if (!token) return;
+  useEffect(() => {
+    if (!open) {
+      setIsConfirmPending(false);
+      return;
+    }
+
+    if (!isConfirmPending || !token) {
+      return;
+    }
+
     onConfirm(token);
     reset();
+    setIsConfirmPending(false);
+  }, [isConfirmPending, onConfirm, open, reset, token]);
+
+  const handleConfirm = () => {
+    if (!isConfigured) return;
+
+    if (token) {
+      onConfirm(token);
+      reset();
+      return;
+    }
+
+    setIsConfirmPending(true);
+    execute();
   };
 
   return (
@@ -57,10 +81,10 @@ function BookingGuideDialog({ open, onOpenChange, onConfirm }: BookingGuideDialo
           <Button
             type="button"
             className="h-12 w-full rounded-[8px] text-[16px] font-bold leading-[1.5]"
-            disabled={!isConfigured || !token}
+            disabled={!isConfigured || isVerifying}
             onClick={handleConfirm}
           >
-            확인
+            {isVerifying ? '확인 중...' : '확인'}
           </Button>
         </div>
       </DialogContent>
