@@ -4,14 +4,13 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import type { PurchaseHistoryItem } from './HistoryCard';
 import ResellRegisterCompleteDialog from './ResellRegisterCompleteDialog';
 import ResellPriceChart from '@/pages/books/ui/components/ResellPriceChart';
 import { formatPrice } from '@/pages/books/model/zoneData';
-import { fetchSeatGrades } from '@/pages/books/api/bookingApi';
-import { buildResellZoneInsightsFromApi } from '@/pages/books/model/resellData';
-import { createResaleListings, fetchResaleHistoryGraph } from '@/entities/resale/api/resaleApi';
+import { createResaleListings } from '@/entities/resale/api/resaleApi';
+import { useResellRegisterInsights } from '@/features/resale/model/useResellRegisterInsights';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 
 interface Props {
@@ -20,8 +19,6 @@ interface Props {
    onCompleteConfirm?: () => void;
    item: PurchaseHistoryItem;
 }
-
-const normalizeGradeName = (value?: string) => (value ?? '').replace(/\s+/g, '').trim().toLowerCase();
 
 // ─── 체크박스 아이콘 ────────────────────────────────────────────────
 function CheckboxIcon({ checked }: { checked: boolean }) {
@@ -76,59 +73,12 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
    const queryClient = useQueryClient();
    const unitPrice = item.game.quantity > 0 ? Math.round(item.price / item.game.quantity) : item.price;
 
-   const resaleInsightsQuery = useQuery({
-      queryKey: ['mypage-resell-register-insights', item.gameId, item.seatGradeName, item.game.section, unitPrice],
-      enabled: open && Boolean(item.gameId),
-      queryFn: async () => {
-         if (!item.gameId) {
-            return { status: 'missing-game-id' as const };
-         }
-
-         const seatGrades = await fetchSeatGrades({ gameId: item.gameId });
-         const normalizedTargetGradeName = normalizeGradeName(item.seatGradeName ?? item.game.section);
-         const matchedGrade = seatGrades.find((seatGrade) => {
-            const normalizedSeatGradeName = normalizeGradeName(seatGrade.name);
-
-            return (
-               normalizedSeatGradeName === normalizedTargetGradeName ||
-               normalizedSeatGradeName.includes(normalizedTargetGradeName) ||
-               normalizedTargetGradeName.includes(normalizedSeatGradeName)
-            );
-         });
-
-         if (!matchedGrade) {
-            return { status: 'missing-grade' as const };
-         }
-
-         const [minuteGraph, dayGraph] = await Promise.all([
-            fetchResaleHistoryGraph(item.gameId, matchedGrade.seatGradeId, 'HOUR'),
-            fetchResaleHistoryGraph(item.gameId, matchedGrade.seatGradeId, 'DAY'),
-         ]);
-
-         if (minuteGraph.length === 0 && dayGraph.length === 0) {
-            return { status: 'empty' as const };
-         }
-
-         return {
-            status: 'success' as const,
-            insights: buildResellZoneInsightsFromApi({
-               zone: {
-                  id: matchedGrade.seatGradeId,
-                  name: matchedGrade.name,
-                  price: unitPrice,
-                  remaining: matchedGrade.availableSeatCount,
-                  color: matchedGrade.displayColorHex,
-                  hotspot: [],
-                  sectionCode: item.game.section,
-                  gradeIds: [matchedGrade.seatGradeId],
-               },
-               listings: [],
-               minuteGraph,
-               dayGraph,
-            }),
-         };
-      },
-      staleTime: 60_000,
+   const resaleInsightsQuery = useResellRegisterInsights({
+      enabled: open,
+      gameId: item.gameId,
+      seatGradeName: item.seatGradeName,
+      sectionCode: item.game.section,
+      unitPrice,
    });
 
    const getResaleRegisterAlertMessage = (error: unknown) => {
