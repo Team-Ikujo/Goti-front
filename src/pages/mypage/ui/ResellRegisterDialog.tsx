@@ -68,6 +68,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
    const [bulkPrice, setBulkPrice] = useState('');
    const [bulkToggle, setBulkToggle] = useState(false);
    const [completeOpen, setCompleteOpen] = useState(false);
+   const [createdSaleId, setCreatedSaleId] = useState<string | null>(null);
 
    const [isSubmitting, setIsSubmitting] = useState(false);
    const queryClient = useQueryClient();
@@ -101,6 +102,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
          setBulkPrice('');
          setBulkToggle(false);
          setCompleteOpen(false);
+         setCreatedSaleId(null);
       }
    }, [open]);
 
@@ -149,9 +151,14 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
 
       setIsSubmitting(true);
       try {
-         await createResaleListings({ listings: requests });
-         queryClient.invalidateQueries({ queryKey: ['myResales'] });
-         queryClient.invalidateQueries({ queryKey: ['myResaleSummary'] });
+         const response = await createResaleListings({ listings: requests });
+         const firstCreatedListingId = response.listings[0]?.listingId ?? null;
+
+         setCreatedSaleId(firstCreatedListingId);
+         await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['myResales'] }),
+            queryClient.invalidateQueries({ queryKey: ['myResaleSummary'] }),
+         ]);
          setCompleteOpen(true);
       } catch (error) {
          alert(getResaleRegisterAlertMessage(error));
@@ -175,7 +182,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                onClose();
                onCompleteConfirm?.();
             }}
-            saleId={item.id}
+            saleId={createdSaleId ?? item.id}
          />
 
          {/* 스크림 */}

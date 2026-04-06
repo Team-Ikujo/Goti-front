@@ -1772,7 +1772,29 @@ export const paymentHandlers = [
          return buildErrorResponse('Missing ticketId or listingPrice.');
       }
 
-      const createdListingIds: string[] = [];
+      const createdListings: Array<{
+         listingId: string;
+         orderId: string;
+         ticketId: string;
+         sellerId: string;
+         gameId: string;
+         seatId: string;
+         gradeId: string;
+         seatInfo: string;
+         dailyBasePrice: number;
+         listingPrice: number;
+         listingStatus: 'LISTING';
+         availableStatus: 'ENABLED';
+         lastTransactionPrice: number;
+         listedAt: string;
+         soldAt?: string;
+         canceledAt?: string;
+         isCancelable: boolean;
+         isPurchasable: boolean;
+         minPrice: number;
+         maxPrice: number;
+      }> = [];
+      const createdOrders: Array<{ orderId: string; orderNumber: string }> = [];
 
       for (const item of listings) {
          const ticket = ticketRecords.get(item.ticketId!);
@@ -1781,6 +1803,7 @@ export const paymentHandlers = [
          }
 
          const listingId = createId('listing');
+         const orderId = createId('resale-order');
          const listing: ResaleListing = {
             listingId,
             ticketId: ticket.ticketId,
@@ -1794,7 +1817,32 @@ export const paymentHandlers = [
             stadiumName: ticket.stadiumName,
          };
          resaleListings.set(listingId, listing);
-         createdListingIds.push(listingId);
+         createdOrders.push({
+            orderId,
+            orderNumber: `RSL-${orderId.replace(/^resale-order-/i, '').slice(0, 8).toUpperCase()}`,
+         });
+         createdListings.push({
+            listingId,
+            orderId,
+            ticketId: ticket.ticketId,
+            sellerId: 'mock-seller',
+            gameId: '',
+            seatId: '',
+            gradeId: '',
+            seatInfo: ticket.seatInfo,
+            dailyBasePrice: item.listingPrice!,
+            listingPrice: item.listingPrice!,
+            listingStatus: 'LISTING',
+            availableStatus: 'ENABLED',
+            lastTransactionPrice: 0,
+            listedAt: listing.listedAt,
+            soldAt: undefined,
+            canceledAt: undefined,
+            isCancelable: true,
+            isPurchasable: true,
+            minPrice: 0,
+            maxPrice: 999999,
+         });
 
          ticketRecords.set(ticket.ticketId, {
             ...ticket,
@@ -1803,7 +1851,14 @@ export const paymentHandlers = [
          });
       }
 
-      return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: { listingIds: createdListingIds } });
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            orders: createdOrders,
+            listings: createdListings,
+         },
+      });
    }),
 
    // 내 리셀 목록 조회
