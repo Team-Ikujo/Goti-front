@@ -3,10 +3,20 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, Settings, Check, Search, X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import HistoryCard from './HistoryCard';
 import { Button } from '@/shared/ui/button';
 import { DatePicker } from '@/shared/ui/date-picker';
-import { useMyProfileData, useMyOrdersData, useMyResaleListData } from '../model/useMypageData';
+import {
+   useMyProfileData,
+   useMyOrdersData,
+   useMyResaleListData,
+   useMyResaleSummaryData,
+   useMyResaleUnsettledAmountData,
+} from '../model/useMypageData';
+import { isMswEnabled } from '@/shared/config/runtime';
+
+const MYPAGE_MSW_TICKET_INFO_ERROR_KEY = '__mypage_msw_ticket_info_error__';
 
 type HistoryTab = 'purchase' | 'sale';
 type PurchaseStatusFilter = '전체' | '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
@@ -44,13 +54,20 @@ const calcPeriodDates = (period: PeriodFilter, dataMinDate?: string) => {
 export default function MypagePage() {
    const navigate = useNavigate();
    const location = useLocation();
+   const queryClient = useQueryClient();
    const [activeTab, setActiveTab] = useState<HistoryTab>(
       (location.state as { activeTab?: HistoryTab } | null)?.activeTab || 'purchase',
    );
 
-   const { data: profile } = useMyProfileData();
-   const { data: purchaseItems = [] } = useMyOrdersData();
-   const { data: saleItems = [] } = useMyResaleListData();
+   const profileQuery = useMyProfileData();
+   const ordersQuery = useMyOrdersData();
+   const resaleListQuery = useMyResaleListData();
+   const resaleSummaryQuery = useMyResaleSummaryData();
+   const unsettledAmountQuery = useMyResaleUnsettledAmountData();
+
+   const profile = profileQuery.data;
+   const purchaseItems = ordersQuery.data ?? [];
+   const saleItems = resaleListQuery.data ?? [];
 
    // 전체 내역 기간의 시작일: 데이터 중 가장 이른 날짜
    const DATA_MIN_DATE = useMemo(() => {
@@ -77,6 +94,7 @@ export default function MypagePage() {
    const [searchQuery, setSearchQuery] = useState('');
    const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
    const [searchError, setSearchError] = useState('');
+   const [mockTicketInfoError, setMockTicketInfoError] = useState(false);
 
    useEffect(() => {
       const handleClickOutside = (e: MouseEvent) => {
@@ -89,6 +107,11 @@ export default function MypagePage() {
       };
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
+   }, []);
+
+   useEffect(() => {
+      if (!isMswEnabled || typeof window === 'undefined') return;
+      setMockTicketInfoError(window.localStorage.getItem(MYPAGE_MSW_TICKET_INFO_ERROR_KEY) === 'true');
    }, []);
 
    const [appliedStartDate, setAppliedStartDate] = useState('');
@@ -189,11 +212,64 @@ export default function MypagePage() {
       [saleItems, saleStatus, appliedSaleType, appliedStartDate, appliedEndDate, appliedSearchQuery],
    );
 
+   const isPageLoading = profileQuery.isLoading || ordersQuery.isLoading || resaleListQuery.isLoading;
+   const isPageError = profileQuery.isError || ordersQuery.isError || resaleListQuery.isError;
+
+   if (isPageLoading) {
+      return <div className="py-24 text-center text-body-1-regular text-muted-foreground">마이페이지 정보를 불러오는 중입니다.</div>;
+   }
+
+   if (isPageError) {
+      return (
+         <div className="flex flex-col items-center justify-center gap-4 py-24">
+            <p className="text-body-1-regular text-muted-foreground">
+               마이페이지 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+            </p>
+            <Button
+               variant="tertiary"
+               onClick={() => {
+                  void queryClient.invalidateQueries({ queryKey: ['myProfile'] });
+                  void queryClient.invalidateQueries({ queryKey: ['myOrders'] });
+                  void queryClient.invalidateQueries({ queryKey: ['myResales'] });
+               }}
+            >
+               다시 시도
+            </Button>
+         </div>
+      );
+   }
+
    return (
       <>
          <div className="flex-1 bg-background px-4">
             <div className="mx-auto max-w-300 pt-7.5 lg:pt-12.5 pb-30">
                <h1 className="text-[30px] font-bold text-foreground mb-8">MY고티</h1>
+
+               {isMswEnabled && (
+                  <div className="mb-4 rounded-[14px] border border-[#d0d6db] bg-[#f7f8f9] p-4">
+                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex flex-col gap-1">
+                           <p className="text-body-1-bold text-foreground">MSW 테스트</p>
+                           <p className="text-caption-1-regular text-muted-foreground">
+                              켜두면 구매 내역의 QR 확인, 예매 취소에서 티켓 정보 조회를 실패시켜 팝업 예외 상태를 확인할 수 있습니다.
+                           </p>
+                        </div>
+                        <label className="flex items-center gap-2 text-body-2-medium text-foreground">
+                           <input
+                              type="checkbox"
+                              checked={mockTicketInfoError}
+                              onChange={(e) => {
+                                 const nextValue = e.target.checked;
+                                 setMockTicketInfoError(nextValue);
+                                 window.localStorage.setItem(MYPAGE_MSW_TICKET_INFO_ERROR_KEY, String(nextValue));
+                              }}
+                              className="size-4 rounded border border-[#acb4bb]"
+                           />
+                           티켓 정보 조회 실패
+                        </label>
+                     </div>
+                  </div>
+               )}
 
                <div className="flex flex-col gap-4">
                   {/* 유저 정보 카드 */}
@@ -228,11 +304,11 @@ export default function MypagePage() {
                   {/* 티켓 현황 카드 */}
                   {(() => {
                      const totalHeld = purchaseItems.filter(i => i.paymentStatus === '예매 완료').length;
-                     const onSale = saleItems.filter(i => i.saleStatus === '판매 중').length;
-                     const soldCount = saleItems.filter(i => i.saleStatus === '판매 완료').length;
-                     const unsettledAmount = saleItems
-                        .filter(i => i.saleStatus === '정산 대기')
-                        .reduce((sum, i) => sum + i.salePrice, 0);
+                     const onSale = resaleSummaryQuery.data?.listingCount ?? 0;
+                     const soldCount = resaleSummaryQuery.data?.soldCount ?? 0;
+                     const unsettledAmount = unsettledAmountQuery.data?.unsettledAmount ?? 0;
+                     const isSummaryError = resaleSummaryQuery.isError || unsettledAmountQuery.isError;
+                     const isSummaryLoading = resaleSummaryQuery.isLoading || unsettledAmountQuery.isLoading;
                      const stats = [
                         { icon: '/Icon/Line/ticket.svg', label: '전체 소지', value: String(totalHeld) },
                         { icon: '/Icon/Line/increase.svg', label: '판매 중', value: String(onSale) },
@@ -246,20 +322,42 @@ export default function MypagePage() {
                      return (
                         <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6">
                            <p className="text-heading-3-bold text-foreground mb-7.5">티켓 현황</p>
-                           <div className="grid grid-cols-2 lg:flex lg:items-start gap-y-4 lg:gap-y-0">
-                              {stats.map(stat => (
-                                 <div
-                                    key={stat.label}
-                                    className="flex flex-1 flex-col items-center gap-1.5 px-4 py-1 rounded-[10px]"
+                           {isSummaryLoading ? (
+                              <div className="rounded-[10px] bg-surface px-4 py-8 text-center text-body-2-regular text-muted-foreground">
+                                 판매 요약 정보를 불러오는 중입니다.
+                              </div>
+                           ) : isSummaryError ? (
+                              <div className="rounded-[10px] bg-surface px-4 py-8 text-center">
+                                 <p className="text-body-2-regular text-muted-foreground">
+                                    판매 요약 정보를 불러오지 못했습니다.
+                                 </p>
+                                 <Button
+                                    variant="tertiary"
+                                    className="mt-3"
+                                    onClick={() => {
+                                       void resaleSummaryQuery.refetch();
+                                       void unsettledAmountQuery.refetch();
+                                    }}
                                  >
-                                    <img src={stat.icon} alt={stat.label} className="size-8 text-primary" />
-                                    <p className="text-body-1-regular text-muted-foreground text-center">
-                                       {stat.label}
-                                    </p>
-                                    <p className="text-heading-1-bold text-primary text-center">{stat.value}</p>
-                                 </div>
-                              ))}
-                           </div>
+                                    다시 시도
+                                 </Button>
+                              </div>
+                           ) : (
+                              <div className="grid grid-cols-2 lg:flex lg:items-start gap-y-4 lg:gap-y-0">
+                                 {stats.map(stat => (
+                                    <div
+                                       key={stat.label}
+                                       className="flex flex-1 flex-col items-center gap-1.5 px-4 py-1 rounded-[10px]"
+                                    >
+                                       <img src={stat.icon} alt={stat.label} className="size-8 text-primary" />
+                                       <p className="text-body-1-regular text-muted-foreground text-center">
+                                          {stat.label}
+                                       </p>
+                                       <p className="text-heading-1-bold text-primary text-center">{stat.value}</p>
+                                    </div>
+                                 ))}
+                              </div>
+                           )}
                         </div>
                      );
                   })()}
@@ -518,7 +616,12 @@ export default function MypagePage() {
                                     {pageItems.length > 0 ? (
                                        activeTab === 'purchase' ? (
                                           (pageItems as typeof filteredPurchaseItems).map(item => (
-                                             <HistoryCard key={item.id} mode="purchase" item={item} />
+                                             <HistoryCard
+                                                key={item.id}
+                                                mode="purchase"
+                                                item={item}
+                                                mockTicketInfoError={mockTicketInfoError}
+                                             />
                                           ))
                                        ) : (
                                           (pageItems as typeof filteredSaleItems).map(item => (

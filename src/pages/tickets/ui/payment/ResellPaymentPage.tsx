@@ -46,9 +46,11 @@ const MOCK_RESALE_ENTRY = {
 };
 
 type ResellPaymentEntryState = Partial<typeof MOCK_RESALE_ENTRY> & {
+   holdId?: string;
    matchTitle?: string;
    venue?: string;
    dateTime?: string;
+   turnstileToken?: string;
    botData?: BotReport;
 };
 
@@ -138,6 +140,7 @@ export default function ResellPaymentPage() {
       const paymentRequest: ResaleCheckoutRequest = {
          buyerId: resolvedBuyerId,
          listingId: resaleEntry.listingId,
+         holdId: resellEntryState?.holdId,
          queueTokenJti: resaleEntry.queueTokenJti,
          sellerId: resaleEntry.sellerId,
          settlementAmount: resaleEntry.settlementAmount,
@@ -154,6 +157,7 @@ export default function ResellPaymentPage() {
          ordererEmail: email,
          paymentMethod,
          botData: resellEntryState?.botData,
+         cfTurnstileToken: resellEntryState?.turnstileToken,
          ...(paymentMethod === 'bank' && {
             cashReceiptType,
             cashReceiptNumType,

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { Separator } from '@/shared/ui/separator';
 import { Button } from '@/shared/ui/button';
@@ -11,6 +12,9 @@ import ResellRegisterDialog from './ResellRegisterDialog';
 import QrViewDialog from './QrViewDialog';
 import CancelBookingDialog from './CancelBookingDialog';
 import NoAccountDialog from './NoAccountDialog';
+import ActionStatusDialog from './ActionStatusDialog';
+import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
+import { MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO } from '@/shared/api/mockScenarios';
 
 // ── 타입 ────────────────────────────────────────────────────────────
 
@@ -19,10 +23,12 @@ export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판
 
 export interface PurchaseHistoryItem {
    id: string;
-   orderId: string;
    rawOrderId?: string;
+   gameId?: string;
+   orderId: string;
    orderDate: string;
    type: TicketType;
+   seatGradeName?: string;
    game: {
       teams: string;
       venue: string;
@@ -36,12 +42,15 @@ export interface PurchaseHistoryItem {
    deliveryType: string;
    /** 모바일 티켓이고 판매 등록 가능한 경우 */
    canSell: boolean;
+   ticketIds?: string[];
 }
 
 export interface SaleHistoryItem {
    id: string;
    orderId: string;
    orderDate: string;
+   soldAt?: string;
+   canceledAt?: string;
    type: TicketType;
    game: {
       teams: string;
@@ -60,6 +69,7 @@ export interface SaleHistoryItem {
 
 type HistoryCardProps = ({ mode: 'purchase'; item: PurchaseHistoryItem } | { mode: 'sale'; item: SaleHistoryItem }) & {
    onResellCompleteConfirm?: () => void;
+   mockTicketInfoError?: boolean;
 };
 
 // ── 유틸 ─────────────────────────────────────────────────────────────
@@ -95,22 +105,36 @@ export default function HistoryCard(props: HistoryCardProps) {
    const [qrOpen, setQrOpen] = useState(false);
 
    const { mode, item } = props;
+   const mockTicketInfoError = props.mockTicketInfoError ?? false;
    const isPurchase = mode === 'purchase';
+   const purchaseItem = isPurchase ? (item as PurchaseHistoryItem) : null;
+   const purchaseOrderId = purchaseItem?.rawOrderId;
+   const actionTicketsQuery = useQuery({
+      queryKey: ['historyCardOrderTickets', purchaseOrderId, mockTicketInfoError],
+      queryFn: () =>
+         fetchOrderTickets(purchaseOrderId!, {
+            mockScenario: mockTicketInfoError ? MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO : undefined,
+         }),
+      enabled: isPurchase && Boolean(purchaseOrderId) && (qrOpen || resellOpen),
+      staleTime: 0,
+   });
 
    // 모드별 파생값
    const dateLabel = isPurchase ? '예약일자' : '판매일자';
    const detailLabel = isPurchase ? '예약상세' : '판매상세';
-   const detailRoute = isPurchase ? `/mypage/purchase/${item.id}` : `/mypage/sale/${item.id}`;
+   const detailRoute = isPurchase
+      ? `/mypage/purchase/${purchaseOrderId ?? item.id}`
+      : `/mypage/sale/${item.id}`;
    const priceLabel = isPurchase ? '구매가' : '판매가';
    const price = isPurchase ? (item as PurchaseHistoryItem).price : (item as SaleHistoryItem).salePrice;
    const status = isPurchase ? (item as PurchaseHistoryItem).paymentStatus : (item as SaleHistoryItem).saleStatus;
 
    // 구매 버튼 노출 조건
-   const purchaseItem = isPurchase ? (item as PurchaseHistoryItem) : null;
    const isBooked = purchaseItem?.paymentStatus === '예매 완료' || purchaseItem?.paymentStatus === '부분 처리';
-   const showSellBtn = isBooked || (purchaseItem?.canSell ?? false);
-   const showCancelBtn = isBooked || purchaseItem?.paymentStatus === '입금 대기';
-   const showQrBtn = isBooked && item.deliveryType === '모바일 티켓';
+   const showSellBtn = Boolean(purchaseOrderId) && (isBooked || (purchaseItem?.canSell ?? false));
+   const showCancelBtn = Boolean(purchaseOrderId) && (isBooked || purchaseItem?.paymentStatus === '입금 대기');
+   const actionTickets = actionTicketsQuery.data ?? [];
+   const showQrBtn = Boolean(purchaseOrderId) && isBooked && item.deliveryType === '모바일 티켓';
    // 판매 오픈 여부: 해당월 1일 11:00 이전 → 판매예정, ~13:00 이전 → 리셀예정
    const now = new Date();
    const saleOpenTime = getSaleOpenTime(item.game.datetime);
@@ -129,12 +153,41 @@ export default function HistoryCard(props: HistoryCardProps) {
       <>
          {/* 구매 전용 다이얼로그 */}
          {isPurchase && resellOpen && purchaseItem && (
-            <ResellRegisterDialog
-               open={resellOpen}
-               onClose={() => setResellOpen(false)}
-               onCompleteConfirm={props.onResellCompleteConfirm}
-               item={purchaseItem}
-            />
+            actionTicketsQuery.isLoading ? (
+               <ActionStatusDialog
+                  open={resellOpen}
+                  title="리셀 판매 등록"
+                  message="판매 가능한 티켓 정보를 불러오는 중입니다."
+                  onClose={() => setResellOpen(false)}
+               />
+            ) : actionTicketsQuery.isError ? (
+               <ActionStatusDialog
+                  open={resellOpen}
+                  title="리셀 판매 등록"
+                  message="판매 가능한 티켓 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                  onClose={() => setResellOpen(false)}
+                  onRetry={() => {
+                     void actionTicketsQuery.refetch();
+                  }}
+               />
+            ) : actionTickets.length > 0 ? (
+               <ResellRegisterDialog
+                  open={resellOpen}
+                  onClose={() => setResellOpen(false)}
+                  onCompleteConfirm={props.onResellCompleteConfirm}
+                  item={{
+                     ...purchaseItem,
+                     ticketIds: actionTickets.map((ticket) => ticket.ticketId),
+                  }}
+               />
+            ) : (
+               <ActionStatusDialog
+                  open={resellOpen}
+                  title="리셀 판매 등록"
+                  message="판매 가능한 티켓이 없습니다."
+                  onClose={() => setResellOpen(false)}
+               />
+            )
          )}
          {isPurchase && noAccountOpen && (
             <NoAccountDialog open={noAccountOpen} onClose={() => setNoAccountOpen(false)} />
@@ -143,9 +196,9 @@ export default function HistoryCard(props: HistoryCardProps) {
             <CancelBookingDialog
                open={cancelOpen}
                onClose={() => setCancelOpen(false)}
-               orderId={purchaseItem.rawOrderId ?? item.id}
-               detailId={item.id}
+               orderId={purchaseItem.rawOrderId ?? purchaseItem.id}
                game={{ teams: item.game.teams, datetime: item.game.datetime }}
+               mockTicketInfoError={mockTicketInfoError}
                seats={item.game.seats.map(seat => ({
                   orderId: item.orderId,
                   section: item.game.section,
@@ -161,10 +214,16 @@ export default function HistoryCard(props: HistoryCardProps) {
             <QrViewDialog
                open={qrOpen}
                onClose={() => setQrOpen(false)}
-               seats={item.game.seats.map(seat => ({
-                  section: item.game.section,
-                  seatDetail: seat,
+               seats={actionTickets.map((ticket) => ({
+                  ticketId: ticket.ticketId,
+                  section: ticket.seatInfo.split(' ')[0] ?? '',
+                  seatDetail: ticket.seatInfo,
                }))}
+               isTicketInfoLoading={actionTicketsQuery.isLoading}
+               isTicketInfoError={actionTicketsQuery.isError}
+               onRetryTicketInfo={() => {
+                  void actionTicketsQuery.refetch();
+               }}
             />
          )}
 

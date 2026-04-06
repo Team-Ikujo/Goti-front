@@ -22,12 +22,6 @@ export const useSocialOAuthLogin = ({
     try {
       if (!requiresIssuedState) {
         const authUrl = buildAuthUrl();
-
-        console.log("[OAuth] Requesting provider authorization code.", {
-          provider,
-          authUrl,
-        });
-
         openOAuthPopup(authUrl);
         startLoginPopupTimer();
         return;
@@ -36,17 +30,10 @@ export const useSocialOAuthLogin = ({
       const { state } = await issueSocialState(provider);
       const authUrl = buildAuthUrl(state);
 
-      console.log("[OAuth] Requesting provider authorization code.", {
-        provider,
-        state,
-        authUrl,
-      });
-
       setIssuedSocialState(provider, state);
       openOAuthPopup(authUrl);
       startLoginPopupTimer();
-    } catch (error) {
-      console.error(error);
+    } catch {
     }
   }, [buildAuthUrl, provider, requiresIssuedState, startLoginPopupTimer]);
 };

@@ -33,6 +33,7 @@ export interface TicketDetail {
 export interface OrderTicket {
    ticketId: string;
    ticketNumber: string;
+   orderItemId: string;
    seatInfo: string;
    ticketPrice: number;
    serviceFee: number;
@@ -44,8 +45,14 @@ export const fetchTicketDetail = async (ticketId: string): Promise<TicketDetail>
    return response.data.data;
 };
 
-export const fetchOrderTickets = async (orderId: string): Promise<OrderTicket[]> => {
-   const response = await apiClient.get<ApiEnvelope<OrderTicket[]>>(`/api/v1/orders/${orderId}/tickets`);
+interface FetchOrderTicketsOptions {
+   mockScenario?: string;
+}
+
+export const fetchOrderTickets = async (orderId: string, options?: FetchOrderTicketsOptions): Promise<OrderTicket[]> => {
+   const response = await apiClient.get<ApiEnvelope<OrderTicket[]>>(`/api/v1/orders/${orderId}/tickets`, {
+      params: options?.mockScenario ? { mockScenario: options.mockScenario } : undefined,
+   });
    return response.data.data;
 };
 
@@ -58,8 +65,4 @@ export interface TicketQrResponse {
 export const fetchTicketQr = async (ticketId: string): Promise<TicketQrResponse> => {
    const response = await apiClient.get<ApiEnvelope<TicketQrResponse>>(`/api/v1/tickets/${ticketId}/qr`);
    return response.data.data;
-};
-
-export const cancelTicket = async (orderId: string): Promise<void> => {
-   await apiClient.post(`/api/v1/payments/orders/${orderId}/cancellations`);
 };

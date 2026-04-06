@@ -244,7 +244,6 @@ export const fetchSeatGrades = async ({
    forceNewSession,
 }: {
    gameId: string;
-   stadiumId: string;
    forceNewSession?: boolean;
 }) => {
    const response = await apiClient.get<ApiEnvelope<SeatGradeSearchResultResponse>>(

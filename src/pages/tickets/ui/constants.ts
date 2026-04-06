@@ -27,6 +27,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j02',
       homeTeamId: 'lg',
+      serverHomeTeamId: 'lg',
+      leagueType: 'REGULAR',
       stadiumId: 'stadium-jamsil-baseball',
       queueTokenJti: 'queue-token-j02',
       awayTeam: 'KIA 타이거즈',
@@ -43,6 +45,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j03',
       homeTeamId: 'samsung',
+      serverHomeTeamId: 'samsung',
+      leagueType: 'REGULAR',
       stadiumId: 'stadium-samsung-lions-park',
       queueTokenJti: 'queue-token-j03',
       awayTeam: '두산 베어스',
@@ -61,6 +65,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j04',
       homeTeamId: 'lg',
+      serverHomeTeamId: 'lg',
+      leagueType: 'REGULAR',
       stadiumId: 'stadium-jamsil-baseball',
       queueTokenJti: 'queue-token-j04',
       awayTeam: 'KIA 타이거즈',
@@ -77,6 +83,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j05',
       homeTeamId: 'samsung',
+      serverHomeTeamId: 'samsung',
+      leagueType: 'REGULAR',
       stadiumId: 'stadium-samsung-lions-park',
       queueTokenJti: 'queue-token-j05',
       awayTeam: '두산 베어스',
@@ -93,6 +101,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j06',
       homeTeamId: 'lotte',
+      serverHomeTeamId: 'lotte',
+      leagueType: 'REGULAR',
       stadiumId: 'stadium-sajik-baseball',
       queueTokenJti: 'queue-token-j06',
       awayTeam: '한화 이글스',
@@ -109,6 +119,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j07',
       homeTeamId: 'nc',
+      serverHomeTeamId: 'nc',
+      leagueType: 'REGULAR',
       stadiumId: 'stadium-changwon-nc-park',
       queueTokenJti: 'queue-token-j07',
       awayTeam: 'KT 위즈',
@@ -125,6 +137,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j08',
       homeTeamId: 'kiwoom',
+      serverHomeTeamId: 'kiwoom',
+      leagueType: 'REGULAR',
       stadiumId: 'stadium-gocheok-skydome',
       queueTokenJti: 'queue-token-j08',
       awayTeam: 'SSG 랜더스',
@@ -143,6 +157,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j09',
       homeTeamId: 'lg',
+      serverHomeTeamId: 'lg',
+      leagueType: 'REGULAR',
       stadiumId: 'stadium-jamsil-baseball',
       queueTokenJti: 'queue-token-j09',
       awayTeam: 'KIA 타이거즈',
@@ -159,6 +175,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j10',
       homeTeamId: 'samsung',
+      serverHomeTeamId: 'samsung',
+      leagueType: 'REGULAR',
       stadiumId: 'stadium-samsung-lions-park',
       queueTokenJti: 'queue-token-j10',
       awayTeam: '두산 베어스',
@@ -175,6 +193,8 @@ export const MOCK_GAMES: GameItem[] = [
    {
       id: 'j11',
       homeTeamId: 'lotte',
+      serverHomeTeamId: 'lotte',
+      leagueType: 'REGULAR',
       stadiumId: 'stadium-sajik-baseball',
       queueTokenJti: 'queue-token-j11',
       awayTeam: '한화 이글스',

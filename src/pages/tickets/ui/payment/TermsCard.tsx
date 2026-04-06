@@ -8,7 +8,7 @@ import { KeyValueTable } from '@/shared/ui/table';
 import { PaymentCard } from './PaymentCard';
 
 // ─── 개인정보 수집·이용 동의 (기존 SignUpTermsDialog와 동일한 구조) ─────────
-export function PrivacyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function PrivacyDialog({ open, onClose, onAgree }: { open: boolean; onClose: () => void; onAgree: () => void }) {
    return (
       <Dialog open={open} onOpenChange={v => !v && onClose()}>
          <DialogContent className="flex flex-col overflow-hidden max-w-147 w-[calc(100%-40px)] max-h-[80vh] gap-0 border-0 p-0">
@@ -43,7 +43,7 @@ export function PrivacyDialog({ open, onClose }: { open: boolean; onClose: () =>
                </div>
             </div>
             <DialogFooter className="p-5 pt-0 shrink-0">
-               <Button type="button" variant="primary" className="h-12 w-full" onClick={onClose}>
+               <Button type="button" variant="primary" className="h-12 w-full" onClick={onAgree}>
                   동의 후 닫기
                </Button>
             </DialogFooter>
@@ -53,7 +53,7 @@ export function PrivacyDialog({ open, onClose }: { open: boolean; onClose: () =>
 }
 
 // ─── 취소/환불 정책 ─────────────────────────────────────────────────────────
-function PolicyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function PolicyDialog({ open, onClose, onAgree }: { open: boolean; onClose: () => void; onAgree: () => void }) {
    return (
       <Dialog open={open} onOpenChange={v => !v && onClose()}>
          <DialogContent className="flex flex-col overflow-hidden max-w-147 w-[calc(100%-40px)] max-h-[80vh] gap-0 border-0 p-0">
@@ -155,7 +155,7 @@ function PolicyDialog({ open, onClose }: { open: boolean; onClose: () => void })
                </div>
             </div>
             <DialogFooter className="p-5 pt-0 shrink-0">
-               <Button type="button" variant="primary" className="h-12 w-full" onClick={onClose}>
+               <Button type="button" variant="primary" className="h-12 w-full" onClick={onAgree}>
                   동의 후 닫기
                </Button>
             </DialogFooter>
@@ -165,7 +165,7 @@ function PolicyDialog({ open, onClose }: { open: boolean; onClose: () => void })
 }
 
 // ─── 리셀 정책 ──────────────────────────────────────────────────────────────
-export function ResellPolicyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ResellPolicyDialog({ open, onClose, onAgree }: { open: boolean; onClose: () => void; onAgree: () => void }) {
    return (
       <Dialog open={open} onOpenChange={v => !v && onClose()}>
          <DialogContent className="flex flex-col overflow-hidden max-w-147 w-[calc(100%-40px)] max-h-[80vh] gap-0 border-0 p-0">
@@ -290,7 +290,7 @@ export function ResellPolicyDialog({ open, onClose }: { open: boolean; onClose: 
                </div>
             </div>
             <DialogFooter className="p-5 pt-0 shrink-0">
-               <Button type="button" variant="primary" className="h-12 w-full" onClick={onClose}>
+               <Button type="button" variant="primary" className="h-12 w-full" onClick={onAgree}>
                   동의 후 닫기
                </Button>
             </DialogFooter>
@@ -366,9 +366,21 @@ export function TermsCard({
             </div>
          </PaymentCard>
 
-         <PrivacyDialog open={openModal === 'privacy'} onClose={() => setOpenModal(null)} />
-         <PolicyDialog open={openModal === 'policy'} onClose={() => setOpenModal(null)} />
-         <ResellPolicyDialog open={openModal === 'resell'} onClose={() => setOpenModal(null)} />
+         <PrivacyDialog
+            open={openModal === 'privacy'}
+            onClose={() => setOpenModal(null)}
+            onAgree={() => { onChangePrivacy(true); setOpenModal(null); }}
+         />
+         <PolicyDialog
+            open={openModal === 'policy'}
+            onClose={() => setOpenModal(null)}
+            onAgree={() => { onChangePolicy(true); setOpenModal(null); }}
+         />
+         <ResellPolicyDialog
+            open={openModal === 'resell'}
+            onClose={() => setOpenModal(null)}
+            onAgree={() => { onChangeResell(true); setOpenModal(null); }}
+         />
       </>
    );
 }

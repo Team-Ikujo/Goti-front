@@ -3,12 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrderPayment, type PaymentResponse } from '@/pages/tickets/api/paymentApi';
+import { fetchResaleLedgerByOrderId } from '@/entities/resale/api/resaleApi';
 import { Calendar, CheckCircle, ChevronLeft, MapPin } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
+import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
+import { resolveBookingEntrySourcePath } from '@/shared/lib/booking-flow';
+import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import { ApiError } from '@/shared/api/client';
-import { formatReservationNumber } from '@/pages/mypage/model/ticketNumber';
 
 function useTimerStr() {
    const [now, setNow] = useState(Date.now());
@@ -31,6 +35,46 @@ const DELIVERY_LABELS: Record<DeliveryMethod, string> = {
    mobile: '모바일 티켓',
    onsite: '현장 수령',
    delivery: '배송 수령',
+};
+
+// 예매번호: ORD + 숫자 13자리 보장
+const formatOrderNumber = (orderNumber: string): string => {
+   if (/^ORD\d{13}$/.test(orderNumber)) return orderNumber;
+   const digits = orderNumber.replace(/\D/g, '');
+   return `ORD${digits.slice(0, 13).padStart(13, '0')}`;
+};
+
+// 주문상태 → 한국어
+const ORDER_STATUS_LABELS: Record<string, string> = {
+   CONFIRMED: '결제완료',
+   COMPLETED: '결제완료',
+   SUCCESS: '결제완료',
+   PENDING: '입금대기',
+   PARTIALLY_CANCELED: '부분취소',
+   CANCELED: '취소됨',
+};
+
+const formatOrderStatus = (status: string | undefined): string =>
+   (status && ORDER_STATUS_LABELS[status.toUpperCase()]) ?? '결제완료';
+
+// 주문접수일시: YYYY.MM.DD H:MM AM/PM
+const formatPaymentDateTime = (dateStr: string): string => {
+   // ISO 8601 형식인 경우 파싱하여 재포맷
+   if (/^\d{4}-\d{2}-\d{2}T/.test(dateStr)) {
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+         const pad = (n: number) => String(n).padStart(2, '0');
+         const h = date.getHours();
+         return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}. ${h % 12 || 12}:${pad(date.getMinutes())} ${h < 12 ? 'AM' : 'PM'}`;
+      }
+   }
+   // 한국어 로케일 포맷 처리: "2026. 03. 13. 오전 11:26" → "2026.03.13. 11:26 AM"
+   const koreanMatch = dateStr.match(/(\d{4})\.\s*(\d{2})\.\s*(\d{2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2})/);
+   if (koreanMatch) {
+      const [, year, month, day, ampm, h, min] = koreanMatch;
+      return `${year}.${month}.${day}. ${h}:${min} ${ampm === '오전' ? 'AM' : 'PM'}`;
+   }
+   return dateStr;
 };
 
 const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
@@ -73,7 +117,7 @@ const isResalePaymentResponse = (order: PaymentResponse | null) => {
    return order.orderId?.toLowerCase().includes('resale') ?? false;
 };
 
-const formatReceiptDateTime = (value: string | undefined) => {
+const _formatReceiptDateTime = (value: string | undefined) => {
    if (!value) {
       return '-';
    }
@@ -120,7 +164,7 @@ const formatReceiptDateTime = (value: string | undefined) => {
    return `${year}.${month}.${day} ${String(hours12).padStart(2, '0')}:${minute} ${meridiem}`;
 };
 
-const formatOrderStatusLabel = (value: string | undefined) => {
+const _formatOrderStatusLabel = (value: string | undefined) => {
    switch (value) {
       case 'SUCCESS':
       case 'CONFIRMED':
@@ -181,15 +225,50 @@ const MOCK_ORDER = {
 export default function PaymentCompletePage() {
    const navigate = useNavigate();
    const [searchParams] = useSearchParams();
-   const { state } = useLocation();
+   const location = useLocation();
+   const { state } = location;
    const timeStr = useTimerStr();
    const deliveryMethod = (searchParams.get('delivery') as DeliveryMethod) ?? 'mobile';
    const orderId = searchParams.get('orderId');
    const locationOrder = state as PaymentResponse | null;
+   const clearBookingEntry = useBookingEntryStore(state => state.clearEntry);
+   const clearTimer = useBookingFlowTimerStore(state => state.clearTimer);
+   const [entrySourcePath] = useState(() =>
+      resolveBookingEntrySourcePath(useBookingEntryStore.getState().entry?.entrySourcePath),
+   );
    const [order, setOrder] = useState<PaymentResponse>(() => {
       return locationOrder ?? readStoredPaymentCompleteState(orderId) ?? (MOCK_ORDER as PaymentResponse);
    });
    const [paymentReloadError, setPaymentReloadError] = useState<string | null>(null);
+
+   const navigateToEntrySource = () => {
+      clearTimer();
+      clearBookingEntry();
+      navigate(entrySourcePath, { replace: true });
+   };
+
+   useEffect(() => {
+      useSeatHoldStore.getState().clearSeatHolds();
+      useSeatSelectionStore.getState().clearAllSelections();
+      clearTimer();
+      clearBookingEntry();
+   }, [clearBookingEntry, clearTimer]);
+
+   useEffect(() => {
+      window.history.pushState({ paymentCompleteExitGuard: true }, '', window.location.href);
+
+      const handlePopState = () => {
+         clearTimer();
+         clearBookingEntry();
+         navigate(entrySourcePath, { replace: true });
+      };
+
+      window.addEventListener('popstate', handlePopState);
+
+      return () => {
+         window.removeEventListener('popstate', handlePopState);
+      };
+   }, [clearBookingEntry, clearTimer, entrySourcePath, navigate]);
 
    useEffect(() => {
       if (locationOrder?.orderId) {
@@ -253,6 +332,45 @@ export default function PaymentCompletePage() {
       };
    }, [orderId]);
 
+   // 리셀 주문 완료 후 원장(ledger)으로 결제 금액 확인
+   useEffect(() => {
+      let isCancelled = false;
+
+      const fallbackOrder = locationOrder ?? readStoredPaymentCompleteState(orderId);
+
+      if (!orderId || !isResalePaymentResponse(fallbackOrder)) {
+         return;
+      }
+
+      const restoreResalePayment = async () => {
+         try {
+            const ledger = await fetchResaleLedgerByOrderId(orderId);
+
+            if (isCancelled) {
+               return;
+            }
+
+            setOrder((currentOrder) => {
+               const nextOrder: PaymentResponse = {
+                  ...currentOrder,
+                  amount: ledger.totalAmount,
+               };
+
+               writeStoredPaymentCompleteState(nextOrder);
+               return nextOrder;
+            });
+         } catch {
+            // sessionStorage / location state에 이미 완료 데이터가 있으므로 조회 실패 시 무시
+         }
+      };
+
+      void restoreResalePayment();
+
+      return () => {
+         isCancelled = true;
+      };
+   }, [orderId]);
+
    const actionButton =
       deliveryMethod === 'delivery'
          ? { label: '예매내역 확인하기', onClick: () => navigate('/') }
@@ -262,7 +380,15 @@ export default function PaymentCompletePage() {
       <div className="min-h-screen flex flex-col bg-background">
          {/* 데스크톱 헤더 */}
          <div className="hidden lg:block">
-            <BooksHeader confirmBeforeExit={false} showTimer={false} currentStepIndex={3} />
+            <BooksHeader
+               matchTitle={order.gameTitle}
+               venue={order.gameVenue}
+               dateTime={order.gameDate}
+               confirmBeforeExit={false}
+               showTimer={false}
+               currentStepIndex={3}
+               onBack={navigateToEntrySource}
+            />
          </div>
 
          {/* 모바일 헤더 */}
@@ -271,7 +397,7 @@ export default function PaymentCompletePage() {
             <div className="relative flex items-center justify-between pl-3 pr-5 py-2">
                <button
                   type="button"
-                  onClick={() => navigate(-1)}
+                  onClick={navigateToEntrySource}
                   className="p-1 flex items-center justify-center shrink-0"
                   aria-label="뒤로가기"
                >
@@ -319,9 +445,7 @@ export default function PaymentCompletePage() {
                   {/* 예매 번호 */}
                   <div className="flex flex-col gap-1">
                      <span className="text-[16px] font-bold leading-normal text-disabled-foreground">예매 번호</span>
-                     <span className="text-[18px] font-bold leading-[1.55] text-foreground">
-                        {formatReservationNumber(order.orderNumber)}
-                     </span>
+                     <span className="text-[18px] font-bold leading-[1.55] text-foreground">{formatOrderNumber(order.orderNumber)}</span>
                   </div>
 
                   {/* 경기 정보 */}
@@ -385,8 +509,8 @@ export default function PaymentCompletePage() {
                   <div className="flex flex-col gap-3">
                      {[
                         { label: '결제 방법', value: order.paymentMethod },
-                        { label: '주문상태', value: formatOrderStatusLabel(order.orderStatus ?? order.paymentStatus) },
-                        { label: '주문접수일시', value: formatReceiptDateTime(order.orderedAt ?? order.paidAt) },
+                        { label: '주문상태', value: formatOrderStatus(order.orderStatus) },
+                        { label: '주문접수일시', value: formatPaymentDateTime(order.orderedAt) },
                         { label: '수령 방식', value: DELIVERY_LABELS[deliveryMethod] },
                      ].map(({ label, value }) => (
                         <div key={label} className="flex items-start justify-between text-[16px] leading-normal">
@@ -422,8 +546,8 @@ export default function PaymentCompletePage() {
 
                {/* 하단 버튼 */}
                <div className="flex gap-4 justify-center w-full">
-                  <Button variant="secondary" className="flex-1 max-w-[360px] py-3" onClick={() => navigate('/')}>
-                     홈으로
+                  <Button variant="secondary" className="flex-1 max-w-[360px] py-3" onClick={navigateToEntrySource}>
+                     시작 화면으로
                   </Button>
                   <Button variant="primary" className="flex-1 max-w-[360px] py-3" onClick={actionButton.onClick}>
                      {actionButton.label}

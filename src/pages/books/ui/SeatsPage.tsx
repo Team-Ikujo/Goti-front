@@ -20,12 +20,12 @@ import type { SeatItem } from '@/pages/books/model/types';
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
+import { useBotDetector } from '@/shared/lib/useBotDetector';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 import SeatMapStage from './components/SeatMapStage';
 import ResellSeatSidebar from './components/ResellSeatSidebar';
 import ResellZonePreviewSheet from './components/ResellZonePreviewSheet';
 import SelectedSeatSummaryList from './components/SelectedSeatSummaryList';
-import { useBotDetector } from '@/shared/lib/useBotDetector';
 
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
@@ -75,6 +75,7 @@ function SeatsPage() {
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const setBookingEntry = useBookingEntryStore(state => state.setEntry);
    const { getBotReport } = useBotDetector();
+   const botData = getBotReport();
    const bookingZones = useMemo(
       () => bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId),
       [bookingEntryState?.bookingZones, bookingEntryState?.homeTeamId],
@@ -400,8 +401,6 @@ function SeatsPage() {
    };
 
    const handleProceedToPayment = () => {
-      const botData = getBotReport();
-
       if (isResellMode) {
          if (!selectedResellListing) {
             return;
@@ -424,6 +423,7 @@ function SeatsPage() {
                matchTitle: bookingEntryState?.matchTitle,
                venue: bookingEntryState?.venue,
                dateTime: bookingEntryState?.dateTime,
+               turnstileToken: bookingEntryState?.turnstileToken,
                botData,
             },
          });
@@ -431,10 +431,7 @@ function SeatsPage() {
       }
 
       navigate('/tickets/payment', {
-         state: {
-            ...bookingEntryState,
-            botData,
-         },
+         state: bookingEntryState,
       });
    };
 
@@ -517,7 +514,7 @@ function SeatsPage() {
       };
    }, [seatBlocks]);
 
-   const getDefaultSeatMapView = () => {
+   const _getDefaultBlockMapView = () => {
       if (!stageContentBounds || mapViewportSize.width === 0 || mapViewportSize.height === 0) {
          return {
             scale: 1,
@@ -606,6 +603,35 @@ function SeatsPage() {
       sectionBounds,
    ]);
 
+   const getDefaultSeatMapView = () => {
+      if (!sectionBounds || mapViewportSize.width === 0 || mapViewportSize.height === 0) {
+         return {
+            scale: 1,
+            offset: { x: 0, y: 0 },
+         };
+      }
+
+      const contentWidth = sectionBounds.right - sectionBounds.left;
+      const contentHeight = sectionBounds.bottom - sectionBounds.top;
+      const availableWidth = Math.max(1, mapViewportSize.width - DEFAULT_SEAT_MAP_LEFT_PADDING * 2);
+      const availableHeight = Math.max(1, mapViewportSize.height - 56 - DEFAULT_SEAT_MAP_TOP_PADDING * 2);
+      const scale = Math.min(
+         MAX_SCALE,
+         Math.max(MIN_SCALE, Math.min(availableWidth / contentWidth, availableHeight / contentHeight)),
+      );
+      const contentCenterX = (sectionBounds.left + sectionBounds.right) / 2;
+      const contentCenterY = (sectionBounds.top + sectionBounds.bottom) / 2;
+      const targetCenterY = 56 + DEFAULT_SEAT_MAP_TOP_PADDING + availableHeight / 2;
+
+      return {
+         scale: Number(scale.toFixed(2)),
+         offset: {
+            x: (STAGE_WIDTH / 2 - contentCenterX) * scale,
+            y: targetCenterY - 56 - contentCenterY * scale,
+         },
+      };
+   };
+
    const updateSeatMapScale = (nextScale: number) => {
       setSeatMapScale(Math.min(MAX_SCALE, Math.max(MIN_SCALE, Number(nextScale.toFixed(2)))));
    };
@@ -622,7 +648,7 @@ function SeatsPage() {
 
       setSeatMapScale(nextView.scale);
       setSeatMapOffset(nextView.offset);
-   }, [mapViewportSize.height, mapViewportSize.width, stageContentBounds, zone.id]);
+   }, [mapViewportSize.height, mapViewportSize.width, sectionBounds, zone.id]);
 
    const toggleSeat = (seat: SeatItem) => {
       if (isSeatInteractionLocked) {

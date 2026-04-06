@@ -83,7 +83,12 @@ const TicketsPage = () => {
                date: game.date,
                dateTime: `${game.date.replace(/-/g, '.')} ${game.time}`,
                venue: game.venue,
-               remainingSeats: game.ticket === '매진' ? 0 : 999,
+               remainingSeats:
+                  game.ticket === '판매예정'
+                     ? 25000
+                     : game.ticket === '매진'
+                       ? 0
+                       : (game.remainingSeatCount ?? 0),
                resellRemainingSeats: fallbackResellStatus === '리셀 가능' ? 999 : 0,
                minPrice: 0,
                maxPrice: 0,
@@ -199,7 +204,7 @@ const TicketsPage = () => {
    };
 
    return (
-      <div className="w-full px-4 py-12.5 pb-30 flex justify-center bg-white h-full">
+      <div className="w-full px-4 py-12.5 pb-30 flex justify-center bg-white flex-1">
          <div className="flex items-start justify-between max-w-300 w-full gap-5 ">
             <div className="hidden md:block">
                <FilterSidebar activeTab={activeTab} filters={appliedFilters} onApply={handleApply} />

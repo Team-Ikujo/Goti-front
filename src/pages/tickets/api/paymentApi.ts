@@ -1,10 +1,15 @@
 import apiClient, { ApiError } from '@/shared/api/client';
-import { useAuthStore } from '@/entities/auth/model/authStore';
 import type { ApiEnvelope } from '@/features/auth/api/types';
-import type { CashReceiptNumType, CashReceiptType, PaymentMethod, SupportedPaymentMethod } from '../ui/payment/types';
+import type {
+   CashReceiptNumType,
+   CashReceiptType,
+   PaymentMethod,
+   SupportedPaymentMethod,
+} from '../ui/payment/types';
 import type { BotReport } from '@/shared/lib/botDetector';
-import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 import { type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
+import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
+import { useAuthStore } from '@/entities/auth/model/authStore';
 
 interface CheckoutFormRequest {
    deliveryMethod: 'mobile' | 'onsite' | 'delivery';
@@ -19,6 +24,7 @@ interface CheckoutFormRequest {
    cashReceiptNumType?: CashReceiptNumType;
    cashReceiptNum?: string;
    botData?: BotReport;
+   cfTurnstileToken?: string;
 }
 
 export interface PaymentResponse {
@@ -82,6 +88,7 @@ type CreateOrderRequest = {
    ordererName: string;
    ordererPhone: string;
    ordererEmail: string;
+   cfTurnstileToken?: string;
 };
 
 type CreateOrderResponse = {
@@ -114,6 +121,7 @@ type OrderPaymentResponse = {
 type ResaleHoldRequest = {
    listingId: string;
    queueTokenJti: string;
+   cfTurnstileToken?: string;
 };
 
 type ResaleHoldResponse = {
@@ -174,15 +182,15 @@ const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
 const shouldUseRelativeApiBase = import.meta.env.DEV;
 
 const formatOrderedAt = (date: Date) => {
+   const pad = (n: number) => String(n).padStart(2, '0');
    const year = date.getFullYear();
-   const month = String(date.getMonth() + 1).padStart(2, '0');
-   const day = String(date.getDate()).padStart(2, '0');
-   const hours24 = date.getHours();
-   const minutes = String(date.getMinutes()).padStart(2, '0');
-   const meridiem = hours24 >= 12 ? 'PM' : 'AM';
-   const hours12 = hours24 % 12 || 12;
-
-   return `${year}.${month}.${day} ${String(hours12).padStart(2, '0')}:${minutes} ${meridiem}`;
+   const month = pad(date.getMonth() + 1);
+   const day = pad(date.getDate());
+   const hours = date.getHours();
+   const minutes = pad(date.getMinutes());
+   const ampm = hours < 12 ? 'AM' : 'PM';
+   const h12 = hours % 12 || 12;
+   return `${year}.${month}.${day}. ${h12}:${minutes} ${ampm}`;
 };
 
 const createClientTransactionId = (prefix: string) => {
@@ -385,6 +393,7 @@ const buildPaymentResponse = ({
    recipient,
    issuedTicketCount,
    resaleListingId,
+   ticketId,
 }: {
    orderType: 'ticket' | 'resale';
    amount: number;
@@ -458,7 +467,7 @@ const buildOptimisticResalePaymentResponse = ({
       paymentId: createClientTransactionId('resale-payment'),
       orderId: fallbackOrder.orderId,
       paymentType: 'PAYMENT',
-      paymentMethod: toPaymentMethodCode(payload.paymentMethod),
+      paymentMethod: toPaymentMethodCode(payload.paymentMethod as SupportedPaymentMethod),
       paymentAmount: payload.totalAmount,
       pgProvider: 'FALLBACK',
       pgTid: createClientTransactionId('resale-pg-tid'),
@@ -507,6 +516,7 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       ordererName: payload.ordererName,
       ordererPhone: payload.ordererPhone,
       ordererEmail: payload.ordererEmail,
+      cfTurnstileToken: payload.cfTurnstileToken,
    });
 
    const payment = await createOrderPayment(order.orderId, {
@@ -527,7 +537,7 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
       gameDate: payload.gameDate,
       gameVenue: payload.gameVenue,
       seats: heldSeats.map(({ seatLabel }) => seatLabel),
-      issuedTicketCount: heldSeats.length,
+      issuedTicketCount: payment.paymentStatus === 'SUCCESS' ? order.totalQuantity : undefined,
       recipient:
          payload.deliveryMethod === 'delivery'
             ? {
@@ -566,6 +576,7 @@ export const submitResaleOrder = async (
          const hold = await createResaleHold({
             listingId: payload.listingId,
             queueTokenJti: payload.queueTokenJti,
+            cfTurnstileToken: payload.cfTurnstileToken,
          });
          resaleHoldId = hold.holdId;
          options?.onHoldCreated?.(hold.holdId);

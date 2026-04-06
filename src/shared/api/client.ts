@@ -1,6 +1,7 @@
-import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig, type AxiosResponse } from "axios";
+import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/entities/auth/model/authStore";
 import { redirectToErrorPage } from '@/shared/lib/error-navigation';
+import { applyGuardrailHeadersToAxiosConfig } from '@/shared/lib/guardrailHeaders';
 
 export class ApiError extends Error {
    status?: number;
@@ -36,6 +37,21 @@ const PUBLIC_API_PATH_PATTERNS = [
   /^\/api\/v1\/resales\/orders(?:\/|$)/,
   /^\/api\/v1\/payments\/resales(?:\/|$)/,
   /^\/api\/v1\/resales\/listings\/games(?:\/|$)/,
+  /^\/api\/v1\/game-seats(?:\/|$)/,
+  /^\/api\/v1\/stadium-seats(?:\/|$)/,
+  /^\/api\/v1\/seats(?:\/|$)/,
+  /^\/api\/v1\/teams\/[^/]+\/ticket-pricing-policies(?:\/|$)/,
+];
+
+const GUARDRAIL_HEADER_API_PATH_PATTERNS = [
+  /^\/api\/v1\/seat-reservations(?:\/|$)/,
+  /^\/api\/v1\/orders(?:\/|$)/,
+  /^\/api\/v1\/payments\/orders(?:\/|$)/,
+  /^\/api\/v1\/resales\/holds(?:\/|$)/,
+  /^\/api\/v1\/resales\/orders(?:\/|$)/,
+  /^\/api\/v1\/payments\/resales(?:\/|$)/,
+  /^\/api\/v1\/resales\/listings(?:\/|$)/,
+  /^\/api\/v1\/resales\/histories(?:\/|$)/,
   /^\/api\/v1\/game-seats(?:\/|$)/,
   /^\/api\/v1\/stadium-seats(?:\/|$)/,
   /^\/api\/v1\/seats(?:\/|$)/,
@@ -94,30 +110,6 @@ const canAttemptTokenReissue = () => {
   );
 };
 
-const getConsoleTargets = (): Console[] => {
-  const targets: Console[] = [console];
-
-  if (typeof window === "undefined" || !window.opener || window.opener.closed) {
-    return targets;
-  }
-
-  try {
-    if (window.opener.location.origin === window.location.origin) {
-      targets.push(window.opener.console);
-    }
-  } catch {
-    // Cross-origin opener access is blocked by the browser.
-  }
-
-  return targets;
-};
-
-const logToConsoles = (method: "log" | "error", ...args: unknown[]) => {
-  getConsoleTargets().forEach((target) => {
-    target[method](...args);
-  });
-};
-
 const toAbsoluteUrl = (config?: AxiosRequestConfig) => {
   const baseURL = config?.baseURL ?? "";
   const url = config?.url ?? "";
@@ -163,6 +155,17 @@ const shouldSkipCredentials = (config: AxiosRequestConfig) => {
   }
 };
 
+const shouldAttachGuardrailHeaders = (config: AxiosRequestConfig) => {
+  const requestUrl = toAbsoluteUrl(config);
+
+  try {
+    const { pathname } = new URL(requestUrl, window.location.origin);
+    return GUARDRAIL_HEADER_API_PATH_PATTERNS.some((pattern) => pattern.test(pathname));
+  } catch {
+    return false;
+  }
+};
+
 const isAuthorizationConflictMessage = (message: string) => {
   const normalizedMessage = message.trim().toLowerCase();
 
@@ -182,67 +185,6 @@ const normalizeApiErrorMessage = (message: string, status?: number) => {
   }
 
   return message;
-};
-
-const getSerializableData = (value: unknown) => {
-  if (value === undefined) {
-    return null;
-  }
-
-  if (typeof FormData !== "undefined" && value instanceof FormData) {
-    const entries: Array<[string, FormDataEntryValue]> = [];
-    value.forEach((entryValue, entryKey) => {
-      entries.push([entryKey, entryValue]);
-    });
-    return Object.fromEntries(entries);
-  }
-
-  return value;
-};
-
-const logRequest = (config: AxiosRequestConfig) => {
-  logToConsoles("log", "[API REQUEST]", {
-    method: config.method?.toUpperCase() ?? "GET",
-    url: toAbsoluteUrl(config),
-    params: config.params ?? null,
-    data: getSerializableData(config.data),
-    headers: config.headers ?? null,
-  });
-};
-
-const logResponse = (response: AxiosResponse) => {
-  logToConsoles("log", "[API RESPONSE]", {
-    method: response.config.method?.toUpperCase() ?? "GET",
-    url: toAbsoluteUrl(response.config),
-    status: response.status,
-    data: response.data,
-  });
-};
-
-const logError = (error: AxiosError) => {
-  const requestConfig = error.config;
-  const responseStatus = error.response?.status;
-  const responseData = error.response?.data;
-  const responseMessage =
-    typeof responseData === "string"
-      ? responseData
-      : (responseData as { message?: string } | undefined)?.message ?? error.message;
-
-  if (
-    requestConfig &&
-    shouldSkipCredentials(requestConfig) &&
-    (responseStatus === 401 || responseStatus === 403 || isAuthorizationConflictMessage(responseMessage))
-  ) {
-    return;
-  }
-
-  logToConsoles("error", "[API ERROR]", {
-    method: requestConfig?.method?.toUpperCase() ?? "UNKNOWN",
-    url: toAbsoluteUrl(requestConfig),
-    status: responseStatus ?? null,
-    data: responseData ?? null,
-    message: error.message,
-  });
 };
 
 const apiClient = axios.create({
@@ -307,9 +249,14 @@ apiClient.interceptors.request.use((config) => {
   const accessToken = useAuthStore.getState().accessToken;
   const shouldSkipAuth = shouldSkipAuthorizationHeader(config);
   const shouldOmitCredentials = shouldSkipCredentials(config);
+  const shouldIncludeGuardrailHeaders = shouldAttachGuardrailHeaders(config);
 
   if (shouldOmitCredentials) {
     config.withCredentials = false;
+  }
+
+  if (shouldIncludeGuardrailHeaders) {
+    applyGuardrailHeadersToAxiosConfig(config);
   }
 
   if (accessToken && !shouldSkipAuth) {
@@ -321,8 +268,6 @@ apiClient.interceptors.request.use((config) => {
       config.headers = nextHeaders;
     }
   }
-
-  logRequest(config);
   return config;
 });
 
@@ -337,13 +282,9 @@ apiClient.interceptors.response.use(
         ),
       );
     }
-
-    logResponse(response);
     return response;
   },
   (error: AxiosError) => {
-    logError(error);
-
     const requestConfig = error.config as RetriableAxiosRequestConfig | undefined;
     const requestUrl = requestConfig?.url ?? "";
     const isReissueRequest = requestUrl.includes(tokenReissuePath);
@@ -359,8 +300,12 @@ apiClient.interceptors.response.use(
       requestConfig._retry = true;
 
       return reissueAccessTokenFromCookie().then((accessToken) => {
+        if (shouldAttachGuardrailHeaders(requestConfig)) {
+          applyGuardrailHeadersToAxiosConfig(requestConfig);
+        }
+
         if (!shouldSkipAuthorizationHeader(requestConfig)) {
-          const nextHeaders = AxiosHeaders.from(requestConfig.headers);
+          const nextHeaders = AxiosHeaders.from(requestConfig.headers as AxiosHeaders | undefined);
           nextHeaders.set("Authorization", `Bearer ${accessToken}`);
           requestConfig.headers = nextHeaders;
         }

@@ -78,13 +78,12 @@ const BooksPage = () => {
       ),
       queryFn: async () => {
          const shouldForceNewSession = shouldForceNewSessionRef.current;
+         const grades = await fetchSeatGrades({
+            gameId: bookingEntryState!.gameId!,
+            forceNewSession: shouldForceNewSession,
+         });
 
-         const [grades, sections, pricingPolicy] = await Promise.all([
-            fetchSeatGrades({
-               gameId: bookingEntryState!.gameId!,
-               stadiumId: bookingEntryState!.stadiumId!,
-               forceNewSession: shouldForceNewSession,
-            }),
+         const [sections, pricingPolicy] = await Promise.all([
             fetchSeatSections({
                stadiumId: bookingEntryState!.stadiumId!,
                gameId: bookingEntryState!.gameId!,

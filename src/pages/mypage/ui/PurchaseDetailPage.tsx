@@ -8,6 +8,7 @@ import { AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTicketDetail, fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
+import { fetchOrderPaymentDetail, formatOrderPaymentMethod } from '@/entities/payment/api/paymentApi';
 import StatusBadge from './StatusBadge';
 import type { BadgeVariant } from './StatusBadge';
 import TicketItem from './TicketItem';
@@ -71,7 +72,8 @@ type PurchaseDetailViewModel = {
    cancelDate?: string;
    seatInfo: string;
    ticketPrice: number;
-   paymentMethodDisplay: string;
+   paymentMethodDisplay: string | undefined;
+   paidAt?: string;
    seatItems: PurchaseSeatItem[];
    paymentSummary: PurchasePaymentSummary;
    paymentEvents: Array<{ type: PaymentEventType; method: string }>;
@@ -273,7 +275,7 @@ function BulletItem({ text }: { text: string }) {
 // ─── 메인 컴포넌트 ──────────────────────────────────────────────
 
 export default function PurchaseDetailPage() {
-   const { id } = useParams<{ id: string }>();
+   const { id: orderId } = useParams<{ id: string }>();
    const navigate = useNavigate();
    const location = useLocation();
    const accessToken = useAuthStore(state => state.accessToken);
@@ -282,64 +284,49 @@ export default function PurchaseDetailPage() {
    const [cancelOpen, setCancelOpen] = useState(false);
    const [resellOpen, setResellOpen] = useState(false);
 
-   const shouldLookupTicketDetailFirst = Boolean(id) && !isLikelyOrderReference(id);
    const fallbackOrdererName = useMemo(() => {
       const payload = decodeJwtPayload(accessToken);
       const candidates = [payload?.name, payload?.nickname, payload?.preferred_username, payload?.email, payload?.sub];
       const resolved = candidates.find(value => typeof value === 'string' && value.trim().length > 0);
-
       return typeof resolved === 'string' ? resolved : '예매자';
    }, [accessToken]);
 
+   const orderTicketsQuery = useQuery({
+      queryKey: ['orderTickets', orderId],
+      queryFn: () => fetchOrderTickets(orderId!),
+      enabled: Boolean(orderId),
+      retry: false,
+   });
+
+   const orderTickets = orderTicketsQuery.data ?? [];
+   const primaryTicketId = orderTickets[0]?.ticketId;
+
    const ticketDetailQuery = useQuery({
-      queryKey: ['ticketDetail', id],
-      queryFn: () => fetchTicketDetail(id!),
-      enabled: shouldLookupTicketDetailFirst,
+      queryKey: ['ticketDetail', primaryTicketId],
+      queryFn: () => fetchTicketDetail(primaryTicketId!),
+      enabled: Boolean(primaryTicketId),
       retry: false,
    });
 
-   const fallbackTicketsQuery = useQuery({
-      queryKey: ['orderTicketsFallback', id],
-      queryFn: () => fetchOrderTickets(id!),
-      enabled: Boolean(id) && (isLikelyOrderReference(id) || ticketDetailQuery.isError),
+   const orderPaymentQuery = useQuery({
+      queryKey: ['orderPaymentDetail', orderId],
+      queryFn: () => fetchOrderPaymentDetail(orderId!),
+      enabled: Boolean(orderId),
       retry: false,
    });
 
-   const fallbackTicketId = fallbackTicketsQuery.data?.[0]?.ticketId;
-
-   const fallbackTicketDetailQuery = useQuery({
-      queryKey: ['ticketDetailFallback', fallbackTicketId],
-      queryFn: () => fetchTicketDetail(fallbackTicketId!),
-      enabled: Boolean(ticketDetailQuery.isError && fallbackTicketId && fallbackTicketId !== id),
-      retry: false,
-   });
-
-   const apiDetail = ticketDetailQuery.data ?? fallbackTicketDetailQuery.data;
+   const apiDetail = ticketDetailQuery.data;
    const storedPaymentDetail = useMemo(() => {
-      if (!id) {
-         return undefined;
-      }
-
+      if (!orderId) return undefined;
       return readStoredPaymentCompleteItems().find(item => {
-         return item.ticketId === id || item.orderId === id || item.orderNumber === id;
+         return item.ticketId === orderId || item.orderId === orderId || item.orderNumber === orderId;
       });
-   }, [id]);
-   const isLoading =
-      ticketDetailQuery.isLoading ||
-      fallbackTicketsQuery.isLoading ||
-      (Boolean(fallbackTicketId) && fallbackTicketDetailQuery.isLoading);
+   }, [orderId]);
+   const isLoading = orderTicketsQuery.isLoading || (Boolean(primaryTicketId) && ticketDetailQuery.isLoading);
    const isError =
-      (isLikelyOrderReference(id) || ticketDetailQuery.isError) &&
-      !apiDetail &&
-      !storedPaymentDetail &&
-      !fallbackTicketsQuery.isLoading &&
-      (!fallbackTicketId || fallbackTicketDetailQuery.isError);
-
-   const { data: orderTickets = [] } = useQuery({
-      queryKey: ['orderTickets', apiDetail?.orderId],
-      queryFn: () => fetchOrderTickets(apiDetail!.orderId),
-      enabled: !!apiDetail?.orderId,
-   });
+      orderTicketsQuery.isError ||
+      (!primaryTicketId && !orderTicketsQuery.isLoading && !storedPaymentDetail) ||
+      (Boolean(primaryTicketId) && ticketDetailQuery.isError);
 
    useEffect(() => {
       if ((location.state as { showCancelSuccess?: boolean } | null)?.showCancelSuccess) {
@@ -413,7 +400,6 @@ export default function PurchaseDetailPage() {
       const isInvalid = currentApiDetail.ticketStatus === 'INVALID';
       const isActionableTicket = currentApiDetail.ticketStatus !== 'INVALID';
 
-      // 좌석 아이템 목록 구성 (orderTickets 우선, 없으면 단일 apiDetail 사용)
       const seatItems: PurchaseSeatItem[] =
          orderTickets.length > 0
             ? orderTickets.map(t => ({
@@ -450,8 +436,11 @@ export default function PurchaseDetailPage() {
             ? orderTickets.reduce((sum, t) => sum + (t.serviceFee ?? 0), 0)
             : (currentApiDetail.serviceFee ?? 0);
       const total = ticketAmount + fee;
-
-      const paymentMethodDisplay = currentApiDetail.paymentMethodDisplay ?? currentApiDetail.paymentMethod ?? '-';
+      const paymentMethodDisplay = orderPaymentQuery.data?.paymentMethod
+         ? formatOrderPaymentMethod(orderPaymentQuery.data.paymentMethod)
+         : (currentApiDetail.paymentMethodDisplay ?? currentApiDetail.paymentMethod ?? undefined);
+      const paidAt = orderPaymentQuery.data?.paidAt;
+      const paymentAmount = orderPaymentQuery.data?.paymentAmount ?? total;
 
       return {
          id: currentApiDetail.ticketId,
@@ -475,30 +464,33 @@ export default function PurchaseDetailPage() {
          seatInfo: currentApiDetail.seatInfo,
          ticketPrice: currentApiDetail.ticketPrice,
          paymentMethodDisplay,
+         paidAt,
          seatItems,
          paymentSummary: {
             status: isInvalid ? '결제 완료' : '결제 완료',
             ticketCount,
             ticketAmount,
             fee,
-            total,
-            date: currentApiDetail.issuedAt,
+            total: paymentAmount,
+            date: paidAt,
+            bankAccount: undefined as string | undefined,
+            bankDeadline: undefined as string | undefined,
          },
-         paymentEvents: [{ type: '결제 완료', method: paymentMethodDisplay }],
+         paymentEvents: [{ type: '결제 완료' as const, method: paymentMethodDisplay ?? '-' }],
          refundInfo: isInvalid
             ? {
                  ticketAmount,
                  cancelFee: 0,
                  refundTotal: ticketAmount,
-                 method: paymentMethodDisplay,
-                 date: currentApiDetail.issuedAt,
+                 method: paymentMethodDisplay ?? '정보 없음',
+                 date: paidAt,
               }
             : undefined,
          canCancel: isActionableTicket,
          canSell: isActionableTicket,
          deliveryMethod: '모바일 QR',
       };
-   }, [apiDetail, fallbackOrdererName, orderTickets, storedPaymentDetail]);
+   }, [apiDetail, fallbackOrdererName, orderPaymentQuery.data, orderTickets, storedPaymentDetail]);
 
    if (isLoading) return <div className="py-24 text-center text-body-1-regular">정보를 불러오는 중입니다...</div>;
    if (isError || !detail) {
@@ -533,17 +525,17 @@ export default function PurchaseDetailPage() {
             <CancelBookingDialog
                open={cancelOpen}
                onClose={() => setCancelOpen(false)}
-               orderId={detail.rawOrderId}
-               detailId={detail.id}
+               orderId={orderId!}
                game={{ teams: detail.game.teams, datetime: detail.game.datetime }}
-               seats={[
-                  ...detail.seatItems.map(seat => ({
-                     orderId: seat.orderId,
-                     section: seat.section,
-                     seatDetail: seat.seatDetail,
-                     price: seat.price,
-                  })),
-               ]}
+               isBankTransfer={orderPaymentQuery.data?.paymentMethod === 'ACCOUNT_TRANSFER'}
+               paymentMethod={detail.paymentMethodDisplay}
+               seats={seatTickets.map((seat) => ({
+                  orderId: seat.orderId,
+                  section: seat.section,
+                  seatDetail: seat.seatDetail,
+                  price: seat.price,
+                  ticketId: seat.ticketId,
+               }))}
             />
          )}
 
@@ -554,6 +546,7 @@ export default function PurchaseDetailPage() {
                onCompleteConfirm={() => navigate('/mypage', { state: { activeTab: 'sale' } })}
                item={{
                   id: detail.id,
+                  rawOrderId: orderId,
                   orderId: detail.orderId,
                   orderDate: detail.orderDate ?? '-',
                   type: '티켓',
@@ -569,6 +562,7 @@ export default function PurchaseDetailPage() {
                   paymentStatus: '예매 완료',
                   deliveryType: '모바일 티켓',
                   canSell: detail.canSell,
+                  ticketIds: orderTickets.map((ticket) => ticket.ticketId),
                }}
             />
          )}
@@ -641,26 +635,36 @@ export default function PurchaseDetailPage() {
 
                {/* 결제 정보 — 취소/환불 상태에서는 숨김 */}
                {detail.ticketStatus !== 'INVALID' && (
-                  <SectionCard>
-                     <div className="flex items-start justify-between text-[20px] font-bold">
+               <SectionCard>
+                  <div className="flex items-start justify-between text-[20px] font-bold">
                         <span className="text-[#161d24] leading-normal">결제 정보</span>
                         <span className="text-primary leading-normal">결제 완료</span>
+                  </div>
+                  {orderPaymentQuery.isLoading ? (
+                     <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                        결제 정보를 불러오는 중입니다.
                      </div>
-                     {/* 금액 요약 */}
-                     <div className="bg-[#f7f8f9] rounded-xl p-5 flex flex-col gap-3">
-                        <InfoRow label={`티켓 금액 (${totalQuantity}매)`} value={formatPrice(totalTicketPrice)} />
-                        <InfoRow label="수수료" value={formatPrice(serviceFee)} />
-                        <div className="flex items-center justify-between font-bold">
-                           <span className="text-[16px] text-[#374553] leading-normal">총 결제 금액</span>
-                           <span className="text-[20px] text-primary leading-normal">{formatPrice(totalPaid)}</span>
+                  ) : orderPaymentQuery.isError ? (
+                     <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                        결제 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+                     </div>
+                  ) : (
+                     <>
+                        <div className="bg-[#f7f8f9] rounded-xl p-5 flex flex-col gap-3">
+                           <InfoRow label={`티켓 금액 (${totalQuantity}매)`} value={formatPrice(totalTicketPrice)} />
+                           <InfoRow label="수수료" value={formatPrice(serviceFee)} />
+                           <div className="flex items-center justify-between font-bold">
+                              <span className="text-[16px] text-[#374553] leading-normal">총 결제 금액</span>
+                              <span className="text-[20px] text-primary leading-normal">{formatPrice(totalPaid)}</span>
+                           </div>
                         </div>
-                     </div>
-                     {/* 결제 수단/일시 */}
-                     <div className="flex flex-col gap-3">
-                        <InfoRow label="결제 수단" value={detail.paymentMethodDisplay} />
-                        <InfoRow label="결제 일시" value={detail.issuedAt ? formatDateTime(detail.issuedAt) : '-'} />
-                     </div>
-                  </SectionCard>
+                        <div className="flex flex-col gap-3">
+                           <InfoRow label="결제 수단" value={detail.paymentMethodDisplay ?? '-'} />
+                           <InfoRow label="결제 일시" value={detail.paidAt ? formatDateTime(detail.paidAt) : '-'} />
+                        </div>
+                     </>
+                  )}
+               </SectionCard>
                )}
 
                {/* 취소/환불 정보 — INVALID 상태일 때만 표시 */}
@@ -682,10 +686,20 @@ export default function PurchaseDetailPage() {
                         </div>
                      </div>
                      {/* 환불 수단/일시 */}
-                     <div className="flex flex-col gap-3">
-                        <InfoRow label="환불 수단" value={detail.paymentMethodDisplay} />
-                        <InfoRow label="취소 일시" value={detail.issuedAt ? formatDateTime(detail.issuedAt) : '-'} />
-                     </div>
+                     {orderPaymentQuery.isLoading ? (
+                        <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                           환불 정보를 불러오는 중입니다.
+                        </div>
+                     ) : orderPaymentQuery.isError ? (
+                        <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                           환불 수단 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+                        </div>
+                     ) : (
+                        <div className="flex flex-col gap-3">
+                           <InfoRow label="환불 수단" value={detail.paymentMethodDisplay ?? '정보 없음'} />
+                           <InfoRow label="취소 일시" value={detail.paidAt ? formatDateTime(detail.paidAt) : '정보 없음'} />
+                        </div>
+                     )}
                      {/* 안내 문구 */}
                      <div className="bg-[#f7f8f9] rounded-xl p-5">
                         <div className="flex flex-col gap-1 text-[13px] font-medium text-[#646f7c] leading-normal">
@@ -697,7 +711,7 @@ export default function PurchaseDetailPage() {
                )}
 
                {/* 취소/환불 정보 (InfoItem) */}
-               {detail.refundInfo && (
+               {detail.refundInfo && !orderPaymentQuery.isError && (
                   <InfoItem
                      type="payment"
                      heading="취소/환불 정보"

@@ -2,6 +2,7 @@
 
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import { createGuardrailHeaders } from '@/shared/lib/guardrailHeaders';
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
 const shouldUseRelativeApiBase = import.meta.env.DEV;
@@ -77,6 +78,7 @@ export const releaseResaleListingHoldKeepalive = (holdId: string) => {
       method: 'PATCH',
       headers: {
          'Content-Type': 'application/json',
+         ...createGuardrailHeaders(),
       },
       credentials: 'omit',
       keepalive: true,
@@ -88,7 +90,11 @@ export interface CreateResaleListingRequest {
    listingPrice: number;
 }
 
-export const createResaleListing = async (body: CreateResaleListingRequest): Promise<void> => {
+export interface CreateResaleListingsRequest {
+   listings: CreateResaleListingRequest[];
+}
+
+export const createResaleListings = async (body: CreateResaleListingsRequest): Promise<void> => {
    await apiClient.post('/api/v1/resales/listings', body);
 };
 
@@ -113,13 +119,16 @@ export const fetchResaleListingDetail = async (listingId: string): Promise<Resal
 };
 
 export const cancelResaleListing = async (listingId: string): Promise<void> => {
-   await apiClient.patch('/api/v1/resales/listings/cancel', {
-      listingId,
-   });
+   await apiClient.patch('/api/v1/resales/listings/cancel', { listingId });
 };
 
 export interface ResaleGameListingCountResponse {
    count: number;
+}
+
+export interface MyResaleListingSummaryResponse {
+   listingCount: number;
+   soldCount: number;
 }
 
 export interface ResaleHistoryPointResponse {
@@ -182,6 +191,11 @@ export const fetchResaleListings = async (): Promise<ResaleListingItem[]> => {
    return response.data.data;
 };
 
+export const fetchMyResaleListingSummary = async (): Promise<MyResaleListingSummaryResponse> => {
+   const response = await apiClient.get<ApiEnvelope<MyResaleListingSummaryResponse>>('/api/v1/resales/listings/count/listing');
+   return response.data.data;
+};
+
 export const fetchResaleHistoryGraph = async (
    gameId: string,
    gradeId: string,
@@ -189,6 +203,48 @@ export const fetchResaleHistoryGraph = async (
 ): Promise<ResaleHistoryPointResponse[]> => {
    const response = await apiClient.get<ApiEnvelope<ResaleHistoryPointResponse[]>>(
       `/api/v1/resales/histories/games/${encodeURIComponent(gameId)}/grade/${encodeURIComponent(gradeId)}/ranges/${range}/graph`,
+   );
+
+   return response.data.data;
+};
+
+export interface ResaleLedger {
+   id: string;
+   orderId: string;
+   paymentId: string;
+   totalAmount: number;
+   buyerFee: number;
+   sellerFee: number;
+   vat: number;
+   netProfit: number;
+   settlementAmount: number;
+   createdAt: string;
+}
+
+interface ResaleLedgerPageResponse {
+   content: ResaleLedger[];
+   totalElements: number;
+   totalPages: number;
+   number: number;
+   size: number;
+   empty: boolean;
+}
+
+export const fetchResaleLedgers = async (params?: {
+   page?: number;
+   size?: number;
+}): Promise<ResaleLedgerPageResponse> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleLedgerPageResponse>>(
+      '/api/v1/payments/resales/ledgers',
+      { params },
+   );
+
+   return response.data.data;
+};
+
+export const fetchResaleLedgerByOrderId = async (orderId: string): Promise<ResaleLedger> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleLedger>>(
+      `/api/v1/payments/resales/ledgers/orders/${encodeURIComponent(orderId)}`,
    );
 
    return response.data.data;

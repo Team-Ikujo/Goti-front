@@ -6,8 +6,8 @@ import {
   fetchBaseballTeamDetails,
   fetchGameSchedules,
   type FetchGameSchedulesParams,
-  type GameScheduleResponse,
 } from '@/entities/game/api/scheduleApi';
+import type { GameScheduleResponse } from '@/shared/types/game';
 import { teams } from '@/entities/team/model/teams';
 import type { DaySchedule, GameRow, GameStatus, ReselStatus, TicketStatus } from '@/pages/home/ui/game-schedule/types';
 
@@ -37,6 +37,7 @@ export type NormalizedScheduleGame = {
   isToday: boolean;
   ticketingOpenedAt?: string;
   ticketingEndAt?: string;
+  remainingSeatCount?: number;
 };
 
 type TeamReference = {
@@ -151,6 +152,7 @@ const findTeamReference = (...candidates: Array<string | undefined>) => {
       reference.fullName,
       ...reference.aliases,
     ]
+      .filter((v): v is string => v !== undefined)
       .map(normalizeLookupValue);
 
     return normalizedCandidates.some((candidate) => referenceCandidates.includes(candidate));
@@ -309,6 +311,7 @@ const mapTicketStatus = (value: string): TicketStatus => {
     case 'ENDED':
     case 'EXHAUSTED':
     case 'TERMINATED':
+    case 'CANCELED':
       return '매진';
     case 'PAUSED':
       return '판매예정';
@@ -404,6 +407,7 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
     isToday: isSameCalendarDate(date, new Date()),
     ticketingOpenedAt: game.ticketingOpenedAt,
     ticketingEndAt: game.ticketingEndAt,
+    remainingSeatCount: game.remainingSeatCount,
   };
 };
 

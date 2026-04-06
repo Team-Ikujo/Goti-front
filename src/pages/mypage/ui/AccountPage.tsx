@@ -2,15 +2,23 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { createMemberAccount, createMemberAddress, type MemberAccount, type MemberAddress } from '@/entities/user/api/memberApi';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { Input } from '@/shared/ui/input';
+import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { AccountModals } from './AccountModals';
 import type { ModalType } from './AccountModals';
 import { AccountTermsDialogs } from './AccountTermsDialogs';
 import type { TermsType } from './AccountTermsDialogs';
-import { useMyProfileData, useMyOrdersData, useMyResaleListData } from '../model/useMypageData';
+import {
+   useMyProfileData,
+   useMyOrdersData,
+   useMyResaleListData,
+   useMyResaleUnsettledAmountData,
+} from '../model/useMypageData';
 
 const BANKS = [
    '국민은행',
@@ -73,12 +81,17 @@ function loadDaumPostcodeAndOpen(onComplete: (zipCode: string, address: string) 
 export default function AccountPage() {
    const navigate = useNavigate();
    const location = useLocation();
-   const { data: profile } = useMyProfileData();
-   const { data: purchaseItems = [] } = useMyOrdersData();
-   const { data: saleItems = [] } = useMyResaleListData();
+   const queryClient = useQueryClient();
+   const profileQuery = useMyProfileData();
+   const ordersQuery = useMyOrdersData();
+   const resaleListQuery = useMyResaleListData();
+   const unsettledAmountQuery = useMyResaleUnsettledAmountData();
+   const profile = profileQuery.data;
+   const purchaseItems = ordersQuery.data ?? [];
+   const saleItems = resaleListQuery.data ?? [];
 
    // 미정산 금액 존재 여부: 판매 완료 후 정산 대기 중인 항목
-   const hasUnpaidAmount = saleItems.some(i => i.saleStatus === '정산 대기');
+   const hasUnpaidAmount = (unsettledAmountQuery.data?.unsettledAmount ?? 0) > 0;
    // 예매 완료 또는 판매 중인 티켓 존재 여부
    const hasActiveTickets =
       purchaseItems.some(i => i.paymentStatus === '예매 완료') || saleItems.some(i => i.saleStatus === '판매 중');
@@ -91,20 +104,7 @@ export default function AccountPage() {
    const [termsDialog, setTermsDialog] = useState<TermsType>(null);
 
    // ── 간편 로그인 연결 ──
-   const [googleConnected, setGoogleConnected] = useState(true);
-   const [kakaoConnected, setKakaoConnected] = useState(true);
-   const [naverConnected, setNaverConnected] = useState(false);
-
-   const connectedCount = [googleConnected, kakaoConnected, naverConnected].filter(Boolean).length;
-
-   /** 토글 클릭: 1개만 남은 경우 해지 불가 팝업 */
-   const handleSocialToggle = (isConnected: boolean, setter: (v: boolean) => void) => {
-      if (isConnected && connectedCount <= 1) {
-         setModal('cannotDisconnect');
-         return;
-      }
-      setter(!isConnected);
-   };
+   const socialConnectionApiAvailable = false;
 
    // ── 계좌 정보 ──
    const [bank, setBank] = useState('');
@@ -114,14 +114,16 @@ export default function AccountPage() {
    const accountCardRef = useRef<HTMLDivElement>(null);
    const [accountNumber, setAccountNumber] = useState('');
    const [depositor, setDepositor] = useState('');
+   const [savedAccount, setSavedAccount] = useState<MemberAccount | null>(null);
+   const [savedAddress, setSavedAddress] = useState<MemberAddress | null>(null);
    const [agreeAll, setAgreeAll] = useState(false);
    const [agreeOpen, setAgreeOpen] = useState(false);
    const [agreeThird, setAgreeThird] = useState(false);
    const [agreePersonal, setAgreePersonal] = useState(false);
 
    // ── 주소 수정 ──
-   const [zipCode, setZipCode] = useState('12345');
-   const [address, setAddress] = useState('서울특별시 강남구 테헤란로 123');
+   const [zipCode, setZipCode] = useState('');
+   const [address, setAddress] = useState('');
    const [addressDetail, setAddressDetail] = useState('');
 
    // 은행 드롭다운 외부 클릭 닫기
@@ -155,7 +157,47 @@ export default function AccountPage() {
    };
 
    const isAccountSaveEnabled = !!(bank && accountNumber && depositor && agreeOpen && agreeThird && agreePersonal);
+   const isAddressSaveEnabled = Boolean(zipCode && address && addressDetail.trim());
    const clearAuth = useAuthStore(state => state.clearAuth);
+   const isPageLoading =
+      profileQuery.isLoading || ordersQuery.isLoading || resaleListQuery.isLoading || unsettledAmountQuery.isLoading;
+   const isPageError =
+      profileQuery.isError || ordersQuery.isError || resaleListQuery.isError || unsettledAmountQuery.isError;
+
+   const { mutate: saveAccount, isPending: isSavingAccount } = useMutation({
+      mutationFn: () =>
+         createMemberAccount({
+            accountNumber,
+            bankName: bank,
+            accountHolder: depositor,
+         }),
+      onSuccess: (registeredAccount) => {
+         setSavedAccount(registeredAccount);
+         alert('계좌 정보가 저장되었습니다.');
+      },
+      onError: (error) => {
+         alert(getErrorMessage(error, '계좌 정보 저장에 실패했습니다. 다시 시도해주세요.'));
+      },
+   });
+
+   const { mutate: saveAddress, isPending: isSavingAddress } = useMutation({
+      mutationFn: () =>
+         createMemberAddress({
+            zipCode,
+            baseAddress: address,
+            detailAddress: addressDetail.trim(),
+         }),
+      onSuccess: (registeredAddress) => {
+         setSavedAddress(registeredAddress);
+         setZipCode(registeredAddress.zipCode);
+         setAddress(registeredAddress.baseAddress);
+         setAddressDetail(registeredAddress.detailAddress);
+         alert('주소 정보가 저장되었습니다.');
+      },
+      onError: (error) => {
+         alert(getErrorMessage(error, '주소 정보 저장에 실패했습니다. 다시 시도해주세요.'));
+      },
+   });
 
    /** 계좌 정보 변경 버튼: 계좌 정보 카드로 스크롤 후 은행 드롭다운 오픈 */
    const handleAccountChange = () => {
@@ -199,6 +241,32 @@ export default function AccountPage() {
       closeModal();
       navigate('/');
    };
+
+   if (isPageLoading) {
+      return <div className="py-24 text-center text-body-1-regular text-muted-foreground">계정 정보를 불러오는 중입니다.</div>;
+   }
+
+   if (isPageError) {
+      return (
+         <div className="flex flex-col items-center justify-center gap-4 py-24">
+            <p className="text-body-1-regular text-muted-foreground">
+               계정 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+            </p>
+            <button
+               type="button"
+               onClick={() => {
+                  void queryClient.invalidateQueries({ queryKey: ['myProfile'] });
+                  void queryClient.invalidateQueries({ queryKey: ['myOrders'] });
+                  void queryClient.invalidateQueries({ queryKey: ['myResales'] });
+                  void queryClient.invalidateQueries({ queryKey: ['myResaleUnsettledAmount'] });
+               }}
+               className="rounded-lg border border-border px-6 py-3 text-body-1-bold text-muted-foreground hover:bg-surface transition-colors"
+            >
+               다시 시도
+            </button>
+         </div>
+      );
+   }
 
    return (
       <div className="flex-1 bg-background">
@@ -261,8 +329,8 @@ export default function AccountPage() {
                      <div className="flex items-center justify-between">
                         <p className="text-body-1-bold text-(--text-tertiary)">계좌 정보</p>
                         <div className="flex items-center gap-2">
-                           <p className="text-body-1-regular text-foreground">카카오뱅크</p>
-                           <p className="text-body-1-regular text-foreground">3333-67-8765445</p>
+                           <p className="text-body-1-regular text-foreground">{savedAccount?.bankName ?? '미등록'}</p>
+                           <p className="text-body-1-regular text-foreground">{savedAccount?.accountNumber ?? '-'}</p>
                            <button
                               type="button"
                               onClick={handleAccountChange}
@@ -278,6 +346,9 @@ export default function AccountPage() {
                {/* ── 간편 로그인 연결 카드 ── */}
                <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6.25 flex flex-col gap-7.5">
                   <p className="text-heading-3-bold text-foreground">간편 로그인 연결</p>
+                  <p className="text-body-2-regular text-muted-foreground">
+                     현재 문서 기준으로 연결 계정 조회/변경 API가 정의되지 않아 상태 표시는 제공하지 않습니다.
+                  </p>
                   <div className="flex flex-col gap-4">
                      {/* Google */}
                      <div className="flex items-center justify-between px-1">
@@ -292,10 +363,7 @@ export default function AccountPage() {
                               회원가입 계정
                            </span>
                         </div>
-                        <Toggle
-                           checked={googleConnected}
-                           onChange={() => handleSocialToggle(googleConnected, setGoogleConnected)}
-                        />
+                        <Toggle checked={false} onChange={() => {}} disabled={!socialConnectionApiAvailable} />
                      </div>
                      {/* Kakao */}
                      <div className="border-t border-border pt-4 flex items-center justify-between px-1">
@@ -305,10 +373,7 @@ export default function AccountPage() {
                            </div>
                            <p className="text-body-2-medium text-muted-foreground">카카오 계정 연결</p>
                         </div>
-                        <Toggle
-                           checked={kakaoConnected}
-                           onChange={() => handleSocialToggle(kakaoConnected, setKakaoConnected)}
-                        />
+                        <Toggle checked={false} onChange={() => {}} disabled={!socialConnectionApiAvailable} />
                      </div>
                      {/* Naver */}
                      <div className="border-t border-border pt-4 flex items-center justify-between px-1">
@@ -318,10 +383,7 @@ export default function AccountPage() {
                            </div>
                            <p className="text-body-2-medium text-muted-foreground">네이버 계정 연결</p>
                         </div>
-                        <Toggle
-                           checked={naverConnected}
-                           onChange={() => handleSocialToggle(naverConnected, setNaverConnected)}
-                        />
+                        <Toggle checked={false} onChange={() => {}} disabled={!socialConnectionApiAvailable} />
                      </div>
                   </div>
                </div>
@@ -335,6 +397,9 @@ export default function AccountPage() {
                   <div className="flex flex-col gap-6">
                      <p className="text-caption-1-regular text-(--text-tertiary)">
                         계좌 미등록 시 리셀 및 취소/환불 기능이 제한됩니다.
+                     </p>
+                     <p className="text-caption-1-regular text-muted-foreground">
+                        계좌 조회 API가 없어 현재 세션에서 저장에 성공한 계좌만 화면에 반영됩니다.
                      </p>
 
                      {/* 은행 + 계좌번호 */}
@@ -454,14 +519,16 @@ export default function AccountPage() {
                      </div>
 
                      <button
-                        disabled={!isAccountSaveEnabled}
+                        type="button"
+                        disabled={!isAccountSaveEnabled || isSavingAccount}
+                        onClick={() => saveAccount()}
                         className={`border border-border rounded-lg py-3 text-body-1-bold w-full transition-colors ${
-                           isAccountSaveEnabled
+                           isAccountSaveEnabled && !isSavingAccount
                               ? 'text-muted-foreground hover:bg-surface'
                               : 'text-(--text-disabled) cursor-not-allowed'
                         }`}
                      >
-                        저장
+                        {isSavingAccount ? '저장 중...' : '저장'}
                      </button>
                   </div>
                </div>
@@ -472,6 +539,11 @@ export default function AccountPage() {
                   <div className="flex gap-5">
                      <p className="text-body-2-medium text-foreground whitespace-nowrap">주소정보</p>
                      <div className="flex flex-col gap-7.5 flex-1">
+                        {savedAddress && (
+                           <div className="rounded-lg bg-surface px-4 py-3 text-body-2-regular text-muted-foreground">
+                              최근 저장 주소: ({savedAddress.zipCode}) {savedAddress.baseAddress} {savedAddress.detailAddress}
+                           </div>
+                        )}
                         <div className="flex flex-col gap-4">
                            <div className="flex items-end gap-2.5">
                               <Input className="flex-1" label="우편번호" required value={zipCode} disabled readOnly />
@@ -492,8 +564,17 @@ export default function AccountPage() {
                               onChange={e => setAddressDetail(e.target.value)}
                            />
                         </div>
-                        <button className="border border-border rounded-lg py-3 text-body-1-bold text-muted-foreground w-full hover:bg-surface transition-colors">
-                           저장
+                        <button
+                           type="button"
+                           disabled={!isAddressSaveEnabled || isSavingAddress}
+                           onClick={() => saveAddress()}
+                           className={`border border-border rounded-lg py-3 text-body-1-bold w-full transition-colors ${
+                              isAddressSaveEnabled && !isSavingAddress
+                                 ? 'text-muted-foreground hover:bg-surface'
+                                 : 'text-(--text-disabled) cursor-not-allowed'
+                           }`}
+                        >
+                           {isSavingAddress ? '저장 중...' : '저장'}
                         </button>
                      </div>
                   </div>
@@ -537,14 +618,18 @@ export default function AccountPage() {
 interface ToggleProps {
    checked: boolean;
    onChange: () => void;
+   disabled?: boolean;
 }
-function Toggle({ checked, onChange }: ToggleProps) {
+function Toggle({ checked, onChange, disabled = false }: ToggleProps) {
    return (
       <button
+         type="button"
          role="switch"
          aria-checked={checked}
+         aria-disabled={disabled}
          onClick={onChange}
-         className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${checked ? 'bg-primary' : 'bg-border'}`}
+         disabled={disabled}
+         className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${checked ? 'bg-primary' : 'bg-border'} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
       >
          <span
             className={`absolute top-0.5 left-0.5 size-5 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`}
