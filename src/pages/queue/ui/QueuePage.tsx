@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Lottie from 'lottie-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { createBookingFlowSearch, getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
@@ -24,9 +25,49 @@ const parsePositiveNumber = (value: string | null, fallback: number) => {
 const formatRank = (value: number) => new Intl.NumberFormat('ko-KR').format(Math.round(value));
 
 const QueueIllustration = () => {
+   const [animationData, setAnimationData] = useState<Record<string, unknown> | null>(null);
+
+   useEffect(() => {
+      let isMounted = true;
+
+      const loadAnimation = async () => {
+         const response = await fetch('/animation/queueAnimation.json');
+
+         if (!response.ok) {
+            throw new Error('queueAnimation.json을 불러오지 못했습니다.');
+         }
+
+         const data = (await response.json()) as Record<string, unknown>;
+
+         if (isMounted) {
+            setAnimationData(data);
+         }
+      };
+
+      void loadAnimation().catch(() => {
+         if (isMounted) {
+            setAnimationData(null);
+         }
+      });
+
+      return () => {
+         isMounted = false;
+      };
+   }, []);
+
    return (
       <div aria-hidden="true" className="flex h-[216px] w-[335px] items-center justify-center">
-         <div className="h-full w-full animate-pulse rounded-[120px] bg-[linear-gradient(180deg,#ddecff_0%,#cfe0fb_100%)]" />
+         {animationData ? (
+            <Lottie
+               animationData={animationData}
+               autoplay
+               loop
+               className="h-full w-full"
+               rendererSettings={{ preserveAspectRatio: 'xMidYMid meet' }}
+            />
+         ) : (
+            <div className="h-full w-full animate-pulse rounded-[120px] bg-[linear-gradient(180deg,#ddecff_0%,#cfe0fb_100%)]" />
+         )}
       </div>
    );
 };
