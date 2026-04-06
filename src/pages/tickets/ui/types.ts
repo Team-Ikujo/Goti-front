@@ -15,8 +15,8 @@ export interface GameItem {
    leagueType: ApiLeagueType;
    awayTeam: string;
    homeTeam: string;
-   date: string;      // YYYY-MM-DD (필터용)
-   dateTime: string;  // 표시용 "2026.07.03 (금) 18:30"
+   date: string; // YYYY-MM-DD (필터용)
+   dateTime: string; // 표시용 "2026.07.03 (금) 18:30"
    venue: string;
    remainingSeats: number;
    resellRemainingSeats?: number;

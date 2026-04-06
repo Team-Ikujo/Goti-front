@@ -20,6 +20,7 @@ import type { SeatItem } from '@/pages/books/model/types';
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
+import { useBotDetector } from '@/shared/lib/useBotDetector';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 import SeatMapStage from './components/SeatMapStage';
 import ResellSeatSidebar from './components/ResellSeatSidebar';
@@ -70,40 +71,36 @@ function SeatsPage() {
    const bookingFlowMode = getBookingFlowMode(location.search);
    const isResellMode = bookingFlowMode === 'resell';
    const routeBookingEntryState = location.state as BookingEntryState | null;
-   const storedBookingEntryState = useBookingEntryStore((state) => state.entry);
+   const storedBookingEntryState = useBookingEntryStore(state => state.entry);
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
-   const setBookingEntry = useBookingEntryStore((state) => state.setEntry);
+   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
+   const { getBotReport } = useBotDetector();
+   const botData = getBotReport();
    const bookingZones = useMemo(
       () => bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId),
       [bookingEntryState?.bookingZones, bookingEntryState?.homeTeamId],
    );
 
-   const zone = useMemo(
-      () => bookingZones.find((item) => item.id === zoneId) ?? bookingZones[0],
-      [bookingZones, zoneId],
+   const zone = useMemo(() => bookingZones.find(item => item.id === zoneId) ?? bookingZones[0], [bookingZones, zoneId]);
+   const zoneOverviewImage = useMemo(
+      () => getZoneOverviewImage(bookingEntryState?.homeTeamId, zone.id),
+      [bookingEntryState?.homeTeamId, zone.id],
    );
-   const zoneOverviewImage = useMemo(() => getZoneOverviewImage(bookingEntryState?.homeTeamId, zone.id), [bookingEntryState?.homeTeamId, zone.id]);
    const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
 
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
-   const {
-      apiSeatItems,
-      seatBlocks,
-      hasApiSeatMap,
-      isSeatMapLoading,
-      refetchSeatMap,
-   } = useSeatMapData({
+   const { apiSeatItems, seatBlocks, hasApiSeatMap, isSeatMapLoading, refetchSeatMap } = useSeatMapData({
       gameId: bookingEntryState?.gameId,
       stadiumId: bookingEntryState?.stadiumId,
       zone,
    });
-   const zonesState = useSeatSelectionStore((state) => state.zones);
-   const zoneSeatState = useSeatSelectionStore((state) => state.zones[zone.id]);
-   const initializeZone = useSeatSelectionStore((state) => state.initializeZone);
-   const applyServerSeatSnapshot = useSeatSelectionStore((state) => state.applyServerSeatSnapshot);
-   const toggleSelectedSeat = useSeatSelectionStore((state) => state.toggleSelectedSeat);
-   const clearAllSelections = useSeatSelectionStore((state) => state.clearAllSelections);
-   const holdsBySeatId = useSeatHoldStore((state) => state.holdsBySeatId);
+   const zonesState = useSeatSelectionStore(state => state.zones);
+   const zoneSeatState = useSeatSelectionStore(state => state.zones[zone.id]);
+   const initializeZone = useSeatSelectionStore(state => state.initializeZone);
+   const applyServerSeatSnapshot = useSeatSelectionStore(state => state.applyServerSeatSnapshot);
+   const toggleSelectedSeat = useSeatSelectionStore(state => state.toggleSelectedSeat);
+   const clearAllSelections = useSeatSelectionStore(state => state.clearAllSelections);
+   const holdsBySeatId = useSeatHoldStore(state => state.holdsBySeatId);
    const { clearSelectedSeats, holdSeat, pendingSeatIds, releaseSeat, syncHeldSeatsIntoZone } = useSeatHoldActions(
       bookingEntryState,
       {
@@ -141,7 +138,15 @@ function SeatsPage() {
       }
 
       initializeZone(zone.id, syncedInitialSeats);
-   }, [apiSeatItems, applyServerSeatSnapshot, hasApiSeatMap, initialSeats, initializeZone, syncHeldSeatsIntoZone, zone.id]);
+   }, [
+      apiSeatItems,
+      applyServerSeatSnapshot,
+      hasApiSeatMap,
+      initialSeats,
+      initializeZone,
+      syncHeldSeatsIntoZone,
+      zone.id,
+   ]);
 
    useEffect(() => {
       const updateViewportSize = () => {
@@ -246,10 +251,7 @@ function SeatsPage() {
       [isResellMode, selectedResellSeatId, selectedSeatIds],
    );
 
-   const selectedSeats = useMemo(
-      () => getSelectedSeatDetails(zonesState, bookingZones),
-      [bookingZones, zonesState],
-   );
+   const selectedSeats = useMemo(() => getSelectedSeatDetails(zonesState, bookingZones), [bookingZones, zonesState]);
 
    const selectedPrice = selectedSeats.reduce((total, item) => total + item.price, 0);
    const isSeatInteractionLocked = Boolean(bookingEntryState?.gameId) && isSeatMapLoading;
@@ -261,16 +263,15 @@ function SeatsPage() {
    });
    const resellInsights = resellInsightsQuery.data ?? null;
    const resellListingBySeatId = useMemo(() => {
-      const listingBySeatIdentifier = new Map((resellInsights?.listings ?? []).map((listing) => [listing.seatId, listing]));
+      const listingBySeatIdentifier = new Map(
+         (resellInsights?.listings ?? []).map(listing => [listing.seatId, listing]),
+      );
       const seatByLookupKey = new Map(
-         seats.map((seat) => [
-            `${normalizeSeatLookupToken(seat.block)}::${seat.rowLabel}::${seat.seatNumber}`,
-            seat,
-         ]),
+         seats.map(seat => [`${normalizeSeatLookupToken(seat.block)}::${seat.rowLabel}::${seat.seatNumber}`, seat]),
       );
       const nextMap = new Map<string, ResellListingItem>();
 
-      seats.forEach((seat) => {
+      seats.forEach(seat => {
          const matchedListing = listingBySeatIdentifier.get(seat.id) ?? listingBySeatIdentifier.get(seat.apiSeatId);
 
          if (matchedListing) {
@@ -278,8 +279,8 @@ function SeatsPage() {
          }
       });
 
-      (resellInsights?.listings ?? []).forEach((listing) => {
-         if ([...nextMap.values()].some((mappedListing) => mappedListing.listingId === listing.listingId)) {
+      (resellInsights?.listings ?? []).forEach(listing => {
+         if ([...nextMap.values()].some(mappedListing => mappedListing.listingId === listing.listingId)) {
             return;
          }
 
@@ -310,7 +311,7 @@ function SeatsPage() {
          return null;
       }
 
-      return selectedResellSeatId ? resellListingBySeatId.get(selectedResellSeatId) ?? null : null;
+      return selectedResellSeatId ? (resellListingBySeatId.get(selectedResellSeatId) ?? null) : null;
    }, [isResellMode, resellListingBySeatId, selectedResellSeatId]);
    const selectedSeatCount = isResellMode ? (selectedResellListing ? 1 : 0) : selectedSeats.length;
    const summaryPrice = isResellMode
@@ -318,21 +319,24 @@ function SeatsPage() {
       : selectedPrice;
    const allSelectedSeatsAreHeld = isResellMode
       ? Boolean(selectedResellSeatId) && Boolean(selectedResellHoldId)
-      : selectedSeats.every((selectedSeat) => Boolean(holdsBySeatId[selectedSeat.seat.id]?.holdId));
+      : selectedSeats.every(selectedSeat => Boolean(holdsBySeatId[selectedSeat.seat.id]?.holdId));
    const bookingButtonLabel = isResellMode ? '예매하기' : `${selectedSeats.length}매 예매하기`;
    const displaySeats = useMemo(() => {
       if (isSeatInteractionLocked) {
-         return seats.map((seat) => ({
-            ...seat,
-            status: 'disabled',
-         } satisfies SeatItem));
+         return seats.map(
+            seat =>
+               ({
+                  ...seat,
+                  status: 'disabled',
+               }) satisfies SeatItem,
+         );
       }
 
       if (!isResellMode) {
          return seats;
       }
 
-      return seats.map((seat) => {
+      return seats.map(seat => {
          if (resellListingBySeatId.has(seat.id)) {
             return {
                ...seat,
@@ -474,6 +478,60 @@ function SeatsPage() {
          top: Math.max(-160, sectionBounds.top - badgeHeight - badgeOffset),
       };
    }, [sectionBounds]);
+
+   const stageContentBounds = useMemo(() => {
+      if (seatBlocks.length === 0) {
+         return null;
+      }
+
+      const blockMetrics = seatBlocks.map((block, index) => {
+         const blockWidth = block.cols * (BLOCK_SEAT_SIZE + BLOCK_SEAT_GAP) - BLOCK_SEAT_GAP;
+         const blockHeight = block.rows * (BLOCK_SEAT_SIZE + BLOCK_SEAT_GAP) - BLOCK_SEAT_GAP;
+         const renderedOffsetX = block.offsetX + index * BLOCK_CARD_COLUMN_GAP;
+         const cardLeft = renderedOffsetX - BLOCK_CARD_PADDING_X;
+         const cardTop = block.offsetY - (BLOCK_CARD_PADDING_TOP + BLOCK_CARD_LABEL_HEIGHT + BLOCK_CARD_LABEL_GAP);
+         const cardWidth = blockWidth + BLOCK_CARD_PADDING_X * 2;
+         const cardHeight =
+            BLOCK_CARD_PADDING_TOP +
+            BLOCK_CARD_LABEL_HEIGHT +
+            BLOCK_CARD_LABEL_GAP +
+            blockHeight +
+            BLOCK_CARD_PADDING_BOTTOM;
+
+         return {
+            left: cardLeft,
+            top: cardTop,
+            right: cardLeft + cardWidth,
+            bottom: cardTop + cardHeight,
+         };
+      });
+
+      return {
+         left: Math.min(...blockMetrics.map(block => block.left)),
+         top: Math.min(...blockMetrics.map(block => block.top)),
+         right: Math.max(...blockMetrics.map(block => block.right)),
+         bottom: Math.max(...blockMetrics.map(block => block.bottom)),
+      };
+   }, [seatBlocks]);
+
+   const _getDefaultBlockMapView = () => {
+      if (!stageContentBounds || mapViewportSize.width === 0 || mapViewportSize.height === 0) {
+         return {
+            scale: 1,
+            offset: { x: 0, y: 0 },
+         };
+      }
+
+      const centeredStageLeft = (mapViewportSize.width - STAGE_WIDTH) / 2;
+
+      return {
+         scale: 1,
+         offset: {
+            x: DEFAULT_SEAT_MAP_LEFT_PADDING - centeredStageLeft - stageContentBounds.left,
+            y: DEFAULT_SEAT_MAP_TOP_PADDING - 56 - stageContentBounds.top,
+         },
+      };
+   };
 
    const minimapLayout = useMemo(() => {
       if (!sectionBounds) {
@@ -759,7 +817,7 @@ function SeatsPage() {
                               insights={resellInsights}
                               zone={zone}
                               selectedListingId={selectedResellListing?.listingId}
-                              onSelectListing={(listing) => {
+                              onSelectListing={listing => {
                                  const mappedSeatId = seatIdByResellListingId.get(listing.listingId);
 
                                  if (!mappedSeatId) {
@@ -775,17 +833,17 @@ function SeatsPage() {
                         ) : (
                            <>
                               <div className="flex items-center justify-between gap-3 px-5 py-4">
-                              <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
-                                 <h2>선택 좌석</h2>
-                                 <span className="text-primary">{selectedSeats.length}</span>
-                              </div>
-                              {selectedSeats.length > 0 ? (
-                                 <button
-                                    type="button"
-                                    onClick={handleClearSelectedSeats}
-                                    className="text-body-1-medium text-tertiary transition-colors hover:text-foreground"
-                                 >
-                                    전체 삭제
+                                 <div className="flex items-center gap-1 text-heading-3-bold text-foreground">
+                                    <h2>선택 좌석</h2>
+                                    <span className="text-primary">{selectedSeats.length}</span>
+                                 </div>
+                                 {selectedSeats.length > 0 ? (
+                                    <button
+                                       type="button"
+                                       onClick={handleClearSelectedSeats}
+                                       className="text-body-1-medium text-tertiary transition-colors hover:text-foreground"
+                                    >
+                                       전체 삭제
                                     </button>
                                  ) : null}
                               </div>
@@ -801,7 +859,9 @@ function SeatsPage() {
                               <div className="px-5 pb-5">
                                  <div className="flex items-center justify-between gap-3 px-1 pb-5 text-heading-4-medium text-secondary">
                                     <span>총 결제 금액</span>
-                                    <span className="text-heading-4-bold text-primary">{formatPrice(summaryPrice)}</span>
+                                    <span className="text-heading-4-bold text-primary">
+                                       {formatPrice(summaryPrice)}
+                                    </span>
                                  </div>
                                  <button
                                     type="button"
@@ -835,7 +895,7 @@ function SeatsPage() {
                   zone={zone}
                   zoneOverviewImage={zoneOverviewImage}
                   stadiumName={stadiumName}
-                  onSelectListing={(listing) => {
+                  onSelectListing={listing => {
                      const mappedSeatId = seatIdByResellListingId.get(listing.listingId);
 
                      if (!mappedSeatId) {
@@ -881,14 +941,14 @@ function SeatsPage() {
                      ) : null}
                   </div>
 
-                     <div className="flex flex-1 flex-col px-5 pb-5">
-                        <div className="flex-1 overflow-y-auto rounded-2xl bg-background">
-                           <SelectedSeatSummaryList
-                              items={selectedSeats}
-                              onRemove={handleRemoveSelectedSeat}
-                              emptyClassName="h-full min-h-[220px] bg-transparent"
-                           />
-                        </div>
+                  <div className="flex flex-1 flex-col px-5 pb-5">
+                     <div className="flex-1 overflow-y-auto rounded-2xl bg-background">
+                        <SelectedSeatSummaryList
+                           items={selectedSeats}
+                           onRemove={handleRemoveSelectedSeat}
+                           emptyClassName="h-full min-h-[220px] bg-transparent"
+                        />
+                     </div>
 
                      <div className="flex items-center justify-between gap-3 px-1 pb-5 pt-6 text-heading-4-medium text-secondary">
                         <span>총 결제 금액</span>

@@ -503,6 +503,7 @@ const resaleLedgers = new Map<string, ResaleLedger>();
 type ResaleListing = {
    listingId: string;
    ticketId: string;
+   ticketNumber?: string;
    sellerId: string;
    seatInfo: string;
    listingPrice: number;
@@ -1759,18 +1760,41 @@ export const paymentHandlers = [
 
    // 리셀 등록
    http.post('/api/v1/resales/listings', async ({ request }) => {
+      type ListingItem = { ticketId?: string; listingPrice?: number };
       const body = (await request.json()) as
-         | { ticketId?: string; listingPrice?: number }
-         | { listings?: Array<{ ticketId?: string; listingPrice?: number }> }
+         | ListingItem
+         | { listings?: Array<ListingItem> }
          | null;
 
-      const listings = 'listings' in (body ?? {}) ? body?.listings ?? [] : body ? [body] : [];
+      const listings: ListingItem[] = 'listings' in (body ?? {}) ? (body as { listings?: ListingItem[] })?.listings ?? [] : body ? [body as ListingItem] : [];
 
       if (listings.length === 0 || listings.some((item) => !item?.ticketId || !item?.listingPrice)) {
          return buildErrorResponse('Missing ticketId or listingPrice.');
       }
 
-      const createdListingIds: string[] = [];
+      const createdListings: Array<{
+         listingId: string;
+         orderId: string;
+         ticketId: string;
+         sellerId: string;
+         gameId: string;
+         seatId: string;
+         gradeId: string;
+         seatInfo: string;
+         dailyBasePrice: number;
+         listingPrice: number;
+         listingStatus: 'LISTING';
+         availableStatus: 'ENABLED';
+         lastTransactionPrice: number;
+         listedAt: string;
+         soldAt?: string;
+         canceledAt?: string;
+         isCancelable: boolean;
+         isPurchasable: boolean;
+         minPrice: number;
+         maxPrice: number;
+      }> = [];
+      const createdOrders: Array<{ orderId: string; orderNumber: string }> = [];
 
       for (const item of listings) {
          const ticket = ticketRecords.get(item.ticketId!);
@@ -1779,6 +1803,7 @@ export const paymentHandlers = [
          }
 
          const listingId = createId('listing');
+         const orderId = createId('resale-order');
          const listing: ResaleListing = {
             listingId,
             ticketId: ticket.ticketId,
@@ -1792,7 +1817,32 @@ export const paymentHandlers = [
             stadiumName: ticket.stadiumName,
          };
          resaleListings.set(listingId, listing);
-         createdListingIds.push(listingId);
+         createdOrders.push({
+            orderId,
+            orderNumber: `RSL-${orderId.replace(/^resale-order-/i, '').slice(0, 8).toUpperCase()}`,
+         });
+         createdListings.push({
+            listingId,
+            orderId,
+            ticketId: ticket.ticketId,
+            sellerId: 'mock-seller',
+            gameId: '',
+            seatId: '',
+            gradeId: '',
+            seatInfo: ticket.seatInfo,
+            dailyBasePrice: item.listingPrice!,
+            listingPrice: item.listingPrice!,
+            listingStatus: 'LISTING',
+            availableStatus: 'ENABLED',
+            lastTransactionPrice: 0,
+            listedAt: listing.listedAt,
+            soldAt: undefined,
+            canceledAt: undefined,
+            isCancelable: true,
+            isPurchasable: true,
+            minPrice: 0,
+            maxPrice: 999999,
+         });
 
          ticketRecords.set(ticket.ticketId, {
             ...ticket,
@@ -1801,7 +1851,14 @@ export const paymentHandlers = [
          });
       }
 
-      return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: { listingIds: createdListingIds } });
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            orders: createdOrders,
+            listings: createdListings,
+         },
+      });
    }),
 
    // 내 리셀 목록 조회
@@ -1809,6 +1866,7 @@ export const paymentHandlers = [
       const listings = Array.from(resaleListings.values()).map((l) => ({
          listingId: l.listingId,
          ticketId: l.ticketId,
+         ticketNumber: l.ticketNumber,
          sellerId: l.sellerId,
          gameId: '',
          seatId: '',
@@ -1860,6 +1918,7 @@ export const paymentHandlers = [
          data: {
             listingId: listing.listingId,
             ticketId: listing.ticketId,
+            ticketNumber: listing.ticketNumber,
             seatInfo: listing.seatInfo,
             listingPrice: listing.listingPrice,
             listingStatus: listing.listingStatus,

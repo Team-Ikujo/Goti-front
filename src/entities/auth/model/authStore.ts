@@ -14,6 +14,7 @@ export type LogoutReason = "manual" | "expired";
 
 const AUTH_SESSION_DURATION_MS = 60 * 60 * 1000;
 const AUTH_STORAGE_KEY = "auth-store";
+const SOCIAL_VERIFY_TOKEN_STORAGE_KEY = "auth-social-verify-token";
 
 const getRemainingSeconds = (authExpiresAt: number | null) => {
   if (!authExpiresAt) {
@@ -25,6 +26,30 @@ const getRemainingSeconds = (authExpiresAt: number | null) => {
 
 const getNextAuthExpiresAt = (accessToken: string | null) =>
   accessToken === null ? null : Date.now() + AUTH_SESSION_DURATION_MS;
+
+const readStoredSocialVerifyToken = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.sessionStorage.getItem(SOCIAL_VERIFY_TOKEN_STORAGE_KEY);
+};
+
+const writeStoredSocialVerifyToken = (socialVerifyToken: string | null) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (socialVerifyToken) {
+    window.sessionStorage.setItem(
+      SOCIAL_VERIFY_TOKEN_STORAGE_KEY,
+      socialVerifyToken,
+    );
+    return;
+  }
+
+  window.sessionStorage.removeItem(SOCIAL_VERIFY_TOKEN_STORAGE_KEY);
+};
 
 export type AuthState = {
   hasHydrated: boolean;
@@ -97,12 +122,17 @@ export const useAuthStore = create<AuthState>()(
           logoutReason: null,
         });
       },
-      setSocialVerifyToken: (socialVerifyToken) => set({ socialVerifyToken }),
+      setSocialVerifyToken: (socialVerifyToken) => {
+        writeStoredSocialVerifyToken(socialVerifyToken);
+        set({ socialVerifyToken });
+      },
       setRecentLoginProvider: (recentLoginProvider) =>
         set({ recentLoginProvider }),
       setAuthTokens: ({ accessToken, socialVerifyToken }) => {
         const nextAuthExpiresAt = getNextAuthExpiresAt(accessToken);
         const nextCurrentUserId = resolveUserIdFromJwt(accessToken);
+
+        writeStoredSocialVerifyToken(socialVerifyToken);
 
         set({
           accessToken,
@@ -135,6 +165,7 @@ export const useAuthStore = create<AuthState>()(
           logoutReason: reason,
           sessionTimerId: null,
         });
+        writeStoredSocialVerifyToken(null);
       },
       clearLogoutReason: () => set({ logoutReason: null }),
       extendAuthSession: () => {
@@ -247,6 +278,7 @@ export const useAuthStore = create<AuthState>()(
       },
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<AuthState> | undefined;
+        const socialVerifyToken = readStoredSocialVerifyToken();
 
         return {
           ...currentState,
@@ -254,6 +286,8 @@ export const useAuthStore = create<AuthState>()(
             persisted?.recentLoginProvider ?? currentState.recentLoginProvider,
           currentUserId:
             persisted?.currentUserId ?? currentState.currentUserId,
+          socialVerifyToken:
+            socialVerifyToken ?? currentState.socialVerifyToken,
           isManualLogout:
             persisted?.isManualLogout ?? currentState.isManualLogout,
         };

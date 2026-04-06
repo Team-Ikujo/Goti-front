@@ -305,7 +305,7 @@ apiClient.interceptors.response.use(
         }
 
         if (!shouldSkipAuthorizationHeader(requestConfig)) {
-          const nextHeaders = AxiosHeaders.from(requestConfig.headers);
+          const nextHeaders = AxiosHeaders.from(requestConfig.headers as AxiosHeaders | undefined);
           nextHeaders.set("Authorization", `Bearer ${accessToken}`);
           requestConfig.headers = nextHeaders;
         }

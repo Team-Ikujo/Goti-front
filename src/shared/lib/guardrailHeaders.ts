@@ -61,7 +61,7 @@ export const createGuardrailHeaders = (): Record<string, string> => {
 };
 
 export const applyGuardrailHeadersToAxiosConfig = (config: AxiosRequestConfig) => {
-   const nextHeaders = AxiosHeaders.from(config.headers);
+   const nextHeaders = AxiosHeaders.from(config.headers as AxiosHeaders | undefined);
    const guardrailHeaders = createGuardrailHeaders();
 
    for (const [headerName, headerValue] of Object.entries(guardrailHeaders)) {

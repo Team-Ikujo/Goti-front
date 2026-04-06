@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { ZoneItem } from '@/pages/books/model/types';
 import type { ApiLeagueType } from '@/shared/types/game';
+import type { BotReport } from '@/shared/lib/botDetector';
 
 export type BookingEntryState = {
    requireCaptcha?: boolean;
@@ -21,6 +22,7 @@ export type BookingEntryState = {
    dateTime?: string;
    turnstileToken?: string;
    bookingZones?: ZoneItem[];
+   botData?: BotReport;
 };
 
 type BookingEntryStore = {
