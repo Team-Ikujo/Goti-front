@@ -10,11 +10,8 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchTicketDetail, fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 import { fetchOrderPaymentDetail, formatOrderPaymentMethod } from '@/entities/payment/api/paymentApi';
 import StatusBadge from './StatusBadge';
-import type { BadgeVariant } from './StatusBadge';
 import TicketItem from './TicketItem';
-import type { TicketItemStatus } from './TicketItem';
 import InfoItem from './InfoItem';
-import QrViewDialog from './QrViewDialog';
 import { Snackbar } from '@/shared/ui/snackbar';
 import { readStoredPaymentCompleteItems } from '@/shared/lib/paymentCompleteStorage';
 import { useAuthStore } from '@/entities/auth/model/authStore';
@@ -275,7 +272,6 @@ function BulletItem({ text }: { text: string }) {
 // ─── 메인 컴포넌트 ──────────────────────────────────────────────
 
 export default function PurchaseDetailPage() {
-   const { id: orderId } = useParams<{ id: string }>();
    const navigate = useNavigate();
    const location = useLocation();
    const accessToken = useAuthStore(state => state.accessToken);
@@ -566,6 +562,18 @@ export default function PurchaseDetailPage() {
                }}
             />
          )}
+         <PurchaseDetailDialogs
+            orderId={orderId!}
+            detail={detail}
+            orderTickets={orderTickets}
+            isBankTransfer={orderPaymentQuery.data?.paymentMethod === 'ACCOUNT_TRANSFER'}
+            qrOpen={qrOpen}
+            cancelOpen={cancelOpen}
+            resellOpen={resellOpen}
+            onCloseQr={() => setQrOpen(false)}
+            onCloseCancel={() => setCancelOpen(false)}
+            onCloseResell={() => setResellOpen(false)}
+         />
 
          <div className="flex flex-col gap-14 w-full max-w-190 min-w-83.75">
             {/* 제목 */}
@@ -795,13 +803,6 @@ export default function PurchaseDetailPage() {
             </div>
          </div>
 
-         <QrViewDialog
-            open={qrOpen}
-            onClose={() => setQrOpen(false)}
-            seats={detail.seatItems
-               .filter(s => s.status !== '취소완료')
-               .map(s => ({ ticketId: s.ticketId, section: s.section, seatDetail: s.seatDetail }))}
-         />
       </div>
    );
 }

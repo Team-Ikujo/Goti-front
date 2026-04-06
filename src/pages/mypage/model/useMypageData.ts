@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useAuthStore } from '@/entities/auth/model/authStore';
-import { fetchMyProfile } from '@/entities/user/api/memberApi';
+import { fetchMyProfile, MY_PROFILE_MOCK } from '@/entities/user/api/memberApi';
 import { fetchMyOrders, type OrderListItem } from '@/entities/order/api/orderApi';
 import {
    fetchMyResaleListingSummary,
@@ -11,7 +11,6 @@ import {
 } from '@/entities/resale/api/resaleApi';
 import { fetchResaleUnsettledAmount, type ResaleUnsettledAmountResponse } from '@/entities/payment/api/paymentApi';
 import { teams } from '@/entities/team/model/teams';
-import { resolveProfileFromJwt } from '@/shared/lib/jwt';
 import type { PurchaseHistoryItem, SaleHistoryItem, PurchaseStatus, SaleStatus } from '../ui/HistoryCard';
 import type { TicketType } from '../ui/TicketTypeBadge';
 import { formatTicketNumber } from './ticketNumber';
@@ -87,19 +86,13 @@ const mapSaleStatus = (status: ResaleListingItem['listingStatus']): SaleStatus =
 
 export const useMyProfileData = () => {
    const accessToken = useAuthStore(s => s.accessToken);
-   const tokenProfile = useMemo(() => resolveProfileFromJwt(accessToken), [accessToken]);
 
    return useQuery({
       queryKey: ['myProfile', accessToken],
       queryFn: fetchMyProfile,
+      initialData: MY_PROFILE_MOCK,
+      placeholderData: MY_PROFILE_MOCK,
       enabled: !!accessToken,
-      select: (profile) => ({
-         ...profile,
-         name: profile.name ?? tokenProfile?.name,
-         email: profile.email ?? tokenProfile?.email,
-         mobile: profile.mobile ?? tokenProfile?.mobile,
-      }),
-      placeholderData: tokenProfile ?? undefined,
    });
 };
 

@@ -1,13 +1,10 @@
 // src/pages/mypage/ui/AccountPage.tsx
-
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/entities/auth/model/authStore';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { createMemberAccount, createMemberAddress, type MemberAccount, type MemberAddress } from '@/entities/user/api/memberApi';
-import { Checkbox } from '@/shared/ui/checkbox';
-import { Input } from '@/shared/ui/input';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { AccountModals } from './AccountModals';
 import type { ModalType } from './AccountModals';
@@ -19,6 +16,12 @@ import {
    useMyResaleListData,
    useMyResaleUnsettledAmountData,
 } from '../model/useMypageData';
+import { openDaumPostcode } from '../model/useDaumPostcode';
+import { AccountSummaryCard } from './AccountSummaryCard';
+import { SocialConnectionsCard } from './SocialConnectionsCard';
+import { AccountBankFormCard } from './AccountBankFormCard';
+import { AccountAddressFormCard } from './AccountAddressFormCard';
+import { AccountManagementCard } from './AccountManagementCard';
 
 const BANKS = [
    '국민은행',
@@ -150,7 +153,7 @@ export default function AccountPage() {
    };
 
    const handlePostcodeSearch = () => {
-      loadDaumPostcodeAndOpen((zip, addr) => {
+      openDaumPostcode((zip, addr) => {
          setZipCode(zip);
          setAddress(addr);
       });
@@ -241,6 +244,27 @@ export default function AccountPage() {
       closeModal();
       navigate('/');
    };
+
+   const accountAgreementItems = [
+      {
+         label: '오픈뱅킹공동업무 자동계좌이체 약관',
+         checked: agreeOpen,
+         onChange: (value: boolean) => handleIndividualAgree(setAgreeOpen, value, [agreeThird, agreePersonal]),
+         termsKey: 'openBanking' as TermsType,
+      },
+      {
+         label: '개인(신용)정보 제3자 제공 동의',
+         checked: agreeThird,
+         onChange: (value: boolean) => handleIndividualAgree(setAgreeThird, value, [agreeOpen, agreePersonal]),
+         termsKey: 'thirdParty' as TermsType,
+      },
+      {
+         label: '개인정보 수집‧이용 동의 [출금이체]',
+         checked: agreePersonal,
+         onChange: (value: boolean) => handleIndividualAgree(setAgreePersonal, value, [agreeOpen, agreeThird]),
+         termsKey: 'personalInfo' as TermsType,
+      },
+   ];
 
    if (isPageLoading) {
       return <div className="py-24 text-center text-body-1-regular text-muted-foreground">계정 정보를 불러오는 중입니다.</div>;
@@ -611,29 +635,5 @@ export default function AccountPage() {
          />
          <AccountTermsDialogs termsDialog={termsDialog} onClose={() => setTermsDialog(null)} />
       </div>
-   );
-}
-
-/* ── 토글 컴포넌트 ── */
-interface ToggleProps {
-   checked: boolean;
-   onChange: () => void;
-   disabled?: boolean;
-}
-function Toggle({ checked, onChange, disabled = false }: ToggleProps) {
-   return (
-      <button
-         type="button"
-         role="switch"
-         aria-checked={checked}
-         aria-disabled={disabled}
-         onClick={onChange}
-         disabled={disabled}
-         className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${checked ? 'bg-primary' : 'bg-border'} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-      >
-         <span
-            className={`absolute top-0.5 left-0.5 size-5 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`}
-         />
-      </button>
    );
 }
