@@ -3,16 +3,21 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '@/entities/auth/model/authStore';
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { createMemberAccount, createMemberAddress, type MemberAccount, type MemberAddress } from '@/entities/user/api/memberApi';
 import { MY_PROFILE_MOCK } from '@/entities/user/api/memberApi';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
-import { Checkbox } from '@/shared/ui/checkbox';
-import { Input } from '@/shared/ui/input';
 import { AccountModals } from './AccountModals';
 import type { ModalType } from './AccountModals';
 import { AccountTermsDialogs } from './AccountTermsDialogs';
 import type { TermsType } from './AccountTermsDialogs';
+import {
+   AccountFormCard,
+   AccountInfoCard,
+   AccountManagementCard,
+   AddressFormCard,
+   SocialConnectionsCard,
+} from './AccountPageSections';
 import {
    useMyProfileData,
    useMyOrdersData,
@@ -43,30 +48,6 @@ const BANKS = [
    '부산은행',
    '대구은행',
 ];
-
-interface ToggleProps {
-   checked: boolean;
-   onChange: () => void;
-   disabled?: boolean;
-}
-
-function Toggle({ checked, onChange, disabled = false }: ToggleProps) {
-   return (
-      <button
-         type="button"
-         role="switch"
-         aria-checked={checked}
-         aria-disabled={disabled}
-         onClick={onChange}
-         disabled={disabled}
-         className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${checked ? 'bg-primary' : 'bg-border'} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-      >
-         <span
-            className={`absolute top-0.5 left-0.5 size-5 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`}
-         />
-      </button>
-   );
-}
 
 export default function AccountPage() {
    const navigate = useNavigate();
@@ -250,6 +231,34 @@ export default function AccountPage() {
       },
    ];
 
+   const socialConnectionItems = [
+      {
+         key: 'google',
+         label: 'Google 계정 연결',
+         iconSrc: '/Icon/Logo/Google.svg',
+         iconAlt: 'Google',
+         iconWrapperClassName: 'rounded-full border border-border-light p-0.5',
+         showSignupBadge: true,
+      },
+      {
+         key: 'kakao',
+         label: '카카오 계정 연결',
+         iconSrc: '/Icon/Logo/Kakao.svg',
+         iconAlt: 'Kakao',
+         iconWrapperClassName: 'flex size-7 items-center justify-center overflow-hidden rounded-full bg-[#ffde00]',
+         textClassName: 'text-muted-foreground',
+      },
+      {
+         key: 'naver',
+         label: '네이버 계정 연결',
+         iconSrc: '/Icon/Logo/Naver.svg',
+         iconAlt: 'Naver',
+         iconWrapperClassName:
+            'flex size-7 items-center justify-center overflow-hidden rounded-full bg-[#00c73c] p-0.5',
+         textClassName: 'text-muted-foreground',
+      },
+   ];
+
    if (isPageLoading) {
       return <div className="py-24 text-center text-body-1-regular text-muted-foreground">계정 정보를 불러오는 중입니다.</div>;
    }
@@ -269,299 +278,49 @@ export default function AccountPage() {
             <h1 className="text-[30px] font-bold text-foreground">계정 정보</h1>
 
             <div className="flex flex-col gap-6">
-               {/* ── 계정 정보 카드 ── */}
-               <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6.25 flex flex-col gap-7.5">
-                  <p className="text-heading-3-bold text-foreground">계정 정보</p>
-                  <div className="flex flex-col gap-5">
-                     <div className="flex items-center justify-between">
-                        <p className="text-body-1-bold text-(--text-tertiary)">아이디</p>
-                        <div className="flex items-center gap-2">
-                           <p className="text-body-1-regular text-foreground">{profile?.email || '아이디 정보 없음'}</p>
-                           <div className="border border-border-light rounded-full p-0.5">
-                              <img src="/Icon/Logo/Google.svg" alt="Google" className="size-6" />
-                           </div>
-                        </div>
-                     </div>
-                     <div className="flex items-center justify-between">
-                        <p className="text-body-1-bold text-(--text-tertiary)">이메일</p>
-                        <p className="text-body-1-regular text-foreground">{profile?.email || '이메일 정보 없음'}</p>
-                     </div>
-                     <div className="flex items-center justify-between">
-                        <p className="text-body-1-bold text-(--text-tertiary)">이름</p>
-                        <div className="flex items-center gap-2">
-                           <p className="text-body-1-regular text-foreground">{profile?.name || '로딩 중...'}</p>
-                           <button
-                              onClick={() => setModal('identity')}
-                              className="border-b border-muted-foreground text-body-2-regular text-(--text-tertiary)"
-                           >
-                              변경
-                           </button>
-                        </div>
-                     </div>
-                     <div className="flex items-center justify-between">
-                        <p className="text-body-1-bold text-(--text-tertiary)">휴대폰 번호</p>
-                        <div className="flex items-center gap-2">
-                           <p className="text-body-1-regular text-foreground">
-                              {profile?.mobile || '전화번호 정보 없음'}
-                           </p>
-                           <button
-                              onClick={() => setModal('identity')}
-                              className="border-b border-muted-foreground text-body-2-regular text-(--text-tertiary)"
-                           >
-                              변경
-                           </button>
-                        </div>
-                     </div>
-                     <div className="flex items-center justify-between">
-                        <p className="text-body-1-bold text-(--text-tertiary)">계좌 정보</p>
-                        <div className="flex items-center gap-2">
-                           <p className="text-body-1-regular text-foreground">{savedAccount?.bankName ?? '미등록'}</p>
-                           <p className="text-body-1-regular text-foreground">{savedAccount?.accountNumber ?? '-'}</p>
-                           <button
-                              type="button"
-                              onClick={handleAccountChange}
-                              className="border-b border-muted-foreground text-body-2-regular text-(--text-tertiary)"
-                           >
-                              변경
-                           </button>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-
-               {/* ── 간편 로그인 연결 카드 ── */}
-               <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6.25 flex flex-col gap-7.5">
-                  <p className="text-heading-3-bold text-foreground">간편 로그인 연결</p>
-                  <p className="text-body-2-regular text-muted-foreground">
-                     현재 문서 기준으로 연결 계정 조회/변경 API가 정의되지 않아 상태 표시는 제공하지 않습니다.
-                  </p>
-                  <div className="flex flex-col gap-4">
-                     {/* Google */}
-                     <div className="flex items-center justify-between px-1">
-                        <div className="flex items-center gap-5">
-                           <div className="flex items-center gap-2.5">
-                              <div className="border border-border-light rounded-full p-0.5">
-                                 <img src="/Icon/Logo/Google.svg" alt="Google" className="size-6" />
-                              </div>
-                              <p className="text-body-2-medium text-foreground">Google 계정 연결</p>
-                           </div>
-                           <span className="bg-[#f1f2f4] text-muted-foreground text-caption-1-regular px-1 py-0.5 rounded">
-                              회원가입 계정
-                           </span>
-                        </div>
-                        <Toggle checked={false} onChange={() => {}} disabled={!socialConnectionApiAvailable} />
-                     </div>
-                     {/* Kakao */}
-                     <div className="border-t border-border pt-4 flex items-center justify-between px-1">
-                        <div className="flex items-center gap-2.5">
-                           <div className="size-7 bg-[#ffde00] rounded-full flex items-center justify-center overflow-hidden">
-                              <img src="/Icon/Logo/Kakao.svg" alt="Kakao" className="size-5" />
-                           </div>
-                           <p className="text-body-2-medium text-muted-foreground">카카오 계정 연결</p>
-                        </div>
-                        <Toggle checked={false} onChange={() => {}} disabled={!socialConnectionApiAvailable} />
-                     </div>
-                     {/* Naver */}
-                     <div className="border-t border-border pt-4 flex items-center justify-between px-1">
-                        <div className="flex items-center gap-2.5">
-                           <div className="size-7 bg-[#00c73c] rounded-full flex items-center justify-center overflow-hidden p-0.5">
-                              <img src="/Icon/Logo/Naver.svg" alt="Naver" className="size-5" />
-                           </div>
-                           <p className="text-body-2-medium text-muted-foreground">네이버 계정 연결</p>
-                        </div>
-                        <Toggle checked={false} onChange={() => {}} disabled={!socialConnectionApiAvailable} />
-                     </div>
-                  </div>
-               </div>
-
-               {/* ── 계좌 정보 카드 ── */}
-               <div
+               <AccountInfoCard
+                  profile={profile}
+                  savedAccount={savedAccount}
+                  onOpenIdentityModal={() => setModal('identity')}
+                  onAccountChange={handleAccountChange}
+               />
+               <SocialConnectionsCard items={socialConnectionItems} apiAvailable={socialConnectionApiAvailable} />
+               <AccountFormCard
                   ref={accountCardRef}
-                  className="bg-background border border-border-light rounded-2xl p-6 flex flex-col gap-7.5"
-               >
-                  <p className="text-heading-3-bold text-foreground">계좌 정보</p>
-                  <div className="flex flex-col gap-6">
-                     <p className="text-caption-1-regular text-(--text-tertiary)">
-                        계좌 미등록 시 리셀 및 취소/환불 기능이 제한됩니다.
-                     </p>
-                     <p className="text-caption-1-regular text-muted-foreground">
-                        계좌 조회 API가 없어 현재 세션에서 저장에 성공한 계좌만 화면에 반영됩니다.
-                     </p>
-
-                     {/* 은행 + 계좌번호 */}
-                     <div className="flex gap-6">
-                        <div className="flex flex-col gap-1 w-52.5">
-                           <label className="text-body-2-medium text-muted-foreground">
-                              은행<span className="text-primary">*</span>
-                           </label>
-                           <div className="relative" ref={bankDropdownRef}>
-                              <button
-                                 ref={bankButtonRef}
-                                 type="button"
-                                 onClick={() => setBankDropdownOpen(p => !p)}
-                                 className={`w-full border rounded-lg h-12 flex items-center justify-between px-4 gap-2 text-body-1-regular text-left transition-colors ${bankDropdownOpen ? 'border-primary' : 'border-border hover:border-primary'}`}
-                              >
-                                 <span className={bank ? 'text-foreground' : 'text-(--text-disabled)'}>
-                                    {bank || '선택'}
-                                 </span>
-                                 <ChevronRight
-                                    size={20}
-                                    className={`shrink-0 text-(--text-tertiary) transition-transform ${bankDropdownOpen ? '-rotate-90' : 'rotate-90'}`}
-                                 />
-                              </button>
-                              {bankDropdownOpen && (
-                                 <div className="absolute top-full left-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-20 w-full p-0.75 flex flex-col gap-0.5 max-h-64 overflow-y-auto">
-                                    {BANKS.map(b => (
-                                       <button
-                                          key={b}
-                                          type="button"
-                                          onClick={() => {
-                                             setBank(b);
-                                             setBankDropdownOpen(false);
-                                          }}
-                                          className={`w-full flex items-center justify-between px-3 py-2 rounded-sm text-body-2-regular text-foreground hover:bg-[#f1f2f4] ${bank === b ? 'bg-fill-disabled' : ''}`}
-                                       >
-                                          <span>{b}</span>
-                                          {bank === b && <Check size={16} className="shrink-0 text-primary" />}
-                                       </button>
-                                    ))}
-                                 </div>
-                              )}
-                           </div>
-                        </div>
-                        <Input
-                           className="flex-1"
-                           label="계좌번호"
-                           required
-                           inputMode="numeric"
-                           placeholder="계좌번호를 입력하세요"
-                           value={accountNumber}
-                           onChange={e => setAccountNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                        />
-                     </div>
-
-                     {/* 예금주 */}
-                     <Input
-                        label="예금주"
-                        required
-                        placeholder="예금주를 입력하세요"
-                        value={depositor}
-                        onChange={e => setDepositor(e.target.value.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, ''))}
-                     />
-
-                     {/* 약관 동의 */}
-                     <div className="flex flex-col gap-1">
-                        <div className="bg-surface rounded-lg h-12 flex items-center px-4">
-                           <label className="flex items-center gap-2 cursor-pointer">
-                              <Checkbox checked={agreeAll} onCheckedChange={v => handleAgreeAll(v === true)} />
-                              <span className="text-body-1-medium text-foreground">전체동의</span>
-                           </label>
-                        </div>
-                        <div className="flex flex-col">
-                           {accountAgreementItems.map(item => (
-                              <div key={item.label} className="flex items-center justify-between h-11 px-4">
-                                 <label className="flex items-center gap-2 cursor-pointer flex-1">
-                                    <Checkbox checked={item.checked} onCheckedChange={v => item.onChange(v === true)} />
-                                    <span className="text-body-2-regular text-muted-foreground">
-                                       <span>(필수) </span>
-                                       <span className="font-bold">{item.label}</span>
-                                    </span>
-                                 </label>
-                                 <button
-                                    type="button"
-                                    onClick={() => setTermsDialog(item.termsKey)}
-                                    className="p-1 -mr-1"
-                                    aria-label={`${item.label} 보기`}
-                                 >
-                                    <ChevronRight size={16} className="text-muted-foreground" />
-                                 </button>
-                              </div>
-                           ))}
-                        </div>
-                     </div>
-
-                     <button
-                        type="button"
-                        disabled={!isAccountSaveEnabled || isSavingAccount}
-                        onClick={() => saveAccount()}
-                        className={`border border-border rounded-lg py-3 text-body-1-bold w-full transition-colors ${
-                           isAccountSaveEnabled && !isSavingAccount
-                              ? 'text-muted-foreground hover:bg-surface'
-                              : 'text-(--text-disabled) cursor-not-allowed'
-                        }`}
-                     >
-                        {isSavingAccount ? '저장 중...' : '저장'}
-                     </button>
-                  </div>
-               </div>
-
-               {/* ── 주소 수정 카드 ── */}
-               <div className="bg-background border border-border rounded-[14px] p-6.25 flex flex-col gap-5">
-                  <p className="text-heading-3-bold text-foreground">주소 수정</p>
-                  <div className="flex gap-5">
-                     <p className="text-body-2-medium text-foreground whitespace-nowrap">주소정보</p>
-                     <div className="flex flex-col gap-7.5 flex-1">
-                        {savedAddress && (
-                           <div className="rounded-lg bg-surface px-4 py-3 text-body-2-regular text-muted-foreground">
-                              최근 저장 주소: ({savedAddress.zipCode}) {savedAddress.baseAddress} {savedAddress.detailAddress}
-                           </div>
-                        )}
-                        <div className="flex flex-col gap-4">
-                           <div className="flex items-end gap-2.5">
-                              <Input className="flex-1" label="우편번호" required value={zipCode} disabled readOnly />
-                              <button
-                                 type="button"
-                                 onClick={handlePostcodeSearch}
-                                 className="border border-border rounded-lg px-6 py-3 text-body-1-bold text-muted-foreground whitespace-nowrap hover:bg-surface transition-colors mb-px"
-                              >
-                                 우편번호 검색
-                              </button>
-                           </div>
-                           <Input label="주소" required value={address} disabled readOnly />
-                           <Input
-                              label="상세 주소"
-                              required
-                              placeholder="상세 주소를 입력하세요"
-                              value={addressDetail}
-                              onChange={e => setAddressDetail(e.target.value)}
-                           />
-                        </div>
-                        <button
-                           type="button"
-                           disabled={!isAddressSaveEnabled || isSavingAddress}
-                           onClick={() => saveAddress()}
-                           className={`border border-border rounded-lg py-3 text-body-1-bold w-full transition-colors ${
-                              isAddressSaveEnabled && !isSavingAddress
-                                 ? 'text-muted-foreground hover:bg-surface'
-                                 : 'text-(--text-disabled) cursor-not-allowed'
-                           }`}
-                        >
-                           {isSavingAddress ? '저장 중...' : '저장'}
-                        </button>
-                     </div>
-                  </div>
-               </div>
-
-               {/* ── 계정 관리 카드 ── */}
-               <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6.25 flex flex-col gap-7.5">
-                  <p className="text-heading-3-bold text-foreground">계정 관리</p>
-                  <div className="flex flex-col gap-4">
-                     <button
-                        onClick={handleLogout}
-                        className="flex items-center px-1 text-body-2-medium text-destructive"
-                     >
-                        로그아웃
-                     </button>
-                     <div className="border-t border-border pt-4">
-                        <button
-                           onClick={handleWithdrawClick}
-                           className="flex items-center px-1 text-body-2-medium text-muted-foreground"
-                        >
-                           회원 탈퇴
-                        </button>
-                     </div>
-                  </div>
-               </div>
+                  bankOptions={BANKS}
+                  bank={bank}
+                  bankDropdownOpen={bankDropdownOpen}
+                  bankDropdownRef={bankDropdownRef}
+                  bankButtonRef={bankButtonRef}
+                  onToggleBankDropdown={() => setBankDropdownOpen((prev) => !prev)}
+                  onSelectBank={(selectedBank) => {
+                     setBank(selectedBank);
+                     setBankDropdownOpen(false);
+                  }}
+                  accountNumber={accountNumber}
+                  depositor={depositor}
+                  onAccountNumberChange={(value) => setAccountNumber(value.replace(/[^0-9]/g, ''))}
+                  onDepositorChange={(value) => setDepositor(value.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, ''))}
+                  agreeAll={agreeAll}
+                  onAgreeAllChange={handleAgreeAll}
+                  agreementItems={accountAgreementItems}
+                  onOpenTermsDialog={setTermsDialog}
+                  isSaveEnabled={isAccountSaveEnabled}
+                  isSaving={isSavingAccount}
+                  onSave={() => saveAccount()}
+               />
+               <AddressFormCard
+                  savedAddress={savedAddress}
+                  zipCode={zipCode}
+                  address={address}
+                  addressDetail={addressDetail}
+                  onSearchPostcode={handlePostcodeSearch}
+                  onAddressDetailChange={setAddressDetail}
+                  isSaveEnabled={isAddressSaveEnabled}
+                  isSaving={isSavingAddress}
+                  onSave={() => saveAddress()}
+               />
+               <AccountManagementCard onLogout={handleLogout} onWithdraw={handleWithdrawClick} />
             </div>
          </div>
 
