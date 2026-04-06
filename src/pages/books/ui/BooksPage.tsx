@@ -315,8 +315,8 @@ const BooksPage = () => {
    };
 
    const submitCaptcha = () => {
-      if (captchaInput.trim().toUpperCase() !== captchaCode) {
-         setCaptchaError('보안 문자가 일치하지 않습니다. 다시 확인해 주세요.');
+      if (captchaInput.trim() !== captchaCode) {
+         setCaptchaError('보안 문자가 일치하지 않습니다. 대소문자를 정확히 입력해 주세요.');
          return;
       }
 
