@@ -8,7 +8,7 @@ interface Props {
    open: boolean;
    onClose: () => void;
    onConfirm?: () => void;
-   /** 판매 내역 상세로 이동할 판매 ID (API 응답값으로 대체 예정) */
+   /** 판매 내역 상세로 이동할 listingId */
    saleId: string;
 }
 

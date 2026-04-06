@@ -40,9 +40,9 @@ export interface MemberAddress {
 const MY_PROFILE_FALLBACK_DELAY_MS = 250;
 
 export const MY_PROFILE_MOCK: Required<Pick<MemberProfile, 'name' | 'email' | 'mobile'>> = {
-   name: '고티 회원',
-   email: '개인정보 API 연동 예정',
-   mobile: '개인정보 API 연동 예정',
+   name: '테스트 유저',
+   email: 'test.user@goti.co.kr',
+   mobile: '010-1234-1234',
 };
 
 const wait = (ms: number) => new Promise<void>((resolve) => {
