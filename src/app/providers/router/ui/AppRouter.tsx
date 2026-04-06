@@ -5,6 +5,7 @@ import AuthCallbackPage from '@/pages/auth/callback';
 import LoginPage from '@/pages/auth/login';
 import SignUpPage from '@/pages/signup';
 import VerificationFlowPage from '@/pages/auth/verification-flow';
+import QueuePage from '@/pages/queue';
 import ButtonPage from '@/pages/components/ui/ButtonPage';
 import ControlPage from '@/pages/components/ui/ControlPage';
 import AlertPage from '@/pages/components/ui/AlertPage';
@@ -88,6 +89,7 @@ const AppRouter = () => {
             <Route path="/list" element={<ListPage />} />
             <Route path="/chip" element={<Chip />} />
             <Route path="/session-expired" element={<SessionExpiredPage />} />
+            <Route path="/queue" element={<QueuePage />} />
             <Route path="*" element={<Navigate to="/error/404" replace />} />
          </Routes>
       </BrowserRouter>

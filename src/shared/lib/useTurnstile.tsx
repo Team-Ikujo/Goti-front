@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactElement, useEffect, useMemo, useRef, useState } from 'react';
 
 declare global {
   interface Window {
@@ -66,9 +66,11 @@ const loadTurnstileScript = () => {
 type UseTurnstileResult = {
   token: string | null;
   reset: () => void;
-  widget: JSX.Element | null;
+  execute: () => void;
+  widget: ReactElement | null;
   isConfigured: boolean;
   errorMessage: string | null;
+  isVerifying: boolean;
 };
 
 export const useTurnstile = (open: boolean): UseTurnstileResult => {
@@ -76,6 +78,7 @@ export const useTurnstile = (open: boolean): UseTurnstileResult => {
   const widgetIdRef = useRef<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
@@ -86,12 +89,24 @@ export const useTurnstile = (open: boolean): UseTurnstileResult => {
 
   const reset = () => {
     setToken(null);
+    setIsVerifying(false);
 
     if (!widgetIdRef.current || !window.turnstile) {
       return;
     }
 
     window.turnstile.reset(widgetIdRef.current);
+  };
+
+  const execute = () => {
+    if (!widgetIdRef.current || !window.turnstile) {
+      return;
+    }
+
+    setToken(null);
+    setErrorMessage(null);
+    setIsVerifying(true);
+    window.turnstile.execute(widgetIdRef.current);
   };
 
   useEffect(() => {
@@ -122,29 +137,35 @@ export const useTurnstile = (open: boolean): UseTurnstileResult => {
           callback: (nextToken: string) => {
             if (cancelled) return;
             setErrorMessage(null);
+            setIsVerifying(false);
             setToken(nextToken);
           },
           'error-callback': (errorCode?: string) => {
             if (cancelled) return;
             setToken(null);
+            setIsVerifying(false);
             setErrorMessage(`Turnstile 검증에 실패했습니다. (${errorCode ?? 'unknown'})`);
           },
           'expired-callback': () => {
             if (cancelled) return;
             setToken(null);
+            setIsVerifying(false);
           },
           'timeout-callback': () => {
             if (cancelled) return;
             setToken(null);
+            setIsVerifying(false);
             setErrorMessage('Turnstile 검증 시간이 초과되었습니다. 다시 시도해주세요.');
           },
         });
 
         if (open) {
+          setIsVerifying(true);
           window.turnstile.execute(widgetIdRef.current);
         }
       } catch (error) {
         if (cancelled) return;
+        setIsVerifying(false);
         setErrorMessage(error instanceof Error ? error.message : 'Turnstile 초기화에 실패했습니다.');
       }
     };
@@ -174,9 +195,7 @@ export const useTurnstile = (open: boolean): UseTurnstileResult => {
       return;
     }
 
-    setToken(null);
-    setErrorMessage(null);
-    window.turnstile.execute(widgetIdRef.current);
+    execute();
   }, [open]);
 
   const widget = useMemo(() => {
@@ -190,8 +209,10 @@ export const useTurnstile = (open: boolean): UseTurnstileResult => {
   return {
     token,
     reset,
+    execute,
     widget,
     isConfigured,
     errorMessage,
+    isVerifying,
   };
 };

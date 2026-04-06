@@ -5,9 +5,13 @@ import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSe
 import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 
-const isBookingFlowPath = (pathname: string) => pathname.startsWith('/books') || pathname.startsWith('/tickets');
+const isBookingFlowPath = (pathname: string) =>
+   pathname.startsWith('/queue') || pathname.startsWith('/books') || pathname.startsWith('/tickets');
 const requiresBookingEntry = (pathname: string) =>
-   pathname.startsWith('/books') || pathname === '/tickets/payment' || pathname === '/tickets/resell-payment';
+   pathname.startsWith('/queue') ||
+   pathname.startsWith('/books') ||
+   pathname === '/tickets/payment' ||
+   pathname === '/tickets/resell-payment';
 
 const BookingFlowStateGuard = () => {
    const navigate = useNavigate();
