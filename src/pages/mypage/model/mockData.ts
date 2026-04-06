@@ -1,7 +1,7 @@
 // src/pages/mypage/model/mockData.ts
 // 마이페이지 더미 데이터 (날짜별로 분산 — 기간 필터 테스트 용)
 
-import type { PurchaseHistoryItem, SaleHistoryItem } from '../ui/HistoryCard';
+import type { PurchaseHistoryItem, SaleHistoryItem } from './historyCard';
 
 export const PURCHASE_ITEMS: PurchaseHistoryItem[] = [
    {
