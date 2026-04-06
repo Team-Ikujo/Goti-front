@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Lottie from 'lottie-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import type { AnimationData } from 'lottie-web';
 import { createBookingFlowSearch, getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+
+type QueueAnimationData = Record<string, unknown>;
 
 const DEFAULT_RANK = 9960;
 const DEFAULT_TICK_MS = 1200;
@@ -14,7 +15,7 @@ const clamp = (value: number, min: number, max: number) => Math.min(Math.max(val
 const parsePositiveNumber = (value: string | null, fallback: number) => {
    if (!value) return fallback;
 
-   const parsed = Number(value.replaceAll(',', ''));
+   const parsed = Number(value.replace(/,/g, ''));
 
    if (!Number.isFinite(parsed) || parsed < 0) {
       return fallback;
@@ -26,7 +27,7 @@ const parsePositiveNumber = (value: string | null, fallback: number) => {
 const formatRank = (value: number) => new Intl.NumberFormat('ko-KR').format(Math.round(value));
 
 const QueueIllustration = () => {
-   const [animationData, setAnimationData] = useState<AnimationData | null>(null);
+   const [animationData, setAnimationData] = useState<QueueAnimationData | null>(null);
 
    useEffect(() => {
       let isMounted = true;
@@ -38,7 +39,7 @@ const QueueIllustration = () => {
             throw new Error('queueAnimation.json을 불러오지 못했습니다.');
          }
 
-         const data = (await response.json()) as AnimationData;
+         const data = (await response.json()) as QueueAnimationData;
 
          if (isMounted) {
             setAnimationData(data);
@@ -77,17 +78,18 @@ const QueuePage = () => {
    const navigate = useNavigate();
    const location = useLocation();
    const [searchParams] = useSearchParams();
-   const [currentRank, setCurrentRank] = useState(DEFAULT_RANK);
    const routeBookingEntryState = location.state as BookingEntryState | null;
    const storedBookingEntryState = useBookingEntryStore(state => state.entry);
    const setBookingEntry = useBookingEntryStore(state => state.setEntry);
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const bookingFlowMode = getBookingFlowMode(location.search);
+   const hasForwardedRef = useRef(false);
 
    const initialRank = useMemo(
       () => parsePositiveNumber(searchParams.get('rank'), DEFAULT_RANK),
       [searchParams]
    );
+   const [currentRank, setCurrentRank] = useState(initialRank);
 
    const tickMs = useMemo(
       () => Math.max(250, parsePositiveNumber(searchParams.get('tickMs'), DEFAULT_TICK_MS)),
@@ -101,6 +103,7 @@ const QueuePage = () => {
 
    useEffect(() => {
       setCurrentRank(initialRank);
+      hasForwardedRef.current = false;
    }, [initialRank]);
 
    useEffect(() => {
@@ -130,9 +133,11 @@ const QueuePage = () => {
    }, [currentRank, step, tickMs]);
 
    useEffect(() => {
-      if (!bookingEntryState || currentRank > 0) {
+      if (!bookingEntryState || currentRank > 0 || hasForwardedRef.current) {
          return;
       }
+
+      hasForwardedRef.current = true;
 
       navigate(
          {
@@ -150,6 +155,10 @@ const QueuePage = () => {
       () => clamp(((initialRank - currentRank) / Math.max(initialRank, 1)) * 100, 0, 100),
       [currentRank, initialRank]
    );
+
+   if (!bookingEntryState) {
+      return null;
+   }
 
    return (
       <main className="flex min-h-screen bg-[var(--background-base)] px-6 py-10 text-[var(--text-primary)]">

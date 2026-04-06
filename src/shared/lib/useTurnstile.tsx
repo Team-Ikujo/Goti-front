@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactElement, useEffect, useMemo, useRef, useState } from 'react';
 
 declare global {
   interface Window {
@@ -67,7 +67,7 @@ type UseTurnstileResult = {
   token: string | null;
   reset: () => void;
   execute: () => void;
-  widget: JSX.Element | null;
+  widget: ReactElement | null;
   isConfigured: boolean;
   errorMessage: string | null;
   isVerifying: boolean;
