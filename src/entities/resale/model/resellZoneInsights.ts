@@ -51,6 +51,11 @@ type ResellInsightZone = {
    price: number;
 };
 
+const createMockConfirmedAt = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60 * 1000).toISOString();
+const MOCK_RESALE_MIN_PRICE = 35_000;
+const MOCK_RESALE_MAX_PRICE = 60_000;
+const clampMockPrice = (value: number) => Math.min(MOCK_RESALE_MAX_PRICE, Math.max(MOCK_RESALE_MIN_PRICE, value));
+
 const minuteLabelFormatter = new Intl.DateTimeFormat('ko-KR', {
    hour: '2-digit',
    minute: '2-digit',
@@ -181,4 +186,31 @@ export const buildResellZoneInsightsFromApi = ({
       tradeHistory: createTradeHistoryFromGraph(zone, dayGraph.length > 0 ? dayGraph : minuteGraph),
       listings,
    };
+};
+
+export const buildMockResellZoneInsights = ({
+   zone,
+}: {
+   zone: ResellInsightZone;
+}): ResellZoneInsights => {
+   const basePrice = clampMockPrice(zone.price);
+   const minuteGraph: ResellGraphPoint[] = [
+      { transactionPrice: clampMockPrice(basePrice - 3000), confirmedAt: createMockConfirmedAt(50) },
+      { transactionPrice: clampMockPrice(basePrice - 1500), confirmedAt: createMockConfirmedAt(35) },
+      { transactionPrice: clampMockPrice(basePrice + 500), confirmedAt: createMockConfirmedAt(20) },
+      { transactionPrice: clampMockPrice(basePrice + 2000), confirmedAt: createMockConfirmedAt(5) },
+   ];
+   const dayGraph: ResellGraphPoint[] = [
+      { transactionPrice: clampMockPrice(basePrice - 5000), confirmedAt: createMockConfirmedAt(60 * 24 * 3) },
+      { transactionPrice: clampMockPrice(basePrice - 2500), confirmedAt: createMockConfirmedAt(60 * 24 * 2) },
+      { transactionPrice: clampMockPrice(basePrice - 1000), confirmedAt: createMockConfirmedAt(60 * 24) },
+      { transactionPrice: clampMockPrice(basePrice + 2000), confirmedAt: createMockConfirmedAt(60 * 6) },
+   ];
+
+   return buildResellZoneInsightsFromApi({
+      zone,
+      listings: [],
+      minuteGraph,
+      dayGraph,
+   });
 };
