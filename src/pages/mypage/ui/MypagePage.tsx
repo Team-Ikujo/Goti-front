@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/shared/ui/button';
 import {
    useMyProfileData,
@@ -9,7 +8,9 @@ import {
    useMyResaleSummaryData,
    useMyResaleUnsettledAmountData,
 } from '../model/useMypageData';
+import { PURCHASE_ITEMS, SALE_ITEMS } from '../model/mockData';
 import { isMswEnabled } from '@/shared/config/runtime';
+import { MY_PROFILE_MOCK } from '@/entities/user/api/memberApi';
 import { MypageProfileCard } from './MypageProfileCard';
 import { MypageSummaryCard } from './MypageSummaryCard';
 import { MypageHistorySection } from './MypageHistorySection';
@@ -19,7 +20,6 @@ const MYPAGE_MSW_TICKET_INFO_ERROR_KEY = '__mypage_msw_ticket_info_error__';
 export default function MypagePage() {
    const navigate = useNavigate();
    const location = useLocation();
-   const queryClient = useQueryClient();
    const initialActiveTab = (location.state as { activeTab?: 'purchase' | 'sale' } | null)?.activeTab || 'purchase';
 
    const profileQuery = useMyProfileData();
@@ -28,9 +28,9 @@ export default function MypagePage() {
    const resaleSummaryQuery = useMyResaleSummaryData();
    const unsettledAmountQuery = useMyResaleUnsettledAmountData();
 
-   const profile = profileQuery.data;
-   const purchaseItems = ordersQuery.data ?? [];
-   const saleItems = resaleListQuery.data ?? [];
+   const profile = profileQuery.data ?? MY_PROFILE_MOCK;
+   const purchaseItems = ordersQuery.isError ? PURCHASE_ITEMS : (ordersQuery.data ?? []);
+   const saleItems = resaleListQuery.isError ? SALE_ITEMS : (resaleListQuery.data ?? []);
    const [mockTicketInfoError, setMockTicketInfoError] = useState(false);
 
    useEffect(() => {
@@ -39,36 +39,23 @@ export default function MypagePage() {
    }, []);
 
    const isPageLoading = profileQuery.isLoading || ordersQuery.isLoading || resaleListQuery.isLoading;
-   const isPageError = profileQuery.isError || ordersQuery.isError || resaleListQuery.isError;
+   const fallbackOnSale = saleItems.filter((item) => item.saleStatus === '판매 중').length;
+   const fallbackSoldCount = saleItems.filter((item) => item.saleStatus === '판매 완료').length;
+   const fallbackUnsettledAmount = saleItems
+      .filter((item) => item.saleStatus === '정산 대기')
+      .reduce((total, item) => total + item.salePrice, 0);
    const totalHeld = purchaseItems.filter((item) => item.paymentStatus === '예매 완료').length;
-   const onSale = resaleSummaryQuery.data?.listingCount ?? 0;
-   const soldCount = resaleSummaryQuery.data?.soldCount ?? 0;
-   const unsettledAmount = unsettledAmountQuery.data?.unsettledAmount ?? 0;
-   const isSummaryError = resaleSummaryQuery.isError || unsettledAmountQuery.isError;
-   const isSummaryLoading = resaleSummaryQuery.isLoading || unsettledAmountQuery.isLoading;
+   const onSale = resaleSummaryQuery.isError ? fallbackOnSale : (resaleSummaryQuery.data?.listingCount ?? 0);
+   const soldCount = resaleSummaryQuery.isError ? fallbackSoldCount : (resaleSummaryQuery.data?.soldCount ?? 0);
+   const unsettledAmount = unsettledAmountQuery.isError
+      ? fallbackUnsettledAmount
+      : (unsettledAmountQuery.data?.unsettledAmount ?? 0);
+   const isSummaryLoading =
+      (!resaleSummaryQuery.isError && resaleSummaryQuery.isLoading) ||
+      (!unsettledAmountQuery.isError && unsettledAmountQuery.isLoading);
 
    if (isPageLoading) {
       return <div className="py-24 text-center text-body-1-regular text-muted-foreground">마이페이지 정보를 불러오는 중입니다.</div>;
-   }
-
-   if (isPageError) {
-      return (
-         <div className="flex flex-col items-center justify-center gap-4 py-24">
-            <p className="text-body-1-regular text-muted-foreground">
-               마이페이지 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
-            </p>
-            <Button
-               variant="tertiary"
-               onClick={() => {
-                  void queryClient.invalidateQueries({ queryKey: ['myProfile'] });
-                  void queryClient.invalidateQueries({ queryKey: ['myOrders'] });
-                  void queryClient.invalidateQueries({ queryKey: ['myResales'] });
-               }}
-            >
-               다시 시도
-            </Button>
-         </div>
-      );
    }
 
    return (
@@ -111,7 +98,7 @@ export default function MypagePage() {
                      soldCount={soldCount}
                      unsettledAmount={unsettledAmount}
                      isLoading={isSummaryLoading}
-                     isError={isSummaryError}
+                     isError={false}
                      onRetry={() => {
                         void resaleSummaryQuery.refetch();
                         void unsettledAmountQuery.refetch();
