@@ -3,9 +3,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/entities/auth/model/authStore';
-import { ChevronLeft } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createMemberAccount, createMemberAddress, type MemberAccount, type MemberAddress } from '@/entities/user/api/memberApi';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
+import { Checkbox } from '@/shared/ui/checkbox';
+import { Input } from '@/shared/ui/input';
 import { AccountModals } from './AccountModals';
 import type { ModalType } from './AccountModals';
 import { AccountTermsDialogs } from './AccountTermsDialogs';
@@ -17,12 +19,6 @@ import {
    useMyResaleUnsettledAmountData,
 } from '../model/useMypageData';
 import { openDaumPostcode } from '../model/useDaumPostcode';
-import { AccountSummaryCard } from './AccountSummaryCard';
-import { SocialConnectionsCard } from './SocialConnectionsCard';
-import { AccountBankFormCard } from './AccountBankFormCard';
-import { AccountAddressFormCard } from './AccountAddressFormCard';
-import { AccountManagementCard } from './AccountManagementCard';
-
 const BANKS = [
    '국민은행',
    '신한은행',
@@ -46,39 +42,28 @@ const BANKS = [
    '대구은행',
 ];
 
-const DAUM_POSTCODE_SCRIPT_URL = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
-const DAUM_POSTCODE_SCRIPT_ID = 'daum-postcode-script';
+interface ToggleProps {
+   checked: boolean;
+   onChange: () => void;
+   disabled?: boolean;
+}
 
-function loadDaumPostcodeAndOpen(onComplete: (zipCode: string, address: string) => void) {
-   const open = () => {
-      const POPUP_W = 500;
-      const POPUP_H = 600;
-      const left = window.screenX + Math.round((window.outerWidth - POPUP_W) / 2);
-      const top = window.screenY + Math.round((window.outerHeight - POPUP_H) / 2);
-      new window.daum!.Postcode({
-         oncomplete: data => {
-            const selectedAddress = data.roadAddress || data.jibunAddress;
-            onComplete(data.zonecode, selectedAddress);
-         },
-         width: POPUP_W,
-         height: POPUP_H,
-      }).open({ left, top });
-   };
-   if (window.daum?.Postcode) {
-      open();
-      return;
-   }
-   const existing = document.getElementById(DAUM_POSTCODE_SCRIPT_ID);
-   if (existing) {
-      existing.addEventListener('load', open, { once: true });
-      return;
-   }
-   const script = document.createElement('script');
-   script.id = DAUM_POSTCODE_SCRIPT_ID;
-   script.src = DAUM_POSTCODE_SCRIPT_URL;
-   script.onload = open;
-   script.onerror = () => console.error('다음 우편번호 스크립트 로드에 실패했습니다.');
-   document.head.appendChild(script);
+function Toggle({ checked, onChange, disabled = false }: ToggleProps) {
+   return (
+      <button
+         type="button"
+         role="switch"
+         aria-checked={checked}
+         aria-disabled={disabled}
+         onClick={onChange}
+         disabled={disabled}
+         className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${checked ? 'bg-primary' : 'bg-border'} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+      >
+         <span
+            className={`absolute top-0.5 left-0.5 size-5 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`}
+         />
+      </button>
+   );
 }
 
 export default function AccountPage() {
@@ -496,31 +481,7 @@ export default function AccountPage() {
                            </label>
                         </div>
                         <div className="flex flex-col">
-                           {(
-                              [
-                                 {
-                                    label: '오픈뱅킹공동업무 자동계좌이체 약관',
-                                    checked: agreeOpen,
-                                    onChange: (v: boolean) =>
-                                       handleIndividualAgree(setAgreeOpen, v, [agreeThird, agreePersonal]),
-                                    termsKey: 'openBanking' as TermsType,
-                                 },
-                                 {
-                                    label: '개인(신용)정보 제3자 제공 동의',
-                                    checked: agreeThird,
-                                    onChange: (v: boolean) =>
-                                       handleIndividualAgree(setAgreeThird, v, [agreeOpen, agreePersonal]),
-                                    termsKey: 'thirdParty' as TermsType,
-                                 },
-                                 {
-                                    label: '개인정보 수집‧이용 동의 [출금이체]',
-                                    checked: agreePersonal,
-                                    onChange: (v: boolean) =>
-                                       handleIndividualAgree(setAgreePersonal, v, [agreeOpen, agreeThird]),
-                                    termsKey: 'personalInfo' as TermsType,
-                                 },
-                              ] as const
-                           ).map(item => (
+                           {accountAgreementItems.map(item => (
                               <div key={item.label} className="flex items-center justify-between h-11 px-4">
                                  <label className="flex items-center gap-2 cursor-pointer flex-1">
                                     <Checkbox checked={item.checked} onCheckedChange={v => item.onChange(v === true)} />
