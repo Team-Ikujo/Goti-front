@@ -98,7 +98,7 @@ export default function QrViewDialog({
       switch (true as boolean) {
          case isTicketInfoLoading:
             return (
-               <div className="flex flex-col items-center gap-4 px-5 pt-[30px] pb-5 text-center">
+               <div className="flex flex-col items-center gap-4 px-5 pt-7.5 pb-5 text-center">
                   <p className="text-[18px] font-bold text-[#161d24] leading-[1.55]">QR 확인</p>
                   <p className="text-[16px] text-[#374553]">티켓 정보를 불러오는 중입니다.</p>
                   <Button variant="primary" className="w-full py-1.5" onClick={onClose}>
@@ -108,7 +108,7 @@ export default function QrViewDialog({
             );
          case isTicketInfoError:
             return (
-               <div className="flex flex-col items-center gap-4 px-5 pt-[30px] pb-5 text-center">
+               <div className="flex flex-col items-center gap-4 px-5 pt-7.5 pb-5 text-center">
                   <p className="text-[18px] font-bold text-[#161d24] leading-[1.55]">QR 확인</p>
                   <p className="text-[16px] text-[#374553]">
                      티켓 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
@@ -125,7 +125,7 @@ export default function QrViewDialog({
             );
          case !currentSeat:
             return (
-               <div className="flex flex-col items-center gap-4 px-5 pt-[30px] pb-5 text-center">
+               <div className="flex flex-col items-center gap-4 px-5 pt-7.5 pb-5 text-center">
                   <p className="text-[18px] font-bold text-[#161d24] leading-[1.55]">QR 확인</p>
                   <p className="text-[16px] text-[#374553]">표시할 티켓이 없습니다.</p>
                   <Button variant="primary" className="w-full py-1.5" onClick={onClose}>
@@ -135,7 +135,7 @@ export default function QrViewDialog({
             );
          case qrQuery.isError:
             return (
-               <div className="flex flex-col items-center gap-4 px-5 pt-[30px] pb-5 text-center">
+               <div className="flex flex-col items-center gap-4 px-5 pt-7.5 pb-5 text-center">
                   <p className="text-[18px] font-bold text-[#161d24] leading-[1.55]">QR 확인</p>
                   <p className="text-[16px] text-[#374553]">
                      QR 코드를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
@@ -164,7 +164,7 @@ export default function QrViewDialog({
             className="p-0 w-[340px] max-w-[340px] rounded-[16px] border-0 bg-white overflow-hidden"
          >
             {statusContent ?? (
-               <div className="flex flex-col items-center gap-6 px-5 pt-[30px] pb-5">
+               <div className="flex flex-col items-center gap-6 px-5 pt-7.5 pb-5">
 
                   {/* 좌석 정보 */}
                   <div className="flex flex-col items-center">
