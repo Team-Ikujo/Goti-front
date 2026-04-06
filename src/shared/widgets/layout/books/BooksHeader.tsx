@@ -244,10 +244,11 @@ const BooksHeader = ({
             <div className="hidden h-16 items-center justify-between px-4 lg:flex lg:h-[68px] lg:px-8">
                <button
                   type="button"
-                  className="text-heading-4-bold tracking-tight text-foreground"
+                  className="inline-flex items-center"
                   onClick={() => openExitDialog('home')}
+                  aria-label="GO-TI 홈으로 이동"
                >
-                  GoTi
+                  <img src="/Logo/logo.svg" alt="GO-TI" className="h-6 w-auto" />
                </button>
                <div className="flex items-center gap-5">
                   {showTimer ? (

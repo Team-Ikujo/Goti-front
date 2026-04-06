@@ -8,7 +8,15 @@ import type { TicketType } from './TicketTypeBadge';
 import ResellRegisterDialog from './ResellRegisterDialog';
 import QrViewDialog from './QrViewDialog';
 
-export type PurchaseStatus = '예매 완료' | '결제완료' | '취소/환불' | '정산대기' | '정산완료';
+export type PurchaseStatus =
+   | '입금 대기'
+   | '예매 완료'
+   | '부분 처리'
+   | '관람 완료'
+   | '결제완료'
+   | '취소/환불'
+   | '정산대기'
+   | '정산완료';
 
 export interface PurchaseHistoryItem {
    id: string;
@@ -32,7 +40,10 @@ export interface PurchaseHistoryItem {
 }
 
 const STATUS_COLOR: Record<PurchaseStatus, string> = {
+   '입금 대기': 'text-(--text-tertiary)',
    '예매 완료': 'text-primary',
+   '부분 처리': 'text-primary',
+   '관람 완료': 'text-foreground',
    결제완료: 'text-foreground',
    '취소/환불': 'text-destructive',
    정산대기: 'text-(--text-tertiary)',

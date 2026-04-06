@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { LoginAccountStatus } from "@/features/auth/api/authApi";
 
 export type LoginAlert =
   | { type: 'failed_under_5'; failCount: number; redirectPath: string }

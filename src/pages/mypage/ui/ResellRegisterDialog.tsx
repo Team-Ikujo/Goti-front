@@ -19,13 +19,6 @@ const MOCK_PRICE = {
    changeText: '+6,000원 (25%)',
 };
 
-const MOCK_RECENT_TRADES = [
-   { price: 52000, seat: '110구역 0열 0번', time: '40분 전' },
-   { price: 81000, seat: '110구역 10열 11번', time: '6시간 전' },
-   { price: 1052000, seat: '110구역 27열 9번', time: '03/07 14:23' },
-   { price: 52000, seat: '110구역 0열 0번', time: '03/07 14:23' },
-];
-
 // ─── 체크박스 아이콘 ────────────────────────────────────────────────
 function CheckboxIcon({ checked }: { checked: boolean }) {
    if (checked) {
@@ -431,28 +424,6 @@ export default function ResellRegisterDialog({ open, onClose, item }: Props) {
                   </div>
                   {/* 가격 추이 차트 */}
                   <PriceTrendChart />
-               </div>
-
-               {/* 최근 거래 내역 */}
-               <div className="flex flex-col gap-3">
-                  <p className="text-[20px] font-bold text-[#161d24] leading-normal">최근 거래 내역</p>
-                  <div className="flex flex-col gap-1">
-                     {MOCK_RECENT_TRADES.map((trade, i) => (
-                        <div key={i} className="flex items-center gap-12">
-                           <div className="flex flex-1 items-center gap-3 min-w-0">
-                              <span className="flex-1 text-[14px] font-semibold text-[#374553]">
-                                 {trade.price.toLocaleString()}원
-                              </span>
-                              <span className="flex-1 text-[14px] text-[#374553] text-right">
-                                 {trade.seat}
-                              </span>
-                           </div>
-                           <span className="text-[12px] text-[#646f7c] w-[66px] text-right shrink-0">
-                              {trade.time}
-                           </span>
-                        </div>
-                     ))}
-                  </div>
                </div>
 
                {/* 판매 유의사항 */}

@@ -18,6 +18,12 @@ const MOCK_GAME = {
    dateTime: '3.21 (토) 오후 18:30',
 };
 
+const isTicketCheckoutRequest = (
+   request: TicketCheckoutRequest | ResaleCheckoutRequest,
+): request is TicketCheckoutRequest => {
+   return 'gameId' in request && 'selectedSeats' in request;
+};
+
 export default function PaymentProcessingPage() {
    const navigate = useNavigate();
    const { state } = useLocation();
@@ -44,10 +50,10 @@ export default function PaymentProcessingPage() {
 
       const process = async () => {
          try {
-            const submitOrder =
-               'gameId' in paymentRequest && 'selectedSeats' in paymentRequest ? submitTicketOrder : submitResaleOrder;
             const [result] = await Promise.all([
-               submitOrder(paymentRequest),
+               isTicketCheckoutRequest(paymentRequest)
+                  ? submitTicketOrder(paymentRequest)
+                  : submitResaleOrder(paymentRequest),
                new Promise(resolve => setTimeout(resolve, 1000)),
             ]);
             if (isMountedRef.current && isStillOnProcessingPage()) {

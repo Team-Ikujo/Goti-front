@@ -1,4 +1,3 @@
-import { Button } from '@/shared/ui/button';
 import { useRef, useState } from 'react';
 
 const SWIPE_THRESHOLD = 50; // px — 이 이상 드래그해야 슬라이드 전환
