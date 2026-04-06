@@ -183,14 +183,6 @@ const parseGradeName = (seatInfo: string): string => {
    return rowIndex > 0 ? tokens.slice(0, rowIndex).join(' ') : (tokens[0] ?? '');
 };
 
-const isLikelyOrderReference = (value: string | undefined) => {
-   if (!value) {
-      return false;
-   }
-
-   return /^resale-order-/i.test(value) || /^order-/i.test(value);
-};
-
 const getFallbackCancelableUntil = (orderedAt: string | undefined) => {
    const orderedDate = parseDateValue(orderedAt);
 

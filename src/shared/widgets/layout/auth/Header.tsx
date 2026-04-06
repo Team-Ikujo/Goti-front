@@ -41,8 +41,8 @@ const Header = () => {
             <div className="bg-background shadow-[0px_1px_2px_0px_rgba(13,17,23,0.05)] w-full px-4 flex justify-center">
                <div className="flex items-center gap-5 h-12.5 w-full max-w-300">
                   {/* 로고 */}
-                  <Link to="/" className="shrink-0 text-[21px] font-bold tracking-[-0.5px] text-foreground">
-                     GoTi
+                  <Link to="/" className="shrink-0 flex items-center">
+                     <img src="/Logo/logo.svg" alt="GO-TI" className="h-6 w-auto" />
                   </Link>
 
                   {/* 탭 */}

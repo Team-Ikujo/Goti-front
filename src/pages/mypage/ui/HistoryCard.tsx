@@ -74,26 +74,6 @@ type HistoryCardProps = ({ mode: 'purchase'; item: PurchaseHistoryItem } | { mod
 
 // ── 유틸 ─────────────────────────────────────────────────────────────
 
-/** 경기 일자 기준으로 판매 오픈 시각 계산: 해당월 1일 11:00 */
-const getSaleOpenTime = (datetime: string): Date => {
-   const parts = datetime.split('.');
-   const year = parts[0];
-   const month = parts[1];
-   return new Date(`${year}-${month}-01T11:00:00`);
-};
-
-/** 리셀 오픈 시각: 판매 오픈 + 2시간 */
-const getResellOpenTime = (datetime: string): Date => {
-   const t = getSaleOpenTime(datetime);
-   return new Date(t.getTime() + 2 * 60 * 60 * 1000);
-};
-
-/** 판매예정 서브텍스트용 레이블: 'N월 1일 오전 11시 오픈' */
-const getSaleOpenLabel = (datetime: string): string => {
-   const month = parseInt(datetime.split('.')[1], 10);
-   return `${month}월 1일 오전 11시 오픈`;
-};
-
 // ── 컴포넌트 ─────────────────────────────────────────────────────────
 
 export default function HistoryCard(props: HistoryCardProps) {
@@ -136,11 +116,6 @@ export default function HistoryCard(props: HistoryCardProps) {
    const actionTickets = actionTicketsQuery.data ?? [];
    const showQrBtn = Boolean(purchaseOrderId) && isBooked && item.deliveryType === '모바일 티켓';
    // 판매 오픈 여부: 해당월 1일 11:00 이전 → 판매예정, ~13:00 이전 → 리셀예정
-   const now = new Date();
-   const saleOpenTime = getSaleOpenTime(item.game.datetime);
-   const resellOpenTime = getResellOpenTime(item.game.datetime);
-   const isSaleNotOpen = showSellBtn && now < saleOpenTime;
-   const isResellNotOpen = showSellBtn && !isSaleNotOpen && now < resellOpenTime;
    // 취소/환불·관람완료는 버튼 없이 '-' 표시
    const showDash =
       isPurchase && (purchaseItem?.paymentStatus === '취소/환불' || purchaseItem?.paymentStatus === '관람 완료');

@@ -7,19 +7,17 @@ import {
    releaseResaleHoldKeepalive,
    submitResaleOrder,
    submitTicketOrder,
-   type ResaleCheckoutRequest,
    type PaymentResponse,
+   type ResaleCheckoutRequest,
    type TicketCheckoutRequest,
 } from '@/pages/tickets/api/paymentApi';
 import { releaseSeatReservation, releaseSeatReservationKeepalive } from '@/entities/seat-hold/api/seatHoldApi';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
-import { ApiError } from '@/shared/api/client';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 
 import { PaymentHeader } from './_shared';
 
-// TODO: 예매 단계 완성 후 라우터 state/params로 교체
 const MOCK_GAME = {
    matchTitle: '기아 vs LG',
    venue: '기아 챔피언스필드',
@@ -145,6 +143,7 @@ export default function PaymentProcessingPage() {
       const { request: paymentRequest, amount: clientAmount } = locationState;
       const isStillOnProcessingPage = () => window.location.pathname === '/tickets/payment/processing';
       const isResaleRequest = 'listingId' in paymentRequest;
+
       const completePayment = (result: PaymentResponse) => {
          if (!isMountedRef.current || !isStillOnProcessingPage()) {
             return;
@@ -209,6 +208,7 @@ export default function PaymentProcessingPage() {
                              resaleHoldIdRef.current = null;
                           },
                        });
+
             const [result] = await Promise.all([
                submitOrder(),
                new Promise(resolve => setTimeout(resolve, 1000)),
@@ -240,7 +240,7 @@ export default function PaymentProcessingPage() {
          }
       };
 
-      process();
+      void process();
 
       const handlePageHide = () => {
          if (hasCompletedRef.current || hasSuccessfulTicketPaymentRef.current) {
@@ -285,7 +285,6 @@ export default function PaymentProcessingPage() {
          <PaymentHeader {...headerProps} />
 
          <main className="flex-1 bg-white flex flex-col items-center justify-center gap-[50px]">
-            {/* 원형 점 스피너 */}
             <div className="relative size-20">
                {Array.from({ length: 10 }).map((_, i) => {
                   const angle = (i / 10) * 360;

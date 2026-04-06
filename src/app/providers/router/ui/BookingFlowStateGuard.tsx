@@ -26,11 +26,6 @@ const BookingFlowStateGuard = () => {
          previousPathname && isBookingFlowPath(previousPathname) && !isCurrentBookingFlow,
       );
       const requiresEntry = requiresBookingEntry(pathname);
-      const selectedSeatCount = Object.values(useSeatSelectionStore.getState().zones).reduce(
-         (count, zone) => count + zone.selectedSeatIds.length,
-         0,
-      );
-
       if (requiresEntry && !bookingEntry) {
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();

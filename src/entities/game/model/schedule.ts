@@ -152,7 +152,7 @@ const findTeamReference = (...candidates: Array<string | undefined>) => {
       reference.fullName,
       ...reference.aliases,
     ]
-      .filter((v): v is string => v !== undefined)
+      .filter((candidate): candidate is string => Boolean(candidate))
       .map(normalizeLookupValue);
 
     return normalizedCandidates.some((candidate) => referenceCandidates.includes(candidate));

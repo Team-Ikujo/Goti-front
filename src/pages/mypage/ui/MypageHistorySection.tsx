@@ -73,7 +73,6 @@ export function MypageHistorySection({
    const [appliedStartDate, setAppliedStartDate] = useState('');
    const [appliedEndDate, setAppliedEndDate] = useState('');
    const [appliedPurchaseType, setAppliedPurchaseType] = useState<PurchaseTypeFilter>('전체 내역');
-   const [appliedSaleType, setAppliedSaleType] = useState<SaleTypeFilter>('리셀');
    const [currentPage, setCurrentPage] = useState(1);
    const periodDropdownRef = useRef<HTMLDivElement>(null);
    const typeDropdownRef = useRef<HTMLDivElement>(null);
@@ -117,7 +116,6 @@ export function MypageHistorySection({
       setAppliedStartDate(pendingStartDate);
       setAppliedEndDate(pendingEndDate);
       setAppliedPurchaseType(pendingPurchaseType);
-      setAppliedSaleType(pendingSaleType);
       setAppliedSearchQuery(trimmed);
       setCurrentPage(1);
       return true;
