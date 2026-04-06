@@ -328,7 +328,14 @@ export default function AccountPage() {
             modal={modal}
             onClose={closeModal}
             onWithdrawConfirm={handleWithdrawConfirm}
-            onNavigateToVerification={() => navigate('/auth/verification-flow')}
+            onNavigateToVerification={() =>
+               navigate('/mypage/account/identity', {
+                  state: {
+                     name: profile.name,
+                     phone: profile.mobile,
+                  },
+               })
+            }
          />
          <AccountTermsDialogs termsDialog={termsDialog} onClose={() => setTermsDialog(null)} />
       </div>
