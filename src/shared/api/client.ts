@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/entities/auth/model/authStore";
 import { redirectToErrorPage } from '@/shared/lib/error-navigation';
+import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import { applyGuardrailHeadersToAxiosConfig } from '@/shared/lib/guardrailHeaders';
 
 export class ApiError extends Error {
@@ -36,7 +37,7 @@ const PUBLIC_API_PATH_PATTERNS = [
   /^\/api\/v1\/resales\/holds(?:\/|$)/,
   /^\/api\/v1\/resales\/orders(?:\/|$)/,
   /^\/api\/v1\/payments\/resales(?:\/|$)/,
-  /^\/api\/v1\/resales\/listings\/games(?:\/|$)/,
+  /^\/api\/v1\/resales\/games(?:\/|$)/,
   /^\/api\/v1\/game-seats(?:\/|$)/,
   /^\/api\/v1\/stadium-seats(?:\/|$)/,
   /^\/api\/v1\/seats(?:\/|$)/,
@@ -50,6 +51,7 @@ const GUARDRAIL_HEADER_API_PATH_PATTERNS = [
   /^\/api\/v1\/resales\/holds(?:\/|$)/,
   /^\/api\/v1\/resales\/orders(?:\/|$)/,
   /^\/api\/v1\/payments\/resales(?:\/|$)/,
+  /^\/api\/v1\/resales\/games(?:\/|$)/,
   /^\/api\/v1\/resales\/listings(?:\/|$)/,
   /^\/api\/v1\/resales\/histories(?:\/|$)/,
   /^\/api\/v1\/game-seats(?:\/|$)/,
@@ -247,6 +249,7 @@ const reissueAccessTokenFromCookie = async () => {
 
 apiClient.interceptors.request.use((config) => {
   const accessToken = useAuthStore.getState().accessToken;
+  const turnstileToken = useBookingEntryStore.getState().entry?.turnstileToken;
   const shouldSkipAuth = shouldSkipAuthorizationHeader(config);
   const shouldOmitCredentials = shouldSkipCredentials(config);
   const shouldIncludeGuardrailHeaders = shouldAttachGuardrailHeaders(config);
@@ -256,7 +259,7 @@ apiClient.interceptors.request.use((config) => {
   }
 
   if (shouldIncludeGuardrailHeaders) {
-    applyGuardrailHeadersToAxiosConfig(config);
+    applyGuardrailHeadersToAxiosConfig(config, turnstileToken);
   }
 
   if (accessToken && !shouldSkipAuth) {
@@ -300,8 +303,10 @@ apiClient.interceptors.response.use(
       requestConfig._retry = true;
 
       return reissueAccessTokenFromCookie().then((accessToken) => {
+        const turnstileToken = useBookingEntryStore.getState().entry?.turnstileToken;
+
         if (shouldAttachGuardrailHeaders(requestConfig)) {
-          applyGuardrailHeadersToAxiosConfig(requestConfig);
+          applyGuardrailHeadersToAxiosConfig(requestConfig, turnstileToken);
         }
 
         if (!shouldSkipAuthorizationHeader(requestConfig)) {

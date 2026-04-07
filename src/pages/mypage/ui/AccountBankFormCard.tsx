@@ -4,7 +4,7 @@ import { Checkbox } from '@/shared/ui/checkbox';
 import { Input } from '@/shared/ui/input';
 import type { TermsType } from './AccountTermsDialogs';
 
-interface AccountAgreementItem {
+export interface AccountAgreementItem {
    label: string;
    checked: boolean;
    onChange: (value: boolean) => void;
@@ -63,9 +63,6 @@ export function AccountBankFormCard({
          <div className="flex flex-col gap-6">
             <p className="text-caption-1-regular text-(--text-tertiary)">
                계좌 미등록 시 리셀 및 취소/환불 기능이 제한됩니다.
-            </p>
-            <p className="text-caption-1-regular text-muted-foreground">
-               계좌 조회 API가 없어 현재 세션에서 저장에 성공한 계좌만 화면에 반영됩니다.
             </p>
 
             <div className="flex gap-6">

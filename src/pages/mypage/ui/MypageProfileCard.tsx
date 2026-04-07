@@ -9,7 +9,7 @@ interface MypageProfileCardProps {
 
 export function MypageProfileCard({ profile, onEditAccount }: MypageProfileCardProps) {
    return (
-      <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6">
+      <div className="bg-background border border-border rounded-[14px] p-6">
          <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-4 lg:gap-5">
                <div className="size-16 lg:size-21 rounded-full border border-border flex items-center justify-center shrink-0">

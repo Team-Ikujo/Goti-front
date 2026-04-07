@@ -375,6 +375,7 @@ export const authHandlers = [
    }),
 
    // 내 프로필 조회 — Authorization 헤더의 JWT에서 유저 정보 파싱
+   // 실제 응답: MemberDetailResponse (bankAccount, address, socialConnection 포함)
    http.get('/api/v1/members/me', async ({ request }) => {
       const authHeader = request.headers.get('Authorization') ?? '';
       const token = authHeader.replace(/^Bearer\s+/i, '');
@@ -391,6 +392,10 @@ export const authHandlers = [
          if (decoded.email) email = decoded.email;
       }
 
+      const memberKey = getMockMemberKey(request);
+      const account = mockMemberAccounts.get(memberKey);
+      const address = mockMemberAddresses.get(memberKey);
+
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
@@ -400,6 +405,18 @@ export const authHandlers = [
             mobile,
             gender: 'MALE',
             birthDate: '1990-01-01',
+            oAuthProvider: 'GOOGLE',
+            bankAccount: account
+               ? { bankName: account.bankName, accountNumber: account.accountNumber, accountHolder: account.accountHolder }
+               : null,
+            address: address
+               ? { zipCode: address.zipCode, baseAddress: address.baseAddress, detailAddress: address.detailAddress }
+               : null,
+            socialConnection: {
+               isGoogleConnected: true,
+               isKakaoConnected: false,
+               isNaverConnected: false,
+            },
          },
       });
    }),
@@ -460,6 +477,42 @@ export const authHandlers = [
       });
    }),
 
+   http.patch('/api/v1/members/me', async ({ request }) => {
+      const body = (await request.json()) as {
+         mobile?: string;
+         name?: string;
+         gender?: 'MALE' | 'FEMALE' | 'UNKNOWN';
+         birthDate?: string;
+      };
+
+      if (!body?.mobile || !body?.name || !body?.gender || !body?.birthDate) {
+         return HttpResponse.json({ message: 'Missing member profile fields.' }, { status: 400 });
+      }
+
+      const session = mockRefreshSession.get();
+
+      if (!session) {
+         return HttpResponse.json({ message: 'Mock refresh session is missing.' }, { status: 401 });
+      }
+
+      mockRefreshSession.set({
+         ...session,
+         name: body.name,
+         mobile: body.mobile,
+      });
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            mobile: body.mobile,
+            name: body.name,
+            gender: body.gender,
+            birthDate: body.birthDate,
+         },
+      });
+   }),
+
    http.post('/api/v1/auth/reissue', async () => {
       const session = mockRefreshSession.get();
 
@@ -479,6 +532,26 @@ export const authHandlers = [
                ...(session.name ? { name: session.name } : {}),
             }),
          },
+      });
+   }),
+
+   http.post('/api/v1/auth/logout', async () => {
+      mockRefreshSession.clear();
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: null,
+      });
+   }),
+
+   http.delete('/api/v1/members/me', async () => {
+      mockRefreshSession.clear();
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: null,
       });
    }),
 ];

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -7,8 +7,8 @@ import {
    releaseResaleHoldKeepalive,
    submitResaleOrder,
    submitTicketOrder,
-   type ResaleCheckoutRequest,
    type PaymentResponse,
+   type ResaleCheckoutRequest,
    type TicketCheckoutRequest,
 } from '@/pages/tickets/api/paymentApi';
 import { releaseSeatReservation, releaseSeatReservationKeepalive } from '@/entities/seat-hold/api/seatHoldApi';
@@ -16,10 +16,10 @@ import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { ApiError } from '@/shared/api/client';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
+import BooksPurchaseLimitDialog from '@/shared/widgets/layout/books/BooksPurchaseLimitDialog';
 
 import { PaymentHeader } from './_shared';
 
-// TODO: 예매 단계 완성 후 라우터 state/params로 교체
 const MOCK_GAME = {
    matchTitle: '기아 vs LG',
    venue: '기아 챔피언스필드',
@@ -27,6 +27,29 @@ const MOCK_GAME = {
 };
 
 const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
+const TICKET_PURCHASE_LIMIT_ERROR_PATTERNS = [
+   /티켓\s*보유\s*수량\s*초과/i,
+   /보유\s*수량\s*초과/i,
+   /최대\s*4\s*매/i,
+   /4\s*매\s*제한/i,
+   /매수\s*제한/i,
+   /purchase\s*limit/i,
+   /ticket\s*(count|quantity)\s*limit/i,
+   /already\s*(purchased|bought|owned)/i,
+   /owned\s*ticket\s*count/i,
+];
+
+const isTicketPurchaseLimitError = (error: unknown) => {
+   if (!(error instanceof ApiError)) {
+      return false;
+   }
+
+   if (error.status !== 400 && error.status !== 409) {
+      return false;
+   }
+
+   return TICKET_PURCHASE_LIMIT_ERROR_PATTERNS.some((pattern) => pattern.test(error.message));
+};
 
 const createFallbackOrderNumber = () => {
    const digits = String(Date.now()).slice(-13).padStart(13, '0');
@@ -120,6 +143,7 @@ export default function PaymentProcessingPage() {
    const queryClient = useQueryClient();
    const { state } = useLocation();
    const locationState = state as { request: TicketCheckoutRequest | ResaleCheckoutRequest; amount: number } | null;
+   const [isPurchaseLimitDialogOpen, setIsPurchaseLimitDialogOpen] = useState(false);
    const hasStartedRef = useRef(false);
    const isMountedRef = useRef(false);
    const hasCompletedRef = useRef(false);
@@ -145,6 +169,7 @@ export default function PaymentProcessingPage() {
       const { request: paymentRequest, amount: clientAmount } = locationState;
       const isStillOnProcessingPage = () => window.location.pathname === '/tickets/payment/processing';
       const isResaleRequest = 'listingId' in paymentRequest;
+
       const completePayment = (result: PaymentResponse) => {
          if (!isMountedRef.current || !isStillOnProcessingPage()) {
             return;
@@ -209,6 +234,7 @@ export default function PaymentProcessingPage() {
                              resaleHoldIdRef.current = null;
                           },
                        });
+
             const [result] = await Promise.all([
                submitOrder(),
                new Promise(resolve => setTimeout(resolve, 1000)),
@@ -230,6 +256,11 @@ export default function PaymentProcessingPage() {
                   await releasePendingHolds();
                }
 
+               if (isTicketPurchaseLimitError(error)) {
+                  setIsPurchaseLimitDialogOpen(true);
+                  return;
+               }
+
                const message = getErrorMessage(
                   error,
                   '결제 요청 처리 중 오류가 발생했습니다. 입력값을 다시 확인해 주세요.',
@@ -240,7 +271,7 @@ export default function PaymentProcessingPage() {
          }
       };
 
-      process();
+      void process();
 
       const handlePageHide = () => {
          if (hasCompletedRef.current || hasSuccessfulTicketPaymentRef.current) {
@@ -282,10 +313,16 @@ export default function PaymentProcessingPage() {
 
    return (
       <div className="min-h-screen flex flex-col bg-background">
+         <BooksPurchaseLimitDialog
+            open={isPurchaseLimitDialogOpen}
+            onConfirm={() => {
+               setIsPurchaseLimitDialogOpen(false);
+               navigate('/tickets/payment', { replace: true });
+            }}
+         />
          <PaymentHeader {...headerProps} />
 
          <main className="flex-1 bg-white flex flex-col items-center justify-center gap-[50px]">
-            {/* 원형 점 스피너 */}
             <div className="relative size-20">
                {Array.from({ length: 10 }).map((_, i) => {
                   const angle = (i / 10) * 360;

@@ -30,11 +30,6 @@ export function AccountAddressFormCard({
          <div className="flex gap-5">
             <p className="text-body-2-medium text-foreground whitespace-nowrap">주소정보</p>
             <div className="flex flex-col gap-7.5 flex-1">
-               {savedAddress && (
-                  <div className="rounded-lg bg-surface px-4 py-3 text-body-2-regular text-muted-foreground">
-                     최근 저장 주소: ({savedAddress.zipCode}) {savedAddress.baseAddress} {savedAddress.detailAddress}
-                  </div>
-               )}
                <div className="flex flex-col gap-4">
                   <div className="flex items-end gap-2.5">
                      <Input className="flex-1" label="우편번호" required value={zipCode} disabled readOnly />
@@ -52,7 +47,7 @@ export function AccountAddressFormCard({
                      required
                      placeholder="상세 주소를 입력하세요"
                      value={addressDetail}
-                     onChange={(e) => onChangeAddressDetail(e.target.value)}
+                     onChange={e => onChangeAddressDetail(e.target.value)}
                   />
                </div>
                <button

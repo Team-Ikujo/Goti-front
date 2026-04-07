@@ -12,7 +12,6 @@ interface AccountTermsDialogsProps {
 export function AccountTermsDialogs({ termsDialog, onClose }: AccountTermsDialogsProps) {
    return (
       <>
-         {/* ── 오픈뱅킹공동업무 자동계좌이체 약관 ── */}
          <Dialog open={termsDialog === 'openBanking'} onOpenChange={onClose}>
             <DialogContent maxWidth={600} showCloseButton={true} className="rounded-2xl p-0 gap-0 flex flex-col max-h-[80vh]">
                <div className="px-6 pt-6 pb-4 border-b border-border shrink-0">
@@ -108,7 +107,6 @@ export function AccountTermsDialogs({ termsDialog, onClose }: AccountTermsDialog
             </DialogContent>
          </Dialog>
 
-         {/* ── 개인(신용)정보 제3자 제공 동의 ── */}
          <Dialog open={termsDialog === 'thirdParty'} onOpenChange={onClose}>
             <DialogContent maxWidth={600} showCloseButton={true} className="rounded-2xl p-0 gap-0 flex flex-col max-h-[80vh]">
                <div className="px-6 pt-6 pb-4 border-b border-border shrink-0">
@@ -148,7 +146,6 @@ export function AccountTermsDialogs({ termsDialog, onClose }: AccountTermsDialog
             </DialogContent>
          </Dialog>
 
-         {/* ── [출금이체] 개인정보 수집‧이용 동의 ── */}
          <Dialog open={termsDialog === 'personalInfo'} onOpenChange={onClose}>
             <DialogContent maxWidth={600} showCloseButton={true} className="rounded-2xl p-0 gap-0 flex flex-col max-h-[80vh]">
                <div className="px-6 pt-6 pb-4 border-b border-border shrink-0">

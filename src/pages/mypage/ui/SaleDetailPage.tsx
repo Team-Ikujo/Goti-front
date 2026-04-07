@@ -1,6 +1,6 @@
 // src/pages/mypage/ui/SaleDetailPage.tsx
 
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
@@ -12,8 +12,7 @@ import StatusBadge from './StatusBadge';
 import type { BadgeVariant } from './StatusBadge';
 import TicketItem from './TicketItem';
 import InfoItem from './InfoItem';
-
-// ─── 상태 → 배지 변형 매핑 ─────────────────────────────────────
+import ActionStatusDialog from './ActionStatusDialog';
 
 type SaleStatus = '판매 중' | '정산 대기' | '판매 완료' | '취소 대기' | '취소 완료';
 
@@ -27,15 +26,23 @@ const SALE_BADGE: Record<SaleStatus, BadgeVariant> = {
 
 const FEE_RATE = 5;
 
-// ─── 로컬 서브 컴포넌트 ────────────────────────────────────────
-
 function SectionCard({ children, className = '' }: { children: ReactNode; className?: string }) {
    return (
-      <div className={`border border-[#e9ebee] rounded-2xl p-[25px] flex flex-col gap-6 ${className}`}>{children}</div>
+      <div className={`border border-border rounded-2xl p-[25px] flex flex-col gap-6 ${className}`}>{children}</div>
    );
 }
 
-// ─── 메인 컴포넌트 ─────────────────────────────────────────────
+function DetailHero({ title, subtitle, venue }: { title: string; subtitle: string; venue: string }) {
+   return (
+      <div className="flex flex-col gap-4">
+         <p className="text-title-1-bold text-foreground">{title}</p>
+         <div className="flex flex-col gap-1 text-heading-4-medium text-muted-foreground">
+            <p>{subtitle}</p>
+            <p>{venue}</p>
+         </div>
+      </div>
+   );
+}
 
 export default function SaleDetailPage() {
    const { id } = useParams<{ id: string }>();
@@ -43,13 +50,18 @@ export default function SaleDetailPage() {
    const queryClient = useQueryClient();
    const resaleListQuery = useMyResaleListData();
    const apiDetail = (resaleListQuery.data ?? []).find((item) => item.id === id);
+   const [cancelDialogType, setCancelDialogType] = useState<'success' | 'error' | null>(null);
 
    const { mutate: cancelListing, isPending: isCanceling } = useMutation({
       mutationFn: () => cancelResaleListing(id!),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['myResales'] });
-         queryClient.invalidateQueries({ queryKey: ['myResaleSummary'] });
-         queryClient.invalidateQueries({ queryKey: ['myResaleUnsettledAmount'] });
+         void queryClient.invalidateQueries({ queryKey: ['myResales'] });
+         void queryClient.invalidateQueries({ queryKey: ['myResaleSummary'] });
+         void queryClient.invalidateQueries({ queryKey: ['myResaleUnsettledAmount'] });
+         setCancelDialogType('success');
+      },
+      onError: () => {
+         setCancelDialogType('error');
       },
    });
 
@@ -83,30 +95,35 @@ export default function SaleDetailPage() {
 
    return (
       <div className="flex flex-col items-center pt-12.5 pb-30 px-4">
+         <ActionStatusDialog
+            open={cancelDialogType !== null}
+            title="판매 취소"
+            message={
+               cancelDialogType === 'success'
+                  ? '판매가 취소되었습니다.'
+                  : '판매 취소에 실패했습니다. 잠시 후 다시 시도해주세요.'
+            }
+            onClose={() => setCancelDialogType(null)}
+            onRetry={
+               cancelDialogType === 'error'
+                  ? () => {
+                       setCancelDialogType(null);
+                       cancelListing();
+                    }
+                  : undefined
+            }
+         />
          <div className="flex flex-col gap-14 w-full max-w-[760px] min-w-[335px]">
-            {/* 제목 */}
             <div className="flex items-center gap-4">
-               <h1 className="text-[32px] font-bold text-[#111827] tracking-[-0.032px] leading-[1.45]">
-                  판매내역 상세
-               </h1>
+               <h1 className="text-title-1-bold text-foreground">판매내역 상세</h1>
             </div>
 
             <div className="flex flex-col gap-12">
-               {/* 경기 정보 */}
                <SectionCard>
                   <StatusBadge label={overallStatus} variant={SALE_BADGE[overallStatus]} />
-                  <div className="flex flex-col gap-4">
-                     <p className="text-[32px] font-bold text-[#161d24] tracking-[-0.032px] leading-[1.45]">
-                        {apiDetail.game.teams}
-                     </p>
-                     <div className="flex flex-col gap-1 text-[18px] font-medium text-[#374553]">
-                        <p className="leading-[1.55]">{apiDetail.game.datetime}</p>
-                        <p className="leading-[1.55]">{apiDetail.game.venue}</p>
-                     </div>
-                  </div>
+                  <DetailHero title={apiDetail.game.teams} subtitle={apiDetail.game.datetime} venue={apiDetail.game.venue} />
                </SectionCard>
 
-               {/* 취소 대기: 취소 정보 / 그 외: 판매 정보 */}
                {isCancelPending ? (
                   <InfoItem
                      heading="취소 정보"
@@ -135,9 +152,8 @@ export default function SaleDetailPage() {
                   />
                )}
 
-               {/* 좌석 정보 */}
                <SectionCard>
-                  <h2 className="text-[20px] font-bold text-[#161d24] leading-[1.5]">
+                  <h2 className="text-heading-3-bold text-foreground">
                      {isCancelPending ? '판매 취소된 좌석' : '좌석 정보'}
                   </h2>
                   <div className="flex flex-col">
@@ -154,7 +170,6 @@ export default function SaleDetailPage() {
                   </div>
                </SectionCard>
 
-               {/* 정산 금액 — 취소 대기에서는 숨김 */}
                {!isCancelPending && (
                   <InfoItem
                      type="payment"
@@ -172,7 +187,6 @@ export default function SaleDetailPage() {
                )}
             </div>
 
-            {/* 판매 취소 버튼 — 판매 중일 때만 */}
             {apiDetail.canCancel && (
                <Button
                   variant="tertiary"
@@ -184,16 +198,15 @@ export default function SaleDetailPage() {
                </Button>
             )}
 
-            {/* 유의사항 — 판매 중일 때만 */}
             {overallStatus === '판매 중' && (
                <div className="bg-surface rounded-[14px] p-6 flex flex-col gap-6">
                   <div className="flex items-center gap-1">
-                     <AlertCircle size={20} className="text-[#161d24] shrink-0" />
-                     <h3 className="text-[18px] font-bold text-[#161d24] leading-[1.55]">유의사항</h3>
+                     <AlertCircle size={20} className="text-foreground shrink-0" />
+                     <h3 className="text-heading-4-bold text-foreground">유의사항</h3>
                   </div>
                   <div className="flex flex-col gap-2">
-                     <h4 className="text-body-1-bold text-[#374553] leading-[1.5]">판매 등록 해지 안내</h4>
-                     <div className="flex flex-col gap-0.5 text-body-2-regular text-[#374553]">
+                     <h4 className="text-body-1-bold text-muted-foreground leading-[1.5]">판매 등록 해지 안내</h4>
+                     <div className="flex flex-col gap-0.5 text-body-2-regular text-muted-foreground">
                         <p>• 등록 후 1시간 이내 해지 시 즉시 해지되며, 별도 제한 없이 이용 가능합니다.</p>
                         <p>• 등록 후 1시간 이후 해지 시 해지 시점부터 6시간 동안 해당 티켓의 기능들이 제한됩니다.</p>
                         <p>• 제한 시간 동안 해당 티켓은 판매 등록, 거래, 티켓 사용, 취소 및 환불이 불가능합니다.</p>

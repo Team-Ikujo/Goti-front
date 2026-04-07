@@ -66,3 +66,17 @@ export const fetchTicketQr = async (ticketId: string): Promise<TicketQrResponse>
    const response = await apiClient.get<ApiEnvelope<TicketQrResponse>>(`/api/v1/tickets/${ticketId}/qr`);
    return response.data.data;
 };
+
+// GET /api/v1/tickets/myinfo — 사용자 티켓 현황 조회
+export interface MyTicketInfo {
+   totalCount: number;
+   issuedCount: number;
+   usedCount: number;
+   invalidCount: number;
+   resaleIssuedCount: number;
+}
+
+export const fetchMyTicketInfo = async (): Promise<MyTicketInfo> => {
+   const response = await apiClient.get<ApiEnvelope<MyTicketInfo>>('/api/v1/tickets/myinfo');
+   return response.data.data;
+};

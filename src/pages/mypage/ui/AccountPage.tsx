@@ -1,16 +1,20 @@
-// src/pages/mypage/ui/AccountPage.tsx
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { ChevronLeft } from 'lucide-react';
-import { createMemberAccount, createMemberAddress, type MemberAccount, type MemberAddress } from '@/entities/user/api/memberApi';
-import { MY_PROFILE_MOCK } from '@/entities/user/api/memberApi';
+import { createMemberAccount, createMemberAddress, withdrawMember, type MemberAccount, type MemberAddress } from '@/entities/user/api/memberApi';
+import { logout } from '@/features/auth/api/authApi';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { AccountModals } from './AccountModals';
 import type { ModalType } from './AccountModals';
 import { AccountTermsDialogs } from './AccountTermsDialogs';
 import type { TermsType } from './AccountTermsDialogs';
+import { AccountSummaryCard } from './AccountSummaryCard';
+import { AccountSocialConnectionsCard } from './AccountSocialConnectionsCard';
+import { AccountBankFormCard, type AccountAgreementItem } from './AccountBankFormCard';
+import { AccountAddressFormCard } from './AccountAddressFormCard';
+import { AccountManagementCard } from './AccountManagementCard';
 import {
    AccountFormCard,
    AccountInfoCard,
@@ -24,41 +28,89 @@ import {
    useMyResaleListData,
    useMyResaleUnsettledAmountData,
 } from '../model/useMypageData';
+import { ACCOUNT_PAGE_QUERY_KEYS, BANKS } from '../model/accountPageConstants';
 import { openDaumPostcode } from '../model/useDaumPostcode';
-import { PURCHASE_ITEMS, SALE_ITEMS } from '../model/mockData';
-const BANKS = [
-   '국민은행',
-   '신한은행',
-   '우리은행',
-   '하나은행',
-   'IBK기업은행',
-   'NH농협은행',
-   '카카오뱅크',
-   '토스뱅크',
-   '케이뱅크',
-   '새마을금고',
-   '신협',
-   '수협은행',
-   'SC제일은행',
-   '씨티은행',
-   '광주은행',
-   '전북은행',
-   '경남은행',
-   '제주은행',
-   '부산은행',
-   '대구은행',
-];
+import { decodeJwtPayload } from '@/shared/lib/jwt';
+
+const ACCOUNT_STORAGE_KEY_PREFIX = 'mypage-account-info';
+
+const readStringClaim = (payload: Record<string, unknown> | null, keys: string[]) => {
+   for (const key of keys) {
+      const value = payload?.[key];
+
+      if (typeof value === 'string' && value.trim().length > 0) {
+         return value.trim();
+      }
+   }
+
+   return undefined;
+};
+
+const toOAuthProvider = (provider?: string | null) => {
+   if (!provider) {
+      return undefined;
+   }
+
+   switch (provider.toUpperCase()) {
+      case 'GOOGLE':
+         return 'GOOGLE' as const;
+      case 'KAKAO':
+         return 'KAKAO' as const;
+      case 'NAVER':
+         return 'NAVER' as const;
+      default:
+         return undefined;
+   }
+};
 
 export default function AccountPage() {
    const navigate = useNavigate();
    const location = useLocation();
+   const queryClient = useQueryClient();
+   const accessToken = useAuthStore(state => state.accessToken);
+   const currentUserId = useAuthStore(state => state.currentUserId);
+   const recentLoginProvider = useAuthStore(state => state.recentLoginProvider);
    const profileQuery = useMyProfileData();
    const ordersQuery = useMyOrdersData();
    const resaleListQuery = useMyResaleListData();
    const unsettledAmountQuery = useMyResaleUnsettledAmountData();
-   const profile = profileQuery.isError ? MY_PROFILE_MOCK : (profileQuery.data ?? MY_PROFILE_MOCK);
-   const purchaseItems = ordersQuery.isError ? PURCHASE_ITEMS : (ordersQuery.data ?? []);
-   const saleItems = resaleListQuery.isError ? SALE_ITEMS : (resaleListQuery.data ?? []);
+   const profile = profileQuery.data;
+   const authPayload = useMemo(() => decodeJwtPayload(accessToken), [accessToken]);
+   const effectiveProvider = useMemo(
+      () => toOAuthProvider(profile?.oAuthProvider) ?? toOAuthProvider(recentLoginProvider),
+      [profile?.oAuthProvider, recentLoginProvider],
+   );
+   const resolvedProfile = useMemo(() => ({
+      ...profile,
+      email: profile?.email ?? readStringClaim(authPayload, ['email']),
+      name: profile?.name ?? readStringClaim(authPayload, ['name']),
+      mobile: profile?.mobile ?? readStringClaim(authPayload, ['mobile', 'phoneNumber', 'phone_number']),
+      oAuthProvider: effectiveProvider,
+   }), [authPayload, effectiveProvider, profile]);
+   const resolvedSocialConnection = useMemo(() => {
+      const base = {
+         isGoogleConnected: profile?.socialConnection?.isGoogleConnected ?? false,
+         isKakaoConnected: profile?.socialConnection?.isKakaoConnected ?? false,
+         isNaverConnected: profile?.socialConnection?.isNaverConnected ?? false,
+      };
+
+      if (effectiveProvider === 'GOOGLE') {
+         base.isGoogleConnected = true;
+      }
+
+      if (effectiveProvider === 'KAKAO') {
+         base.isKakaoConnected = true;
+      }
+
+      if (effectiveProvider === 'NAVER') {
+         base.isNaverConnected = true;
+      }
+
+      return base;
+   }, [effectiveProvider, profile?.socialConnection]);
+   const [socialConnectionState, setSocialConnectionState] = useState(resolvedSocialConnection);
+   const purchaseItems = ordersQuery.data ?? [];
+   const saleItems = resaleListQuery.data ?? [];
 
    // 미정산 금액 존재 여부: 판매 완료 후 정산 대기 중인 항목
    const hasUnpaidAmount = (unsettledAmountQuery.data?.unsettledAmount ?? 0) > 0;
@@ -66,17 +118,11 @@ export default function AccountPage() {
    const hasActiveTickets =
       purchaseItems.some(i => i.paymentStatus === '예매 완료') || saleItems.some(i => i.saleStatus === '판매 중');
 
-   // ── 모달 ──
    const [modal, setModal] = useState<ModalType>(null);
    const closeModal = () => setModal(null);
 
-   // ── 약관 다이얼로그 ──
    const [termsDialog, setTermsDialog] = useState<TermsType>(null);
 
-   // ── 간편 로그인 연결 ──
-   const socialConnectionApiAvailable = false;
-
-   // ── 계좌 정보 ──
    const [bank, setBank] = useState('');
    const [bankDropdownOpen, setBankDropdownOpen] = useState(false);
    const bankDropdownRef = useRef<HTMLDivElement>(null);
@@ -86,12 +132,99 @@ export default function AccountPage() {
    const [depositor, setDepositor] = useState('');
    const [savedAccount, setSavedAccount] = useState<MemberAccount | null>(null);
    const [savedAddress, setSavedAddress] = useState<MemberAddress | null>(null);
+   const storedAccountKey = useMemo(
+      () => (currentUserId ? `${ACCOUNT_STORAGE_KEY_PREFIX}:${currentUserId}` : null),
+      [currentUserId],
+   );
+
+   const readStoredAccount = useCallback((): MemberAccount | null => {
+      if (typeof window === 'undefined' || !storedAccountKey) {
+         return null;
+      }
+
+      try {
+         const rawValue = window.localStorage.getItem(storedAccountKey);
+         if (!rawValue) {
+            return null;
+         }
+
+         return JSON.parse(rawValue) as MemberAccount;
+      } catch {
+         return null;
+      }
+   }, [storedAccountKey]);
+
+   const writeStoredAccount = useCallback(
+      (account: MemberAccount | null) => {
+         if (typeof window === 'undefined' || !storedAccountKey) {
+            return;
+         }
+
+         if (!account) {
+            window.localStorage.removeItem(storedAccountKey);
+            return;
+         }
+
+         window.localStorage.setItem(storedAccountKey, JSON.stringify(account));
+      },
+      [storedAccountKey],
+   );
+
+   useEffect(() => {
+      setSocialConnectionState(resolvedSocialConnection);
+   }, [resolvedSocialConnection]);
+
+   useEffect(() => {
+      const storedAccount = readStoredAccount();
+
+      if (storedAccount) {
+         setSavedAccount(storedAccount);
+         setBank(storedAccount.bankName);
+         setAccountNumber(storedAccount.accountNumber);
+         setDepositor(storedAccount.accountHolder);
+      }
+   }, [readStoredAccount]);
+
+   // GET /api/v1/members/me 응답의 bankAccount·address로 초기값 설정
+   useEffect(() => {
+      if (!profile) return;
+
+      const ba = profile.bankAccount;
+      if (ba) {
+         const nextAccount = {
+            accountId: '',
+            accountNumber: ba.accountNumber,
+            bankName: ba.bankName,
+            accountHolder: ba.accountHolder,
+         };
+
+         setSavedAccount(nextAccount);
+         setBank(nextAccount.bankName);
+         setAccountNumber(nextAccount.accountNumber);
+         setDepositor(nextAccount.accountHolder);
+         writeStoredAccount(nextAccount);
+      }
+
+      const addr = profile.address;
+      if (addr && !savedAddress) {
+         setSavedAddress({
+            addressId: '',
+            zipCode: addr.zipCode,
+            baseAddress: addr.baseAddress,
+            detailAddress: addr.detailAddress,
+         });
+         setZipCode(addr.zipCode);
+         setAddress(addr.baseAddress);
+         setAddressDetail(addr.detailAddress);
+      }
+   // profile이 바뀔 때 한 번만 적용 (사용자 직접 수정 값은 유지)
+   // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [profile, writeStoredAccount]);
    const [agreeAll, setAgreeAll] = useState(false);
    const [agreeOpen, setAgreeOpen] = useState(false);
    const [agreeThird, setAgreeThird] = useState(false);
    const [agreePersonal, setAgreePersonal] = useState(false);
 
-   // ── 주소 수정 ──
    const [zipCode, setZipCode] = useState('');
    const [address, setAddress] = useState('');
    const [addressDetail, setAddressDetail] = useState('');
@@ -141,6 +274,10 @@ export default function AccountPage() {
          }),
       onSuccess: (registeredAccount) => {
          setSavedAccount(registeredAccount);
+         setBank(registeredAccount.bankName);
+         setAccountNumber(registeredAccount.accountNumber);
+         setDepositor(registeredAccount.accountHolder);
+         writeStoredAccount(registeredAccount);
          alert('계좌 정보가 저장되었습니다.');
       },
       onError: (error) => {
@@ -188,10 +325,15 @@ export default function AccountPage() {
    }, []);
 
    /** 로그아웃 */
-   const handleLogout = () => {
+   const handleLogout = useCallback(async () => {
+      try {
+         await logout();
+      } catch {
+         // 서버 로그아웃 실패해도 클라이언트 인증 상태는 초기화
+      }
       clearAuth('manual');
       navigate('/');
-   };
+   }, [clearAuth, navigate]);
 
    /** 회원 탈퇴 버튼 클릭 */
    const handleWithdrawClick = () => {
@@ -205,12 +347,52 @@ export default function AccountPage() {
    };
 
    /** 회원 탈퇴 확정 */
-   const handleWithdrawConfirm = () => {
-      closeModal();
+   const handleWithdrawConfirm = useCallback(async () => {
+      try {
+         await withdrawMember();
+      } catch {
+         // 탈퇴 API 실패 시에도 로컬 인증 상태 초기화 후 이동
+      }
+      setModal(null);
+      clearAuth('manual');
       navigate('/');
-   };
+   }, [clearAuth, navigate]);
 
-   const accountAgreementItems = [
+   const refetchAccountPageQueries = useCallback(() => {
+      void queryClient.invalidateQueries({ queryKey: ACCOUNT_PAGE_QUERY_KEYS.profile });
+      void queryClient.invalidateQueries({ queryKey: ACCOUNT_PAGE_QUERY_KEYS.orders });
+      void queryClient.invalidateQueries({ queryKey: ACCOUNT_PAGE_QUERY_KEYS.resales });
+      void queryClient.invalidateQueries({ queryKey: ACCOUNT_PAGE_QUERY_KEYS.resaleUnsettledAmount });
+   }, [queryClient]);
+
+   const handleToggleSocialConnection = useCallback(
+      (targetProvider: 'GOOGLE' | 'KAKAO' | 'NAVER') => {
+         const keyByProvider = {
+            GOOGLE: 'isGoogleConnected',
+            KAKAO: 'isKakaoConnected',
+            NAVER: 'isNaverConnected',
+         } as const;
+
+         const targetKey = keyByProvider[targetProvider];
+
+         setSocialConnectionState((prev) => {
+            const nextChecked = !prev[targetKey];
+
+            if (!nextChecked && targetProvider === effectiveProvider) {
+               setModal('cannotDisconnect');
+               return prev;
+            }
+
+            return {
+               ...prev,
+               [targetKey]: nextChecked,
+            };
+         });
+      },
+      [effectiveProvider],
+   );
+
+   const accountAgreementItems: AccountAgreementItem[] = [
       {
          label: '오픈뱅킹공동업무 자동계좌이체 약관',
          checked: agreeOpen,
@@ -231,42 +413,30 @@ export default function AccountPage() {
       },
    ];
 
-   const socialConnectionItems = [
-      {
-         key: 'google',
-         label: 'Google 계정 연결',
-         iconSrc: '/Icon/Logo/Google.svg',
-         iconAlt: 'Google',
-         iconWrapperClassName: 'rounded-full border border-border-light p-0.5',
-         showSignupBadge: true,
-      },
-      {
-         key: 'kakao',
-         label: '카카오 계정 연결',
-         iconSrc: '/Icon/Logo/Kakao.svg',
-         iconAlt: 'Kakao',
-         iconWrapperClassName: 'flex size-7 items-center justify-center overflow-hidden rounded-full bg-[#ffde00]',
-         textClassName: 'text-muted-foreground',
-      },
-      {
-         key: 'naver',
-         label: '네이버 계정 연결',
-         iconSrc: '/Icon/Logo/Naver.svg',
-         iconAlt: 'Naver',
-         iconWrapperClassName:
-            'flex size-7 items-center justify-center overflow-hidden rounded-full bg-[#00c73c] p-0.5',
-         textClassName: 'text-muted-foreground',
-      },
-   ];
-
    if (isPageLoading) {
       return <div className="py-24 text-center text-body-1-regular text-muted-foreground">계정 정보를 불러오는 중입니다.</div>;
+   }
+
+   if (isPageError) {
+      return (
+         <div className="flex flex-col items-center justify-center gap-4 py-24">
+            <p className="text-body-1-regular text-muted-foreground">
+               계정 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+            </p>
+            <button
+               type="button"
+               onClick={refetchAccountPageQueries}
+               className="rounded-lg border border-border px-6 py-3 text-body-1-bold text-muted-foreground hover:bg-surface transition-colors"
+            >
+               다시 시도
+            </button>
+         </div>
+      );
    }
 
    return (
       <div className="flex-1 bg-background">
          <div className="mx-auto max-w-300 px-4 pt-7.5 lg:pt-12.5 pb-30 flex flex-col gap-7">
-            {/* 뒤로 가기 */}
             <button
                onClick={() => navigate('/mypage')}
                className="flex items-center gap-2 text-muted-foreground text-body-1-medium w-fit"
@@ -278,46 +448,52 @@ export default function AccountPage() {
             <h1 className="text-[30px] font-bold text-foreground">계정 정보</h1>
 
             <div className="flex flex-col gap-6">
-               <AccountInfoCard
-                  profile={profile}
+               <AccountSummaryCard
+                  profile={resolvedProfile}
                   savedAccount={savedAccount}
-                  onOpenIdentityModal={() => setModal('identity')}
-                  onAccountChange={handleAccountChange}
+                  onEditIdentity={() => setModal('identity')}
+                  onEditAccount={handleAccountChange}
                />
-               <SocialConnectionsCard items={socialConnectionItems} apiAvailable={socialConnectionApiAvailable} />
-               <AccountFormCard
-                  ref={accountCardRef}
-                  bankOptions={BANKS}
+               <AccountSocialConnectionsCard
+                  socialConnection={socialConnectionState}
+                  provider={effectiveProvider}
+                  onToggleProvider={handleToggleSocialConnection}
+               />
+               <AccountBankFormCard
+                  banks={[...BANKS]}
                   bank={bank}
+                  accountNumber={accountNumber}
+                  depositor={depositor}
                   bankDropdownOpen={bankDropdownOpen}
                   bankDropdownRef={bankDropdownRef}
                   bankButtonRef={bankButtonRef}
-                  onToggleBankDropdown={() => setBankDropdownOpen((prev) => !prev)}
-                  onSelectBank={(selectedBank) => {
-                     setBank(selectedBank);
+                  accountCardRef={accountCardRef}
+                  agreeAll={agreeAll}
+                  agreementItems={accountAgreementItems}
+                  isAccountSaveEnabled={isAccountSaveEnabled}
+                  isSavingAccount={isSavingAccount}
+                  onToggleBankDropdown={() => setBankDropdownOpen((value) => !value)}
+                  onSelectBank={(value) => {
+                     setBank(value);
                      setBankDropdownOpen(false);
                   }}
-                  accountNumber={accountNumber}
-                  depositor={depositor}
-                  onAccountNumberChange={(value) => setAccountNumber(value.replace(/[^0-9]/g, ''))}
-                  onDepositorChange={(value) => setDepositor(value.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, ''))}
-                  agreeAll={agreeAll}
-                  onAgreeAllChange={handleAgreeAll}
-                  agreementItems={accountAgreementItems}
-                  onOpenTermsDialog={setTermsDialog}
-                  isSaveEnabled={isAccountSaveEnabled}
-                  isSaving={isSavingAccount}
+                  onChangeAccountNumber={(value) => setAccountNumber(value.replace(/[^0-9]/g, ''))}
+                  onChangeDepositor={(value) =>
+                     setDepositor(value.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, ''))
+                  }
+                  onToggleAgreeAll={handleAgreeAll}
+                  onOpenTerms={setTermsDialog}
                   onSave={() => saveAccount()}
                />
-               <AddressFormCard
+               <AccountAddressFormCard
                   savedAddress={savedAddress}
                   zipCode={zipCode}
                   address={address}
                   addressDetail={addressDetail}
+                  isAddressSaveEnabled={isAddressSaveEnabled}
+                  isSavingAddress={isSavingAddress}
                   onSearchPostcode={handlePostcodeSearch}
-                  onAddressDetailChange={setAddressDetail}
-                  isSaveEnabled={isAddressSaveEnabled}
-                  isSaving={isSavingAddress}
+                  onChangeAddressDetail={setAddressDetail}
                   onSave={() => saveAddress()}
                />
                <AccountManagementCard onLogout={handleLogout} onWithdraw={handleWithdrawClick} />
@@ -328,7 +504,19 @@ export default function AccountPage() {
             modal={modal}
             onClose={closeModal}
             onWithdrawConfirm={handleWithdrawConfirm}
-            onNavigateToVerification={() => navigate('/auth/verification-flow')}
+            onNavigateToVerification={() =>
+               navigate('/auth/terms', {
+                  state: {
+                     mode: 'profile-edit',
+                     profile: {
+                        name: resolvedProfile?.name,
+                        mobile: resolvedProfile?.mobile,
+                        gender: resolvedProfile?.gender,
+                        birthDate: resolvedProfile?.birthDate,
+                     },
+                  },
+               })
+            }
          />
          <AccountTermsDialogs termsDialog={termsDialog} onClose={() => setTermsDialog(null)} />
       </div>

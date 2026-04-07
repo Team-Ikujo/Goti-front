@@ -1,6 +1,7 @@
 import { AxiosHeaders, type AxiosRequestConfig } from 'axios';
 
 export const GUARDRAIL_HEADER_NAME = 'X-GR-BS';
+export const TURNSTILE_HEADER_NAME = 'X-Turnstile-Token';
 
 export type GuardrailBrowserSignals = {
    webdriver: boolean;
@@ -60,11 +61,16 @@ export const createGuardrailHeaders = (): Record<string, string> => {
    };
 };
 
-export const applyGuardrailHeadersToAxiosConfig = (config: AxiosRequestConfig) => {
-   const nextHeaders = AxiosHeaders.from(config.headers as AxiosHeaders | undefined);
-   const guardrailHeaders = createGuardrailHeaders();
+export const createBookingFlowHeaders = (turnstileToken?: string): Record<string, string> => ({
+   ...createGuardrailHeaders(),
+   ...(turnstileToken ? { [TURNSTILE_HEADER_NAME]: turnstileToken } : {}),
+});
 
-   for (const [headerName, headerValue] of Object.entries(guardrailHeaders)) {
+export const applyGuardrailHeadersToAxiosConfig = (config: AxiosRequestConfig, turnstileToken?: string) => {
+   const nextHeaders = AxiosHeaders.from(config.headers as AxiosHeaders | undefined);
+   const bookingFlowHeaders = createBookingFlowHeaders(turnstileToken);
+
+   for (const [headerName, headerValue] of Object.entries(bookingFlowHeaders)) {
       nextHeaders.set(headerName, headerValue);
    }
 

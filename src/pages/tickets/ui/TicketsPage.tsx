@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, SlidersHorizontal } from 'lucide-react';
 
 import { useGameSchedules } from '@/entities/game/model/schedule';
+import type { ResaleGameStatus } from '@/entities/resale/api/resaleApi';
 import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
+import { useResaleGameStatuses } from '@/entities/resale/model/useResaleGameStatuses';
 import { useResaleListingMarket } from '@/entities/resale/model/useResaleListingMarket';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 import { Button } from '@/shared/ui/button';
@@ -46,12 +48,25 @@ function applyFilters(games: GameItem[], filters: FilterState, activeTab: TabTyp
    });
 }
 
-function getResellStatus(resaleCount: number | undefined, fallbackStatus: ResellStatus): ResellStatus {
-   if (typeof resaleCount === 'number') {
-      return resaleCount > 0 ? '리셀 가능' : '매진';
-   }
+function getResellStatus(
+   resaleStatus: ResaleGameStatus | undefined,
+   resaleCount: number | undefined,
+   fallbackStatus: ResellStatus,
+): ResellStatus {
+   switch (resaleStatus) {
+      case 'SCHEDULED':
+         return '리셀 예정';
+      case 'AVAILABLE':
+         return typeof resaleCount === 'number' && resaleCount > 0 ? '리셀 가능' : '매진';
+      case 'UNAVAILABLE':
+         return '매진';
+      default:
+         if (typeof resaleCount === 'number') {
+            return resaleCount > 0 ? '리셀 가능' : '매진';
+         }
 
-   return fallbackStatus;
+         return fallbackStatus;
+   }
 }
 
 const TicketsPage = () => {
@@ -106,6 +121,7 @@ const TicketsPage = () => {
    const hasMoreGames = visibleCount < filteredGames.length;
    const visibleGameIds = useMemo(() => visibleGames.map((game) => game.id), [visibleGames]);
    const resaleCountsQuery = useResaleGameCounts(visibleGameIds, isResellTab);
+   const resaleStatusesQuery = useResaleGameStatuses(visibleGameIds, isResellTab);
    const resaleListingMarketQuery = useResaleListingMarket(visibleGameIds, isResellTab);
    const gamesToRender = useMemo(
       () =>
@@ -114,16 +130,17 @@ const TicketsPage = () => {
                game.resellStatus === '리셀 가능' ? '리셀 가능' : game.resellStatus === '리셀 예정' ? '리셀 예정' : '매진';
             const resaleMarket = resaleListingMarketQuery.data?.get(game.id);
             const resaleCount = resaleCountsQuery.data?.get(game.id) ?? resaleMarket?.count;
+            const resaleStatus = resaleStatusesQuery.data?.get(game.id);
 
             return {
                ...game,
                resellRemainingSeats: resaleCount ?? game.resellRemainingSeats,
                minPrice: resaleMarket?.minPrice ?? game.minPrice,
                maxPrice: resaleMarket?.maxPrice ?? game.maxPrice,
-               resellStatus: getResellStatus(resaleCount, fallbackResellStatus),
+               resellStatus: getResellStatus(resaleStatus, resaleCount, fallbackResellStatus),
             };
          }),
-      [resaleCountsQuery.data, resaleListingMarketQuery.data, visibleGames],
+      [resaleCountsQuery.data, resaleListingMarketQuery.data, resaleStatusesQuery.data, visibleGames],
    );
    const appliedSearchQuery = appliedFilters.searchQuery.trim();
 
@@ -169,6 +186,7 @@ const TicketsPage = () => {
       setAppliedFilters(DEFAULT_FILTERS);
       void scheduleQuery.refetch();
       void resaleCountsQuery.refetch();
+      void resaleStatusesQuery.refetch();
       void resaleListingMarketQuery.refetch();
    };
 

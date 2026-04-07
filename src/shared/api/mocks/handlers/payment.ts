@@ -496,12 +496,13 @@ const ticketOrders = createPersistedMap<TicketOrder>('__msw_ticket_orders__');
 const ticketPayments = new Map<string, TicketPayment>();
 const ticketRecords = createPersistedMap<TicketRecord>('__msw_ticket_records__');
 const resaleHolds = new Map<string, ResaleHold>();
-const resaleOrders = new Map<string, ResaleOrder>();
+const resaleOrders = createPersistedMap<ResaleOrder>('__msw_resale_orders__');
 const resalePayments = new Map<string, ResalePayment>();
 const resaleLedgers = new Map<string, ResaleLedger>();
 
 type ResaleListing = {
    listingId: string;
+   orderId?: string;
    ticketId: string;
    ticketNumber?: string;
    sellerId: string;
@@ -855,8 +856,109 @@ const buildPageResponse = <T>(content: T[], page = 0, size = content.length || 1
    };
 };
 
+const getPurchaseSeatInfos = (order: TicketOrder) => {
+   if (Array.isArray(order.seatInfos) && order.seatInfos.length > 0) {
+      return order.seatInfos;
+   }
+
+   if (Array.isArray(order.ticketIds) && order.ticketIds.length > 0) {
+      return order.ticketIds
+         .map((ticketId) => ticketRecords.get(ticketId)?.seatInfo)
+         .filter((seatInfo): seatInfo is string => typeof seatInfo === 'string' && seatInfo.length > 0);
+   }
+
+   return [];
+};
+
+const getOwnedTicketCountForGame = (gameId: string) => {
+   return Array.from(ticketOrders.values()).reduce((count, order) => {
+      if (order.gameId !== gameId) {
+         return count;
+      }
+
+      if (order.orderStatus !== 'CONFIRMED' && order.orderStatus !== 'PARTIALLY_CANCELED') {
+         return count;
+      }
+
+      return count + order.totalQuantity;
+   }, 0);
+};
+
 export const paymentHandlers = [
-   http.get('/api/v1/resales/listings/games/:gameId/count', async ({ params }) => {
+   http.get('/api/v1/tickets/resales/count', async ({ request }) => {
+      const url = new URL(request.url);
+      const gameId = (url.searchParams.get('gameId') ?? '').trim();
+
+      if (!gameId) {
+         return buildErrorResponse('Missing gameId.');
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            ownedTicketCount: getOwnedTicketCountForGame(gameId),
+         },
+      });
+   }),
+
+   http.get('/api/v1/payments/purchases', async ({ request }) => {
+      const url = new URL(request.url);
+      const page = Number(url.searchParams.get('page') ?? '0');
+      const size = Number(url.searchParams.get('size') ?? '20');
+      const keyword = (url.searchParams.get('keyword') ?? '').trim().toLowerCase();
+
+      const purchases = Array.from(ticketOrders.values())
+         .sort((left, right) => right.orderedAt.localeCompare(left.orderedAt))
+         .map((order) => {
+            const matchedGame = mockGameSchedules.find((game) => game.gameId === order.gameId);
+            const seatInfos = getPurchaseSeatInfos(order);
+
+            return {
+               purchaseType: 'TICKET',
+               orderId: order.orderId,
+               orderNumber: order.orderNumber,
+               orderStatus: order.orderStatus,
+               totalQuantity: order.totalQuantity,
+               totalAmount: order.totalAmount,
+               orderedAt: order.orderedAt,
+               gameId: order.gameId,
+               stadiumId: order.stadiumId,
+               gameTitle:
+                  order.homeTeamName && order.awayTeamName
+                     ? `${order.awayTeamName} vs ${order.homeTeamName}`
+                     : matchedGame
+                        ? `${matchedGame.awayTeamDisplayName} vs ${matchedGame.homeTeamDisplayName}`
+                        : 'KBO 리그 경기',
+               gameDate: order.gameStartAt ?? matchedGame?.startAt ?? order.orderedAt,
+               seatInfos,
+            };
+         })
+         .filter((purchase) => {
+            if (!keyword) {
+               return true;
+            }
+
+            return (
+               purchase.orderNumber.toLowerCase().includes(keyword) ||
+               purchase.gameTitle.toLowerCase().includes(keyword) ||
+               purchase.seatInfos.some((seatInfo) => seatInfo.toLowerCase().includes(keyword))
+            );
+         });
+      const pagedPurchases = buildPageResponse(purchases, page, size);
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            list: pagedPurchases.content,
+            totalCount: purchases.length,
+            totalPages: pagedPurchases.totalPages,
+         },
+      });
+   }),
+
+   http.get('/api/v1/resales/games/:gameId/count', async ({ params }) => {
       const gameId = String(params.gameId);
       const gameExists = mockGameSchedules.some((game) => game.gameId === gameId);
 
@@ -880,21 +982,129 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/resales/listings/games/:gameId/section/:sectionId/count', async ({ params }) => {
+   http.get('/api/v1/resales/games/:gameId/status', async ({ params }) => {
       const gameId = String(params.gameId);
-      const sectionId = String(params.sectionId);
+      const matchedGame = mockGameSchedules.find((game) => game.gameId === gameId);
+
+      if (!matchedGame) {
+         return HttpResponse.json(
+            {
+               code: 'NOT_FOUND',
+               message: 'game not found',
+               data: null,
+            },
+            { status: 404 },
+         );
+      }
+
+      let status: 'SCHEDULED' | 'AVAILABLE' | 'UNAVAILABLE' = 'AVAILABLE';
+
+      if (matchedGame.ticketingStatus === 'SCHEDULED') {
+         status = 'SCHEDULED';
+      } else if (
+         matchedGame.ticketingStatus === 'TERMINATED' ||
+         matchedGame.gameStatus === 'FINISHED' ||
+         matchedGame.gameStatus !== 'SCHEDULED'
+      ) {
+         status = 'UNAVAILABLE';
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: { status },
+      });
+   }),
+
+   http.get('/api/v1/resales/games/:gameId/grade/:gradeId/count', async ({ params }) => {
+      const gameId = String(params.gameId);
+      const gradeId = String(params.gradeId);
 
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
          data: {
             count: mockResaleListings.filter(
-               (listing) =>
-                  listing.gameId === gameId &&
-                  listing.isPurchasable &&
-                  extractSectionId(listing.seatId) === sectionId,
+               (listing) => listing.gameId === gameId && listing.isPurchasable && listing.gradeId === gradeId,
             ).length,
          },
+      });
+   }),
+
+   http.get('/api/v1/resales/listings/count', async () => {
+      const myListings = Array.from(resaleListings.values());
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            listingCount: myListings.filter((listing) => listing.listingStatus === 'LISTING' || listing.listingStatus === 'HOLD').length,
+            soldCount: myListings.filter((listing) => listing.listingStatus === 'SOLD' || listing.listingStatus === 'SETTLED').length,
+         },
+      });
+   }),
+
+   // 내 판매 그룹 목록 조회
+   http.get('/api/v1/resales/listings/orders', async () => {
+      const orders = Array.from(resaleOrders.values())
+         .sort((left, right) => right.orderId.localeCompare(left.orderId))
+         .map((order) => ({
+            orderId: order.orderId,
+            orderNumber: order.orderNumber,
+            orderStatus: order.orderStatus,
+            totalQuantity: order.totalQuantity,
+            totalAmount: order.totalAmount,
+            createdAt: order.transactionIds[0] ? new Date().toISOString() : new Date().toISOString(),
+         }));
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            list: orders,
+            totalCount: orders.length,
+            totalPages: orders.length > 0 ? 1 : 0,
+         },
+      });
+   }),
+
+   http.get('/api/v1/resales/listings/orders/:orderId', async ({ params }) => {
+      const orderId = String(params.orderId);
+      const order = resaleOrders.get(orderId);
+
+      if (!order) {
+         return buildErrorResponse('Resale listing order not found.', 404);
+      }
+
+      const listings = Array.from(resaleListings.values())
+         .filter((listing) => listing.orderId === orderId)
+         .map((listing) => ({
+            listingId: listing.listingId,
+            ticketId: listing.ticketId,
+            ticketNumber: listing.ticketNumber,
+            sellerId: listing.sellerId,
+            gameId: '',
+            seatId: '',
+            gradeId: '',
+            seatInfo: listing.seatInfo,
+            dailyBasePrice: listing.listingPrice,
+            listingPrice: listing.listingPrice,
+            listingStatus: listing.listingStatus,
+            availableStatus: 'ENABLED',
+            listedAt: listing.listedAt,
+            canceledAt: listing.canceledAt,
+            isCancelable: listing.listingStatus === 'LISTING' || listing.listingStatus === 'CANCEL_REQUESTED',
+            maxPrice: 999999,
+            gameTitle: listing.gameTitle ?? '',
+            gameDate: listing.gameDate ?? '',
+            stadiumName: listing.stadiumName ?? '',
+            isPurchasable: listing.listingStatus === 'LISTING',
+         }));
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: listings,
       });
    }),
 
@@ -993,6 +1203,8 @@ export const paymentHandlers = [
          message: 'ok',
          data: sectionSeats.map((seat, index) => ({
             seatId: seat.seatId,
+            rowName: seat.rowName,
+            seatNum: seat.seatNum,
             status: !seat.available ? 'SOLD' : index % 7 === 0 ? 'HELD' : 'AVAILABLE',
          })),
       });
@@ -1121,6 +1333,13 @@ export const paymentHandlers = [
 
       if (missingHold) {
          return buildErrorResponse(`Seat hold not found: ${missingHold}`, 404);
+      }
+
+      const ownedTicketCount = getOwnedTicketCountForGame(body.gameId);
+      const requestedTicketCount = body.holdIds.length;
+
+      if (ownedTicketCount + requestedTicketCount > 4) {
+         return buildErrorResponse('티켓 보유 수량 초과로 구매가 불가능합니다.', 409);
       }
 
       const orderId = createId('order');
@@ -1806,7 +2025,9 @@ export const paymentHandlers = [
          const orderId = createId('resale-order');
          const listing: ResaleListing = {
             listingId,
+            orderId,
             ticketId: ticket.ticketId,
+            ticketNumber: ticket.ticketNumber,
             sellerId: 'mock-seller',
             seatInfo: ticket.seatInfo,
             listingPrice: item.listingPrice!,
@@ -1817,9 +2038,19 @@ export const paymentHandlers = [
             stadiumName: ticket.stadiumName,
          };
          resaleListings.set(listingId, listing);
-         createdOrders.push({
+         const createdOrder = {
             orderId,
             orderNumber: `RSL-${orderId.replace(/^resale-order-/i, '').slice(0, 8).toUpperCase()}`,
+         };
+         createdOrders.push(createdOrder);
+         resaleOrders.set(orderId, {
+            orderId,
+            orderNumber: createdOrder.orderNumber,
+            orderStatus: 'PENDING',
+            totalQuantity: 1,
+            totalAmount: item.listingPrice!,
+            holdIds: [],
+            transactionIds: [],
          });
          createdListings.push({
             listingId,
@@ -1887,21 +2118,6 @@ export const paymentHandlers = [
       }));
 
       return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: listings });
-   }),
-
-   http.get('/api/v1/resales/listings/count/listing', async () => {
-      const listings = Array.from(resaleListings.values());
-      const listingCount = listings.filter((item) => item.listingStatus === 'LISTING' || item.listingStatus === 'HOLD').length;
-      const soldCount = listings.filter((item) => item.listingStatus === 'SETTLED').length;
-
-      return HttpResponse.json({
-         code: 'SUCCESS',
-         message: 'ok',
-         data: {
-            listingCount,
-            soldCount,
-         },
-      });
    }),
 
    // 리셀 상세 조회

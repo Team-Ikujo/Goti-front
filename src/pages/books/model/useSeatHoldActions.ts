@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { holdSeatReservation, releaseSeatReservation } from '@/entities/seat-hold/api/seatHoldApi';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
-import { MAX_SELECTED_SEATS } from '@/entities/seat-selection/model/constants';
+import { MAX_SELECTED_SEATS, MAX_SELECTED_SEATS_MESSAGE } from '@/entities/seat-selection/model/constants';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { ApiError } from '@/shared/api/client';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
@@ -12,6 +12,9 @@ import type { SelectedSeatDetail } from './selectedSeats';
 
 type UseSeatHoldActionsOptions = {
    onSeatHoldConflict?: () => void | Promise<void>;
+   onPurchaseLimitReached?: () => void;
+   seatSelectionLimit?: number;
+   seatSelectionLimitMessage?: string;
 };
 
 const HOLD_CONFLICT_MESSAGE = '좌석 점유 가능 상태에서만 점유 상태로 변경할 수 있습니다.';
@@ -104,8 +107,15 @@ export const useSeatHoldActions = (
          (count, zoneState) => count + zoneState.selectedSeatIds.length,
          0,
       );
+      const seatSelectionLimit = options?.seatSelectionLimit ?? MAX_SELECTED_SEATS;
 
-      if (totalSelectedSeats >= MAX_SELECTED_SEATS) {
+      if (totalSelectedSeats >= seatSelectionLimit) {
+         if (seatSelectionLimit === 0) {
+            options?.onPurchaseLimitReached?.();
+            return;
+         }
+
+         window.alert(options?.seatSelectionLimitMessage ?? MAX_SELECTED_SEATS_MESSAGE);
          return;
       }
 

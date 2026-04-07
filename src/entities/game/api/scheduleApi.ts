@@ -59,6 +59,14 @@ export const fetchBaseballTeamDetail = async (teamId: string) => {
   return request;
 };
 
+export const fetchGameDetail = async (gameId: string) => {
+  const response = await apiClient.get<ApiEnvelope<GameScheduleResponse>>(
+    `/api/v1/games/${encodeURIComponent(gameId)}/schedule`,
+  );
+
+  return response.data.data;
+};
+
 export const fetchBaseballTeamDetails = async (teamIds: string[]) => {
   const uniqueTeamIds = [...new Set(teamIds.filter(Boolean))];
 

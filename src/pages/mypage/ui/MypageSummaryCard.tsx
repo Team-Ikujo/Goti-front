@@ -31,7 +31,7 @@ export function MypageSummaryCard({
    ];
 
    return (
-      <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6">
+      <div className="bg-background border border-border rounded-[14px] p-6">
          <p className="text-heading-3-bold text-foreground mb-7.5">티켓 현황</p>
          {isLoading ? (
             <div className="rounded-[10px] bg-surface px-4 py-8 text-center text-body-2-regular text-muted-foreground">

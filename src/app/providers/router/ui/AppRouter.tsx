@@ -30,7 +30,13 @@ import PaymentCompletePage from '@/pages/tickets/ui/payment/PaymentCompletePage'
 import BooksPage from '@/pages/books';
 import SeatsPage from '@/pages/books/ui/SeatsPage';
 import SeatHoldLifecycleController from '@/features/seat-booking/ui/SeatHoldLifecycleController';
-import { MypagePage, AccountPage, PurchaseDetailPage, SaleDetailPage } from '@/pages/mypage';
+import {
+   MypagePage,
+   AccountPage,
+   ProfileIdentityEditPage,
+   PurchaseDetailPage,
+   SaleDetailPage,
+} from '@/pages/mypage';
 import MypageLayout from '@/shared/widgets/layout/mypage/MypageLayout';
 import AuthSessionController from './AuthSessionController';
 import BookingFlowStateGuard from './BookingFlowStateGuard';
@@ -74,6 +80,7 @@ const AppRouter = () => {
                <Route path="purchase/:id" element={<PurchaseDetailPage />} />
                <Route path="sale/:id" element={<SaleDetailPage />} />
             </Route>
+            <Route path="/mypage/account/identity" element={<ProfileIdentityEditPage />} />
             <Route path="/books" element={<BooksLayout />}>
                <Route index element={<BooksPage />} />
                <Route path="seats/:zoneId" element={<SeatsPage />} />
