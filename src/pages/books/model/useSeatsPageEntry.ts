@@ -1,0 +1,43 @@
+import { useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
+
+import { getBookingFlowMode } from '@/shared/lib/booking-flow';
+import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import { getBookingZones, getStadiumName, getZoneOverviewImage } from './zoneData';
+
+export function useSeatsPageEntry(zoneId: string) {
+   const location = useLocation();
+   const bookingFlowMode = getBookingFlowMode(location.search);
+   const isResellMode = bookingFlowMode === 'resell';
+   const routeBookingEntryState = location.state as BookingEntryState | null;
+   const storedBookingEntryState = useBookingEntryStore(state => state.entry);
+   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
+   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
+
+   useEffect(() => {
+      if (routeBookingEntryState) {
+         setBookingEntry(routeBookingEntryState);
+      }
+   }, [routeBookingEntryState, setBookingEntry]);
+
+   const bookingZones = useMemo(
+      () => bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId),
+      [bookingEntryState?.bookingZones, bookingEntryState?.homeTeamId],
+   );
+   const zone = useMemo(() => bookingZones.find(item => item.id === zoneId) ?? bookingZones[0], [bookingZones, zoneId]);
+   const zoneOverviewImage = useMemo(
+      () => getZoneOverviewImage(bookingEntryState?.homeTeamId, zone.id),
+      [bookingEntryState?.homeTeamId, zone.id],
+   );
+   const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
+
+   return {
+      bookingEntryState,
+      bookingFlowMode,
+      bookingZones,
+      isResellMode,
+      stadiumName,
+      zone,
+      zoneOverviewImage,
+   };
+}
