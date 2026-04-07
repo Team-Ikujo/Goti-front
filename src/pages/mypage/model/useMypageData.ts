@@ -214,9 +214,12 @@ export const useMyResaleListData = () => {
 };
 
 export const useMyResaleSummaryData = () => {
+   const currentUserId = useAuthStore(s => s.currentUserId);
+
    return useQuery<MyResaleListingSummaryResponse>({
-      queryKey: ['myResaleSummary'],
-      queryFn: fetchMyResaleListingSummary,
+      queryKey: ['myResaleSummary', currentUserId],
+      queryFn: () => fetchMyResaleListingSummary(currentUserId!),
+      enabled: Boolean(currentUserId),
    });
 };
 

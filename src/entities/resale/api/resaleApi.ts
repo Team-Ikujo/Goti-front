@@ -149,7 +149,7 @@ export interface ResaleHistoryPointResponse {
 
 export const fetchResaleListingCountByGame = async (gameId: string): Promise<number> => {
    const response = await apiClient.get<ApiEnvelope<ResaleGameListingCountResponse>>(
-      `/api/v1/resales/listings/games/${encodeURIComponent(gameId)}/count`,
+      `/api/v1/resales/games/${encodeURIComponent(gameId)}/count`,
    );
 
    return response.data.data.count;
@@ -169,28 +169,30 @@ export const fetchResaleListingCountsByGames = async (gameIds: string[]): Promis
    return new Map<string, number>(counts);
 };
 
-export const fetchResaleListingCountByGameAndSection = async (gameId: string, sectionId: string): Promise<number> => {
+/** 경기의 등급별 리셀 좌석 개수 조회 (gradeId 기준) */
+export const fetchResaleListingCountByGameAndGrade = async (gameId: string, gradeId: string): Promise<number> => {
    const response = await apiClient.get<ApiEnvelope<ResaleGameListingCountResponse>>(
-      `/api/v1/resales/listings/games/${encodeURIComponent(gameId)}/section/${encodeURIComponent(sectionId)}/count`,
+      `/api/v1/resales/games/${encodeURIComponent(gameId)}/grade/${encodeURIComponent(gradeId)}/count`,
    );
 
    return response.data.data.count;
 };
 
-export const fetchResaleListingCountsBySections = async (
+/** 복수 gradeId 에 대한 리셀 좌석 개수 일괄 조회 — Map<gradeId, count> 반환 */
+export const fetchResaleListingCountsByGrades = async (
    gameId: string,
-   sectionIds: string[],
+   gradeIds: string[],
 ): Promise<Map<string, number>> => {
-   const uniqueSectionIds = [...new Set(sectionIds.filter(Boolean))];
+   const uniqueGradeIds = [...new Set(gradeIds.filter(Boolean))];
 
-   if (!gameId || uniqueSectionIds.length === 0) {
+   if (!gameId || uniqueGradeIds.length === 0) {
       return new Map<string, number>();
    }
 
    const counts = await Promise.all(
-      uniqueSectionIds.map(async (sectionId) => [
-         sectionId,
-         await fetchResaleListingCountByGameAndSection(gameId, sectionId),
+      uniqueGradeIds.map(async (gradeId) => [
+         gradeId,
+         await fetchResaleListingCountByGameAndGrade(gameId, gradeId),
       ] as const),
    );
 
@@ -202,8 +204,10 @@ export const fetchResaleListings = async (): Promise<ResaleListingItem[]> => {
    return response.data.data;
 };
 
-export const fetchMyResaleListingSummary = async (): Promise<MyResaleListingSummaryResponse> => {
-   const response = await apiClient.get<ApiEnvelope<MyResaleListingSummaryResponse>>('/api/v1/resales/listings/count/listing');
+export const fetchMyResaleListingSummary = async (userId: string): Promise<MyResaleListingSummaryResponse> => {
+   const response = await apiClient.get<ApiEnvelope<MyResaleListingSummaryResponse>>('/api/v1/resales/listings/count', {
+      params: { userId },
+   });
    return response.data.data;
 };
 
@@ -256,6 +260,69 @@ export const fetchResaleLedgers = async (params?: {
 export const fetchResaleLedgerByOrderId = async (orderId: string): Promise<ResaleLedger> => {
    const response = await apiClient.get<ApiEnvelope<ResaleLedger>>(
       `/api/v1/payments/resales/ledgers/orders/${encodeURIComponent(orderId)}`,
+   );
+
+   return response.data.data;
+};
+
+// ─── 리셀 게임 상태 ────────────────────────────────────────────────
+
+export type ResaleGameStatus = 'SCHEDULED' | 'AVAILABLE' | 'UNAVAILABLE';
+
+export interface ResaleGameStatusResponse {
+   status: ResaleGameStatus;
+}
+
+export const fetchResaleGameStatus = async (gameId: string): Promise<ResaleGameStatusResponse> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleGameStatusResponse>>(
+      `/api/v1/resales/games/${encodeURIComponent(gameId)}/status`,
+   );
+
+   return response.data.data;
+};
+
+// ─── 내 판매 그룹 (리셀 등록 주문 그룹) ─────────────────────────────
+
+export type ResaleListingOrderStatus = 'LISTING' | 'PARTIAL' | 'SOLD' | 'SETTLED' | 'CANCELED';
+
+export interface ResaleListingOrderSummary {
+   orderId: string;
+   orderNumber: string;
+   gradeId: string;
+   orderStatus: ResaleListingOrderStatus;
+   createdAt: string;
+}
+
+interface ResaleListingOrderPageResponse {
+   list: ResaleListingOrderSummary[];
+   totalCount: number;
+   totalPages: number;
+}
+
+export interface FetchMyResaleListingOrdersParams {
+   months?: number;
+   startDate?: string;
+   endDate?: string;
+   status?: 'ALL' | 'LISTING' | 'PENDING' | 'SETTLED' | 'CANCELED';
+   page?: number;
+   size?: number;
+}
+
+export const fetchMyResaleListingOrders = async (
+   params?: FetchMyResaleListingOrdersParams,
+): Promise<ResaleListingOrderPageResponse> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleListingOrderPageResponse>>(
+      '/api/v1/resales/listings/orders',
+      { params },
+   );
+
+   return response.data.data;
+};
+
+// 특정 판매 그룹에 속한 리셀 목록 상세
+export const fetchResaleListingOrderDetails = async (orderId: string): Promise<ResaleListingItem[]> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleListingItem[]>>(
+      `/api/v1/resales/listings/orders/${encodeURIComponent(orderId)}`,
    );
 
    return response.data.data;

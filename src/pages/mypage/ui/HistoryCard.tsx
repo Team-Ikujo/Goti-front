@@ -16,8 +16,6 @@ import ActionStatusDialog from './ActionStatusDialog';
 import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 import { MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO } from '@/shared/api/mockScenarios';
 
-// ── 타입 ────────────────────────────────────────────────────────────
-
 export type PurchaseStatus = '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
 export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판매 취소 대기' | '취소 대기' | '취소 완료';
 
@@ -72,8 +70,6 @@ type HistoryCardProps = ({ mode: 'purchase'; item: PurchaseHistoryItem } | { mod
    mockTicketInfoError?: boolean;
 };
 
-// ── 유틸 ─────────────────────────────────────────────────────────────
-
 /** 경기 일자 기준으로 판매 오픈 시각 계산: 해당월 1일 11:00 */
 const getSaleOpenTime = (datetime: string): Date => {
    const parts = datetime.split('.');
@@ -88,13 +84,10 @@ const getResellOpenTime = (datetime: string): Date => {
    return new Date(t.getTime() + 2 * 60 * 60 * 1000);
 };
 
-/** 판매예정 서브텍스트용 레이블: 'N월 1일 오전 11시 오픈' */
 const getSaleOpenLabel = (datetime: string): string => {
    const month = parseInt(datetime.split('.')[1], 10);
    return `${month}월 1일 오전 11시 오픈`;
 };
-
-// ── 컴포넌트 ─────────────────────────────────────────────────────────
 
 export default function HistoryCard(props: HistoryCardProps) {
    const navigate = useNavigate();
@@ -151,7 +144,6 @@ export default function HistoryCard(props: HistoryCardProps) {
 
    return (
       <>
-         {/* 구매 전용 다이얼로그 */}
          {isPurchase && resellOpen && purchaseItem && (
             actionTicketsQuery.isLoading ? (
                <ActionStatusDialog
@@ -237,7 +229,6 @@ export default function HistoryCard(props: HistoryCardProps) {
             }}
             aria-label={`${item.game.teams} ${detailLabel}`}
          >
-            {/* 상단: 일자 / 상세 링크 */}
             <div className="flex items-center justify-between lg:justify-start lg:gap-8 px-4 py-1">
                <div className="flex items-center gap-1 text-body-2-regular shrink-0 w-33">
                   <span className="text-foreground">{dateLabel}:</span>
@@ -258,9 +249,7 @@ export default function HistoryCard(props: HistoryCardProps) {
 
             <Separator />
 
-            {/* 본문 — 데스크톱 전용 */}
             <div className="hidden lg:flex flex-row gap-4 p-4 items-stretch min-h-26.75">
-               {/* ① 뱃지 + 주문번호 */}
                <div className="flex flex-col items-center justify-start w-36 shrink-0 px-1 gap-1.5">
                   <div className="flex flex-col items-start gap-1.5 w-full h-full">
                      <div className="flex flex-col items-start w-full h-full">
@@ -273,7 +262,6 @@ export default function HistoryCard(props: HistoryCardProps) {
                   </div>
                </div>
 
-               {/* ② 경기 정보 */}
                <div className="flex flex-1 flex-col gap-2 min-w-0 px-1 justify-center min-h-24">
                   <p className="text-foreground text-body-1-bold whitespace-nowrap">{item.game.teams}</p>
                   <div className="flex items-center gap-2 h-4">
@@ -321,21 +309,16 @@ export default function HistoryCard(props: HistoryCardProps) {
                   </div>
                </div>
 
-               {/* ③ 가격 */}
                <div className="flex flex-col items-center justify-center gap-1 w-28 shrink-0 text-center whitespace-nowrap">
                   <p className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">{priceLabel}</p>
                   <p className="text-body-1-bold text-foreground">{price.toLocaleString()}원</p>
                </div>
 
-               {/* ④ 상태 */}
                <div className="flex items-center justify-center w-28 shrink-0">
                   <p className="text-body-1-semibold whitespace-nowrap text-foreground">{status}</p>
                </div>
 
-               {/* 구분선 */}
                <div className="block w-px self-stretch bg-border shrink-0" />
-
-               {/* ⑤ 액션 버튼 (항상 3행 높이 유지) */}
                <div className="flex flex-col items-center justify-center gap-1 px-3 shrink-0 w-25 min-h-28.25">
                   {isPurchase ? (
                      showDash ? (
@@ -399,11 +382,8 @@ export default function HistoryCard(props: HistoryCardProps) {
                </div>
             </div>
 
-            {/* 본문 — 모바일 전용 */}
             <div className="flex flex-col gap-4 px-4 pt-1 pb-3 lg:hidden">
-               {/* 내부 컨테이너 — Figma: border=#e5e7eb, gap=10 */}
                <div className="flex flex-col gap-2.5 border border-[#e5e7eb]">
-                  {/* Row1: 뱃지 + 주문번호 | 상태 */}
                   <div className="flex items-center justify-between">
                      <div className="flex items-center gap-1.5">
                         <TicketTypeBadge type={item.type} />
@@ -416,7 +396,6 @@ export default function HistoryCard(props: HistoryCardProps) {
                      </span>
                   </div>
 
-                  {/* 경기 정보 — Figma: teams fs=16/fw=700, meta fs=14/fw=400 color=#646f7c */}
                   <div className="flex flex-col gap-1">
                      <p className="text-[16px] font-bold leading-6 text-black whitespace-nowrap">{item.game.teams}</p>
                      <div className="flex items-center gap-2">
@@ -428,7 +407,6 @@ export default function HistoryCard(props: HistoryCardProps) {
                      </div>
                   </div>
 
-                  {/* 좌석 / 수령방법 / 가격 — Figma: label w=42px fs=12/fw=400, value fs=14/fw=400 */}
                   <div className="flex flex-col gap-1">
                      <div className="flex items-center gap-2.5">
                         <span className="text-[12px] font-normal leading-4.5 text-[#646f7c] w-10.5 shrink-0">좌석</span>
@@ -478,7 +456,6 @@ export default function HistoryCard(props: HistoryCardProps) {
                   </div>
                </div>
 
-               {/* 액션 버튼 — Figma: gap=8, each flex-1 */}
                {isPurchase
                   ? !showDash && (
                        <div className="flex gap-2">

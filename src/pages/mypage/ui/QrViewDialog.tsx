@@ -166,16 +166,12 @@ export default function QrViewDialog({
             {statusContent ?? (
                <div className="flex flex-col items-center gap-6 px-5 pt-7.5 pb-5">
 
-                  {/* 좌석 정보 */}
                   <div className="flex flex-col items-center">
                      <p className="text-[18px] font-bold text-[#161d24] leading-[1.55]">{currentSeat.section}</p>
                      <p className="text-[14px] font-medium text-[#646f7c] leading-[1.5]">{currentSeat.seatDetail}</p>
                   </div>
 
-                  {/* QR + 네비게이션 */}
                   <div className="flex flex-col items-center gap-2">
-
-                     {/* 도트 인디케이터 */}
                      {seats.length > 1 && (
                         <div className="flex gap-3 h-2">
                            {seats.map((_, i) => (
@@ -191,7 +187,6 @@ export default function QrViewDialog({
                         </div>
                      )}
 
-                     {/* QR 이미지 + 좌우 화살표 */}
                      <div className="flex items-center gap-5">
                         <button
                            type="button"
@@ -220,7 +215,6 @@ export default function QrViewDialog({
                         </button>
                      </div>
 
-                     {/* 타이머 */}
                      <div className="flex items-center gap-1.5 px-1.5">
                         <Clock size={16} className="text-destructive" />
                         <span className="text-[11px] font-medium text-destructive leading-[1.45]">
@@ -229,13 +223,11 @@ export default function QrViewDialog({
                      </div>
                   </div>
 
-                  {/* 안내 텍스트 */}
                   <div className="flex flex-col items-center">
                      <p className="text-[16px] font-semibold text-[#161d24] leading-[1.5]">입장을 위한 QR코드</p>
                      <p className="text-[14px] text-[#646f7c] leading-[1.5]">생성된 QR코드를 입장시 보여주세요.</p>
                   </div>
 
-                  {/* 버튼 */}
                   <div className="flex flex-col gap-1.5 w-full">
                      <Button
                         variant="none"

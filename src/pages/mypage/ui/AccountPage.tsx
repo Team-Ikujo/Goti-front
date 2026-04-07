@@ -1,10 +1,11 @@
 // src/pages/mypage/ui/AccountPage.tsx
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import { createMemberAccount, createMemberAddress, type MemberAccount, type MemberAddress } from '@/entities/user/api/memberApi';
+import { createMemberAccount, createMemberAddress, withdrawMember, type MemberAccount, type MemberAddress } from '@/entities/user/api/memberApi';
+import { logout } from '@/features/auth/api/authApi';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { Input } from '@/shared/ui/input';
@@ -84,17 +85,14 @@ export default function AccountPage() {
    const hasActiveTickets =
       purchaseItems.some(i => i.paymentStatus === '예매 완료') || saleItems.some(i => i.saleStatus === '판매 중');
 
-   // ── 모달 ──
    const [modal, setModal] = useState<ModalType>(null);
    const closeModal = () => setModal(null);
 
-   // ── 약관 다이얼로그 ──
    const [termsDialog, setTermsDialog] = useState<TermsType>(null);
 
-   // ── 간편 로그인 연결 ──
-   const socialConnectionApiAvailable = false;
+   // ── 간편 로그인 연결 (GET /api/v1/members/me의 socialConnection 활용) ──
+   const socialConnection = profile?.socialConnection;
 
-   // ── 계좌 정보 ──
    const [bank, setBank] = useState('');
    const [bankDropdownOpen, setBankDropdownOpen] = useState(false);
    const bankDropdownRef = useRef<HTMLDivElement>(null);
@@ -104,12 +102,41 @@ export default function AccountPage() {
    const [depositor, setDepositor] = useState('');
    const [savedAccount, setSavedAccount] = useState<MemberAccount | null>(null);
    const [savedAddress, setSavedAddress] = useState<MemberAddress | null>(null);
+
+   // GET /api/v1/members/me 응답의 bankAccount·address로 초기값 설정
+   useEffect(() => {
+      if (!profile) return;
+
+      const ba = profile.bankAccount;
+      if (ba && !savedAccount) {
+         setSavedAccount({
+            accountId: '',
+            accountNumber: ba.accountNumber,
+            bankName: ba.bankName,
+            accountHolder: ba.accountHolder,
+         });
+      }
+
+      const addr = profile.address;
+      if (addr && !savedAddress) {
+         setSavedAddress({
+            addressId: '',
+            zipCode: addr.zipCode,
+            baseAddress: addr.baseAddress,
+            detailAddress: addr.detailAddress,
+         });
+         setZipCode(addr.zipCode);
+         setAddress(addr.baseAddress);
+         setAddressDetail(addr.detailAddress);
+      }
+   // profile이 바뀔 때 한 번만 적용 (사용자 직접 수정 값은 유지)
+   // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [profile]);
    const [agreeAll, setAgreeAll] = useState(false);
    const [agreeOpen, setAgreeOpen] = useState(false);
    const [agreeThird, setAgreeThird] = useState(false);
    const [agreePersonal, setAgreePersonal] = useState(false);
 
-   // ── 주소 수정 ──
    const [zipCode, setZipCode] = useState('');
    const [address, setAddress] = useState('');
    const [addressDetail, setAddressDetail] = useState('');
@@ -208,10 +235,15 @@ export default function AccountPage() {
    }, []);
 
    /** 로그아웃 */
-   const handleLogout = () => {
+   const handleLogout = useCallback(async () => {
+      try {
+         await logout();
+      } catch {
+         // 서버 로그아웃 실패해도 클라이언트 인증 상태는 초기화
+      }
       clearAuth('manual');
       navigate('/');
-   };
+   }, [clearAuth, navigate]);
 
    /** 회원 탈퇴 버튼 클릭 */
    const handleWithdrawClick = () => {
@@ -225,10 +257,16 @@ export default function AccountPage() {
    };
 
    /** 회원 탈퇴 확정 */
-   const handleWithdrawConfirm = () => {
-      closeModal();
+   const handleWithdrawConfirm = useCallback(async () => {
+      try {
+         await withdrawMember();
+      } catch {
+         // 탈퇴 API 실패 시에도 로컬 인증 상태 초기화 후 이동
+      }
+      setModal(null);
+      clearAuth('manual');
       navigate('/');
-   };
+   }, [clearAuth, navigate]);
 
    const accountAgreementItems = [
       {
@@ -280,7 +318,6 @@ export default function AccountPage() {
    return (
       <div className="flex-1 bg-background">
          <div className="mx-auto max-w-300 px-4 pt-7.5 lg:pt-12.5 pb-30 flex flex-col gap-7">
-            {/* 뒤로 가기 */}
             <button
                onClick={() => navigate('/mypage')}
                className="flex items-center gap-2 text-muted-foreground text-body-1-medium w-fit"
@@ -292,7 +329,6 @@ export default function AccountPage() {
             <h1 className="text-[30px] font-bold text-foreground">계정 정보</h1>
 
             <div className="flex flex-col gap-6">
-               {/* ── 계정 정보 카드 ── */}
                <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6.25 flex flex-col gap-7.5">
                   <p className="text-heading-3-bold text-foreground">계정 정보</p>
                   <div className="flex flex-col gap-5">
@@ -352,14 +388,9 @@ export default function AccountPage() {
                   </div>
                </div>
 
-               {/* ── 간편 로그인 연결 카드 ── */}
                <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6.25 flex flex-col gap-7.5">
                   <p className="text-heading-3-bold text-foreground">간편 로그인 연결</p>
-                  <p className="text-body-2-regular text-muted-foreground">
-                     현재 문서 기준으로 연결 계정 조회/변경 API가 정의되지 않아 상태 표시는 제공하지 않습니다.
-                  </p>
                   <div className="flex flex-col gap-4">
-                     {/* Google */}
                      <div className="flex items-center justify-between px-1">
                         <div className="flex items-center gap-5">
                            <div className="flex items-center gap-2.5">
@@ -368,36 +399,35 @@ export default function AccountPage() {
                               </div>
                               <p className="text-body-2-medium text-foreground">Google 계정 연결</p>
                            </div>
-                           <span className="bg-[#f1f2f4] text-muted-foreground text-caption-1-regular px-1 py-0.5 rounded">
-                              회원가입 계정
-                           </span>
+                           {profile?.oAuthProvider === 'GOOGLE' && (
+                              <span className="bg-[#f1f2f4] text-muted-foreground text-caption-1-regular px-1 py-0.5 rounded">
+                                 회원가입 계정
+                              </span>
+                           )}
                         </div>
-                        <Toggle checked={false} onChange={() => {}} disabled={!socialConnectionApiAvailable} />
+                        <Toggle checked={socialConnection?.isGoogleConnected ?? false} onChange={() => {}} disabled />
                      </div>
-                     {/* Kakao */}
                      <div className="border-t border-border pt-4 flex items-center justify-between px-1">
                         <div className="flex items-center gap-2.5">
                            <div className="size-7 bg-[#ffde00] rounded-full flex items-center justify-center overflow-hidden">
                               <img src="/Icon/Logo/Kakao.svg" alt="Kakao" className="size-5" />
                            </div>
-                           <p className="text-body-2-medium text-muted-foreground">카카오 계정 연결</p>
+                           <p className={`text-body-2-medium ${socialConnection?.isKakaoConnected ? 'text-foreground' : 'text-muted-foreground'}`}>카카오 계정 연결</p>
                         </div>
-                        <Toggle checked={false} onChange={() => {}} disabled={!socialConnectionApiAvailable} />
+                        <Toggle checked={socialConnection?.isKakaoConnected ?? false} onChange={() => {}} disabled />
                      </div>
-                     {/* Naver */}
                      <div className="border-t border-border pt-4 flex items-center justify-between px-1">
                         <div className="flex items-center gap-2.5">
                            <div className="size-7 bg-[#00c73c] rounded-full flex items-center justify-center overflow-hidden p-0.5">
                               <img src="/Icon/Logo/Naver.svg" alt="Naver" className="size-5" />
                            </div>
-                           <p className="text-body-2-medium text-muted-foreground">네이버 계정 연결</p>
+                           <p className={`text-body-2-medium ${socialConnection?.isNaverConnected ? 'text-foreground' : 'text-muted-foreground'}`}>네이버 계정 연결</p>
                         </div>
-                        <Toggle checked={false} onChange={() => {}} disabled={!socialConnectionApiAvailable} />
+                        <Toggle checked={socialConnection?.isNaverConnected ?? false} onChange={() => {}} disabled />
                      </div>
                   </div>
                </div>
 
-               {/* ── 계좌 정보 카드 ── */}
                <div
                   ref={accountCardRef}
                   className="bg-background border border-border-light rounded-2xl p-6 flex flex-col gap-7.5"
@@ -407,11 +437,7 @@ export default function AccountPage() {
                      <p className="text-caption-1-regular text-(--text-tertiary)">
                         계좌 미등록 시 리셀 및 취소/환불 기능이 제한됩니다.
                      </p>
-                     <p className="text-caption-1-regular text-muted-foreground">
-                        계좌 조회 API가 없어 현재 세션에서 저장에 성공한 계좌만 화면에 반영됩니다.
-                     </p>
 
-                     {/* 은행 + 계좌번호 */}
                      <div className="flex gap-6">
                         <div className="flex flex-col gap-1 w-52.5">
                            <label className="text-body-2-medium text-muted-foreground">
@@ -463,7 +489,6 @@ export default function AccountPage() {
                         />
                      </div>
 
-                     {/* 예금주 */}
                      <Input
                         label="예금주"
                         required
@@ -472,7 +497,6 @@ export default function AccountPage() {
                         onChange={e => setDepositor(e.target.value.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, ''))}
                      />
 
-                     {/* 약관 동의 */}
                      <div className="flex flex-col gap-1">
                         <div className="bg-surface rounded-lg h-12 flex items-center px-4">
                            <label className="flex items-center gap-2 cursor-pointer">
@@ -518,7 +542,6 @@ export default function AccountPage() {
                   </div>
                </div>
 
-               {/* ── 주소 수정 카드 ── */}
                <div className="bg-background border border-border rounded-[14px] p-6.25 flex flex-col gap-5">
                   <p className="text-heading-3-bold text-foreground">주소 수정</p>
                   <div className="flex gap-5">
@@ -565,7 +588,6 @@ export default function AccountPage() {
                   </div>
                </div>
 
-               {/* ── 계정 관리 카드 ── */}
                <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6.25 flex flex-col gap-7.5">
                   <p className="text-heading-3-bold text-foreground">계정 관리</p>
                   <div className="flex flex-col gap-4">

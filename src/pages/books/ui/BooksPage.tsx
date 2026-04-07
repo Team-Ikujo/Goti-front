@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { fetchResaleListingCountsBySections, fetchResaleListings } from '@/entities/resale/api/resaleApi';
+import { fetchResaleListingCountsByGrades, fetchResaleListings } from '@/entities/resale/api/resaleApi';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 
@@ -98,13 +98,19 @@ const BooksPage = () => {
             });
          }
 
-         const remainingBySectionId =
-            bookingFlowMode === 'resell'
-               ? await fetchResaleListingCountsBySections(
-                    bookingEntryState!.gameId!,
-                    sections.map(section => section.sectionId),
-                 )
-               : undefined;
+         // 리셀 모드: 구역(section)별로 gradeId를 추출해 등급별 리셀 재고를 조회하고,
+         // 각 섹션의 gradeId로 재고를 매핑해 sectionId 키 Map으로 변환한다.
+         let remainingBySectionId: Map<string, number> | undefined;
+         if (bookingFlowMode === 'resell') {
+            const uniqueGradeIds = [...new Set(sections.map(s => s.gradeId).filter(Boolean))];
+            const countByGradeId = await fetchResaleListingCountsByGrades(
+               bookingEntryState!.gameId!,
+               uniqueGradeIds,
+            );
+            remainingBySectionId = new Map(
+               sections.map(s => [s.sectionId, countByGradeId.get(s.gradeId) ?? 0]),
+            );
+         }
          const pricingByGradeId = resolvePricingByGradeId({
             policy: pricingPolicy,
             gameDate: bookingEntryState?.gameDate,

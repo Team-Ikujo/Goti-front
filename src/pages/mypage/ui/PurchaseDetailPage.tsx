@@ -19,8 +19,6 @@ import { useAuthStore } from '@/entities/auth/model/authStore';
 import { decodeJwtPayload } from '@/shared/lib/jwt';
 import { formatReservationNumber, formatTicketNumber, getTicketNumberKind } from '../model/ticketNumber';
 
-// ─── 타입 ──────────────────────────────────────────────────────
-
 type PurchaseStatus = '예매 완료' | '관람 완료' | '취소/환불';
 type PaymentEventType = '결제 완료';
 
@@ -85,8 +83,6 @@ type PurchaseDetailViewModel = {
    deliveryTrackingNumber?: string;
 };
 
-// ─── 상태 → 배지 매핑 ──────────────────────────────────────────
-
 const PURCHASE_BADGE: Record<string, BadgeVariant> = {
    ISSUED: 'success',
    USED: 'disabled',
@@ -108,8 +104,6 @@ const mapStatusLabel = (status: string): string => {
          return '예매 완료';
    }
 };
-
-// ─── 유틸 ──────────────────────────────────────────────────────
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -241,10 +235,7 @@ const mapTicketItemStatus = (status: string): TicketItemStatus => {
    }
 };
 
-// ─── 로컬 서브 컴포넌트 ────────────────────────────────────────
 const formatPrice = (amount: number): string => `${amount.toLocaleString()}원`;
-
-// ─── 서브 컴포넌트 ──────────────────────────────────────────────
 
 function SectionCard({ children, className = '' }: { children: ReactNode; className?: string }) {
    return (
@@ -269,8 +260,6 @@ function BulletItem({ text }: { text: string }) {
       </div>
    );
 }
-
-// ─── 메인 컴포넌트 ──────────────────────────────────────────────
 
 export default function PurchaseDetailPage() {
    const navigate = useNavigate();
@@ -333,7 +322,6 @@ export default function PurchaseDetailPage() {
       }
    }, [location.state]);
 
-   // ─── API 데이터를 UI 형태로 변환 ────────────────────────────
    const detail = useMemo<PurchaseDetailViewModel | undefined>(() => {
       if (!apiDetail && !storedPaymentDetail) return undefined;
 
@@ -578,16 +566,13 @@ export default function PurchaseDetailPage() {
          />
 
          <div className="flex flex-col gap-14 w-full max-w-190 min-w-83.75">
-            {/* 제목 */}
             <div className="flex items-center gap-4">
                <h1 className="text-[32px] font-bold text-[#111827] tracking-[-0.032px] leading-[1.45]">
                   예매내역 상세
                </h1>
             </div>
 
-            {/* 섹션들 */}
             <div className="flex flex-col gap-12">
-               {/* 경기 정보 */}
                <SectionCard>
                   <StatusBadge label={statusLabel} variant={PURCHASE_BADGE[detail.ticketStatus]} />
                   <div className="flex flex-col gap-4">
@@ -601,7 +586,6 @@ export default function PurchaseDetailPage() {
                   </div>
                </SectionCard>
 
-               {/* 예약 정보 */}
                <SectionCard>
                   <h2 className="text-[20px] font-bold text-[#161d24] leading-normal">예약 정보</h2>
                   <div className="flex flex-col gap-3">
@@ -615,7 +599,6 @@ export default function PurchaseDetailPage() {
                   </div>
                </SectionCard>
 
-               {/* 좌석 정보 */}
                <SectionCard className="gap-8">
                   <h2 className="text-[20px] font-bold text-[#161d24] leading-normal">좌석 정보</h2>
                   <div className="flex flex-col gap-6">
@@ -634,7 +617,6 @@ export default function PurchaseDetailPage() {
                   </div>
                </SectionCard>
 
-               {/* 티켓 수령 방법 */}
                <SectionCard>
                   <h2 className="text-[20px] font-bold text-[#161d24] leading-normal">티켓 수령 방법</h2>
                   <InfoRow label="수령 방법" value="모바일 QR" />
@@ -643,7 +625,6 @@ export default function PurchaseDetailPage() {
                   </Button>
                </SectionCard>
 
-               {/* 결제 정보 — 취소/환불 상태에서는 숨김 */}
                {detail.ticketStatus !== 'INVALID' && (
                <SectionCard>
                   <div className="flex items-start justify-between text-[20px] font-bold">
@@ -677,14 +658,12 @@ export default function PurchaseDetailPage() {
                </SectionCard>
                )}
 
-               {/* 취소/환불 정보 — INVALID 상태일 때만 표시 */}
                {detail.ticketStatus === 'INVALID' && (
                   <SectionCard>
                      <div className="flex items-start justify-between text-[20px] font-bold">
                         <span className="text-[#161d24] leading-normal">취소/환불 정보</span>
                         <span className="text-destructive leading-normal">취소/환불 완료</span>
                      </div>
-                     {/* 금액 요약 */}
                      <div className="bg-[#f7f8f9] rounded-xl p-5 flex flex-col gap-3">
                         <InfoRow label={`티켓 금액 (${totalQuantity}매)`} value={formatPrice(totalTicketPrice)} />
                         <InfoRow label="수수료" value={`-${formatPrice(serviceFee)}`} />
@@ -695,7 +674,6 @@ export default function PurchaseDetailPage() {
                            </span>
                         </div>
                      </div>
-                     {/* 환불 수단/일시 */}
                      {orderPaymentQuery.isLoading ? (
                         <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
                            환불 정보를 불러오는 중입니다.
@@ -710,7 +688,6 @@ export default function PurchaseDetailPage() {
                            <InfoRow label="취소 일시" value={detail.paidAt ? formatDateTime(detail.paidAt) : '정보 없음'} />
                         </div>
                      )}
-                     {/* 안내 문구 */}
                      <div className="bg-[#f7f8f9] rounded-xl p-5">
                         <div className="flex flex-col gap-1 text-[13px] font-medium text-[#646f7c] leading-normal">
                            <BulletItem text="취소/환불은 영업일 기준 1~3일 이내 처리될 예정입니다." />
@@ -720,7 +697,6 @@ export default function PurchaseDetailPage() {
                   </SectionCard>
                )}
 
-               {/* 취소/환불 정보 (InfoItem) */}
                {detail.refundInfo && !orderPaymentQuery.isError && (
                   <InfoItem
                      type="payment"
@@ -749,7 +725,6 @@ export default function PurchaseDetailPage() {
                )}
             </div>
 
-            {/* 액션 버튼 */}
             <div className="flex gap-3">
                {detail.canCancel && (
                   <Button variant="tertiary" className="flex-1 py-3" onClick={() => setCancelOpen(true)}>
@@ -763,7 +738,6 @@ export default function PurchaseDetailPage() {
                )}
             </div>
 
-            {/* 입장 안내 */}
             <div className="bg-[#f4f7fe] rounded-[14px] p-6 flex flex-col gap-2">
                <h4 className="text-[18px] font-bold text-primary leading-[1.55]">입장 안내</h4>
                <div className="flex flex-col gap-1 text-[14px] text-[#374553] leading-normal">
@@ -773,14 +747,12 @@ export default function PurchaseDetailPage() {
                </div>
             </div>
 
-            {/* 유의사항 */}
             <div className="bg-[#f7f8f9] rounded-[14px] p-6 flex flex-col gap-6">
                <div className="flex items-center gap-1">
                   <AlertCircle size={20} className="text-[#161d24] shrink-0" />
                   <h4 className="text-[18px] font-bold text-[#161d24] leading-[1.55]">유의사항</h4>
                </div>
                <div className="flex flex-col gap-6">
-                  {/* 취소/환불 안내 */}
                   <div className="flex flex-col gap-2">
                      <p className="text-[16px] font-bold text-[#374553] leading-normal">취소/환불 안내</p>
                      <div className="flex flex-col gap-1 text-[14px] text-[#374553] leading-normal">
@@ -792,7 +764,6 @@ export default function PurchaseDetailPage() {
                         <BulletItem text="환불 규정에 따라 환불 처리가 됩니다." />
                      </div>
                   </div>
-                  {/* 티켓 리셀 안내 */}
                   <div className="flex flex-col gap-2">
                      <p className="text-[16px] font-bold text-[#374553] leading-normal">티켓 리셀 안내</p>
                      <div className="flex flex-col gap-1 text-[14px] text-[#374553] leading-normal">

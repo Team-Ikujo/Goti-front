@@ -25,7 +25,6 @@ export function AccountModals({
 }: AccountModalsProps) {
    return (
       <>
-         {/* ── 본인 인증 모달 (이름/휴대폰 번호 변경) ── */}
          <Dialog open={modal === 'identity'} onOpenChange={onClose}>
             <DialogContent maxWidth={391} showCloseButton={false} className="rounded-2xl p-0 gap-0">
                <div className="flex flex-col gap-5 p-5">
@@ -57,7 +56,6 @@ export function AccountModals({
             </DialogContent>
          </Dialog>
 
-         {/* ── 계정 해지 불가 모달 (연결 계정 1개) ── */}
          <Dialog open={modal === 'cannotDisconnect'} onOpenChange={onClose}>
             <DialogContent maxWidth={391} showCloseButton={false} className="rounded-2xl p-0 gap-0">
                <div className="flex flex-col gap-3 p-5">
@@ -76,7 +74,6 @@ export function AccountModals({
             </DialogContent>
          </Dialog>
 
-         {/* ── 회원 탈퇴 확인 모달 ── */}
          <Dialog open={modal === 'withdraw'} onOpenChange={onClose}>
             <DialogContent maxWidth={429} showCloseButton={true} className="rounded-2xl p-0 gap-0">
                <div className="flex flex-col gap-5 p-5">
@@ -110,7 +107,6 @@ export function AccountModals({
             </DialogContent>
          </Dialog>
 
-         {/* ── 회원 탈퇴 불가 모달 (예약/판매 중인 티켓 있음) ── */}
          <Dialog open={modal === 'withdrawHasActiveTickets'} onOpenChange={onClose}>
             <DialogContent maxWidth={391} showCloseButton={false} className="rounded-2xl p-0 gap-0">
                <div className="flex flex-col gap-3 p-5">
@@ -133,7 +129,6 @@ export function AccountModals({
             </DialogContent>
          </Dialog>
 
-         {/* ── 회원 탈퇴 불가 모달 (미정산 있음) ── */}
          <Dialog open={modal === 'withdrawBlocked'} onOpenChange={onClose}>
             <DialogContent maxWidth={391} showCloseButton={false} className="rounded-2xl p-0 gap-0">
                <div className="flex flex-col gap-3 p-5">

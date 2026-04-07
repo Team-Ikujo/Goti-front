@@ -856,7 +856,8 @@ const buildPageResponse = <T>(content: T[], page = 0, size = content.length || 1
 };
 
 export const paymentHandlers = [
-   http.get('/api/v1/resales/listings/games/:gameId/count', async ({ params }) => {
+   // 경기 전체 리셀 좌석 개수 조회
+   http.get('/api/v1/resales/games/:gameId/count', async ({ params }) => {
       const gameId = String(params.gameId);
       const gameExists = mockGameSchedules.some((game) => game.gameId === gameId);
 
@@ -880,9 +881,10 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/resales/listings/games/:gameId/section/:sectionId/count', async ({ params }) => {
+   // 경기 등급별 리셀 좌석 개수 조회 (sectionId 기준 → gradeId 기준으로 변경)
+   http.get('/api/v1/resales/games/:gameId/grade/:gradeId/count', async ({ params }) => {
       const gameId = String(params.gameId);
-      const sectionId = String(params.sectionId);
+      const gradeId = String(params.gradeId);
 
       return HttpResponse.json({
          code: 'SUCCESS',
@@ -892,9 +894,55 @@ export const paymentHandlers = [
                (listing) =>
                   listing.gameId === gameId &&
                   listing.isPurchasable &&
-                  extractSectionId(listing.seatId) === sectionId,
+                  listing.gradeId === gradeId,
             ).length,
          },
+      });
+   }),
+
+   // 내 리셀 등록 개수 요약 (listingCount, soldCount)
+   http.get('/api/v1/resales/listings/count', async () => {
+      const myListings = Array.from(resaleListings.values());
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            listingCount: myListings.filter(l => l.listingStatus === 'LISTING' || l.listingStatus === 'HOLD').length,
+            soldCount: myListings.filter(l => l.listingStatus === 'SOLD' || l.listingStatus === 'SETTLED').length,
+         },
+      });
+   }),
+
+   // 내 판매 그룹 목록 조회
+   http.get('/api/v1/resales/listings/orders', async () => {
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            list: [],
+            totalCount: 0,
+            totalPages: 0,
+         },
+      });
+   }),
+
+   // 리셀 게임 상태 조회
+   http.get('/api/v1/resales/games/:gameId/status', async ({ params }) => {
+      const gameId = String(params.gameId);
+      const game = mockGameSchedules.find(g => g.gameId === gameId);
+
+      const status =
+         !game || game.gameStatus === 'FINISHED'
+            ? 'UNAVAILABLE'
+            : game.ticketingStatus === 'AVAILABLE'
+               ? 'AVAILABLE'
+               : 'SCHEDULED';
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: { status },
       });
    }),
 

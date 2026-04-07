@@ -13,8 +13,6 @@ import type { BadgeVariant } from './StatusBadge';
 import TicketItem from './TicketItem';
 import InfoItem from './InfoItem';
 
-// ─── 상태 → 배지 변형 매핑 ─────────────────────────────────────
-
 type SaleStatus = '판매 중' | '정산 대기' | '판매 완료' | '취소 대기' | '취소 완료';
 
 const SALE_BADGE: Record<SaleStatus, BadgeVariant> = {
@@ -27,15 +25,11 @@ const SALE_BADGE: Record<SaleStatus, BadgeVariant> = {
 
 const FEE_RATE = 5;
 
-// ─── 로컬 서브 컴포넌트 ────────────────────────────────────────
-
 function SectionCard({ children, className = '' }: { children: ReactNode; className?: string }) {
    return (
       <div className={`border border-[#e9ebee] rounded-2xl p-[25px] flex flex-col gap-6 ${className}`}>{children}</div>
    );
 }
-
-// ─── 메인 컴포넌트 ─────────────────────────────────────────────
 
 export default function SaleDetailPage() {
    const { id } = useParams<{ id: string }>();
@@ -84,7 +78,6 @@ export default function SaleDetailPage() {
    return (
       <div className="flex flex-col items-center pt-12.5 pb-30 px-4">
          <div className="flex flex-col gap-14 w-full max-w-[760px] min-w-[335px]">
-            {/* 제목 */}
             <div className="flex items-center gap-4">
                <h1 className="text-[32px] font-bold text-[#111827] tracking-[-0.032px] leading-[1.45]">
                   판매내역 상세
@@ -92,7 +85,6 @@ export default function SaleDetailPage() {
             </div>
 
             <div className="flex flex-col gap-12">
-               {/* 경기 정보 */}
                <SectionCard>
                   <StatusBadge label={overallStatus} variant={SALE_BADGE[overallStatus]} />
                   <div className="flex flex-col gap-4">
@@ -106,7 +98,6 @@ export default function SaleDetailPage() {
                   </div>
                </SectionCard>
 
-               {/* 취소 대기: 취소 정보 / 그 외: 판매 정보 */}
                {isCancelPending ? (
                   <InfoItem
                      heading="취소 정보"
@@ -135,7 +126,6 @@ export default function SaleDetailPage() {
                   />
                )}
 
-               {/* 좌석 정보 */}
                <SectionCard>
                   <h2 className="text-[20px] font-bold text-[#161d24] leading-[1.5]">
                      {isCancelPending ? '판매 취소된 좌석' : '좌석 정보'}
@@ -154,7 +144,6 @@ export default function SaleDetailPage() {
                   </div>
                </SectionCard>
 
-               {/* 정산 금액 — 취소 대기에서는 숨김 */}
                {!isCancelPending && (
                   <InfoItem
                      type="payment"
@@ -172,7 +161,6 @@ export default function SaleDetailPage() {
                )}
             </div>
 
-            {/* 판매 취소 버튼 — 판매 중일 때만 */}
             {apiDetail.canCancel && (
                <Button
                   variant="tertiary"
@@ -184,7 +172,6 @@ export default function SaleDetailPage() {
                </Button>
             )}
 
-            {/* 유의사항 — 판매 중일 때만 */}
             {overallStatus === '판매 중' && (
                <div className="bg-surface rounded-[14px] p-6 flex flex-col gap-6">
                   <div className="flex items-center gap-1">
