@@ -2,7 +2,8 @@
 
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
-import { createGuardrailHeaders } from '@/shared/lib/guardrailHeaders';
+import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
+import { createBookingFlowHeaders } from '@/shared/lib/guardrailHeaders';
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
 const shouldUseRelativeApiBase = import.meta.env.DEV;
@@ -78,7 +79,7 @@ export const releaseResaleListingHoldKeepalive = (holdId: string) => {
       method: 'PATCH',
       headers: {
          'Content-Type': 'application/json',
-         ...createGuardrailHeaders(),
+         ...createBookingFlowHeaders(useBookingEntryStore.getState().entry?.turnstileToken),
       },
       credentials: 'omit',
       keepalive: true,
