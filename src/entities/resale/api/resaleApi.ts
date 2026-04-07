@@ -2,7 +2,8 @@
 
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
-import { createGuardrailHeaders } from '@/shared/lib/guardrailHeaders';
+import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
+import { createBookingFlowHeaders } from '@/shared/lib/guardrailHeaders';
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
 const shouldUseRelativeApiBase = import.meta.env.DEV;
@@ -78,7 +79,7 @@ export const releaseResaleListingHoldKeepalive = (holdId: string) => {
       method: 'PATCH',
       headers: {
          'Content-Type': 'application/json',
-         ...createGuardrailHeaders(),
+         ...createBookingFlowHeaders(useBookingEntryStore.getState().entry?.turnstileToken),
       },
       credentials: 'omit',
       keepalive: true,
@@ -185,6 +186,12 @@ export interface ResaleGameListingCountResponse {
    count: number;
 }
 
+export type ResaleGameStatus = 'SCHEDULED' | 'AVAILABLE' | 'UNAVAILABLE';
+
+export interface ResaleGameStatusResponse {
+   status: ResaleGameStatus;
+}
+
 export interface MyResaleListingSummaryResponse {
    listingCount: number;
    soldCount: number;
@@ -246,17 +253,37 @@ export const fetchResaleListingCountsByGrades = async (
 
    return new Map<string, number>(counts);
 };
-
 export const fetchResaleListings = async (): Promise<ResaleListingItem[]> => {
    const response = await apiClient.get<ApiEnvelope<ResaleListingItem[]>>('/api/v1/resales/listings');
    return response.data.data;
 };
 
-export const fetchMyResaleListingSummary = async (userId: string): Promise<MyResaleListingSummaryResponse> => {
-   const response = await apiClient.get<ApiEnvelope<MyResaleListingSummaryResponse>>('/api/v1/resales/listings/count', {
-      params: { userId },
-   });
+export const fetchMyResaleListingSummary = async (userId?: string): Promise<MyResaleListingSummaryResponse> => {
+   const response = await apiClient.get<ApiEnvelope<MyResaleListingSummaryResponse>>('/api/v1/resales/listings/count');
+
    return response.data.data;
+};
+
+export const fetchResaleGameStatusByGame = async (gameId: string): Promise<ResaleGameStatus> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleGameStatusResponse>>(
+      `/api/v1/resales/games/${encodeURIComponent(gameId)}/status`,
+   );
+
+   return response.data.data.status;
+};
+
+export const fetchResaleGameStatusesByGames = async (gameIds: string[]): Promise<Map<string, ResaleGameStatus>> => {
+   const uniqueGameIds = [...new Set(gameIds.filter(Boolean))];
+
+   if (uniqueGameIds.length === 0) {
+      return new Map<string, ResaleGameStatus>();
+   }
+
+   const statuses = await Promise.all(
+      uniqueGameIds.map(async (gameId) => [gameId, await fetchResaleGameStatusByGame(gameId)] as const),
+   );
+
+   return new Map<string, ResaleGameStatus>(statuses);
 };
 
 export const fetchResaleHistoryGraph = async (

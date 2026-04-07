@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/shared/ui/input';
 import { TermsCheckbox, TermsSubItem } from '@/shared/ui/terms-of-service';
 import type { TermAgreementCode } from '@/entities/terms/model/types';
-import { normalizePhoneInput } from '@/pages/signup/model/signUpValidation';
+import { normalizePhoneInput } from '@/features/auth/model/identityVerificationForm';
 import {
    verificationTermsAgreements,
    verificationTermsDetailByCode,

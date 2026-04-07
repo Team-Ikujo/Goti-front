@@ -84,6 +84,13 @@ export interface MemberUpdateResponse {
    birthDate: string;
 }
 
+export interface ProfileEditMockRequest {
+   mobile: string;
+   name: string;
+   gender: 'MALE' | 'FEMALE' | 'UNKNOWN';
+   birthDate: string;
+}
+
 const MY_PROFILE_FALLBACK_DELAY_MS = 250;
 const MY_PROFILE_MOCK_STORAGE_KEY = 'mypage-mock-profile';
 
@@ -152,6 +159,31 @@ export const fetchMyProfile = async (): Promise<MemberProfile> => {
 export const updateMyProfile = async (body: MemberUpdateRequest): Promise<MemberUpdateResponse> => {
    const response = await apiClient.patch<ApiEnvelope<MemberUpdateResponse>>('/api/v1/members/me', body);
    return response.data.data;
+};
+
+export const sendProfileUpdateSmsCodeMock = async (): Promise<{ success: true }> => {
+   await wait(MY_PROFILE_FALLBACK_DELAY_MS);
+   return { success: true };
+};
+
+export const updateMemberProfileMock = async (body: ProfileEditMockRequest): Promise<MemberUpdateResponse> => {
+   await wait(MY_PROFILE_FALLBACK_DELAY_MS);
+
+   const nextProfile = withMockProfile({
+      name: body.name,
+      mobile: body.mobile,
+      gender: body.gender,
+      birthDate: body.birthDate,
+   });
+
+   writeStoredMockProfile(nextProfile);
+
+   return {
+      name: nextProfile.name ?? body.name,
+      mobile: nextProfile.mobile ?? body.mobile,
+      gender: body.gender,
+      birthDate: body.birthDate,
+   };
 };
 
 export const createMemberAccount = async (body: MemberAccountRequest): Promise<MemberAccount> => {

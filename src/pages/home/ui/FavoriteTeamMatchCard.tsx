@@ -7,6 +7,7 @@ import { teams } from '@/entities/team/model/teams';
 import type { Team } from '@/entities/team/model/types';
 import { getClosestMatch, getDDay, useGameSchedules } from '@/entities/game/model/schedule';
 import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
+import { useResaleGameStatuses } from '@/entities/resale/model/useResaleGameStatuses';
 import { Button } from '@/shared/ui/button';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 
@@ -15,6 +16,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const { data, isPending } = useGameSchedules();
    const resaleGameIds = (data ?? []).map(game => game.id);
    const resaleCountsQuery = useResaleGameCounts(resaleGameIds);
+   const resaleStatusesQuery = useResaleGameStatuses(resaleGameIds);
    const match = getClosestMatch(data ?? [], team.id);
 
    /** 헤더 — 경기 없을 때도 공통 사용 */
@@ -81,8 +83,18 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const awayTeamName = match.awayTeamFullName;
    const homeTeamName = match.homeTeamFullName;
    const resaleCount = resaleCountsQuery.data?.get(match.id);
-   const canResellBook = match.resell === '리셀예매' && typeof resaleCount === 'number' && resaleCount > 0;
-   const resellButtonLabel = match.resell === '리셀예정' ? '리셀예정' : canResellBook ? '리셀예매' : '리셀매진';
+   const resaleStatus = resaleStatusesQuery.data?.get(match.id);
+   const canResellBook = resaleStatus === 'AVAILABLE' && typeof resaleCount === 'number' && resaleCount > 0;
+   const resellButtonLabel =
+      resaleStatus === 'SCHEDULED'
+         ? '리셀예정'
+         : resaleStatus === 'UNAVAILABLE'
+           ? '리셀매진'
+           : canResellBook
+             ? '리셀예매'
+             : match.resell === '리셀예정'
+               ? '리셀예정'
+               : '리셀매진';
 
    const handleBookingClick = () => {
       openBookingEntry({
