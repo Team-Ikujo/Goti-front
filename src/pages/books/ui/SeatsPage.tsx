@@ -23,7 +23,7 @@ function SeatsPage() {
    const navigate = useNavigate();
    const { zoneId = '' } = useParams();
    const { getBotReport } = useBotDetector();
-   const botData = getBotReport();
+   const botData = getBotReport() ?? undefined;
    const { bookingEntryState, isResellMode, bookingZones, stadiumName, zone, zoneOverviewImage } = useSeatsPageEntry(zoneId);
    const [isPurchaseLimitDialogOpen, setIsPurchaseLimitDialogOpen] = useState(false);
    const purchaseLimit = useBookingPurchaseLimit();

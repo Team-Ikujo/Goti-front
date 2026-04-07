@@ -5,6 +5,22 @@ import QrViewDialog from './QrViewDialog';
 import type { OrderTicket } from '@/entities/ticket/api/ticketApi';
 import { formatTicketNumber, getTicketNumberKind } from '../model/ticketNumber';
 
+const parseGradeName = (seatInfo: string): string => {
+   const tokens = seatInfo.split(' ');
+   const sectionIndex = tokens.findIndex((token) => token.endsWith('구역'));
+   if (sectionIndex > 0) return tokens.slice(0, sectionIndex).join(' ');
+   const rowIndex = tokens.findIndex((token) => /^[A-Z가-힣\d]+열$/.test(token));
+   return rowIndex > 0 ? tokens.slice(0, rowIndex).join(' ') : (tokens[0] ?? '');
+};
+
+const parseSeatDetail = (seatInfo: string): string => {
+   const tokens = seatInfo.split(' ');
+   const sectionIndex = tokens.findIndex((token) => token.endsWith('구역'));
+   if (sectionIndex > 0) return tokens.slice(sectionIndex).join(' ');
+   const rowIndex = tokens.findIndex((token) => /^[A-Z가-힣\d]+열$/.test(token));
+   return rowIndex > 0 ? tokens.slice(rowIndex).join(' ') : tokens.slice(1).join(' ');
+};
+
 interface PurchaseDetailDialogsProps {
    orderId: string;
    detail: {
@@ -83,15 +99,17 @@ export function PurchaseDetailDialogs({
                      datetime: detail.game.datetime,
                      quantity: sellableOrderTickets.length > 0 ? sellableOrderTickets.length : detail.seatItems.length,
                      section:
-                        sellableOrderTickets[0]?.seatInfo.split(' ')[0] ??
+                        (sellableOrderTickets[0]?.seatInfo
+                           ? parseGradeName(sellableOrderTickets[0].seatInfo)
+                           : undefined) ??
                         detail.seatItems[0]?.section ??
-                        detail.seatInfo.split(' ')[0],
+                        parseGradeName(detail.seatInfo),
                      seats:
                         sellableOrderTickets.length > 0
-                           ? sellableOrderTickets.map((ticket) => ticket.seatInfo)
+                           ? sellableOrderTickets.map((ticket) => parseSeatDetail(ticket.seatInfo))
                            : detail.seatItems.length > 0
                               ? detail.seatItems.map((seat) => seat.seatDetail)
-                           : [detail.seatInfo],
+                           : [parseSeatDetail(detail.seatInfo)],
                   },
                   price:
                      sellableOrderTickets.length > 0
