@@ -4,11 +4,14 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getSelectedSeatPaymentSummary } from '@/pages/books/model/getSelectedSeatPaymentSummary';
 import { getSelectedSeatDetails } from '@/pages/books/model/selectedSeats';
+import { useBookingPurchaseLimit } from '@/pages/books/model/useBookingPurchaseLimit';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { MAX_SELECTED_SEATS, MAX_SELECTED_SEATS_MESSAGE } from '@/entities/seat-selection/model/constants';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { getBookingTeamConfig, getBookingZones } from '@/pages/books/model/zoneData';
 import { Button } from '@/shared/ui/button';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import BooksPurchaseLimitDialog from '@/shared/widgets/layout/books/BooksPurchaseLimitDialog';
 import type { TicketCheckoutRequest } from '@/pages/tickets/api/paymentApi';
 import {
    CashReceiptCard,
@@ -59,6 +62,8 @@ export default function TicketPaymentPage() {
    const bookingZones = bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId);
    const paymentSummary = getSelectedSeatPaymentSummary(zonesState, bookingZones);
    const selectedSeatDetails = getSelectedSeatDetails(zonesState, bookingZones);
+   const purchaseLimit = useBookingPurchaseLimit();
+   const [isPurchaseLimitDialogOpen, setIsPurchaseLimitDialogOpen] = useState(false);
    const selectedSeats = selectedSeatDetails.map(({ seat, zoneName }) => ({
       seatId: seat.id,
       holdId: holdsBySeatId[seat.id]?.holdId ?? '',
@@ -105,6 +110,7 @@ export default function TicketPaymentPage() {
       isDeliveryValid &&
       isCashReceiptValid &&
       selectedSeats.length > 0 &&
+      selectedSeats.length <= MAX_SELECTED_SEATS &&
       selectedSeats.every(seat => !!seat.holdId) &&
       !!bookingEntryState?.gameId &&
       !!bookingEntryState?.queueTokenJti &&
@@ -146,9 +152,28 @@ export default function TicketPaymentPage() {
       }
    }, [routeBookingEntryState, setBookingEntry]);
 
-   const handlePay = () => {
+   const handlePay = async () => {
       if (!bookingEntryState?.gameId || !bookingEntryState.queueTokenJti) {
          return;
+      }
+
+      if (selectedSeats.length > MAX_SELECTED_SEATS) {
+         window.alert(MAX_SELECTED_SEATS_MESSAGE);
+         return;
+      }
+
+      try {
+         const purchaseLimitResult = await purchaseLimit.checkPurchaseLimit({
+            gameId: bookingEntryState.gameId,
+            selectedSeatCount: selectedSeats.length,
+         });
+
+         if (purchaseLimitResult.isLimitExceeded) {
+            setIsPurchaseLimitDialogOpen(true);
+            return;
+         }
+      } catch (error) {
+         console.error('[TicketPaymentPage] 구매 제한 사전 체크 실패', error);
       }
 
       const paymentRequest: TicketCheckoutRequest = {
@@ -180,6 +205,16 @@ export default function TicketPaymentPage() {
 
    return (
       <div className="min-h-screen flex flex-col bg-background">
+         <BooksPurchaseLimitDialog
+            open={isPurchaseLimitDialogOpen}
+            onConfirm={() => {
+               setIsPurchaseLimitDialogOpen(false);
+               navigate('/books', {
+                  replace: true,
+                  state: bookingEntryState ?? undefined,
+               });
+            }}
+         />
          <PaymentHeader
             matchTitle={orderInfo.matchTitle}
             venue={bookingEntryState?.venue ?? bookingTeamConfig.stadiumName ?? MOCK_GAME.venue}
@@ -290,10 +325,10 @@ export default function TicketPaymentPage() {
                               variant="primary"
                               size="lg"
                               className="w-full"
-                              disabled={!isFormValid}
-                              onClick={handlePay}
+                              disabled={!isFormValid || purchaseLimit.isChecking}
+                              onClick={() => void handlePay()}
                            >
-                              {totalPayment.toLocaleString('ko-KR')}원 결제하기
+                              {purchaseLimit.isChecking ? '구매 가능 수량 확인 중' : `${totalPayment.toLocaleString('ko-KR')}원 결제하기`}
                            </Button>
                         </div>
                      </div>
@@ -317,10 +352,10 @@ export default function TicketPaymentPage() {
                            variant="primary"
                            size="lg"
                            className="w-full"
-                           disabled={!isFormValid}
-                           onClick={handlePay}
+                           disabled={!isFormValid || purchaseLimit.isChecking}
+                           onClick={() => void handlePay()}
                         >
-                           {totalPayment.toLocaleString('ko-KR')}원 결제하기
+                           {purchaseLimit.isChecking ? '구매 가능 수량 확인 중' : `${totalPayment.toLocaleString('ko-KR')}원 결제하기`}
                         </Button>
                      </div>
                   </div>

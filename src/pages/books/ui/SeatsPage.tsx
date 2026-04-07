@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import type { SeatItem } from '@/pages/books/model/types';
 import { buildResellPaymentEntry } from '@/pages/books/model/buildSeatPaymentEntry';
+import { useBookingPurchaseLimit } from '@/pages/books/model/useBookingPurchaseLimit';
 import { useResellSeatSelection } from '@/pages/books/model/useResellSeatSelection';
 import { useSeatMapLayout } from '@/pages/books/model/useSeatMapLayout';
 import { useSeatMapViewport } from '@/pages/books/model/useSeatMapViewport';
@@ -11,6 +12,7 @@ import { useZoneSeatState } from '@/pages/books/model/useZoneSeatState';
 import { formatPrice } from '@/pages/books/model/zoneData';
 import { useBotDetector } from '@/shared/lib/useBotDetector';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
+import BooksPurchaseLimitDialog from '@/shared/widgets/layout/books/BooksPurchaseLimitDialog';
 
 import ResellSeatSidebar from './components/ResellSeatSidebar';
 import ResellZonePreviewSheet from './components/ResellZonePreviewSheet';
@@ -23,6 +25,8 @@ function SeatsPage() {
    const { getBotReport } = useBotDetector();
    const botData = getBotReport();
    const { bookingEntryState, isResellMode, bookingZones, stadiumName, zone, zoneOverviewImage } = useSeatsPageEntry(zoneId);
+   const [isPurchaseLimitDialogOpen, setIsPurchaseLimitDialogOpen] = useState(false);
+   const purchaseLimit = useBookingPurchaseLimit();
    const {
       allSelectedSeatsAreHeld: allStandardSelectedSeatsAreHeld,
       clearSelectedSeats,
@@ -39,6 +43,7 @@ function SeatsPage() {
    } = useZoneSeatState({
       bookingEntryState,
       bookingZones,
+      onPurchaseLimitReached: () => setIsPurchaseLimitDialogOpen(true),
       zone,
    });
    const [isSeatDrawerOpen, setIsSeatDrawerOpen] = useState(true);
@@ -107,7 +112,7 @@ function SeatsPage() {
       };
    }, []);
 
-   const handleProceedToPayment = () => {
+   const handleProceedToPayment = async () => {
       if (isResellMode) {
          if (!resellSeatSelection.selectedResellListing) {
             return;
@@ -123,6 +128,20 @@ function SeatsPage() {
             }),
          });
          return;
+      }
+
+      try {
+         const purchaseLimitResult = await purchaseLimit.checkPurchaseLimit({
+            gameId: bookingEntryState?.gameId,
+            selectedSeatCount: selectedSeats.length,
+         });
+
+         if (purchaseLimitResult.isLimitExceeded) {
+            setIsPurchaseLimitDialogOpen(true);
+            return;
+         }
+      } catch (error) {
+         console.error('[SeatsPage] 구매 제한 사전 체크 실패', error);
       }
 
       navigate('/tickets/payment', {
@@ -187,6 +206,16 @@ function SeatsPage() {
 
    return (
       <div className="w-full bg-background text-foreground">
+         <BooksPurchaseLimitDialog
+            open={isPurchaseLimitDialogOpen}
+            onConfirm={() => {
+               setIsPurchaseLimitDialogOpen(false);
+               navigate('/books', {
+                  replace: true,
+                  state: bookingEntryState ?? undefined,
+               });
+            }}
+         />
          <main className="flex min-h-[calc(100vh-140px)] flex-col xl:h-[calc(100vh-140px)] xl:flex-row">
             <section className="relative flex min-h-[660px] flex-1 flex-col overflow-hidden bg-[#eef0f3] xl:min-h-[680px]">
                <div className="flex items-center justify-between gap-4 px-5 py-5 lg:px-8 lg:py-3">
@@ -315,16 +344,16 @@ function SeatsPage() {
                                  </div>
                                  <button
                                     type="button"
-                                    disabled={selectedSeats.length === 0 || !allSelectedSeatsAreHeld}
-                                    onClick={handleProceedToPayment}
+                                    disabled={selectedSeats.length === 0 || !allSelectedSeatsAreHeld || purchaseLimit.isChecking}
+                                    onClick={() => void handleProceedToPayment()}
                                     className={[
                                        'h-12 w-full rounded-[8px] text-label-1-bold transition-colors',
-                                       selectedSeats.length === 0 || !allSelectedSeatsAreHeld
+                                       selectedSeats.length === 0 || !allSelectedSeatsAreHeld || purchaseLimit.isChecking
                                           ? 'bg-fill-disabled text-disabled-foreground'
                                           : 'bg-primary text-white hover:bg-primary-strong',
                                     ].join(' ')}
                                  >
-                                    {bookingButtonLabel}
+                                    {purchaseLimit.isChecking ? '구매 가능 수량 확인 중' : bookingButtonLabel}
                                  </button>
                               </div>
                            </>
@@ -354,7 +383,7 @@ function SeatsPage() {
 
                      void resellSeatSelection.handleSelectResellListing(mappedSeatId, listing);
                   }}
-                  onSubmit={handleProceedToPayment}
+                  onSubmit={() => void handleProceedToPayment()}
                />
             ) : isResellMode && resellSeatSelection.resellInsightsQuery.isError ? (
                <aside className="hidden w-full shrink-0 items-center justify-center border-l border-border-light bg-background px-5 text-center text-body-1-medium text-muted-foreground xl:flex xl:w-[420px]">
@@ -407,16 +436,16 @@ function SeatsPage() {
 
                      <button
                         type="button"
-                        disabled={selectedSeats.length === 0 || !allSelectedSeatsAreHeld}
-                        onClick={handleProceedToPayment}
+                        disabled={selectedSeats.length === 0 || !allSelectedSeatsAreHeld || purchaseLimit.isChecking}
+                        onClick={() => void handleProceedToPayment()}
                         className={[
                            'h-[56px] w-full rounded-[8px] text-label-1-bold transition-colors',
-                           selectedSeats.length === 0 || !allSelectedSeatsAreHeld
+                           selectedSeats.length === 0 || !allSelectedSeatsAreHeld || purchaseLimit.isChecking
                               ? 'bg-fill-disabled text-disabled-foreground'
                               : 'bg-primary text-white hover:bg-primary-strong',
                         ].join(' ')}
                      >
-                        {bookingButtonLabel}
+                        {purchaseLimit.isChecking ? '구매 가능 수량 확인 중' : bookingButtonLabel}
                      </button>
                   </div>
                </aside>

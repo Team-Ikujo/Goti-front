@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { MAX_SELECTED_SEATS } from '@/entities/seat-selection/model/constants';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { createSeatsForZone } from './seatData';
@@ -12,10 +13,16 @@ import { useSeatMapData } from './useSeatMapData';
 type UseZoneSeatStateParams = {
    bookingEntryState: BookingEntryState | null;
    bookingZones: ZoneItem[];
+   onPurchaseLimitReached?: () => void;
    zone: ZoneItem;
 };
 
-export function useZoneSeatState({ bookingEntryState, bookingZones, zone }: UseZoneSeatStateParams) {
+export function useZoneSeatState({
+   bookingEntryState,
+   bookingZones,
+   onPurchaseLimitReached,
+   zone,
+}: UseZoneSeatStateParams) {
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
    const { apiSeatItems, seatBlocks, hasApiSeatMap, isSeatMapLoading, refetchSeatMap } = useSeatMapData({
       gameId: bookingEntryState?.gameId,
@@ -33,6 +40,8 @@ export function useZoneSeatState({ bookingEntryState, bookingZones, zone }: UseZ
          onSeatHoldConflict: async () => {
             await refetchSeatMap();
          },
+         onPurchaseLimitReached,
+         seatSelectionLimit: MAX_SELECTED_SEATS,
       },
    );
 
