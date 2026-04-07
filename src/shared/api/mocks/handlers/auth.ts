@@ -477,6 +477,42 @@ export const authHandlers = [
       });
    }),
 
+   http.patch('/api/v1/members/me', async ({ request }) => {
+      const body = (await request.json()) as {
+         mobile?: string;
+         name?: string;
+         gender?: 'MALE' | 'FEMALE' | 'UNKNOWN';
+         birthDate?: string;
+      };
+
+      if (!body?.mobile || !body?.name || !body?.gender || !body?.birthDate) {
+         return HttpResponse.json({ message: 'Missing member profile fields.' }, { status: 400 });
+      }
+
+      const session = mockRefreshSession.get();
+
+      if (!session) {
+         return HttpResponse.json({ message: 'Mock refresh session is missing.' }, { status: 401 });
+      }
+
+      mockRefreshSession.set({
+         ...session,
+         name: body.name,
+         mobile: body.mobile,
+      });
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            mobile: body.mobile,
+            name: body.name,
+            gender: body.gender,
+            birthDate: body.birthDate,
+         },
+      });
+   }),
+
    http.post('/api/v1/auth/reissue', async () => {
       const session = mockRefreshSession.get();
 

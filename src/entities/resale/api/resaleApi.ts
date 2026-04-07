@@ -104,9 +104,57 @@ export interface CreateResaleListingsResponse {
    listings: ResaleListingItem[];
 }
 
+type CreateResaleListingsApiPayload =
+   | CreateResaleListingsResponse
+   | (Partial<ResaleListingItem> & {
+        listingId: string;
+        ticketId: string;
+        listingPrice: number;
+        listingStatus?: ResaleListingItem['listingStatus'];
+        listedAt?: string;
+        isCancelable?: boolean;
+        isPurchasable?: boolean;
+     });
+
 export const createResaleListings = async (body: CreateResaleListingsRequest): Promise<CreateResaleListingsResponse> => {
-   const response = await apiClient.post<ApiEnvelope<CreateResaleListingsResponse>>('/api/v1/resales/listings', body);
-   return response.data.data;
+   const response = await apiClient.post<ApiEnvelope<CreateResaleListingsApiPayload>>('/api/v1/resales/listings', body);
+   const payload = response.data.data;
+
+   if ('listings' in payload && Array.isArray(payload.listings)) {
+      return {
+         orders: Array.isArray(payload.orders) ? payload.orders : [],
+         listings: payload.listings,
+      };
+   }
+
+   return {
+      orders: [],
+      listings: [
+         {
+            listingId: payload.listingId,
+            ticketId: payload.ticketId,
+            sellerId: payload.sellerId ?? '',
+            gameId: payload.gameId ?? '',
+            seatId: payload.seatId ?? '',
+            gradeId: payload.gradeId ?? '',
+            seatInfo: payload.seatInfo ?? '',
+            dailyBasePrice: payload.dailyBasePrice ?? payload.listingPrice,
+            listingPrice: payload.listingPrice,
+            listingStatus: payload.listingStatus ?? 'LISTING',
+            availableStatus: payload.availableStatus ?? 'ENABLED',
+            lastTransactionPrice: payload.lastTransactionPrice,
+            listedAt: payload.listedAt ?? new Date().toISOString(),
+            soldAt: payload.soldAt,
+            canceledAt: payload.canceledAt,
+            isCancelable: payload.isCancelable ?? true,
+            maxPrice: payload.maxPrice ?? payload.listingPrice,
+            gameTitle: payload.gameTitle,
+            gameDate: payload.gameDate,
+            stadiumName: payload.stadiumName,
+            isPurchasable: payload.isPurchasable ?? true,
+         },
+      ],
+   };
 };
 
 export interface ResaleListingDetail {

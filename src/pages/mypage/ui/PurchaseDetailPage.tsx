@@ -2,15 +2,13 @@
 
 import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import CancelBookingDialog from './CancelBookingDialog';
-import ResellRegisterDialog from './ResellRegisterDialog';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTicketDetail, fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 import { fetchOrderPaymentDetail, formatOrderPaymentMethod } from '@/entities/payment/api/paymentApi';
-import StatusBadge, { type BadgeVariant } from './StatusBadge';
-import TicketItem, { type TicketItemStatus } from './TicketItem';
+import StatusBadge from './StatusBadge';
+import TicketItem from './TicketItem';
 import InfoItem from './InfoItem';
 import { PurchaseDetailDialogs } from './PurchaseDetailDialogs';
 import { Snackbar } from '@/shared/ui/snackbar';
@@ -18,224 +16,19 @@ import { readStoredPaymentCompleteItems } from '@/shared/lib/paymentCompleteStor
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { decodeJwtPayload } from '@/shared/lib/jwt';
 import { formatReservationNumber, formatTicketNumber, getTicketNumberKind } from '../model/ticketNumber';
-
-type PurchaseStatus = '예매 완료' | '관람 완료' | '취소/환불';
-type PaymentEventType = '결제 완료';
-
-type PurchaseSeatItem = {
-   ticketId: string;
-   orderId: string;
-   section: string;
-   seatDetail: string;
-   status: TicketItemStatus;
-   price: number;
-};
-
-type PurchasePaymentSummary = {
-   status: string;
-   ticketCount: number;
-   ticketAmount: number;
-   fee: number;
-   total: number;
-   date?: string;
-   bankAccount?: string;
-   bankDeadline?: string;
-};
-
-type PurchaseRefundInfo = {
-   ticketAmount: number;
-   cancelFee: number;
-   refundTotal: number;
-   method: string;
-   date?: string;
-};
-
-type PurchaseDetailViewModel = {
-   id: string;
-   rawOrderId: string;
-   overallStatus: PurchaseStatus;
-   ticketStatus: string;
-   game: {
-      teams: string;
-      venue: string;
-      datetime: string;
-   };
-   orderId: string;
-   orderDate?: string;
-   orderer: string;
-   issuedAt?: string;
-   cancelDeadline?: string;
-   cancelDate?: string;
-   seatInfo: string;
-   ticketPrice: number;
-   paymentMethodDisplay: string | undefined;
-   paidAt?: string;
-   seatItems: PurchaseSeatItem[];
-   paymentSummary: PurchasePaymentSummary;
-   paymentEvents: Array<{ type: PaymentEventType; method: string }>;
-   refundInfo?: PurchaseRefundInfo;
-   canCancel: boolean;
-   canSell: boolean;
-   deliveryMethod: string;
-   deliveryAddress?: string;
-   deliveryStatus?: string;
-   deliveryCarrier?: string;
-   deliveryTrackingNumber?: string;
-};
-
-const PURCHASE_BADGE: Record<string, BadgeVariant> = {
-   ISSUED: 'success',
-   USED: 'disabled',
-   INVALID: 'warning',
-   RESALE_ISSUED: 'success',
-};
-
-const mapStatusLabel = (status: string): string => {
-   switch (status) {
-      case 'ISSUED':
-         return '예매 완료';
-      case 'USED':
-         return '관람 완료';
-      case 'INVALID':
-         return '취소/환불';
-      case 'RESALE_ISSUED':
-         return '예매 완료';
-      default:
-         return '예매 완료';
-   }
-};
-
-const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
-
-const parseDateValue = (value: string | undefined | null) => {
-   if (!value) {
-      return null;
-   }
-
-   const normalizedForDate = value.replace(/\.\s/g, '.').replace(/\.$/, '').trim();
-   const directDate = new Date(normalizedForDate);
-   if (!Number.isNaN(directDate.getTime())) {
-      return directDate;
-   }
-
-   const normalized = value
-      .replace(/\s+/g, ' ')
-      .replace(/\(([^)]+)\)/g, '')
-      .replace(/\.\s/g, '.')
-      .replace(/\.$/, '')
-      .trim();
-
-   const match = normalized.match(
-      /^(\d{4})\.(\d{2})\.(\d{2})(?:\s(?:(오전|오후)\s(\d{1,2}):(\d{2})(?::(\d{2}))?|(\d{1,2}):(\d{2})(?::(\d{2}))?))?$/,
-   );
-
-   if (!match) {
-      return null;
-   }
-
-   const [, year, month, day, meridiem, meridiemHour, meridiemMinute, meridiemSecond, hour24, minute24, second24] =
-      match;
-   let hours = Number(meridiemHour ?? hour24 ?? 0);
-   const minutes = Number(meridiemMinute ?? minute24 ?? 0);
-   const seconds = Number(meridiemSecond ?? second24 ?? 0);
-
-   if (meridiem === '오후' && hours < 12) {
-      hours += 12;
-   }
-
-   if (meridiem === '오전' && hours === 12) {
-      hours = 0;
-   }
-
-   return new Date(Number(year), Number(month) - 1, Number(day), hours, minutes, seconds);
-};
-
-const formatDateTime = (isoStr: string): string => {
-   const d = parseDateValue(isoStr);
-
-   if (!d) {
-      return '-';
-   }
-
-   const y = d.getFullYear();
-   const m = String(d.getMonth() + 1).padStart(2, '0');
-   const day = String(d.getDate()).padStart(2, '0');
-   const dow = DAYS[d.getDay()];
-   const h = String(d.getHours()).padStart(2, '0');
-   const min = String(d.getMinutes()).padStart(2, '0');
-   return `${y}.${m}.${day} (${dow}) ${h}:${min}`;
-};
-
-const parseGradeName = (seatInfo: string): string => {
-   const tokens = seatInfo.split(' ');
-   const sectionIndex = tokens.findIndex(token => token.endsWith('구역'));
-   if (sectionIndex > 0) {
-      return tokens.slice(0, sectionIndex).join(' ');
-   }
-
-   const rowIndex = tokens.findIndex(token => /^[A-Z가-힣\d]+열$/.test(token));
-   return rowIndex > 0 ? tokens.slice(0, rowIndex).join(' ') : (tokens[0] ?? '');
-};
-
-const isLikelyOrderReference = (value: string | undefined) => {
-   if (!value) {
-      return false;
-   }
-
-   return /^resale-order-/i.test(value) || /^order-/i.test(value);
-};
-
-const getFallbackCancelableUntil = (orderedAt: string | undefined) => {
-   const orderedDate = parseDateValue(orderedAt);
-
-   if (!orderedDate) {
-      return undefined;
-   }
-
-   return new Date(orderedDate.getFullYear(), orderedDate.getMonth(), orderedDate.getDate(), 23, 59, 0).toISOString();
-};
-
-const formatGameTitle = (value: string) => {
-   const [left, right] = value.split(/\s+vs\s+/i);
-
-   if (!left || !right) {
-      return value.trim();
-   }
-
-   return `${left.trim()} vs ${right.trim()}`;
-};
-
-const mapOverallStatus = (status: string): PurchaseStatus => {
-   switch (status) {
-      case 'ISSUED':
-         return '예매 완료';
-      case 'USED':
-         return '관람 완료';
-      case 'INVALID':
-         return '취소/환불';
-      case 'RESALE_ISSUED':
-         return '예매 완료';
-      default:
-         return '예매 완료';
-   }
-};
-
-const mapTicketItemStatus = (status: string): TicketItemStatus => {
-   switch (status) {
-      case 'ISSUED':
-         return '예매완료';
-      case 'USED':
-         return '취소대기';
-      case 'INVALID':
-         return '취소완료';
-      case 'RESALE_ISSUED':
-         return '예매완료';
-      default:
-         return '예매완료';
-   }
-};
-
-const formatPrice = (amount: number): string => `${amount.toLocaleString()}원`;
+import type { PurchaseDetailViewModel, PurchaseSeatItem } from '../model/purchaseDetailTypes';
+import {
+   PURCHASE_BADGE,
+   mapStatusLabel,
+   parseDateValue,
+   formatDateTime,
+   parseGradeName,
+   getFallbackCancelableUntil,
+   formatGameTitle,
+   mapOverallStatus,
+   mapTicketItemStatus,
+   formatPrice,
+} from '../model/purchaseDetailHelpers';
 
 function SectionCard({ children, className = '' }: { children: ReactNode; className?: string }) {
    return (
@@ -376,12 +169,9 @@ export default function PurchaseDetailPage() {
          };
       }
 
-      if (!apiDetail) {
-         return undefined;
-      }
+      if (!apiDetail) return undefined;
 
       const currentApiDetail = apiDetail;
-
       const overallStatus = mapOverallStatus(currentApiDetail.ticketStatus);
       const isInvalid = currentApiDetail.ticketStatus === 'INVALID';
       const isActionableTicket = currentApiDetail.ticketStatus !== 'INVALID';
@@ -453,7 +243,7 @@ export default function PurchaseDetailPage() {
          paidAt,
          seatItems,
          paymentSummary: {
-            status: isInvalid ? '결제 완료' : '결제 완료',
+            status: '결제 완료',
             ticketCount,
             ticketAmount,
             fee,
@@ -496,8 +286,8 @@ export default function PurchaseDetailPage() {
    const totalTicketPrice = detail.paymentSummary.ticketAmount;
    const totalPaid = detail.paymentSummary.total;
    const totalRefund = totalTicketPrice - serviceFee;
-
    const seatTickets = detail.seatItems;
+   const hasPaymentFallback = Boolean(detail.paymentMethodDisplay || detail.paidAt || totalPaid > 0);
 
    return (
       <div className="flex flex-col items-center pt-8 lg:pt-12.5 pb-40 px-4">
@@ -507,51 +297,6 @@ export default function PurchaseDetailPage() {
             onClose={() => setShowCancelSnackbar(false)}
          />
 
-         {cancelOpen && (
-            <CancelBookingDialog
-               open={cancelOpen}
-               onClose={() => setCancelOpen(false)}
-               orderId={orderId!}
-               game={{ teams: detail.game.teams, datetime: detail.game.datetime }}
-               isBankTransfer={orderPaymentQuery.data?.paymentMethod === 'ACCOUNT_TRANSFER'}
-               paymentMethod={detail.paymentMethodDisplay}
-               seats={seatTickets.map((seat) => ({
-                  orderId: seat.orderId,
-                  section: seat.section,
-                  seatDetail: seat.seatDetail,
-                  price: seat.price,
-                  ticketId: seat.ticketId,
-               }))}
-            />
-         )}
-
-         {resellOpen && (
-            <ResellRegisterDialog
-               open={resellOpen}
-               onClose={() => setResellOpen(false)}
-               onCompleteConfirm={() => navigate('/mypage', { state: { activeTab: 'sale' } })}
-               item={{
-                  id: detail.id,
-                  rawOrderId: orderId,
-                  orderId: detail.orderId,
-                  orderDate: detail.orderDate ?? '-',
-                  type: '티켓',
-                  game: {
-                     teams: detail.game.teams,
-                     venue: detail.game.venue || '홈구장',
-                     datetime: detail.game.datetime,
-                     quantity: 1,
-                     section: parseGradeName(detail.seatInfo),
-                     seats: [detail.seatInfo],
-                  },
-                  price: detail.ticketPrice,
-                  paymentStatus: '예매 완료',
-                  deliveryType: '모바일 티켓',
-                  canSell: detail.canSell,
-                  ticketIds: orderTickets.map((ticket) => ticket.ticketId),
-               }}
-            />
-         )}
          <PurchaseDetailDialogs
             orderId={orderId!}
             detail={detail}
@@ -567,19 +312,15 @@ export default function PurchaseDetailPage() {
 
          <div className="flex flex-col gap-14 w-full max-w-190 min-w-83.75">
             <div className="flex items-center gap-4">
-               <h1 className="text-[32px] font-bold text-[#111827] tracking-[-0.032px] leading-[1.45]">
-                  예매내역 상세
-               </h1>
+               <h1 className="text-title-1-bold text-foreground">예매내역 상세</h1>
             </div>
 
             <div className="flex flex-col gap-12">
                <SectionCard>
                   <StatusBadge label={statusLabel} variant={PURCHASE_BADGE[detail.ticketStatus]} />
                   <div className="flex flex-col gap-4">
-                     <p className="text-[32px] font-bold text-[#161d24] tracking-[-0.032px] leading-[1.45]">
-                        {detail.game.teams}
-                     </p>
-                     <div className="flex flex-col gap-1 text-[18px] font-medium text-[#374553]">
+                     <p className="text-title-1-bold text-foreground">{detail.game.teams}</p>
+                     <div className="flex flex-col gap-1 text-heading-4-medium text-muted-foreground">
                         <p className="leading-[1.55]">{formatDateTime(detail.game.datetime)}</p>
                         {detail.game.venue && <p className="leading-[1.55]">{detail.game.venue}</p>}
                      </div>
@@ -587,7 +328,7 @@ export default function PurchaseDetailPage() {
                </SectionCard>
 
                <SectionCard>
-                  <h2 className="text-[20px] font-bold text-[#161d24] leading-normal">예약 정보</h2>
+                  <h2 className="text-heading-3-bold text-foreground">예약 정보</h2>
                   <div className="flex flex-col gap-3">
                      <InfoRow label="예약번호" value={detail.orderId} />
                      <InfoRow label="예매일시" value={detail.issuedAt ? formatDateTime(detail.issuedAt) : '-'} />
@@ -600,11 +341,11 @@ export default function PurchaseDetailPage() {
                </SectionCard>
 
                <SectionCard className="gap-8">
-                  <h2 className="text-[20px] font-bold text-[#161d24] leading-normal">좌석 정보</h2>
+                  <h2 className="text-heading-3-bold text-foreground">좌석 정보</h2>
                   <div className="flex flex-col gap-6">
                      {seatTickets.map((ticket, idx) => (
                         <div key={ticket.ticketId}>
-                           {idx > 0 && <div className="h-px bg-[#e9ebee] mb-6" />}
+                           {idx > 0 && <div className="h-px bg-border mb-6" />}
                            <TicketItem
                               orderId={ticket.orderId}
                               section={ticket.section}
@@ -618,7 +359,7 @@ export default function PurchaseDetailPage() {
                </SectionCard>
 
                <SectionCard>
-                  <h2 className="text-[20px] font-bold text-[#161d24] leading-normal">티켓 수령 방법</h2>
+                  <h2 className="text-heading-3-bold text-foreground">티켓 수령 방법</h2>
                   <InfoRow label="수령 방법" value="모바일 QR" />
                   <Button variant="secondary" className="w-full py-3" onClick={() => setQrOpen(true)}>
                      모바일 QR 확인
@@ -627,26 +368,26 @@ export default function PurchaseDetailPage() {
 
                {detail.ticketStatus !== 'INVALID' && (
                <SectionCard>
-                  <div className="flex items-start justify-between text-[20px] font-bold">
-                        <span className="text-[#161d24] leading-normal">결제 정보</span>
+                  <div className="flex items-start justify-between text-heading-3-bold">
+                        <span className="text-foreground leading-normal">결제 정보</span>
                         <span className="text-primary leading-normal">결제 완료</span>
                   </div>
-                  {orderPaymentQuery.isLoading ? (
-                     <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                  {orderPaymentQuery.isLoading && !hasPaymentFallback ? (
+                     <div className="rounded-xl bg-surface px-5 py-6 text-center text-body-2-regular text-(--text-tertiary)">
                         결제 정보를 불러오는 중입니다.
                      </div>
-                  ) : orderPaymentQuery.isError ? (
-                     <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                  ) : orderPaymentQuery.isError && !hasPaymentFallback ? (
+                     <div className="rounded-xl bg-surface px-5 py-6 text-center text-body-2-regular text-(--text-tertiary)">
                         결제 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
                      </div>
                   ) : (
                      <>
-                        <div className="bg-[#f7f8f9] rounded-xl p-5 flex flex-col gap-3">
+                        <div className="bg-surface rounded-xl p-5 flex flex-col gap-3">
                            <InfoRow label={`티켓 금액 (${totalQuantity}매)`} value={formatPrice(totalTicketPrice)} />
                            <InfoRow label="수수료" value={formatPrice(serviceFee)} />
                            <div className="flex items-center justify-between font-bold">
-                              <span className="text-[16px] text-[#374553] leading-normal">총 결제 금액</span>
-                              <span className="text-[20px] text-primary leading-normal">{formatPrice(totalPaid)}</span>
+                              <span className="text-body-1-regular text-muted-foreground leading-normal">총 결제 금액</span>
+                              <span className="text-heading-3-bold text-primary leading-normal">{formatPrice(totalPaid)}</span>
                            </div>
                         </div>
                         <div className="flex flex-col gap-3">
@@ -660,26 +401,26 @@ export default function PurchaseDetailPage() {
 
                {detail.ticketStatus === 'INVALID' && (
                   <SectionCard>
-                     <div className="flex items-start justify-between text-[20px] font-bold">
-                        <span className="text-[#161d24] leading-normal">취소/환불 정보</span>
+                     <div className="flex items-start justify-between text-heading-3-bold">
+                        <span className="text-foreground leading-normal">취소/환불 정보</span>
                         <span className="text-destructive leading-normal">취소/환불 완료</span>
                      </div>
-                     <div className="bg-[#f7f8f9] rounded-xl p-5 flex flex-col gap-3">
+                     <div className="bg-surface rounded-xl p-5 flex flex-col gap-3">
                         <InfoRow label={`티켓 금액 (${totalQuantity}매)`} value={formatPrice(totalTicketPrice)} />
                         <InfoRow label="수수료" value={`-${formatPrice(serviceFee)}`} />
                         <div className="flex items-center justify-between font-bold">
-                           <span className="text-[16px] text-[#374553] leading-normal">환불 금액</span>
-                           <span className="text-[20px] text-destructive leading-normal">
+                           <span className="text-body-1-regular text-muted-foreground leading-normal">환불 금액</span>
+                           <span className="text-heading-3-bold text-destructive leading-normal">
                               {formatPrice(totalRefund)}
                            </span>
                         </div>
                      </div>
-                     {orderPaymentQuery.isLoading ? (
-                        <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                     {orderPaymentQuery.isLoading && !hasPaymentFallback ? (
+                        <div className="rounded-xl bg-surface px-5 py-6 text-center text-body-2-regular text-(--text-tertiary)">
                            환불 정보를 불러오는 중입니다.
                         </div>
-                     ) : orderPaymentQuery.isError ? (
-                        <div className="rounded-xl bg-[#f7f8f9] px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                     ) : orderPaymentQuery.isError && !hasPaymentFallback ? (
+                        <div className="rounded-xl bg-surface px-5 py-6 text-center text-body-2-regular text-(--text-tertiary)">
                            환불 수단 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
                         </div>
                      ) : (
@@ -688,8 +429,8 @@ export default function PurchaseDetailPage() {
                            <InfoRow label="취소 일시" value={detail.paidAt ? formatDateTime(detail.paidAt) : '정보 없음'} />
                         </div>
                      )}
-                     <div className="bg-[#f7f8f9] rounded-xl p-5">
-                        <div className="flex flex-col gap-1 text-[13px] font-medium text-[#646f7c] leading-normal">
+                     <div className="bg-surface rounded-xl p-5">
+                        <div className="flex flex-col gap-1 text-body-3-medium text-(--text-tertiary) leading-normal">
                            <BulletItem text="취소/환불은 영업일 기준 1~3일 이내 처리될 예정입니다." />
                            <BulletItem text="문의사항은 고객센터로 문의해주세요." />
                         </div>
@@ -738,24 +479,24 @@ export default function PurchaseDetailPage() {
                )}
             </div>
 
-            <div className="bg-[#f4f7fe] rounded-[14px] p-6 flex flex-col gap-2">
-               <h4 className="text-[18px] font-bold text-primary leading-[1.55]">입장 안내</h4>
-               <div className="flex flex-col gap-1 text-[14px] text-[#374553] leading-normal">
+            <div className="bg-primary-light rounded-[14px] p-6 flex flex-col gap-2">
+               <h4 className="text-heading-4-bold text-primary leading-[1.55]">입장 안내</h4>
+               <div className="flex flex-col gap-1 text-body-2-regular text-muted-foreground leading-normal">
                   <BulletItem text="경기 시작 2시간 전부터 입장 가능합니다" />
                   <BulletItem text="모바일 티켓 QR코드를 게이트에서 제시해주세요" />
                   <BulletItem text="신분증을 함께 지참해주세요" />
                </div>
             </div>
 
-            <div className="bg-[#f7f8f9] rounded-[14px] p-6 flex flex-col gap-6">
+            <div className="bg-surface rounded-[14px] p-6 flex flex-col gap-6">
                <div className="flex items-center gap-1">
-                  <AlertCircle size={20} className="text-[#161d24] shrink-0" />
-                  <h4 className="text-[18px] font-bold text-[#161d24] leading-[1.55]">유의사항</h4>
+                  <AlertCircle size={20} className="text-foreground shrink-0" />
+                  <h4 className="text-heading-4-bold text-foreground leading-[1.55]">유의사항</h4>
                </div>
                <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-2">
-                     <p className="text-[16px] font-bold text-[#374553] leading-normal">취소/환불 안내</p>
-                     <div className="flex flex-col gap-1 text-[14px] text-[#374553] leading-normal">
+                     <p className="text-body-1-bold text-muted-foreground leading-normal">취소/환불 안내</p>
+                     <div className="flex flex-col gap-1 text-body-2-regular text-muted-foreground leading-normal">
                         <BulletItem text="예매 당일 취소 시 전액 환불됩니다. (예매 수수료 포함)" />
                         <BulletItem text="예매 익일 ~ 경기 시작 4시간 전까지 취소 시 예매 수수료와 취소 수수료가 부과됩니다." />
                         <BulletItem text="경기 시작 4시간 전인 예매 취소 마감 기간 이후 취소 및 환불이 불가능합니다." />
@@ -765,8 +506,8 @@ export default function PurchaseDetailPage() {
                      </div>
                   </div>
                   <div className="flex flex-col gap-2">
-                     <p className="text-[16px] font-bold text-[#374553] leading-normal">티켓 리셀 안내</p>
-                     <div className="flex flex-col gap-1 text-[14px] text-[#374553] leading-normal">
+                     <p className="text-body-1-bold text-muted-foreground leading-normal">티켓 리셀 안내</p>
+                     <div className="flex flex-col gap-1 text-body-2-regular text-muted-foreground leading-normal">
                         <BulletItem text="안전한 거래를 위해 모바일 티켓만 리셀 등록이 가능합니다." />
                         <BulletItem text="구매하신 티켓은 예매 시작 이후 2시간이 된 시점부터 경기 시작 이후 1시간까지 리셀 마켓에 등록하실 수 있습니다." />
                         <BulletItem text="리셀 시 별도의 취소 수수료는 없으며, 거래 완료 시 판매 금액의 5% 중개 수수료가 적용됩니다." />

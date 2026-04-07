@@ -20,6 +20,23 @@ interface Props {
    item: PurchaseHistoryItem;
 }
 
+const formatGameDateTime = (value: string) => {
+   const date = new Date(value);
+
+   if (Number.isNaN(date.getTime())) {
+      return value;
+   }
+
+   const year = date.getFullYear();
+   const month = String(date.getMonth() + 1).padStart(2, '0');
+   const day = String(date.getDate()).padStart(2, '0');
+   const weekday = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
+   const hours = String(date.getHours()).padStart(2, '0');
+   const minutes = String(date.getMinutes()).padStart(2, '0');
+
+   return `${year}.${month}.${day} (${weekday}) ${hours}:${minutes}`;
+};
+
 // ─── 체크박스 아이콘 ────────────────────────────────────────────────
 function CheckboxIcon({ checked }: { checked: boolean }) {
    if (checked) {
@@ -72,7 +89,13 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
 
    const [isSubmitting, setIsSubmitting] = useState(false);
    const queryClient = useQueryClient();
-   const unitPrice = item.game.quantity > 0 ? Math.round(item.price / item.game.quantity) : item.price;
+   const seatPrices = item.seatPrices ?? [];
+   const unitPrice =
+      seatPrices.length > 0
+         ? seatPrices[0]
+         : item.game.quantity > 0
+           ? Math.round(item.price / item.game.quantity)
+           : item.price;
 
    const resaleInsightsQuery = useResellRegisterInsights({
       enabled: open,
@@ -110,8 +133,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
 
    const checkedCount = checkedSeats.size;
    const showBulkToggle = checkedCount >= 2;
-   const resaleInsightsState = resaleInsightsQuery.data;
-   const insights = resaleInsightsState?.status === 'success' ? resaleInsightsState.insights : null;
+   const insights = resaleInsightsQuery.data?.insights ?? null;
 
    const toggleSeat = (idx: number) => {
       setCheckedSeats(prev => {
@@ -156,6 +178,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
 
          setCreatedSaleId(firstCreatedListingId);
          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['myOrders'] }),
             queryClient.invalidateQueries({ queryKey: ['myResales'] }),
             queryClient.invalidateQueries({ queryKey: ['myResaleSummary'] }),
          ]);
@@ -186,7 +209,10 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
          />
 
          {/* 스크림 */}
-         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50" onClick={onClose}>
+         <div
+            className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50"
+            onClick={onClose}
+         >
             {/* 모달 */}
             <div
                className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
@@ -194,9 +220,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
             >
                {/* 헤더 */}
                <div className="relative flex items-center gap-2 p-5 shrink-0">
-                  <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">
-                     리셀 판매 등록
-                  </p>
+                  <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">판매 등록</p>
                   <button
                      onClick={onClose}
                      className="absolute right-5 top-1/2 -translate-y-1/2 text-[#161d24] hover:text-muted-foreground transition-colors"
@@ -211,7 +235,9 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                   {/* 경기 정보 */}
                   <div className="bg-[#f7f8fa] rounded-lg px-5 py-4 flex flex-col gap-1">
                      <p className="text-[18px] font-bold text-[#2c3e50] text-center leading-[1.6]">{item.game.teams}</p>
-                     <p className="text-[14px] text-[#666] text-center leading-[1.6]">{item.game.datetime}</p>
+                     <p className="text-[14px] text-[#666] text-center leading-[1.6]">
+                        {formatGameDateTime(item.game.datetime)}
+                     </p>
                   </div>
 
                   {/* 보유 중인 티켓 */}
@@ -254,6 +280,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                      <div className="flex flex-col gap-5">
                         {item.game.seats.map((seat, idx) => {
                            const isChecked = checkedSeats.has(idx);
+                           const seatPrice = seatPrices[idx] ?? unitPrice;
                            return (
                               <div key={idx}>
                                  {isChecked ? (
@@ -275,7 +302,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                                           <div className="flex items-center gap-1 shrink-0">
                                              <span className="text-[14px] text-[#646f7c] leading-[1.45]">구매가</span>
                                              <span className="text-[16px] font-bold text-primary">
-                                                {unitPrice.toLocaleString()}원
+                                                {seatPrice.toLocaleString()}원
                                              </span>
                                           </div>
                                        </div>
@@ -307,7 +334,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                                        <div className="flex items-center gap-1 shrink-0">
                                           <span className="text-[14px] text-[#646f7c] leading-[1.45]">구매가</span>
                                           <span className="text-[16px] font-bold text-[#374553]">
-                                             {unitPrice.toLocaleString()}원
+                                             {seatPrice.toLocaleString()}원
                                           </span>
                                        </div>
                                     </div>
@@ -339,21 +366,13 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                            다시 시도
                         </Button>
                      </div>
-                  ) : resaleInsightsState?.status === 'missing-game-id' ? (
-                     <div className="bg-surface rounded-xl px-5 py-10 text-center text-[14px] text-[#646f7c]">
-                        경기 정보가 없어 리셀 그래프를 표시할 수 없습니다.
-                     </div>
-                  ) : resaleInsightsState?.status === 'missing-grade' ? (
-                     <div className="bg-surface rounded-xl px-5 py-10 text-center text-[14px] text-[#646f7c]">
-                        좌석 등급 정보를 찾지 못해 리셀 그래프를 표시할 수 없습니다.
-                     </div>
-                  ) : resaleInsightsState?.status === 'empty' ? (
+                  ) : insights ? (
+                     <ResellPriceChart insights={insights} />
+                  ) : (
                      <div className="bg-surface rounded-xl px-5 py-10 text-center text-[14px] text-[#646f7c]">
                         아직 해당 좌석 등급의 최근 거래 내역이 없습니다.
                      </div>
-                  ) : insights ? (
-                     <ResellPriceChart insights={insights} />
-                  ) : null}
+                  )}
 
                   {/* 최근 거래 내역 */}
                   <div className="flex flex-col gap-3">

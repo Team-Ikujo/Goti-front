@@ -1,9 +1,7 @@
 // src/pages/mypage/ui/QrViewDialog.tsx
 
 import { useState, useEffect, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, RefreshCcw, Clock } from 'lucide-react';
-import { fetchTicketQr } from '@/entities/ticket/api/ticketApi';
 import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogClose } from '@/shared/ui/dialog';
 
@@ -31,13 +29,6 @@ function formatTime(seconds: number): string {
    return `${m}:${s}`;
 }
 
-function getRemainingSeconds(expiresAt?: string): number {
-   if (!expiresAt) return QR_DURATION;
-
-   const diffSeconds = Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000);
-   return Math.max(diffSeconds, 0);
-}
-
 export default function QrViewDialog({
    open,
    onClose,
@@ -50,13 +41,6 @@ export default function QrViewDialog({
    const [timeLeft, setTimeLeft] = useState(QR_DURATION);
 
    const currentSeat = seats[currentIndex];
-   const currentTicketId = currentSeat?.ticketId;
-   const qrQuery = useQuery({
-      queryKey: ['ticketQr', currentTicketId],
-      queryFn: () => fetchTicketQr(currentTicketId!),
-      enabled: open && Boolean(currentTicketId),
-      retry: false,
-   });
 
    // 팝업 열릴 때 초기화
    useEffect(() => {
@@ -69,30 +53,16 @@ export default function QrViewDialog({
    useEffect(() => {
       if (!open) return;
 
-      if (qrQuery.data?.expiresAt) {
-         setTimeLeft(getRemainingSeconds(qrQuery.data.expiresAt));
-      }
-
       const interval = setInterval(() => {
-         if (qrQuery.data?.expiresAt) {
-            setTimeLeft(getRemainingSeconds(qrQuery.data.expiresAt));
-            return;
-         }
-
          setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
       }, 1000);
 
       return () => clearInterval(interval);
-   }, [open, qrQuery.data?.expiresAt]);
+   }, [open]);
 
    const handleRefresh = useCallback(() => {
-      if (currentTicketId) {
-         void qrQuery.refetch();
-         return;
-      }
-
       setTimeLeft(QR_DURATION);
-   }, [currentTicketId, qrQuery]);
+   }, []);
 
    const renderStatusContent = () => {
       switch (true as boolean) {
@@ -131,23 +101,6 @@ export default function QrViewDialog({
                   <Button variant="primary" className="w-full py-1.5" onClick={onClose}>
                      닫기
                   </Button>
-               </div>
-            );
-         case qrQuery.isError:
-            return (
-               <div className="flex flex-col items-center gap-4 px-5 pt-7.5 pb-5 text-center">
-                  <p className="text-[18px] font-bold text-[#161d24] leading-[1.55]">QR 확인</p>
-                  <p className="text-[16px] text-[#374553]">
-                     QR 코드를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
-                  </p>
-                  <div className="flex w-full gap-2">
-                     <Button variant="tertiary" className="flex-1 py-1.5" onClick={onClose}>
-                        닫기
-                     </Button>
-                     <Button variant="primary" className="flex-1 py-1.5" onClick={handleRefresh}>
-                        다시 시도
-                     </Button>
-                  </div>
                </div>
             );
          default:

@@ -5,7 +5,7 @@ interface AccountManagementCardProps {
 
 export function AccountManagementCard({ onLogout, onWithdraw }: AccountManagementCardProps) {
    return (
-      <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6.25 flex flex-col gap-7.5">
+      <div className="bg-background border border-border rounded-[14px] p-6.25 flex flex-col gap-7.5">
          <p className="text-heading-3-bold text-foreground">계정 관리</p>
          <div className="flex flex-col gap-4">
             <button type="button" onClick={onLogout} className="flex items-center px-1 text-body-2-medium text-destructive">

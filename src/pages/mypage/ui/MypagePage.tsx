@@ -5,7 +5,6 @@ import {
    useMyProfileData,
    useMyOrdersData,
    useMyResaleListData,
-   useMyResaleSummaryData,
    useMyResaleUnsettledAmountData,
 } from '../model/useMypageData';
 import { PURCHASE_ITEMS, SALE_ITEMS } from '../model/mockData';
@@ -25,12 +24,51 @@ export default function MypagePage() {
    const profileQuery = useMyProfileData();
    const ordersQuery = useMyOrdersData();
    const resaleListQuery = useMyResaleListData();
-   const resaleSummaryQuery = useMyResaleSummaryData();
    const unsettledAmountQuery = useMyResaleUnsettledAmountData();
 
    const profile = profileQuery.data ?? MY_PROFILE_MOCK;
-   const purchaseItems = ordersQuery.isError ? PURCHASE_ITEMS : (ordersQuery.data ?? []);
+   const rawPurchaseItems = ordersQuery.isError ? PURCHASE_ITEMS : (ordersQuery.data ?? []);
    const saleItems = resaleListQuery.isError ? SALE_ITEMS : (resaleListQuery.data ?? []);
+   const listedTicketIdSet = new Set(
+      saleItems
+         .filter((item) => item.saleStatus !== '취소 완료')
+         .map((item) => item.ticketId)
+         .filter((ticketId): ticketId is string => Boolean(ticketId)),
+   );
+   const purchaseItems = rawPurchaseItems
+      .map((item) => {
+         if (!item.ticketIds?.length) {
+            return item;
+         }
+
+         const remainingEntries = item.ticketIds
+            .map((ticketId, index) => ({
+               ticketId,
+               seat: item.game.seats[index],
+            }))
+            .filter((entry) => !listedTicketIdSet.has(entry.ticketId));
+
+         if (remainingEntries.length === 0) {
+            return null;
+         }
+
+         const originalQuantity = Math.max(item.game.quantity, 1);
+         const unitPrice = Math.round(item.price / originalQuantity);
+
+         return {
+            ...item,
+            game: {
+               ...item.game,
+               quantity: remainingEntries.length,
+               seats: remainingEntries.map((entry) => entry.seat).filter(Boolean),
+            },
+            price: unitPrice * remainingEntries.length,
+            ticketIds: remainingEntries.map((entry) => entry.ticketId),
+            seatPrices: item.seatPrices?.filter((_, index) => !listedTicketIdSet.has(item.ticketIds?.[index] ?? '')),
+            canSell: item.canSell && remainingEntries.length > 0,
+         };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
    const [mockTicketInfoError, setMockTicketInfoError] = useState(false);
 
    useEffect(() => {
@@ -45,14 +83,12 @@ export default function MypagePage() {
       .filter((item) => item.saleStatus === '정산 대기')
       .reduce((total, item) => total + item.salePrice, 0);
    const totalHeld = purchaseItems.filter((item) => item.paymentStatus === '예매 완료').length;
-   const onSale = resaleSummaryQuery.isError ? fallbackOnSale : (resaleSummaryQuery.data?.listingCount ?? 0);
-   const soldCount = resaleSummaryQuery.isError ? fallbackSoldCount : (resaleSummaryQuery.data?.soldCount ?? 0);
+   const onSale = fallbackOnSale;
+   const soldCount = fallbackSoldCount;
    const unsettledAmount = unsettledAmountQuery.isError
       ? fallbackUnsettledAmount
       : (unsettledAmountQuery.data?.unsettledAmount ?? 0);
-   const isSummaryLoading =
-      (!resaleSummaryQuery.isError && resaleSummaryQuery.isLoading) ||
-      (!unsettledAmountQuery.isError && unsettledAmountQuery.isLoading);
+   const isSummaryLoading = !unsettledAmountQuery.isError && unsettledAmountQuery.isLoading;
 
    if (isPageLoading) {
       return <div className="py-24 text-center text-body-1-regular text-muted-foreground">마이페이지 정보를 불러오는 중입니다.</div>;
@@ -62,10 +98,10 @@ export default function MypagePage() {
       <>
          <div className="flex-1 bg-background px-4">
             <div className="mx-auto max-w-300 pt-7.5 lg:pt-12.5 pb-30">
-               <h1 className="text-[30px] font-bold text-foreground mb-8">MY고티</h1>
+               <h1 className="mb-8 text-title-1-bold text-foreground">MY고티</h1>
 
                {isMswEnabled && (
-                  <div className="mb-4 rounded-[14px] border border-[#d0d6db] bg-[#f7f8f9] p-4">
+                  <div className="mb-4 rounded-[14px] border border-border bg-surface p-4">
                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex flex-col gap-1">
                            <p className="text-body-1-bold text-foreground">MSW 테스트</p>
@@ -82,7 +118,7 @@ export default function MypagePage() {
                                  setMockTicketInfoError(nextValue);
                                  window.localStorage.setItem(MYPAGE_MSW_TICKET_INFO_ERROR_KEY, String(nextValue));
                               }}
-                              className="size-4 rounded border border-[#acb4bb]"
+                              className="size-4 rounded border border-border-strong"
                            />
                            티켓 정보 조회 실패
                         </label>
@@ -100,7 +136,6 @@ export default function MypagePage() {
                      isLoading={isSummaryLoading}
                      isError={false}
                      onRetry={() => {
-                        void resaleSummaryQuery.refetch();
                         void unsettledAmountQuery.refetch();
                      }}
                   />

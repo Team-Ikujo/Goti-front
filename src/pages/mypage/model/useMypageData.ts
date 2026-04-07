@@ -6,9 +6,11 @@ import { fetchMyOrders, type OrderListItem } from '@/entities/order/api/orderApi
 import { fetchOrderTickets, fetchTicketDetail, type OrderTicket, type TicketDetail } from '@/entities/ticket/api/ticketApi';
 import {
    fetchMyResaleListingSummary,
-   fetchMyResaleListings,
+   fetchMyResaleListingOrders,
+   fetchResaleListingOrderDetails,
    type MyResaleListingSummaryResponse,
    type ResaleListingItem,
+   type ResaleListingOrderStatus,
 } from '@/entities/resale/api/resaleApi';
 import { fetchResaleUnsettledAmount, type ResaleUnsettledAmountResponse } from '@/entities/payment/api/paymentApi';
 import { teams } from '@/entities/team/model/teams';
@@ -91,6 +93,14 @@ type EnrichedOrderListItem = {
    primaryTicketDetail?: TicketDetail;
 };
 
+type EnrichedResaleListingItem = ResaleListingItem & {
+   orderId: string;
+   orderNumber: string;
+   orderStatus: ResaleListingOrderStatus;
+   orderCreatedAt: string;
+   ticketDetail?: TicketDetail;
+};
+
 const fetchMyOrderSummaries = async (): Promise<EnrichedOrderListItem[]> => {
    const orders = await fetchMyOrders();
 
@@ -115,6 +125,43 @@ const fetchMyOrderSummaries = async (): Promise<EnrichedOrderListItem[]> => {
          }
       }),
    );
+};
+
+const fetchMyResaleListingsWithGameInfo = async (): Promise<EnrichedResaleListingItem[]> => {
+   const resaleOrders = await fetchMyResaleListingOrders();
+
+   const listingGroups = await Promise.all(
+      resaleOrders.list.map(async (order) => {
+         const listings = await fetchResaleListingOrderDetails(order.orderId);
+
+         return Promise.all(
+            listings.map(async (listing) => {
+               try {
+                  const ticketDetail = await fetchTicketDetail(listing.ticketId);
+
+                  return {
+                     ...listing,
+                     orderId: order.orderId,
+                     orderNumber: order.orderNumber,
+                     orderStatus: order.orderStatus,
+                     orderCreatedAt: order.createdAt,
+                     ticketDetail,
+                  };
+               } catch {
+                  return {
+                     ...listing,
+                     orderId: order.orderId,
+                     orderNumber: order.orderNumber,
+                     orderStatus: order.orderStatus,
+                     orderCreatedAt: order.createdAt,
+                  };
+               }
+            }),
+         );
+      }),
+   );
+
+   return listingGroups.flat();
 };
 
 export const useMyProfileData = () => {
@@ -146,6 +193,7 @@ export const useMyOrdersData = () => {
             ? tickets.map((ticket) => ticket.seatInfo)
             : Array.from({ length: order.totalQuantity }, (_, i) => `좌석${i + 1}`);
          const ticketIds = tickets.map((ticket) => ticket.ticketId);
+         const seatPrices = tickets.map((ticket) => ticket.ticketPrice);
 
         return {
             id: ticketIds[0] ?? order.orderId,
@@ -158,7 +206,9 @@ export const useMyOrdersData = () => {
             game: {
                teams: gameTitle,
                venue: stadiumName,
-               datetime: formatDate(primaryTicketDetail?.gameDate ?? order.orderedAt),
+               datetime: primaryTicketDetail?.gameDate
+                  ? formatDateTime(primaryTicketDetail.gameDate)
+                  : formatDateTime(order.orderedAt),
                quantity: order.totalQuantity,
                section: sectionLabel,
                seats,
@@ -168,6 +218,7 @@ export const useMyOrdersData = () => {
             deliveryType: '모바일 티켓',
             canSell: order.orderStatus === 'CONFIRMED',
             ticketIds: ticketIds.length > 0 ? ticketIds : undefined,
+            seatPrices: seatPrices.length > 0 ? seatPrices : undefined,
          };
       });
    }, [query.data]);
@@ -187,22 +238,27 @@ export const useMyOrdersData = () => {
 export const useMyResaleListData = () => {
    return useQuery({
       queryKey: ['myResales'],
-      queryFn: fetchMyResaleListings,
+      queryFn: fetchMyResaleListingsWithGameInfo,
       select: (data): SaleHistoryItem[] => {
-         return data.map((listing) => ({
-            id: listing.listingId,
-            orderId: formatTicketNumber(listing.ticketNumber ?? listing.ticketId, 'ticket'),
-            orderDate: formatDate(listing.listedAt),
+        return data.map((listing) => ({
+           id: listing.listingId,
+            ticketId: listing.ticketId,
+            orderId: formatTicketNumber(listing.ticketDetail?.ticketNumber ?? listing.ticketNumber ?? listing.ticketId, 'ticket'),
+            orderDate: formatDate(listing.orderCreatedAt ?? listing.listedAt),
             soldAt: listing.soldAt ? formatDateTime(listing.soldAt) : undefined,
             canceledAt: listing.canceledAt ? formatDateTime(listing.canceledAt) : undefined,
             type: '리셀' as TicketType,
             game: {
-               teams: listing.gameTitle || 'KBO 리그 경기',
-               venue: listing.stadiumName || '야구장',
-               datetime: listing.gameDate ? formatDate(listing.gameDate) : formatDate(listing.listedAt),
+               teams: listing.ticketDetail?.gameTitle || listing.gameTitle || 'KBO 리그 경기',
+               venue: listing.ticketDetail?.stadiumName || listing.stadiumName || '야구장',
+               datetime: listing.ticketDetail?.gameDate
+                  ? formatDate(listing.ticketDetail.gameDate)
+                  : listing.gameDate
+                     ? formatDate(listing.gameDate)
+                     : formatDate(listing.orderCreatedAt ?? listing.listedAt),
                quantity: 1,
-               section: parseGradeName(listing.seatInfo) || '정보 없음',
-               seats: [parseSeatDetail(listing.seatInfo)],
+               section: parseGradeName(listing.ticketDetail?.seatInfo ?? listing.seatInfo) || '정보 없음',
+               seats: [parseSeatDetail(listing.ticketDetail?.seatInfo ?? listing.seatInfo)],
             },
             salePrice: listing.listingPrice,
             saleStatus: mapSaleStatus(listing.listingStatus),
