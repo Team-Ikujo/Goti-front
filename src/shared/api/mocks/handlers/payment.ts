@@ -855,7 +855,108 @@ const buildPageResponse = <T>(content: T[], page = 0, size = content.length || 1
    };
 };
 
+const getPurchaseSeatInfos = (order: TicketOrder) => {
+   if (Array.isArray(order.seatInfos) && order.seatInfos.length > 0) {
+      return order.seatInfos;
+   }
+
+   if (Array.isArray(order.ticketIds) && order.ticketIds.length > 0) {
+      return order.ticketIds
+         .map((ticketId) => ticketRecords.get(ticketId)?.seatInfo)
+         .filter((seatInfo): seatInfo is string => typeof seatInfo === 'string' && seatInfo.length > 0);
+   }
+
+   return [];
+};
+
+const getOwnedTicketCountForGame = (gameId: string) => {
+   return Array.from(ticketOrders.values()).reduce((count, order) => {
+      if (order.gameId !== gameId) {
+         return count;
+      }
+
+      if (order.orderStatus !== 'CONFIRMED' && order.orderStatus !== 'PARTIALLY_CANCELED') {
+         return count;
+      }
+
+      return count + order.totalQuantity;
+   }, 0);
+};
+
 export const paymentHandlers = [
+   http.get('/api/v1/tickets/resales/count', async ({ request }) => {
+      const url = new URL(request.url);
+      const gameId = (url.searchParams.get('gameId') ?? '').trim();
+
+      if (!gameId) {
+         return buildErrorResponse('Missing gameId.');
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            ownedTicketCount: getOwnedTicketCountForGame(gameId),
+         },
+      });
+   }),
+
+   http.get('/api/v1/payments/purchases', async ({ request }) => {
+      const url = new URL(request.url);
+      const page = Number(url.searchParams.get('page') ?? '0');
+      const size = Number(url.searchParams.get('size') ?? '20');
+      const keyword = (url.searchParams.get('keyword') ?? '').trim().toLowerCase();
+
+      const purchases = Array.from(ticketOrders.values())
+         .sort((left, right) => right.orderedAt.localeCompare(left.orderedAt))
+         .map((order) => {
+            const matchedGame = mockGameSchedules.find((game) => game.gameId === order.gameId);
+            const seatInfos = getPurchaseSeatInfos(order);
+
+            return {
+               purchaseType: 'TICKET',
+               orderId: order.orderId,
+               orderNumber: order.orderNumber,
+               orderStatus: order.orderStatus,
+               totalQuantity: order.totalQuantity,
+               totalAmount: order.totalAmount,
+               orderedAt: order.orderedAt,
+               gameId: order.gameId,
+               stadiumId: order.stadiumId,
+               gameTitle:
+                  order.homeTeamName && order.awayTeamName
+                     ? `${order.awayTeamName} vs ${order.homeTeamName}`
+                     : matchedGame
+                        ? `${matchedGame.awayTeamDisplayName} vs ${matchedGame.homeTeamDisplayName}`
+                        : 'KBO 리그 경기',
+               gameDate: order.gameStartAt ?? matchedGame?.startAt ?? order.orderedAt,
+               seatInfos,
+            };
+         })
+         .filter((purchase) => {
+            if (!keyword) {
+               return true;
+            }
+
+            return (
+               purchase.orderNumber.toLowerCase().includes(keyword) ||
+               purchase.gameTitle.toLowerCase().includes(keyword) ||
+               purchase.seatInfos.some((seatInfo) => seatInfo.toLowerCase().includes(keyword))
+            );
+         });
+      const pagedPurchases = buildPageResponse(purchases, page, size);
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            list: pagedPurchases.content,
+            totalCount: purchases.length,
+            totalPages: pagedPurchases.totalPages,
+         },
+      });
+   }),
+
    http.get('/api/v1/resales/listings/games/:gameId/count', async ({ params }) => {
       const gameId = String(params.gameId);
       const gameExists = mockGameSchedules.some((game) => game.gameId === gameId);
@@ -993,6 +1094,8 @@ export const paymentHandlers = [
          message: 'ok',
          data: sectionSeats.map((seat, index) => ({
             seatId: seat.seatId,
+            rowName: seat.rowName,
+            seatNum: seat.seatNum,
             status: !seat.available ? 'SOLD' : index % 7 === 0 ? 'HELD' : 'AVAILABLE',
          })),
       });
@@ -1121,6 +1224,13 @@ export const paymentHandlers = [
 
       if (missingHold) {
          return buildErrorResponse(`Seat hold not found: ${missingHold}`, 404);
+      }
+
+      const ownedTicketCount = getOwnedTicketCountForGame(body.gameId);
+      const requestedTicketCount = body.holdIds.length;
+
+      if (ownedTicketCount + requestedTicketCount > 4) {
+         return buildErrorResponse('티켓 보유 수량 초과로 구매가 불가능합니다.', 409);
       }
 
       const orderId = createId('order');
