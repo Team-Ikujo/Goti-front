@@ -119,9 +119,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
       setCreatedSaleId(null);
    }, [open]);
 
-   const checkedCount = checkedSeats.size;
    const showBulkToggle = checkedCount >= 2;
-   const insights = resaleInsightsQuery.data?.insights ?? null;
 
    const toggleSeat = (idx: number) => {
       setCheckedSeats(prev => {
