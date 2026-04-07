@@ -130,6 +130,9 @@ type ResaleHoldResponse = {
 
 type ResaleOrderRequest = {
    holdIds: string[];
+   buyerNickname: string;
+   buyerEmail: string;
+   buyerPhone: string;
 };
 
 type ResaleOrderResponse = {
@@ -142,21 +145,6 @@ type ResaleOrderResponse = {
 
 type ResaleOrderTransactionsResponse = {
    transactionIds: string[];
-};
-
-type ResaleOrderCompleteResponse = {
-   orderId: string;
-   orderNumber: string;
-   buyerId: string;
-   totalAmount: number;
-   orderStatus: string;
-   ticketIds?: string[];
-   items?: Array<{
-      transactionId: string;
-      listingId: string;
-      seatInfo: string;
-      price: number;
-   }>;
 };
 
 type ResalePaymentItem = {
@@ -202,25 +190,6 @@ const createClientTransactionId = (prefix: string) => {
 };
 
 const delay = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms));
-
-const isAuthorizationConflictError = (error: unknown) => {
-   if (!(error instanceof ApiError)) {
-      return false;
-   }
-
-   const normalizedMessage = error.message.trim().toLowerCase();
-
-   return (
-      error.status === 401 ||
-      error.status === 403 ||
-      normalizedMessage.includes('rbac') ||
-      normalizedMessage.includes('access denied') ||
-      normalizedMessage.includes('jwt issuer') ||
-      normalizedMessage.includes('issuer is not configured') ||
-      normalizedMessage.includes('unauthorized') ||
-      normalizedMessage.includes('forbidden')
-   );
-};
 
 const getResaleHoldReleaseUrl = (holdId: string) => {
    const path = `/api/v1/resales/holds/${encodeURIComponent(holdId)}/release`;
@@ -362,20 +331,6 @@ const getResaleTransactionsWithRetry = async (orderId: string, attempts = 5): Pr
 
 const createResalePayment = async (payload: ResalePaymentRequest) => {
    const response = await apiClient.post<ApiEnvelope<OrderPaymentResponse>>('/api/v1/payments/resales', payload);
-
-   return response.data.data;
-};
-
-const completeResaleOrder = async (orderId: string, paymentId: string) => {
-   const response = await apiClient.patch<ApiEnvelope<ResaleOrderCompleteResponse>>(
-      `/api/v1/resales/orders/${orderId}/complete`,
-      undefined,
-      {
-         params: {
-            paymentId,
-         },
-      },
-   );
 
    return response.data.data;
 };
@@ -584,6 +539,9 @@ export const submitResaleOrder = async (
 
       const order = await createResaleOrder({
          holdIds: resaleHoldId ? [resaleHoldId] : [],
+         buyerNickname: payload.ordererName,
+         buyerEmail: payload.ordererEmail,
+         buyerPhone: payload.ordererPhone,
       });
       createdOrder = order;
 
@@ -610,33 +568,21 @@ export const submitResaleOrder = async (
          paymentMethod: toPaymentMethodCode(payload.paymentMethod),
          idempotencyKey: createClientTransactionId('resale-idempotency'),
       });
-      let completedOrder: ResaleOrderCompleteResponse | null = null;
-
-      try {
-         completedOrder = await completeResaleOrder(order.orderId, payment.paymentId);
-      } catch (error) {
-         if (!isAuthorizationConflictError(error)) {
-            throw error;
-         }
-      }
 
       return buildPaymentResponse({
          orderType: 'resale',
          amount: payment.paymentAmount,
          order: {
             ...order,
-            orderNumber: completedOrder?.orderNumber ?? order.orderNumber,
-            orderStatus: completedOrder?.orderStatus ?? payment.paymentStatus,
-            totalAmount: completedOrder?.totalAmount ?? order.totalAmount,
+            orderStatus: payment.paymentStatus === 'SUCCESS' ? 'COMPLETED' : order.orderStatus,
          },
          payment,
          paymentMethod: payload.paymentMethod,
          gameTitle: payload.matchTitle,
          gameDate: payload.gameDate,
          gameVenue: payload.gameVenue,
-         seats: completedOrder?.items?.map(item => item.seatInfo) ?? [payload.seatInfo],
+         seats: [payload.seatInfo],
          resaleListingId: payload.listingId,
-         ticketId: completedOrder?.ticketIds?.[0],
       });
    } catch (error) {
       if (resaleHoldId) {
