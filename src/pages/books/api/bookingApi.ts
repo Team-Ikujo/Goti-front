@@ -110,12 +110,18 @@ const SEAT_STEP = 20;
 
 type RawSeatResponse = Partial<SeatResponse> & {
    id?: string;
+   apiSeatId?: string;
+   seatCode?: string;
    seatNumber?: number;
    row?: string;
    isAvailable?: boolean;
 };
 
 const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const isUuidString = (value: unknown): value is string => isNonEmptyString(value) && UUID_PATTERN.test(value);
+
 const toOptionalFiniteNumber = (value: unknown) => {
    if (typeof value === 'number' && Number.isFinite(value)) {
       return value;
@@ -135,8 +141,20 @@ const toOptionalFiniteNumber = (value: unknown) => {
 const normalizeSeatResponse = (seat: RawSeatResponse): SeatResponse | null => {
    const rawSeatId = isNonEmptyString(seat.seatId) ? seat.seatId : undefined;
    const rawId = isNonEmptyString(seat.id) ? seat.id : undefined;
-   const seatId = rawSeatId ?? rawId;
-   const apiSeatId = rawSeatId ?? rawId;
+   const rawApiSeatId = isNonEmptyString(seat.apiSeatId) ? seat.apiSeatId : undefined;
+   const rawSeatCode = isNonEmptyString(seat.seatCode) ? seat.seatCode : undefined;
+   const apiSeatId =
+      rawApiSeatId ??
+      (isUuidString(rawSeatId) ? rawSeatId : undefined) ??
+      (isUuidString(rawId) ? rawId : undefined) ??
+      rawId ??
+      rawSeatId;
+   const seatId =
+      rawSeatCode ??
+      (rawSeatId && rawSeatId !== apiSeatId ? rawSeatId : undefined) ??
+      (rawId && rawId !== apiSeatId ? rawId : undefined) ??
+      rawSeatId ??
+      rawId;
    const sectionId = isNonEmptyString(seat.sectionId) ? seat.sectionId : undefined;
    const rowName = isNonEmptyString(seat.rowName) ? seat.rowName : isNonEmptyString(seat.row) ? seat.row : undefined;
    const seatNum = toOptionalFiniteNumber(seat.seatNum) ?? toOptionalFiniteNumber(seat.seatNumber);

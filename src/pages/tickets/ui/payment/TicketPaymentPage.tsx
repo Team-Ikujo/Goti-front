@@ -65,7 +65,7 @@ export default function TicketPaymentPage() {
    const purchaseLimit = useBookingPurchaseLimit();
    const [isPurchaseLimitDialogOpen, setIsPurchaseLimitDialogOpen] = useState(false);
    const selectedSeats = selectedSeatDetails.map(({ seat, zoneName }) => ({
-      seatId: seat.id,
+      seatId: seat.apiSeatId,
       holdId: holdsBySeatId[seat.id]?.holdId ?? '',
       label: `${zoneName} ${seat.block}블록 ${seat.rowLabel} ${seat.seatNumber}번`,
    }));
