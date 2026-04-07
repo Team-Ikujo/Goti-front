@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
@@ -30,11 +30,12 @@ const BooksPage = () => {
       [bookingEntryState?.homeTeamId],
    );
    const requiresCaptcha = Boolean(bookingEntryState?.requireCaptcha);
-   const zones = useBookingZones({
+   const { zones, isSeatGradeBotBlocked } = useBookingZones({
       bookingEntryState,
       bookingFlowMode,
       patchBookingEntry,
    });
+   const hasShownBotBlockedAlertRef = useRef(false);
    const [selectedZoneId, setSelectedZoneId] = useState(
       () => zones.find(zone => zone.remaining > 0)?.id ?? zones[0]?.id ?? '',
    );
@@ -90,6 +91,16 @@ const BooksPage = () => {
    const exitGuard = useBookingExitGuard({
       onExit: exitBookingFlow,
    });
+
+   useEffect(() => {
+      if (!isSeatGradeBotBlocked || hasShownBotBlockedAlertRef.current) {
+         return;
+      }
+
+      hasShownBotBlockedAlertRef.current = true;
+      window.alert('매크로 사용 시 예매에 접근할 수 없습니다.');
+      exitBookingFlow();
+   }, [exitBookingFlow, isSeatGradeBotBlocked]);
 
    useEffect(() => {
       if (captcha.isCaptchaOpen) {
