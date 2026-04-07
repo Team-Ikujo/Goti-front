@@ -8,6 +8,44 @@ const teamNameByServerId = Object.fromEntries(
    teams.filter(t => t.serverTeamId).map(t => [t.serverTeamId, t.name]),
 );
 
+const parseMockTokenPayload = (token: string) => {
+   if (!token) {
+      return null;
+   }
+
+   try {
+      const payloadB64 = token.split('.')[1] ?? '';
+      return JSON.parse(
+         decodeURIComponent(
+            atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'))
+               .split('')
+               .map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
+               .join(''),
+         ),
+      ) as Record<string, string>;
+   } catch {
+      return null;
+   }
+};
+
+const getMockMemberKey = (request: Request) => {
+   const authHeader = request.headers.get('Authorization') ?? '';
+   const token = authHeader.replace(/^Bearer\s+/i, '');
+   const decoded = parseMockTokenPayload(token);
+
+   return decoded?.userId || decoded?.sub || decoded?.email || 'guest';
+};
+
+const getRequiredUserId = (request: Request) => {
+   const userId = new URL(request.url).searchParams.get('userId')?.trim();
+
+   if (!userId) {
+      return null;
+   }
+
+   return userId;
+};
+
 type SeatGrade = {
    seatGradeId: string;
    stadiumId: string;
@@ -443,9 +481,15 @@ const seatSectionsByStadium: Record<string, SeatSection[]> = {
 
 // ── MSW localStorage 영속화 ────────────────────────────────────────
 
-const MSW_STORAGE_VERSION = '6';
+const MSW_STORAGE_VERSION = '7';
 const MSW_VERSION_KEY = '__msw_storage_version__';
-const MSW_STORAGE_KEYS = ['__msw_ticket_orders__', '__msw_ticket_records__', '__msw_seat_holds__'];
+const MSW_STORAGE_KEYS = [
+   '__msw_ticket_orders__',
+   '__msw_ticket_records__',
+   '__msw_seat_holds__',
+   '__msw_resale_listings__',
+   '__msw_resale_orders__',
+];
 
 (function migrateStorage() {
    try {
@@ -720,6 +764,66 @@ const mockResaleHistoryGraphByKey: Record<string, Array<{ transactionPrice: numb
    ],
 };
 
+const buildMockGameTitle = (gameId: string) => {
+   const matchedGame = mockGameSchedules.find((game) => game.gameId === gameId);
+
+   if (!matchedGame) {
+      return 'KBO 리그 경기';
+   }
+
+   return `${matchedGame.awayTeamDisplayName} vs ${matchedGame.homeTeamDisplayName}`;
+};
+
+const buildMockStadiumName = (gameId: string) => {
+   const matchedGame = mockGameSchedules.find((game) => game.gameId === gameId);
+
+   if (!matchedGame) {
+      return '';
+   }
+
+   return `${matchedGame.stadiumLocation} ${matchedGame.homeTeamDisplayName} 홈구장`;
+};
+
+const getResaleListingFromSeed = (listingId: string): ResaleListing | null => {
+   const seedListing = mockResaleListings.find((listing) => listing.listingId === listingId);
+
+   if (!seedListing) {
+      return null;
+   }
+
+   return {
+      listingId: seedListing.listingId,
+      ticketId: seedListing.ticketId,
+      sellerId: seedListing.sellerId,
+      seatInfo: seedListing.seatInfo,
+      listingPrice: seedListing.listingPrice,
+      listingStatus: seedListing.listingStatus as ResaleListing['listingStatus'],
+      listedAt: seedListing.listedAt,
+      canceledAt: seedListing.canceledAt,
+      gameTitle: buildMockGameTitle(seedListing.gameId),
+      gameDate: mockGameSchedules.find((game) => game.gameId === seedListing.gameId)?.startAt ?? '',
+      stadiumName: buildMockStadiumName(seedListing.gameId),
+   };
+};
+
+const ensureMockResaleListingsSeed = () => {
+   mockResaleListings.forEach((listing) => {
+      if (resaleListings.has(listing.listingId)) {
+         return;
+      }
+
+      const seededListing = getResaleListingFromSeed(listing.listingId);
+
+      if (!seededListing) {
+         return;
+      }
+
+      resaleListings.set(listing.listingId, seededListing);
+   });
+};
+
+ensureMockResaleListingsSeed();
+
 const buildErrorResponse = (message: string, status = 400) => {
    return HttpResponse.json({ message }, { status });
 };
@@ -917,6 +1021,31 @@ const getOwnedTicketCountForGame = (gameId: string) => {
 };
 
 export const paymentHandlers = [
+   http.get('/api/v1/tickets/myinfo', async ({ request }) => {
+      const currentUserId = getMockMemberKey(request);
+      const userListings = Array.from(resaleListings.values()).filter((listing) => listing.sellerId === currentUserId);
+      const ownedTicketCount = Array.from(ticketRecords.values()).filter((ticket) => {
+         if (ticket.ticketStatus === 'INVALID') {
+            return false;
+         }
+
+         return true;
+      }).length;
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            ownedTicketCount,
+            listingCount: userListings.filter((listing) => listing.listingStatus === 'LISTING' || listing.listingStatus === 'HOLD').length,
+            soldCount: userListings.filter((listing) => listing.listingStatus === 'SOLD' || listing.listingStatus === 'SETTLED').length,
+            unsettledAmount: userListings
+               .filter((listing) => listing.listingStatus === 'SOLD')
+               .reduce((sum, listing) => sum + listing.listingPrice, 0),
+         },
+      });
+   }),
+
    http.get('/api/v1/tickets/resales/count', async ({ request }) => {
       const url = new URL(request.url);
       const gameId = (url.searchParams.get('gameId') ?? '').trim();
@@ -1063,8 +1192,14 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/resales/listings/count', async () => {
-      const myListings = Array.from(resaleListings.values());
+   http.get('/api/v1/resales/listings/count', async ({ request }) => {
+      const userId = getRequiredUserId(request);
+
+      if (!userId) {
+         return buildErrorResponse('Missing userId.', 400);
+      }
+
+      const myListings = Array.from(resaleListings.values()).filter((listing) => listing.sellerId === userId);
 
       return HttpResponse.json({
          code: 'SUCCESS',
@@ -1726,9 +1861,15 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/payments/resales/unsettled', async () => {
+   http.get('/api/v1/payments/resales/unsettled', async ({ request }) => {
+      const userId = getRequiredUserId(request);
+
+      if (!userId) {
+         return buildErrorResponse('Missing userId.', 400);
+      }
+
       const unsettledAmount = Array.from(resaleListings.values())
-         .filter((listing) => listing.listingStatus === 'SOLD')
+         .filter((listing) => listing.sellerId === userId && listing.listingStatus === 'SOLD')
          .reduce((sum, listing) => sum + listing.listingPrice, 0);
 
       return HttpResponse.json({
@@ -1986,6 +2127,7 @@ export const paymentHandlers = [
 
    // 리셀 등록
    http.post('/api/v1/resales/listings', async ({ request }) => {
+      const sellerId = getMockMemberKey(request);
       type ListingItem = { ticketId?: string; listingPrice?: number };
       const body = (await request.json()) as
          | ListingItem
@@ -2035,7 +2177,7 @@ export const paymentHandlers = [
             orderId,
             ticketId: ticket.ticketId,
             ticketNumber: ticket.ticketNumber,
-            sellerId: 'mock-seller',
+            sellerId,
             seatInfo: ticket.seatInfo,
             listingPrice: item.listingPrice!,
             listingStatus: 'LISTING',
@@ -2063,7 +2205,7 @@ export const paymentHandlers = [
             listingId,
             orderId,
             ticketId: ticket.ticketId,
-            sellerId: 'mock-seller',
+            sellerId,
             gameId: '',
             seatId: '',
             gradeId: '',
@@ -2101,10 +2243,40 @@ export const paymentHandlers = [
 
    // 내 리셀 목록 조회
    http.get('/api/v1/resales/listings', async () => {
-      const listings = Array.from(resaleListings.values()).map((l) => ({
-         listingId: l.listingId,
-         ticketId: l.ticketId,
-         ticketNumber: l.ticketNumber,
+      const persistedListingIds = new Set(Array.from(resaleListings.keys()));
+      const listings = [
+         ...mockResaleListings
+            .filter((listing) => !persistedListingIds.has(listing.listingId))
+            .map((listing) => {
+               const seededListing = getResaleListingFromSeed(listing.listingId)!;
+
+               return {
+                  listingId: seededListing.listingId,
+                  ticketId: seededListing.ticketId,
+                  ticketNumber: undefined,
+                  sellerId: seededListing.sellerId,
+                  gameId: listing.gameId,
+                  seatId: listing.seatId,
+                  gradeId: listing.gradeId,
+                  seatInfo: seededListing.seatInfo,
+                  dailyBasePrice: listing.dailyBasePrice,
+                  listingPrice: seededListing.listingPrice,
+                  listingStatus: seededListing.listingStatus,
+                  availableStatus: listing.availableStatus,
+                  listedAt: seededListing.listedAt,
+                  isCancelable: seededListing.listingStatus === 'LISTING' || seededListing.listingStatus === 'CANCEL_REQUESTED',
+                  isPurchasable: listing.isPurchasable,
+                  minPrice: listing.minPrice,
+                  maxPrice: listing.maxPrice,
+                  gameTitle: seededListing.gameTitle ?? '',
+                  gameDate: seededListing.gameDate ?? '',
+                  stadiumName: seededListing.stadiumName ?? '',
+               };
+            }),
+         ...Array.from(resaleListings.values()).map((l) => ({
+            listingId: l.listingId,
+            ticketId: l.ticketId,
+            ticketNumber: l.ticketNumber,
          sellerId: l.sellerId,
          gameId: '',
          seatId: '',
@@ -2121,15 +2293,17 @@ export const paymentHandlers = [
          maxPrice: 999999,
          gameTitle: l.gameTitle ?? '',
          gameDate: l.gameDate ?? '',
-         stadiumName: l.stadiumName ?? '',
-      }));
+            stadiumName: l.stadiumName ?? '',
+         })),
+      ];
 
       return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: listings });
    }),
 
    // 리셀 상세 조회
    http.get('/api/v1/resales/listings/:listingId', async ({ params }) => {
-      const listing = resaleListings.get(String(params.listingId));
+      const listingId = String(params.listingId);
+      const listing = resaleListings.get(listingId) ?? getResaleListingFromSeed(listingId);
 
       if (!listing) {
          return buildErrorResponse('Listing not found.', 404);

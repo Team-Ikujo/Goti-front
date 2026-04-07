@@ -2,6 +2,7 @@
 
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import { isMswEnabled } from '@/shared/config/runtime';
 
 // GET /api/v1/members/me 응답 내 중첩 타입들
 export interface MemberBankAccount {
@@ -105,6 +106,10 @@ const wait = (ms: number) => new Promise<void>((resolve) => {
 });
 
 const readStoredMockProfile = (): MemberProfile | null => {
+   if (!isMswEnabled) {
+      return null;
+   }
+
    if (typeof window === 'undefined') {
       return null;
    }
@@ -123,6 +128,10 @@ const readStoredMockProfile = (): MemberProfile | null => {
 };
 
 const writeStoredMockProfile = (profile: MemberProfile) => {
+   if (!isMswEnabled) {
+      return;
+   }
+
    if (typeof window === 'undefined') {
       return;
    }
@@ -130,29 +139,42 @@ const writeStoredMockProfile = (profile: MemberProfile) => {
    window.localStorage.setItem(MY_PROFILE_MOCK_STORAGE_KEY, JSON.stringify(profile));
 };
 
-const withMockProfile = (profile?: MemberProfile): MemberProfile => {
-   const storedProfile = readStoredMockProfile();
-   const mergedProfile = {
-      ...profile,
-      ...storedProfile,
-   };
+const mergeMockProfile = (profile?: MemberProfile): MemberProfile => {
+   const storedProfile = isMswEnabled ? readStoredMockProfile() : null;
+
+   if (!storedProfile) {
+      return {
+         ...profile,
+      };
+   }
 
    return {
-      ...mergedProfile,
-      name: mergedProfile.name?.trim() || MY_PROFILE_MOCK.name,
-      email: mergedProfile.email?.trim() || MY_PROFILE_MOCK.email,
-      mobile: mergedProfile.mobile?.trim() || MY_PROFILE_MOCK.mobile,
+      ...profile,
+      // 이메일은 실제 API 응답을 우선 사용한다.
+      email: profile?.email ?? storedProfile.email,
+      // 이름/휴대폰/기타 편집 가능 필드만 mock 로컬 편집값을 보강한다.
+      name: storedProfile.name ?? profile?.name,
+      mobile: storedProfile.mobile ?? profile?.mobile,
+      gender: storedProfile.gender ?? profile?.gender,
+      birthDate: storedProfile.birthDate ?? profile?.birthDate,
+      oAuthProvider: profile?.oAuthProvider ?? storedProfile.oAuthProvider,
+      bankAccount: profile?.bankAccount ?? storedProfile.bankAccount,
+      address: profile?.address ?? storedProfile.address,
+      socialConnection: profile?.socialConnection ?? storedProfile.socialConnection,
    };
 };
 
 export const fetchMyProfile = async (): Promise<MemberProfile> => {
    try {
       const response = await apiClient.get<ApiEnvelope<MemberProfile>>('/api/v1/members/me');
-      return withMockProfile(response.data.data);
+      return mergeMockProfile(response.data.data);
    } catch {
-      // 배포 환경에서도 프로필 API 실패 때문에 마이페이지 전체가 막히지 않도록 앱 내부 fallback 을 유지한다.
+      if (!isMswEnabled) {
+         throw new Error('Failed to fetch member profile.');
+      }
+
       await wait(MY_PROFILE_FALLBACK_DELAY_MS);
-      return withMockProfile();
+      return mergeMockProfile(MY_PROFILE_MOCK);
    }
 };
 
@@ -169,12 +191,13 @@ export const sendProfileUpdateSmsCodeMock = async (): Promise<{ success: true }>
 export const updateMemberProfileMock = async (body: ProfileEditMockRequest): Promise<MemberUpdateResponse> => {
    await wait(MY_PROFILE_FALLBACK_DELAY_MS);
 
-   const nextProfile = withMockProfile({
+   const nextProfile = {
+      ...mergeMockProfile(),
       name: body.name,
       mobile: body.mobile,
       gender: body.gender,
       birthDate: body.birthDate,
-   });
+   };
 
    writeStoredMockProfile(nextProfile);
 

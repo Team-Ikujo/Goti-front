@@ -268,8 +268,10 @@ export const fetchResaleListings = async (): Promise<ResaleListingItem[]> => {
    return listingGroups.flat();
 };
 
-export const fetchMyResaleListingSummary = async (_userId?: string): Promise<MyResaleListingSummaryResponse> => {
-   const response = await apiClient.get<ApiEnvelope<MyResaleListingSummaryResponse>>('/api/v1/resales/listings/count');
+export const fetchMyResaleListingSummary = async (userId: string): Promise<MyResaleListingSummaryResponse> => {
+   const response = await apiClient.get<ApiEnvelope<MyResaleListingSummaryResponse>>('/api/v1/resales/listings/count', {
+      params: { userId },
+   });
 
    return response.data.data;
 };
