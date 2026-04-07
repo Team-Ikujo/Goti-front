@@ -1,22 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import HistoryCard from './HistoryCard';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import HistoryCard, { type PurchaseHistoryItem, type SaleHistoryItem } from './HistoryCard';
 import { Button } from '@/shared/ui/button';
+import { MypageHistoryFilters } from './MypageHistoryFilters';
 import {
    calcPeriodDates,
    ITEMS_PER_PAGE,
    PURCHASE_STATUS_CHIPS,
    SALE_STATUS_CHIPS,
    toISODate,
-   toInput,
+   toInputDate,
    type HistoryTab,
+   type PeriodFilter,
    type PurchaseStatusFilter,
    type PurchaseTypeFilter,
    type SaleStatusFilter,
    type SaleTypeFilter,
-   type PeriodFilter,
 } from '../model/historyFilters';
-import type { PurchaseHistoryItem, SaleHistoryItem } from '../model/historyCard';
-import { DesktopHistoryFilters, HistoryPagination, MobileHistoryFilterSheet } from './MypageHistoryFilters';
 
 interface MypageHistorySectionProps {
    purchaseItems: PurchaseHistoryItem[];
@@ -33,7 +33,7 @@ export function MypageHistorySection({
 }: MypageHistorySectionProps) {
    const dataMinDate = useMemo(() => {
       const dates = [...purchaseItems, ...saleItems].map((item) => toISODate(item.orderDate)).sort();
-      return dates[0] || toInput(new Date(2025, 0, 1));
+      return dates[0] || toInputDate(new Date(2025, 0, 1));
    }, [purchaseItems, saleItems]);
 
    const [activeTab, setActiveTab] = useState<HistoryTab>(initialActiveTab);
@@ -168,17 +168,17 @@ export function MypageHistorySection({
 
    return (
       <>
-         <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6">
+         <div className="bg-background border border-border rounded-[14px] p-6">
             <p className="text-heading-4-bold text-foreground mb-4">구매 / 판매 내역</p>
 
             <div className="flex flex-col gap-5">
-               <div className="bg-[#e9ebee] rounded-[14px] p-1 flex">
+               <div className="bg-fill-disabled rounded-[14px] p-1 flex">
                   {(['purchase', 'sale'] as const).map((tab) => (
                      <Button
                         key={tab}
                         variant="none"
                         onClick={() => handleTabChange(tab)}
-                        className={`flex-1 py-2.5 px-2 text-[14px] font-medium text-[#0a0a0a] transition-all ${
+                        className={`flex-1 py-2.5 px-2 text-body-2-medium text-foreground transition-all ${
                            activeTab === tab ? 'bg-white rounded-[10px] shadow-sm' : 'rounded-[14px]'
                         }`}
                      >
@@ -187,14 +187,53 @@ export function MypageHistorySection({
                   ))}
                </div>
 
-               <button
-                  type="button"
-                  onClick={() => setShowFilterSheet(true)}
-                  className="flex lg:hidden items-center gap-2 w-full h-8.25 px-3.5 border border-[#d0d6db] rounded-lg bg-white text-[14px] font-medium text-[#374553] justify-center"
-               >
-                  <img src="/Icon/Line/Filter.svg" alt="" className="size-4 shrink-0" />
-                  필터
-               </button>
+               <MypageHistoryFilters
+                  activeTab={activeTab}
+                  pendingPeriod={pendingPeriod}
+                  pendingStartDate={pendingStartDate}
+                  pendingEndDate={pendingEndDate}
+                  pendingPurchaseType={pendingPurchaseType}
+                  pendingSaleType={pendingSaleType}
+                  searchQuery={searchQuery}
+                  searchError={searchError}
+                  showPeriodDropdown={showPeriodDropdown}
+                  showTypeDropdown={showTypeDropdown}
+                  periodDropdownRef={periodDropdownRef}
+                  typeDropdownRef={typeDropdownRef}
+                  mobilePeriodDropdownRef={mobilePeriodDropdownRef}
+                  mobileTypeDropdownRef={mobileTypeDropdownRef}
+                  onTogglePeriodDropdown={() => {
+                     setShowPeriodDropdown((value) => !value);
+                     setShowTypeDropdown(false);
+                  }}
+                  onToggleTypeDropdown={() => {
+                     setShowTypeDropdown((value) => !value);
+                     setShowPeriodDropdown(false);
+                  }}
+                  onChangePeriod={handlePeriodChange}
+                  onChangeStartDate={setPendingStartDate}
+                  onChangeEndDate={setPendingEndDate}
+                  onChangePurchaseType={(value) => {
+                     setPendingPurchaseType(value);
+                     setShowTypeDropdown(false);
+                  }}
+                  onChangeSaleType={(value) => {
+                     setPendingSaleType(value);
+                     setShowTypeDropdown(false);
+                  }}
+                  onChangeSearchQuery={(value) => {
+                     setSearchQuery(value);
+                     setSearchError('');
+                  }}
+                  onClearSearchQuery={() => {
+                     setSearchQuery('');
+                     setSearchError('');
+                  }}
+                  onApply={handleApply}
+                  onOpenMobileSheet={() => setShowFilterSheet(true)}
+                  showFilterSheet={showFilterSheet}
+                  onCloseMobileSheet={() => setShowFilterSheet(false)}
+               />
 
                <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
                   {(activeTab === 'purchase'
@@ -211,8 +250,8 @@ export function MypageHistorySection({
                               else setSaleStatus(chip as SaleStatusFilter);
                               setCurrentPage(1);
                            }}
-                           className={`shrink-0 px-4 py-2 rounded-full text-[14px] font-bold transition-all ${
-                              isActive ? 'bg-[#161d24] text-white' : 'bg-white border border-[#e9ebee] text-[#acb4bb]'
+                           className={`shrink-0 px-4 py-2 rounded-full text-body-2-bold transition-all ${
+                              isActive ? 'bg-foreground text-white' : 'bg-white border border-border text-disabled-foreground'
                            }`}
                         >
                            {chip}
@@ -220,49 +259,6 @@ export function MypageHistorySection({
                      );
                   })}
                </div>
-
-               <DesktopHistoryFilters
-                  activeTab={activeTab}
-                  pendingPeriod={pendingPeriod}
-                  pendingStartDate={pendingStartDate}
-                  pendingEndDate={pendingEndDate}
-                  pendingPurchaseType={pendingPurchaseType}
-                  pendingSaleType={pendingSaleType}
-                  showPeriodDropdown={showPeriodDropdown}
-                  showTypeDropdown={showTypeDropdown}
-                  searchQuery={searchQuery}
-                  searchError={searchError}
-                  periodDropdownRef={periodDropdownRef}
-                  typeDropdownRef={typeDropdownRef}
-                  onTogglePeriodDropdown={() => {
-                     setShowPeriodDropdown(value => !value);
-                     setShowTypeDropdown(false);
-                  }}
-                  onToggleTypeDropdown={() => {
-                     setShowTypeDropdown(value => !value);
-                     setShowPeriodDropdown(false);
-                  }}
-                  onPeriodChange={handlePeriodChange}
-                  onPendingStartDateChange={setPendingStartDate}
-                  onPendingEndDateChange={setPendingEndDate}
-                  onPendingPurchaseTypeChange={value => {
-                     setPendingPurchaseType(value);
-                     setShowTypeDropdown(false);
-                  }}
-                  onPendingSaleTypeChange={value => {
-                     setPendingSaleType(value);
-                     setShowTypeDropdown(false);
-                  }}
-                  onSearchQueryChange={value => {
-                     setSearchQuery(value);
-                     setSearchError('');
-                  }}
-                  onClearSearch={() => {
-                     setSearchQuery('');
-                     setSearchError('');
-                  }}
-                  onApply={handleApply}
-               />
 
                <div className="flex flex-col gap-5">
                   {pageItems.length > 0 ? (
@@ -284,50 +280,6 @@ export function MypageHistorySection({
             </div>
          </div>
 
-         <MobileHistoryFilterSheet
-            open={showFilterSheet}
-            onClose={() => setShowFilterSheet(false)}
-            activeTab={activeTab}
-            pendingPeriod={pendingPeriod}
-            pendingStartDate={pendingStartDate}
-            pendingEndDate={pendingEndDate}
-            pendingPurchaseType={pendingPurchaseType}
-            pendingSaleType={pendingSaleType}
-            showPeriodDropdown={showPeriodDropdown}
-            showTypeDropdown={showTypeDropdown}
-            searchQuery={searchQuery}
-            searchError={searchError}
-            mobilePeriodDropdownRef={mobilePeriodDropdownRef}
-            mobileTypeDropdownRef={mobileTypeDropdownRef}
-            onTogglePeriodDropdown={() => {
-               setShowPeriodDropdown(value => !value);
-               setShowTypeDropdown(false);
-            }}
-            onToggleTypeDropdown={() => {
-               setShowTypeDropdown(value => !value);
-               setShowPeriodDropdown(false);
-            }}
-            onPeriodChange={handlePeriodChange}
-            onPendingStartDateChange={setPendingStartDate}
-            onPendingEndDateChange={setPendingEndDate}
-            onPendingPurchaseTypeChange={value => {
-               setPendingPurchaseType(value);
-               setShowTypeDropdown(false);
-            }}
-            onPendingSaleTypeChange={value => {
-               setPendingSaleType(value);
-               setShowTypeDropdown(false);
-            }}
-            onSearchQueryChange={value => {
-               setSearchQuery(value);
-               setSearchError('');
-            }}
-            onClearSearch={() => {
-               setSearchQuery('');
-               setSearchError('');
-            }}
-            onApply={handleApply}
-         />
       </>
    );
 }

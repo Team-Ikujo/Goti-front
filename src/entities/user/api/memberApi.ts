@@ -3,12 +3,36 @@
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 
+// GET /api/v1/members/me 응답 내 중첩 타입들
+export interface MemberBankAccount {
+   bankName: string;
+   accountNumber: string;
+   accountHolder: string;
+}
+
+export interface MemberAddressInfo {
+   zipCode: string;
+   baseAddress: string;
+   detailAddress: string;
+}
+
+export interface MemberSocialConnection {
+   isGoogleConnected: boolean;
+   isKakaoConnected: boolean;
+   isNaverConnected: boolean;
+}
+
+// GET /api/v1/members/me 전체 응답 (MemberDetailResponse)
 export interface MemberProfile {
    name?: string;
    email?: string;
    mobile?: string;
    gender?: 'MALE' | 'FEMALE' | 'UNKNOWN';
    birthDate?: string;
+   oAuthProvider?: 'NAVER' | 'KAKAO' | 'GOOGLE';
+   bankAccount?: MemberBankAccount;
+   address?: MemberAddressInfo;
+   socialConnection?: MemberSocialConnection;
 }
 
 export interface UpdateMemberProfileRequest {
@@ -42,6 +66,22 @@ export interface MemberAddress {
    zipCode: string;
    baseAddress: string;
    detailAddress: string;
+}
+
+// PATCH /api/v1/members/me 요청/응답
+export interface MemberUpdateRequest {
+   mobile: string;
+   name: string;
+   gender: 'MALE' | 'FEMALE' | 'UNKNOWN';
+   birthDate: string;
+   authCode: string;
+}
+
+export interface MemberUpdateResponse {
+   mobile: string;
+   name: string;
+   gender: 'MALE' | 'FEMALE' | 'UNKNOWN';
+   birthDate: string;
 }
 
 const MY_PROFILE_FALLBACK_DELAY_MS = 250;
@@ -109,24 +149,9 @@ export const fetchMyProfile = async (): Promise<MemberProfile> => {
    }
 };
 
-export const sendProfileUpdateSmsCodeMock = async (): Promise<{ success: true }> => {
-   await wait(MY_PROFILE_FALLBACK_DELAY_MS);
-   return { success: true };
-};
-
-export const updateMemberProfileMock = async (body: UpdateMemberProfileRequest): Promise<MemberProfile> => {
-   await wait(MY_PROFILE_FALLBACK_DELAY_MS);
-
-   const nextProfile = withMockProfile({
-      name: body.name,
-      mobile: body.mobile,
-      gender: body.gender,
-      birthDate: body.birthDate,
-   });
-
-   writeStoredMockProfile(nextProfile);
-
-   return nextProfile;
+export const updateMyProfile = async (body: MemberUpdateRequest): Promise<MemberUpdateResponse> => {
+   const response = await apiClient.patch<ApiEnvelope<MemberUpdateResponse>>('/api/v1/members/me', body);
+   return response.data.data;
 };
 
 export const createMemberAccount = async (body: MemberAccountRequest): Promise<MemberAccount> => {
@@ -137,4 +162,9 @@ export const createMemberAccount = async (body: MemberAccountRequest): Promise<M
 export const createMemberAddress = async (body: MemberAddressRequest): Promise<MemberAddress> => {
    const response = await apiClient.post<ApiEnvelope<MemberAddress>>('/api/v1/members/addresses', body);
    return response.data.data;
+};
+
+export const withdrawMember = async (): Promise<void> => {
+   // 탈퇴 엔드포인트는 서버 구현 후 연결 예정
+   await apiClient.delete('/api/v1/members/me');
 };

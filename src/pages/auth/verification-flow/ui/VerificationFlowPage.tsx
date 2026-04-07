@@ -1,27 +1,85 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuthStore } from '@/entities/auth/model/authStore';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchMyProfile, updateMyProfile, type MemberProfile } from '@/entities/user/api/memberApi';
 import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import { Input } from '@/shared/ui/input';
 import { TermsCheckbox, TermsSubItem } from '@/shared/ui/terms-of-service';
 import type { TermAgreementCode } from '@/entities/terms/model/types';
+import { normalizePhoneInput } from '@/pages/signup/model/signUpValidation';
 import {
    verificationTermsAgreements,
    verificationTermsDetailByCode,
 } from '@/pages/auth/verification-flow/model/verificationTerms';
 
+type VerificationFlowLocationState = {
+   mode?: 'profile-edit';
+   profile?: Pick<MemberProfile, 'name' | 'mobile' | 'gender' | 'birthDate'>;
+};
+
 const VerificationFlowPage = () => {
    const navigate = useNavigate();
+   const location = useLocation();
+   const queryClient = useQueryClient();
    const hasResolvedSession = useAuthStore(state => state.hasResolvedSession);
    const accessToken = useAuthStore(state => state.accessToken);
    const socialVerifyToken = useAuthStore(state => state.socialVerifyToken);
+   const locationState = (location.state as VerificationFlowLocationState | null) ?? null;
+   const isProfileEditMode = locationState?.mode === 'profile-edit';
    const agreements = verificationTermsAgreements;
    const [checkedByCode, setCheckedByCode] = useState<Partial<Record<TermAgreementCode, boolean>>>({});
+   const [profileName, setProfileName] = useState('');
+   const [profileMobile, setProfileMobile] = useState('');
+   const [submitError, setSubmitError] = useState<string | null>(null);
 
    const [detailTargetCode, setDetailTargetCode] = useState<TermAgreementCode | null>(null);
    const termDetail = detailTargetCode ? verificationTermsDetailByCode[detailTargetCode] : null;
    const [detailTriggerElement, setDetailTriggerElement] = useState<HTMLElement | null>(null);
+
+   const profileQuery = useQuery({
+      queryKey: ['verificationProfile', accessToken],
+      queryFn: fetchMyProfile,
+      enabled: isProfileEditMode && Boolean(accessToken),
+   });
+
+   const editableProfile = profileQuery.data ?? locationState?.profile;
+   const normalizedBirthDate = editableProfile?.birthDate?.replace(/\./g, '-');
+   const normalizedMobile = normalizePhoneInput(editableProfile?.mobile ?? '');
+   const trimmedProfileName = profileName.trim();
+   const trimmedProfileMobile = profileMobile.trim();
+   const nameError =
+      trimmedProfileName.length === 0
+         ? '이름을 입력해주세요'
+         : trimmedProfileName.length > 30
+            ? '이름은 30자 이내로 입력해주세요'
+            : null;
+   const phoneError = /^01[0-9]\d{7,8}$/.test(trimmedProfileMobile) ? null : "'-'를 제외한 휴대폰 번호를 정확히 입력해주세요";
+   const isProfileSaveEnabled =
+      Boolean(editableProfile?.birthDate) &&
+      Boolean(editableProfile?.gender) &&
+      !nameError &&
+      !phoneError;
+
+   const profileUpdateMutation = useMutation({
+      mutationFn: () =>
+         updateMyProfile({
+            name: trimmedProfileName,
+            mobile: trimmedProfileMobile,
+            gender: editableProfile?.gender ?? 'UNKNOWN',
+            birthDate: normalizedBirthDate ?? '1990-01-01',
+            authCode: 'PROFILE_EDIT',
+         }),
+      onSuccess: async () => {
+         await queryClient.invalidateQueries({ queryKey: ['myProfile'] });
+         navigate('/mypage/account', { replace: true });
+      },
+      onError: (error) => {
+         setSubmitError(error instanceof Error ? error.message : '회원 정보 저장 중 오류가 발생했습니다.');
+      },
+   });
 
    const areRequiredTermsChecked = useMemo(() => {
       return agreements.every(agreement => {
@@ -73,19 +131,101 @@ const VerificationFlowPage = () => {
    };
 
    useEffect(() => {
+      if (!isProfileEditMode) {
+         return;
+      }
+
+      setProfileName(editableProfile?.name ?? '');
+      setProfileMobile(normalizedMobile);
+   }, [editableProfile?.name, isProfileEditMode, normalizedMobile]);
+
+   useEffect(() => {
       if (!hasResolvedSession) {
          return;
       }
 
-      if (accessToken) {
+      if (!isProfileEditMode && accessToken) {
          navigate('/', { replace: true });
          return;
       }
 
-      if (!socialVerifyToken) {
+      if (isProfileEditMode && !accessToken) {
+         navigate('/auth/login', { replace: true });
+         return;
+      }
+
+      if (!isProfileEditMode && !socialVerifyToken) {
          navigate('/auth/login', { replace: true });
       }
-   }, [accessToken, hasResolvedSession, navigate, socialVerifyToken]);
+   }, [accessToken, hasResolvedSession, isProfileEditMode, navigate, socialVerifyToken]);
+
+   if (isProfileEditMode) {
+      if (profileQuery.isLoading) {
+         return (
+            <div className="bg-white text-(--color-foreground) flex min-h-screen items-center justify-center">
+               <p className="text-body-1-regular text-muted-foreground">본인 인증 정보를 불러오는 중입니다.</p>
+            </div>
+         );
+      }
+
+      return (
+         <div className="min-h-screen bg-white text-(--color-foreground) flex items-center justify-center">
+            <section className="w-full max-w-md p-8">
+               <div className="text-center pb-10">
+                  <h2 className="text-2xl font-semibold">본인 인증 정보로</h2>
+                  <h2 className="text-2xl font-semibold">회원 정보를 수정해 주세요</h2>
+               </div>
+
+               <form
+                  className="space-y-5"
+                  onSubmit={(event) => {
+                     event.preventDefault();
+
+                     if (!isProfileSaveEnabled || profileUpdateMutation.isPending) {
+                        return;
+                     }
+
+                     setSubmitError(null);
+                     profileUpdateMutation.mutate();
+                  }}
+               >
+                  <Input
+                     label="이름"
+                     required
+                     placeholder="30자 이내 입력"
+                     maxLength={30}
+                     value={profileName}
+                     onChange={(event) => {
+                        setProfileName(event.target.value.slice(0, 30));
+                        setSubmitError(null);
+                     }}
+                     error={Boolean(nameError)}
+                     helpText={nameError ?? undefined}
+                  />
+
+                  <Input
+                     label="휴대폰 번호"
+                     required
+                     placeholder="'-'를 제외한 숫자만 입력"
+                     value={profileMobile}
+                     onChange={(event) => {
+                        setProfileMobile(normalizePhoneInput(event.target.value));
+                        setSubmitError(null);
+                     }}
+                     error={Boolean(phoneError)}
+                     helpText={phoneError ?? undefined}
+                  />
+
+                  <Button type="submit" variant="primary" className="w-full" disabled={!isProfileSaveEnabled || profileUpdateMutation.isPending}>
+                     {profileUpdateMutation.isPending ? '저장 중...' : '저장'}
+                  </Button>
+
+                  {submitError ? <p className="text-xs text-destructive antialiased">{submitError}</p> : null}
+               </form>
+            </section>
+         </div>
+      );
+   }
 
    return (
       <div className="bg-white text-(--color-foreground) flex flex-col justify-center items-center min-h-screen">

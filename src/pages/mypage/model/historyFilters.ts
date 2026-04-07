@@ -29,19 +29,22 @@ export const SALE_TYPE_OPTIONS: SaleTypeFilter[] = ['리셀'];
 export const ITEMS_PER_PAGE = 5;
 
 export const toISODate = (value: string) => value.replace(/\./g, '-');
-export const toInput = (date: Date) => date.toISOString().slice(0, 10);
+export const toInputDate = (value: Date) => value.toISOString().slice(0, 10);
 
 export const calcPeriodDates = (period: PeriodFilter, dataMinDate?: string) => {
    const today = new Date();
+
    if (period === '직접설정') {
       return { start: '', end: '' };
    }
+
    if (period === '전체 내역') {
-      return { start: dataMinDate || toInput(new Date(2025, 0, 1)), end: toInput(today) };
+      return { start: dataMinDate || toInputDate(new Date(2025, 0, 1)), end: toInputDate(today) };
    }
 
    const months = period === '1개월' ? 1 : period === '3개월' ? 3 : 6;
    const start = new Date(today);
    start.setMonth(start.getMonth() - months);
-   return { start: toInput(start), end: toInput(today) };
+
+   return { start: toInputDate(start), end: toInputDate(today) };
 };

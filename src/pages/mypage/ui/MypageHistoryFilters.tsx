@@ -1,470 +1,309 @@
 import type { RefObject } from 'react';
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
-import { Button } from '@/shared/ui/button';
+import type { RefObject } from 'react';
+import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { DatePicker } from '@/shared/ui/date-picker';
+import type {
+   HistoryTab,
+   PeriodFilter,
+   PurchaseTypeFilter,
+   SaleTypeFilter,
+} from '../model/historyFilters';
 import {
    PERIOD_OPTIONS,
    PURCHASE_TYPE_OPTIONS,
    SALE_TYPE_OPTIONS,
-   type HistoryTab,
-   type PeriodFilter,
-   type PurchaseTypeFilter,
-   type SaleTypeFilter,
 } from '../model/historyFilters';
 
-type SharedFilterProps = {
+interface MypageHistoryFiltersProps {
    activeTab: HistoryTab;
    pendingPeriod: PeriodFilter;
    pendingStartDate: string;
    pendingEndDate: string;
    pendingPurchaseType: PurchaseTypeFilter;
    pendingSaleType: SaleTypeFilter;
-   showPeriodDropdown: boolean;
-   showTypeDropdown: boolean;
    searchQuery: string;
    searchError: string;
-   onTogglePeriodDropdown: () => void;
-   onToggleTypeDropdown: () => void;
-   onPeriodChange: (period: PeriodFilter) => void;
-   onPendingStartDateChange: (value: string) => void;
-   onPendingEndDateChange: (value: string) => void;
-   onPendingPurchaseTypeChange: (value: PurchaseTypeFilter) => void;
-   onPendingSaleTypeChange: (value: SaleTypeFilter) => void;
-   onSearchQueryChange: (value: string) => void;
-   onClearSearch: () => void;
-   onApply: () => boolean;
-};
-
-type DesktopHistoryFiltersProps = SharedFilterProps & {
+   showPeriodDropdown: boolean;
+   showTypeDropdown: boolean;
    periodDropdownRef: RefObject<HTMLDivElement | null>;
    typeDropdownRef: RefObject<HTMLDivElement | null>;
-};
-
-type MobileHistoryFilterSheetProps = SharedFilterProps & {
-   open: boolean;
-   onClose: () => void;
    mobilePeriodDropdownRef: RefObject<HTMLDivElement | null>;
    mobileTypeDropdownRef: RefObject<HTMLDivElement | null>;
-};
-
-function TypeOptions({
-   activeTab,
-   pendingPurchaseType,
-   pendingSaleType,
-}: {
-   activeTab: HistoryTab;
-   pendingPurchaseType: PurchaseTypeFilter;
-   pendingSaleType: SaleTypeFilter;
-}) {
-   return (activeTab === 'purchase' ? PURCHASE_TYPE_OPTIONS : SALE_TYPE_OPTIONS).map(option => {
-      const isSelected = activeTab === 'purchase' ? pendingPurchaseType === option : pendingSaleType === option;
-      return { option, isSelected };
-   });
+   onTogglePeriodDropdown: () => void;
+   onToggleTypeDropdown: () => void;
+   onChangePeriod: (period: PeriodFilter) => void;
+   onChangeStartDate: (value: string) => void;
+   onChangeEndDate: (value: string) => void;
+   onChangePurchaseType: (value: PurchaseTypeFilter) => void;
+   onChangeSaleType: (value: SaleTypeFilter) => void;
+   onChangeSearchQuery: (value: string) => void;
+   onClearSearchQuery: () => void;
+   onApply: () => boolean;
+   onOpenMobileSheet: () => void;
+   showFilterSheet: boolean;
+   onCloseMobileSheet: () => void;
 }
 
-export function DesktopHistoryFilters({
+export function MypageHistoryFilters({
    activeTab,
    pendingPeriod,
    pendingStartDate,
    pendingEndDate,
    pendingPurchaseType,
    pendingSaleType,
-   showPeriodDropdown,
-   showTypeDropdown,
    searchQuery,
    searchError,
+   showPeriodDropdown,
+   showTypeDropdown,
    periodDropdownRef,
    typeDropdownRef,
-   onTogglePeriodDropdown,
-   onToggleTypeDropdown,
-   onPeriodChange,
-   onPendingStartDateChange,
-   onPendingEndDateChange,
-   onPendingPurchaseTypeChange,
-   onPendingSaleTypeChange,
-   onSearchQueryChange,
-   onClearSearch,
-   onApply,
-}: DesktopHistoryFiltersProps) {
-   return (
-      <div className="hidden lg:flex flex-col gap-2.5 p-4 bg-white rounded-[14px] border border-[#d0d6db]">
-         <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-               <span className="text-[14px] font-medium text-[#364153] whitespace-nowrap">조회기간:</span>
-               <div ref={periodDropdownRef} className="relative shrink-0">
-                  <button
-                     type="button"
-                     className="flex items-center justify-between h-9 px-3 border border-[#d0d6db] rounded-lg bg-white text-[14px] font-medium text-[#161d24] whitespace-nowrap w-29.75"
-                     onClick={onTogglePeriodDropdown}
-                  >
-                     <span className="flex-1">{pendingPeriod}</span>
-                     <ChevronDown
-                        size={15}
-                        className={`shrink-0 ml-1 transition-transform ${showPeriodDropdown ? 'rotate-180' : ''}`}
-                     />
-                  </button>
-                  {showPeriodDropdown && (
-                     <div className="absolute top-[calc(100%+4px)] left-0 z-20 bg-white border border-[#d0d6db] rounded-lg p-1 w-29.75">
-                        {PERIOD_OPTIONS.map(option => (
-                           <button
-                              key={option}
-                              type="button"
-                              className={`w-full flex items-center justify-between h-8 px-1.5 rounded-md text-[14px] transition-colors ${
-                                 pendingPeriod === option
-                                    ? 'bg-[#f7f8f9] text-[#374553] font-medium'
-                                    : 'text-[#646f7c] font-normal hover:bg-[#f7f8f9]'
-                              }`}
-                              onClick={() => onPeriodChange(option)}
-                           >
-                              <span>{option}</span>
-                              {pendingPeriod === option && <Check size={13} className="shrink-0 text-[#374553]" />}
-                           </button>
-                        ))}
-                     </div>
-                  )}
-               </div>
-
-               {pendingPeriod === '직접설정' && (
-                  <div className="flex items-center gap-2 shrink-0">
-                     <DatePicker
-                        value={pendingStartDate}
-                        onChange={onPendingStartDateChange}
-                        placeholder="시작일"
-                        className="w-35"
-                        triggerClassName="border-[#d0d6db] bg-transparent text-[14px] font-medium text-[#161d24]"
-                     />
-                     <span className="text-[14px] font-medium text-black shrink-0">~</span>
-                     <DatePicker
-                        value={pendingEndDate}
-                        onChange={onPendingEndDateChange}
-                        placeholder="종료일"
-                        className="w-35"
-                        triggerClassName="border-[#d0d6db] bg-transparent text-[14px] font-medium text-[#161d24]"
-                     />
-                  </div>
-               )}
-            </div>
-
-            <div className="flex items-center gap-5">
-               <div className="flex items-center w-57.5 h-9 border border-[#e5e5e5] rounded-[20px] bg-white overflow-hidden">
-                  <input
-                     type="text"
-                     value={searchQuery}
-                     onChange={event => onSearchQueryChange(event.target.value)}
-                     onKeyDown={event => {
-                        if (event.key === 'Enter') {
-                           onApply();
-                        }
-                     }}
-                     placeholder="Search"
-                     className="flex-1 h-full pl-3 text-[14px] text-[#161d24] placeholder:text-[#646f7c] bg-transparent focus:outline-none"
-                  />
-                  <div className="flex items-center justify-center shrink-0 w-7 pr-3">
-                     {searchQuery ? (
-                        <button type="button" onClick={onClearSearch} aria-label="검색어 초기화">
-                           <X size={11} className="text-muted-foreground" />
-                        </button>
-                     ) : (
-                        <Search size={16} className="text-[#161d24]" />
-                     )}
-                  </div>
-               </div>
-
-               <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[14px] font-medium text-[#364153] whitespace-nowrap">종류:</span>
-                  <div ref={typeDropdownRef} className="relative">
-                     <button
-                        type="button"
-                        className="flex items-center justify-between h-9 px-3 border border-[#d0d6db] rounded-lg bg-white text-[14px] font-medium text-[#161d24] whitespace-nowrap w-29.75"
-                        onClick={onToggleTypeDropdown}
-                     >
-                        <span className="flex-1">{activeTab === 'purchase' ? pendingPurchaseType : pendingSaleType}</span>
-                        <ChevronDown
-                           size={15}
-                           className={`shrink-0 ml-1 transition-transform ${showTypeDropdown ? 'rotate-180' : ''}`}
-                        />
-                     </button>
-                     {showTypeDropdown && (
-                        <div className="absolute top-[calc(100%+4px)] left-0 z-20 bg-white border border-[#d0d6db] rounded-lg p-1 w-29.75">
-                           {TypeOptions({ activeTab, pendingPurchaseType, pendingSaleType }).map(({ option, isSelected }) => (
-                              <button
-                                 key={option}
-                                 type="button"
-                                 className={`w-full flex items-center justify-between h-8 px-1.5 rounded-md text-[14px] transition-colors ${
-                                    isSelected
-                                       ? 'bg-[#f7f8f9] text-[#374553] font-medium'
-                                       : 'text-[#646f7c] font-normal hover:bg-[#f7f8f9]'
-                                 }`}
-                                 onClick={() => {
-                                    if (activeTab === 'purchase') {
-                                       onPendingPurchaseTypeChange(option as PurchaseTypeFilter);
-                                    } else {
-                                       onPendingSaleTypeChange(option as SaleTypeFilter);
-                                    }
-                                 }}
-                              >
-                                 <span>{option}</span>
-                                 {isSelected && <Check size={13} className="shrink-0 text-[#374553]" />}
-                              </button>
-                           ))}
-                        </div>
-                     )}
-                  </div>
-               </div>
-
-               <button
-                  type="button"
-                  onClick={() => {
-                     onApply();
-                  }}
-                  className="flex items-center gap-2 h-8.25 px-3.5 border border-[#d0d6db] rounded-lg bg-transparent text-[14px] font-medium text-[#374553] whitespace-nowrap"
-               >
-                  조회
-               </button>
-            </div>
-         </div>
-
-         {searchError && <p className="text-caption-1-regular text-destructive pl-1">{searchError}</p>}
-      </div>
-   );
-}
-
-export function MobileHistoryFilterSheet({
-   open,
-   onClose,
-   activeTab,
-   pendingPeriod,
-   pendingStartDate,
-   pendingEndDate,
-   pendingPurchaseType,
-   pendingSaleType,
-   showPeriodDropdown,
-   showTypeDropdown,
-   searchQuery,
-   searchError,
    mobilePeriodDropdownRef,
    mobileTypeDropdownRef,
    onTogglePeriodDropdown,
    onToggleTypeDropdown,
-   onPeriodChange,
-   onPendingStartDateChange,
-   onPendingEndDateChange,
-   onPendingPurchaseTypeChange,
-   onPendingSaleTypeChange,
-   onSearchQueryChange,
-   onClearSearch,
+   onChangePeriod,
+   onChangeStartDate,
+   onChangeEndDate,
+   onChangePurchaseType,
+   onChangeSaleType,
+   onChangeSearchQuery,
+   onClearSearchQuery,
    onApply,
-}: MobileHistoryFilterSheetProps) {
-   if (!open) {
-      return null;
-   }
+   onOpenMobileSheet,
+   showFilterSheet,
+   onCloseMobileSheet,
+}: MypageHistoryFiltersProps) {
+   const typeOptions = activeTab === 'purchase' ? PURCHASE_TYPE_OPTIONS : SALE_TYPE_OPTIONS;
+   const selectedType = activeTab === 'purchase' ? pendingPurchaseType : pendingSaleType;
+
+   const renderSearchInput = (closeOnEnter = false) => (
+      <div className="flex items-center w-full h-9 border border-border rounded-[20px] bg-white overflow-hidden">
+         <input
+            type="text"
+            value={searchQuery}
+            onChange={(event) => onChangeSearchQuery(event.target.value)}
+            onKeyDown={(event) => {
+               if (event.key === 'Enter') {
+                  const isApplied = onApply();
+                  if (closeOnEnter && isApplied) onCloseMobileSheet();
+               }
+            }}
+            placeholder="Search"
+            className="flex-1 h-full pl-3 text-body-2-regular text-foreground placeholder:text-(--text-tertiary) bg-transparent focus:outline-none"
+         />
+         <div className="flex items-center justify-center shrink-0 w-7 pr-3">
+            {searchQuery ? (
+               <button type="button" onClick={onClearSearchQuery} aria-label="검색어 초기화">
+                  <X size={11} className="text-muted-foreground" />
+               </button>
+            ) : (
+               <Search size={16} className="text-foreground" />
+            )}
+         </div>
+      </div>
+   );
+
+   const renderPeriodDropdown = (ref: RefObject<HTMLDivElement | null>, fullWidth = false) => (
+      <div ref={ref} className={`relative ${fullWidth ? 'w-full' : pendingPeriod === '직접설정' ? 'shrink-0' : 'flex-1'}`}>
+         <button
+            type="button"
+            className={`flex h-9 items-center justify-between border border-border rounded-lg bg-white px-3 text-body-2-medium text-foreground ${fullWidth ? 'w-full' : 'w-29.75'}`}
+            onClick={onTogglePeriodDropdown}
+         >
+            <span className="flex-1">{pendingPeriod}</span>
+            <ChevronDown
+               size={15}
+               className={`ml-1 shrink-0 transition-transform ${showPeriodDropdown ? 'rotate-180' : ''}`}
+            />
+         </button>
+         {showPeriodDropdown && (
+            <div className={`absolute left-0 top-[calc(100%+4px)] z-20 bg-white border border-border rounded-lg p-1 ${fullWidth ? 'w-full z-[60]' : 'w-29.75'}`}>
+               {PERIOD_OPTIONS.map((option) => (
+                  <button
+                     key={option}
+                     type="button"
+                     className={`w-full flex h-8 items-center justify-between rounded-md px-1.5 text-body-2-regular transition-colors ${
+                        pendingPeriod === option
+                           ? 'bg-surface text-muted-foreground font-medium'
+                           : 'text-(--text-tertiary) font-normal hover:bg-surface'
+                     }`}
+                     onClick={() => onChangePeriod(option)}
+                  >
+                     <span>{option}</span>
+                     {pendingPeriod === option && <Check size={13} className="shrink-0 text-muted-foreground" />}
+                  </button>
+               ))}
+            </div>
+         )}
+      </div>
+   );
+
+   const renderTypeDropdown = (ref: RefObject<HTMLDivElement | null>, fullWidth = false) => (
+      <div ref={ref} className="relative">
+         <button
+            type="button"
+            className={`flex h-9 items-center justify-between border border-border rounded-lg bg-white px-3 text-body-2-medium text-foreground ${fullWidth ? 'w-full' : 'w-29.75 whitespace-nowrap'}`}
+            onClick={onToggleTypeDropdown}
+         >
+            <span className="flex-1">{selectedType}</span>
+            <ChevronDown
+               size={15}
+               className={`ml-1 shrink-0 transition-transform ${showTypeDropdown ? 'rotate-180' : ''}`}
+            />
+         </button>
+         {showTypeDropdown && (
+            <div className={`absolute left-0 top-[calc(100%+4px)] z-20 bg-white border border-border rounded-lg p-1 ${fullWidth ? 'w-full z-[60]' : 'w-29.75'}`}>
+               {typeOptions.map((option) => {
+                  const isSelected = selectedType === option;
+
+                  return (
+                     <button
+                        key={option}
+                        type="button"
+                        className={`w-full flex h-8 items-center justify-between rounded-md px-1.5 text-body-2-regular transition-colors ${
+                           isSelected
+                              ? 'bg-surface text-muted-foreground font-medium'
+                              : 'text-(--text-tertiary) font-normal hover:bg-surface'
+                        }`}
+                        onClick={() => {
+                           if (activeTab === 'purchase') onChangePurchaseType(option as PurchaseTypeFilter);
+                           else onChangeSaleType(option as SaleTypeFilter);
+                        }}
+                     >
+                        <span>{option}</span>
+                        {isSelected && <Check size={13} className="shrink-0 text-muted-foreground" />}
+                     </button>
+                  );
+               })}
+            </div>
+         )}
+      </div>
+   );
 
    return (
       <>
-         <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={onClose} aria-hidden="true" />
-         <div className="fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-[20px] lg:hidden">
-            <div className="flex justify-center pt-[10px] pb-[6px]">
-               <div className="w-9 h-1 bg-[#d0d6db] rounded-full" />
-            </div>
+         <button
+            type="button"
+            onClick={onOpenMobileSheet}
+            className="flex lg:hidden items-center gap-2 w-full h-8.25 px-3.5 border border-border rounded-lg bg-white text-body-2-medium text-muted-foreground justify-center"
+         >
+            <img src="/Icon/Line/Filter.svg" alt="" className="size-4 shrink-0" />
+            필터
+         </button>
 
-            <div className="flex items-center px-5 py-4">
-               <h2 className="text-[20px] font-bold text-[#161d24]">구매/판매 내역</h2>
-            </div>
-
-            <div className="px-5 pt-5 pb-5 flex flex-col gap-4">
-               <div className="flex flex-col gap-2">
-                  <span className="text-[14px] font-medium text-[#364153]">조회기간:</span>
-                  <div className="flex items-center gap-2">
-                     <div ref={mobilePeriodDropdownRef} className={`relative ${pendingPeriod === '직접설정' ? 'shrink-0' : 'flex-1'}`}>
-                        <button
-                           type="button"
-                           className="flex items-center justify-between h-9 px-3 border border-[#d0d6db] rounded-lg bg-white text-[14px] font-medium text-[#161d24] w-full"
-                           onClick={onTogglePeriodDropdown}
-                        >
-                           <span className="flex-1">{pendingPeriod}</span>
-                           <ChevronDown
-                              size={15}
-                              className={`shrink-0 ml-1 transition-transform ${showPeriodDropdown ? 'rotate-180' : ''}`}
-                           />
-                        </button>
-                        {showPeriodDropdown && (
-                           <div className="absolute top-[calc(100%+4px)] left-0 z-60 bg-white border border-[#d0d6db] rounded-lg p-1 w-29.75">
-                              {PERIOD_OPTIONS.map(option => (
-                                 <button
-                                    key={option}
-                                    type="button"
-                                    className={`w-full flex items-center justify-between h-8 px-1.5 rounded-md text-[14px] transition-colors ${
-                                       pendingPeriod === option
-                                          ? 'bg-[#f7f8f9] text-[#374553] font-medium'
-                                          : 'text-[#646f7c] font-normal hover:bg-[#f7f8f9]'
-                                    }`}
-                                    onClick={() => onPeriodChange(option)}
-                                 >
-                                    <span>{option}</span>
-                                    {pendingPeriod === option && <Check size={13} className="shrink-0 text-[#374553]" />}
-                                 </button>
-                              ))}
-                           </div>
-                        )}
+         <div className="hidden lg:flex flex-col gap-2.5 p-4 bg-white rounded-[14px] border border-border">
+            <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                  <span className="text-body-2-medium text-muted-foreground whitespace-nowrap">조회기간:</span>
+                  {renderPeriodDropdown(periodDropdownRef)}
+                  {pendingPeriod === '직접설정' && (
+                     <div className="flex items-center gap-2 shrink-0">
+                        <DatePicker
+                           value={pendingStartDate}
+                           onChange={onChangeStartDate}
+                           placeholder="시작일"
+                           className="w-35"
+                           triggerClassName="border-border bg-transparent text-body-2-medium text-foreground"
+                        />
+                        <span className="text-body-2-medium text-black shrink-0">~</span>
+                        <DatePicker
+                           value={pendingEndDate}
+                           onChange={onChangeEndDate}
+                           placeholder="종료일"
+                           className="w-35"
+                           triggerClassName="border-border bg-transparent text-body-2-medium text-foreground"
+                        />
                      </div>
-                     {pendingPeriod === '직접설정' && (
-                        <div className="flex flex-1 items-center gap-1.5">
-                           <DatePicker
-                              value={pendingStartDate}
-                              onChange={onPendingStartDateChange}
-                              placeholder="시작일"
-                              className="flex-1"
-                              triggerClassName="border-[#d0d6db] bg-transparent text-[14px] font-medium text-[#161d24]"
-                           />
-                           <span className="text-[14px] font-medium text-black shrink-0">~</span>
-                           <DatePicker
-                              value={pendingEndDate}
-                              onChange={onPendingEndDateChange}
-                              placeholder="종료일"
-                              className="flex-1"
-                              triggerClassName="border-[#d0d6db] bg-transparent text-[14px] font-medium text-[#161d24]"
-                           />
-                        </div>
-                     )}
-                  </div>
+                  )}
                </div>
 
-               <div className="flex flex-col gap-2">
-                  <span className="text-[14px] font-medium text-[#364153]">종류:</span>
-                  <div ref={mobileTypeDropdownRef} className="relative">
+               <div className="flex items-center gap-5">
+                  <div className="flex items-center w-57.5 h-9">{renderSearchInput()}</div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                     <span className="text-body-2-medium text-muted-foreground whitespace-nowrap">종류:</span>
+                     {renderTypeDropdown(typeDropdownRef)}
+                  </div>
+
+                  <button
+                     type="button"
+                     onClick={onApply}
+                     className="flex items-center gap-2 h-8.25 px-3.5 border border-border rounded-lg bg-transparent text-body-2-medium text-muted-foreground whitespace-nowrap"
+                  >
+                     조회
+                  </button>
+               </div>
+            </div>
+
+            {searchError && <p className="text-caption-1-regular text-destructive pl-1">{searchError}</p>}
+         </div>
+
+         {showFilterSheet && (
+            <>
+               <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={onCloseMobileSheet} aria-hidden="true" />
+               <div className="fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-[20px] lg:hidden">
+                  <div className="flex justify-center pt-[10px] pb-[6px]">
+                     <div className="w-9 h-1 bg-border rounded-full" />
+                  </div>
+
+                  <div className="flex items-center px-5 py-4">
+                     <h2 className="text-heading-3-bold text-foreground">구매/판매 내역</h2>
+                  </div>
+
+                  <div className="px-5 pt-5 pb-5 flex flex-col gap-4">
+                     <div className="flex flex-col gap-2">
+                        <span className="text-body-2-medium text-muted-foreground">조회기간:</span>
+                        <div className="flex items-center gap-2">
+                           {renderPeriodDropdown(mobilePeriodDropdownRef, true)}
+                           {pendingPeriod === '직접설정' && (
+                              <div className="flex flex-1 items-center gap-1.5">
+                                 <DatePicker
+                                    value={pendingStartDate}
+                                    onChange={onChangeStartDate}
+                                    placeholder="시작일"
+                                    className="flex-1"
+                                    triggerClassName="border-border bg-transparent text-body-2-medium text-foreground"
+                                 />
+                                 <span className="text-body-2-medium text-black shrink-0">~</span>
+                                 <DatePicker
+                                    value={pendingEndDate}
+                                    onChange={onChangeEndDate}
+                                    placeholder="종료일"
+                                    className="flex-1"
+                                    triggerClassName="border-border bg-transparent text-body-2-medium text-foreground"
+                                 />
+                              </div>
+                           )}
+                        </div>
+                     </div>
+
+                     <div className="flex flex-col gap-2">
+                        <span className="text-body-2-medium text-muted-foreground">종류:</span>
+                        {renderTypeDropdown(mobileTypeDropdownRef, true)}
+                     </div>
+
+                     <div className="flex flex-col gap-2">
+                        <span className="text-body-2-medium text-muted-foreground">검색어:</span>
+                        {renderSearchInput(true)}
+                        {searchError && <p className="text-caption-1-regular text-destructive pl-1">{searchError}</p>}
+                     </div>
+                  </div>
+
+                  <div className="px-5 pb-5">
                      <button
                         type="button"
-                        className="flex items-center justify-between w-full h-9 px-3 border border-[#d0d6db] rounded-lg bg-white text-[14px] font-medium text-[#161d24]"
-                        onClick={onToggleTypeDropdown}
-                     >
-                        <span className="flex-1">{activeTab === 'purchase' ? pendingPurchaseType : pendingSaleType}</span>
-                        <ChevronDown
-                           size={15}
-                           className={`shrink-0 ml-1 transition-transform ${showTypeDropdown ? 'rotate-180' : ''}`}
-                        />
-                     </button>
-                     {showTypeDropdown && (
-                        <div className="absolute top-[calc(100%+4px)] left-0 z-[60] bg-white border border-[#d0d6db] rounded-lg p-1 w-full">
-                           {TypeOptions({ activeTab, pendingPurchaseType, pendingSaleType }).map(({ option, isSelected }) => (
-                              <button
-                                 key={option}
-                                 type="button"
-                                 className={`w-full flex items-center justify-between h-8 px-1.5 rounded-md text-[14px] transition-colors ${
-                                    isSelected
-                                       ? 'bg-[#f7f8f9] text-[#374553] font-medium'
-                                       : 'text-[#646f7c] font-normal hover:bg-[#f7f8f9]'
-                                 }`}
-                                 onClick={() => {
-                                    if (activeTab === 'purchase') {
-                                       onPendingPurchaseTypeChange(option as PurchaseTypeFilter);
-                                    } else {
-                                       onPendingSaleTypeChange(option as SaleTypeFilter);
-                                    }
-                                 }}
-                              >
-                                 <span>{option}</span>
-                                 {isSelected && <Check size={13} className="shrink-0 text-[#374553]" />}
-                              </button>
-                           ))}
-                        </div>
-                     )}
-                  </div>
-               </div>
-
-               <div className="flex flex-col gap-2">
-                  <span className="text-[14px] font-medium text-[#364153]">검색어:</span>
-                  <div className="flex items-center w-full h-9 border border-[#e5e5e5] rounded-[20px] bg-white overflow-hidden">
-                     <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={event => onSearchQueryChange(event.target.value)}
-                        onKeyDown={event => {
-                           if (event.key === 'Enter') {
-                              const ok = onApply();
-                              if (ok) {
-                                 onClose();
-                              }
-                           }
+                        onClick={() => {
+                           const isApplied = onApply();
+                           if (isApplied) onCloseMobileSheet();
                         }}
-                        placeholder="Search"
-                        className="flex-1 h-full pl-3 text-[14px] text-foreground placeholder:text-[#646f7c] bg-transparent focus:outline-none"
-                     />
-                     <div className="flex items-center justify-center shrink-0 w-7 pr-3">
-                        {searchQuery ? (
-                           <button type="button" onClick={onClearSearch} aria-label="검색어 초기화">
-                              <X size={11} className="text-muted-foreground" />
-                           </button>
-                        ) : (
-                           <Search size={16} className="text-[#161d24]" />
-                        )}
-                     </div>
+                        className="flex items-center justify-center w-full h-8.25 border border-border rounded-lg bg-transparent text-body-2-medium text-muted-foreground"
+                     >
+                        조회
+                     </button>
                   </div>
-                  {searchError && <p className="text-caption-1-regular text-destructive pl-1">{searchError}</p>}
                </div>
-            </div>
-
-            <div className="px-5 pb-5">
-               <button
-                  type="button"
-                  onClick={() => {
-                     const ok = onApply();
-                     if (ok) {
-                        onClose();
-                     }
-                  }}
-                  className="flex items-center justify-center w-full h-8.25 border border-[#d0d6db] rounded-lg bg-transparent text-[14px] font-medium text-[#374553]"
-               >
-                  조회
-               </button>
-            </div>
-         </div>
+            </>
+         )}
       </>
-   );
-}
-
-export function HistoryPagination({
-   totalPages,
-   currentPage,
-   onChange,
-}: {
-   totalPages: number;
-   currentPage: number;
-   onChange: (page: number) => void;
-}) {
-   if (totalPages <= 1) {
-      return null;
-   }
-
-   return (
-      <div className="flex items-center justify-center gap-1">
-         <Button
-            variant="none"
-            onClick={() => onChange(Math.max(1, currentPage - 1))}
-            className="size-6 p-0 flex items-center justify-center border border-border rounded-xs text-muted-foreground hover:bg-[#f1f2f4] transition-colors [&_svg]:size-4"
-         >
-            <ChevronLeft size={16} />
-         </Button>
-         {Array.from({ length: totalPages }, (_, index) => index + 1).map(page => (
-            <Button
-               key={page}
-               variant="none"
-               onClick={() => onChange(page)}
-               className={`size-6 p-0 flex items-center justify-center text-body-2-regular rounded-xs transition-all ${
-                  currentPage === page
-                     ? 'bg-primary text-white'
-                     : 'border border-border text-muted-foreground hover:bg-[#f1f2f4]'
-               }`}
-            >
-               {page}
-            </Button>
-         ))}
-         <Button
-            variant="none"
-            onClick={() => onChange(Math.min(totalPages, currentPage + 1))}
-            className="size-6 p-0 flex items-center justify-center border border-border rounded-xs text-muted-foreground hover:bg-[#f1f2f4] transition-colors [&_svg]:size-4"
-         >
-            <ChevronRight size={16} />
-         </Button>
-      </div>
    );
 }

@@ -42,6 +42,7 @@ export function PurchaseDetailDialogs({
    onCloseResell,
 }: PurchaseDetailDialogsProps) {
    const navigate = useNavigate();
+   const sellableOrderTickets = orderTickets.filter((ticket) => ticket.ticketStatus === 'ISSUED');
 
    return (
       <>
@@ -80,15 +81,27 @@ export function PurchaseDetailDialogs({
                      teams: detail.game.teams,
                      venue: detail.game.venue || '홈구장',
                      datetime: detail.game.datetime,
-                     quantity: 1,
-                     section: detail.seatInfo.split(' ')[0],
-                     seats: [detail.seatInfo],
+                     quantity: sellableOrderTickets.length > 0 ? sellableOrderTickets.length : detail.seatItems.length,
+                     section:
+                        sellableOrderTickets[0]?.seatInfo.split(' ')[0] ??
+                        detail.seatItems[0]?.section ??
+                        detail.seatInfo.split(' ')[0],
+                     seats:
+                        sellableOrderTickets.length > 0
+                           ? sellableOrderTickets.map((ticket) => ticket.seatInfo)
+                           : detail.seatItems.length > 0
+                              ? detail.seatItems.map((seat) => seat.seatDetail)
+                           : [detail.seatInfo],
                   },
-                  price: detail.ticketPrice,
+                  price:
+                     sellableOrderTickets.length > 0
+                        ? sellableOrderTickets.reduce((sum, ticket) => sum + ticket.ticketPrice, 0)
+                        : detail.ticketPrice,
                   paymentStatus: '예매 완료',
                   deliveryType: '모바일 티켓',
                   canSell: detail.canSell,
-                  ticketIds: orderTickets.map((ticket) => ticket.ticketId),
+                  ticketIds: sellableOrderTickets.map((ticket) => ticket.ticketId),
+                  seatPrices: sellableOrderTickets.map((ticket) => ticket.ticketPrice),
                }}
             />
          )}

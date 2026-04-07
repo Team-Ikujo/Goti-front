@@ -8,6 +8,7 @@ import CancelConfirmDialog from './CancelConfirmDialog';
 import { useQuery } from '@tanstack/react-query';
 import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 import { MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO } from '@/shared/api/mockScenarios';
+import { formatTicketNumber, getTicketNumberKind } from '../model/ticketNumber';
 
 export interface CancelTicketItem {
    orderId: string;
@@ -154,7 +155,10 @@ export default function CancelBookingDialog({
    }
 
    const resolvedSeats = (orderTicketsQuery.data ?? []).map((ticket) => ({
-      orderId: ticket.ticketNumber,
+      orderId: formatTicketNumber(
+         ticket.ticketNumber,
+         ticket.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(ticket.ticketNumber, 'ticket'),
+      ),
       orderItemId: ticket.orderItemId,
       ticketId: ticket.ticketId,
       section: ticket.seatInfo.split(' ')[0] ?? '',
