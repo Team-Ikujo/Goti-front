@@ -63,7 +63,9 @@ export const mapSeatStatusesToSeats = ({
    statuses: SeatStatusResponse[];
 }): SeatResponse[] =>
    statuses.flatMap((seatStatus) => {
-      if (!isNonEmptyString(seatStatus.seatId) || !isNonEmptyString(seatStatus.rowName) || !Number.isFinite(seatStatus.seatNum)) {
+      const seatNum = toOptionalFiniteNumber(seatStatus.seatNum);
+
+      if (!isNonEmptyString(seatStatus.seatId) || !isNonEmptyString(seatStatus.rowName) || seatNum === undefined) {
          console.error('[bookingApi] 좌석 상태 응답 정규화 실패', {
             sectionId,
             seatStatus,
@@ -71,15 +73,13 @@ export const mapSeatStatusesToSeats = ({
          return [];
       }
 
-      const normalizedStatus = seatStatus.status?.toUpperCase?.();
-
       return [
          {
             seatId: seatStatus.seatId,
             apiSeatId: seatStatus.seatId,
             sectionId,
             rowName: seatStatus.rowName,
-            seatNum: seatStatus.seatNum,
+            seatNum,
             available: true,
          } satisfies SeatResponse,
       ];

@@ -6,12 +6,12 @@ import {
    useMyResaleListData,
    useMyResaleUnsettledAmountData,
 } from '../model/useMypageData';
-import { PURCHASE_ITEMS, SALE_ITEMS } from '../model/mockData';
 import { isMswEnabled } from '@/shared/config/runtime';
 import { MY_PROFILE_MOCK } from '@/entities/user/api/memberApi';
 import { MypageProfileCard } from './MypageProfileCard';
 import { MypageSummaryCard } from './MypageSummaryCard';
 import { MypageHistorySection } from './MypageHistorySection';
+import { Button } from '@/shared/ui/button';
 
 const MYPAGE_MSW_TICKET_INFO_ERROR_KEY = '__mypage_msw_ticket_info_error__';
 
@@ -26,8 +26,8 @@ export default function MypagePage() {
    const unsettledAmountQuery = useMyResaleUnsettledAmountData();
 
    const profile = profileQuery.data ?? MY_PROFILE_MOCK;
-   const rawPurchaseItems = ordersQuery.isError ? PURCHASE_ITEMS : (ordersQuery.data ?? []);
-   const saleItems = resaleListQuery.isError ? SALE_ITEMS : (resaleListQuery.data ?? []);
+   const rawPurchaseItems = ordersQuery.data ?? [];
+   const saleItems = resaleListQuery.data ?? [];
    const listedTicketIdSet = new Set(
       saleItems
          .filter((item) => item.saleStatus !== '취소 완료')
@@ -76,17 +76,11 @@ export default function MypagePage() {
    }, []);
 
    const isPageLoading = profileQuery.isLoading || ordersQuery.isLoading || resaleListQuery.isLoading;
-   const fallbackOnSale = saleItems.filter((item) => item.saleStatus === '판매 중').length;
-   const fallbackSoldCount = saleItems.filter((item) => item.saleStatus === '판매 완료').length;
-   const fallbackUnsettledAmount = saleItems
-      .filter((item) => item.saleStatus === '정산 대기')
-      .reduce((total, item) => total + item.salePrice, 0);
+   const historyHasError = ordersQuery.isError || resaleListQuery.isError;
    const totalHeld = purchaseItems.filter((item) => item.paymentStatus === '예매 완료').length;
-   const onSale = fallbackOnSale;
-   const soldCount = fallbackSoldCount;
-   const unsettledAmount = unsettledAmountQuery.isError
-      ? fallbackUnsettledAmount
-      : (unsettledAmountQuery.data?.unsettledAmount ?? 0);
+   const onSale = saleItems.filter((item) => item.saleStatus === '판매 중').length;
+   const soldCount = saleItems.filter((item) => item.saleStatus === '판매 완료').length;
+   const unsettledAmount = unsettledAmountQuery.data?.unsettledAmount ?? 0;
    const isSummaryLoading = !unsettledAmountQuery.isError && unsettledAmountQuery.isLoading;
 
    if (isPageLoading) {
@@ -133,11 +127,29 @@ export default function MypagePage() {
                      soldCount={soldCount}
                      unsettledAmount={unsettledAmount}
                      isLoading={isSummaryLoading}
-                     isError={false}
+                     isError={unsettledAmountQuery.isError}
                      onRetry={() => {
                         void unsettledAmountQuery.refetch();
                      }}
                   />
+                  {historyHasError && (
+                     <div className="rounded-[14px] border border-border bg-surface px-4 py-5">
+                        <p className="text-body-2-regular text-muted-foreground">
+                           구매 또는 판매 내역 조회에 실패했습니다. API 응답을 확인해 주세요.
+                        </p>
+                        <div className="mt-3 flex gap-2">
+                           <Button
+                              variant="tertiary"
+                              onClick={() => {
+                                 void ordersQuery.refetch();
+                                 void resaleListQuery.refetch();
+                              }}
+                           >
+                              다시 시도
+                           </Button>
+                        </div>
+                     </div>
+                  )}
                   <MypageHistorySection
                      purchaseItems={purchaseItems}
                      saleItems={saleItems}

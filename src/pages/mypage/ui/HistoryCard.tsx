@@ -78,6 +78,22 @@ const isPurchaseHistoryItem = (
    _item: PurchaseHistoryItem | SaleHistoryItem,
 ): _item is PurchaseHistoryItem => mode === 'purchase';
 
+const parseGradeName = (seatInfo: string): string => {
+   const tokens = seatInfo.split(' ');
+   const sectionIndex = tokens.findIndex((token) => token.endsWith('구역'));
+   if (sectionIndex > 0) return tokens.slice(0, sectionIndex).join(' ');
+   const rowIndex = tokens.findIndex((token) => /^[A-Z가-힣\d]+열$/.test(token));
+   return rowIndex > 0 ? tokens.slice(0, rowIndex).join(' ') : (tokens[0] ?? '');
+};
+
+const parseSeatDetail = (seatInfo: string): string => {
+   const tokens = seatInfo.split(' ');
+   const sectionIndex = tokens.findIndex((token) => token.endsWith('구역'));
+   if (sectionIndex > 0) return tokens.slice(sectionIndex).join(' ');
+   const rowIndex = tokens.findIndex((token) => /^[A-Z가-힣\d]+열$/.test(token));
+   return rowIndex > 0 ? tokens.slice(rowIndex).join(' ') : tokens.slice(1).join(' ');
+};
+
 export default function HistoryCard(props: HistoryCardProps) {
    const navigate = useNavigate();
    const queryClient = useQueryClient();
@@ -180,13 +196,15 @@ export default function HistoryCard(props: HistoryCardProps) {
                   open={resellOpen}
                   onClose={() => setResellOpen(false)}
                   onCompleteConfirm={props.onResellCompleteConfirm}
-                  item={{
+                     item={{
                      ...purchaseItem,
                      game: {
                         ...purchaseItem.game,
                         quantity: sellableActionTickets.length,
-                        section: sellableActionTickets[0]?.seatInfo.split(' ')[0] ?? purchaseItem.game.section,
-                        seats: sellableActionTickets.map((ticket) => ticket.seatInfo),
+                        section: sellableActionTickets[0]?.seatInfo
+                           ? parseGradeName(sellableActionTickets[0].seatInfo)
+                           : purchaseItem.game.section,
+                        seats: sellableActionTickets.map((ticket) => parseSeatDetail(ticket.seatInfo)),
                      },
                      price: sellableActionTickets.reduce((sum, ticket) => sum + ticket.ticketPrice, 0),
                      ticketIds: sellableActionTickets.map(ticket => ticket.ticketId),
@@ -407,7 +425,7 @@ export default function HistoryCard(props: HistoryCardProps) {
             </div>
 
             <div className="flex flex-col gap-4 px-4 pt-1 pb-3 lg:hidden">
-               <div className="flex flex-col gap-2.5 border border-[#e5e7eb]">
+               <div className="flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">
                      <div className="flex min-w-0 flex-1 items-center gap-1.5">
                         <TicketTypeBadge type={item.type} />
