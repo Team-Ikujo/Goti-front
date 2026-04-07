@@ -957,7 +957,7 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/resales/listings/games/:gameId/count', async ({ params }) => {
+   http.get('/api/v1/resales/games/:gameId/count', async ({ params }) => {
       const gameId = String(params.gameId);
       const gameExists = mockGameSchedules.some((game) => game.gameId === gameId);
 
@@ -981,21 +981,33 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/resales/listings/games/:gameId/section/:sectionId/count', async ({ params }) => {
+   http.get('/api/v1/resales/games/:gameId/status', async ({ params }) => {
       const gameId = String(params.gameId);
-      const sectionId = String(params.sectionId);
+      const matchedGame = mockGameSchedules.find((game) => game.gameId === gameId);
+
+      if (!matchedGame) {
+         return HttpResponse.json(
+            {
+               code: 'NOT_FOUND',
+               message: 'game not found',
+               data: null,
+            },
+            { status: 404 },
+         );
+      }
+
+      let status: 'SCHEDULED' | 'AVAILABLE' | 'UNAVAILABLE' = 'AVAILABLE';
+
+      if (matchedGame.ticketingStatus === 'SCHEDULED') {
+         status = 'SCHEDULED';
+      } else if (matchedGame.ticketingStatus === 'TERMINATED' || matchedGame.gameStatus !== 'SCHEDULED') {
+         status = 'UNAVAILABLE';
+      }
 
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
-         data: {
-            count: mockResaleListings.filter(
-               (listing) =>
-                  listing.gameId === gameId &&
-                  listing.isPurchasable &&
-                  extractSectionId(listing.seatId) === sectionId,
-            ).length,
-         },
+         data: { status },
       });
    }),
 
@@ -1999,7 +2011,7 @@ export const paymentHandlers = [
       return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: listings });
    }),
 
-   http.get('/api/v1/resales/listings/count/listing', async () => {
+   http.get('/api/v1/resales/listings/count', async () => {
       const listings = Array.from(resaleListings.values());
       const listingCount = listings.filter((item) => item.listingStatus === 'LISTING' || item.listingStatus === 'HOLD').length;
       const soldCount = listings.filter((item) => item.listingStatus === 'SETTLED').length;

@@ -138,6 +138,12 @@ export interface ResaleGameListingCountResponse {
    count: number;
 }
 
+export type ResaleGameStatus = 'SCHEDULED' | 'AVAILABLE' | 'UNAVAILABLE';
+
+export interface ResaleGameStatusResponse {
+   status: ResaleGameStatus;
+}
+
 export interface MyResaleListingSummaryResponse {
    listingCount: number;
    soldCount: number;
@@ -150,7 +156,7 @@ export interface ResaleHistoryPointResponse {
 
 export const fetchResaleListingCountByGame = async (gameId: string): Promise<number> => {
    const response = await apiClient.get<ApiEnvelope<ResaleGameListingCountResponse>>(
-      `/api/v1/resales/listings/games/${encodeURIComponent(gameId)}/count`,
+      `/api/v1/resales/games/${encodeURIComponent(gameId)}/count`,
    );
 
    return response.data.data.count;
@@ -170,42 +176,36 @@ export const fetchResaleListingCountsByGames = async (gameIds: string[]): Promis
    return new Map<string, number>(counts);
 };
 
-export const fetchResaleListingCountByGameAndSection = async (gameId: string, sectionId: string): Promise<number> => {
-   const response = await apiClient.get<ApiEnvelope<ResaleGameListingCountResponse>>(
-      `/api/v1/resales/listings/games/${encodeURIComponent(gameId)}/section/${encodeURIComponent(sectionId)}/count`,
-   );
-
-   return response.data.data.count;
-};
-
-export const fetchResaleListingCountsBySections = async (
-   gameId: string,
-   sectionIds: string[],
-): Promise<Map<string, number>> => {
-   const uniqueSectionIds = [...new Set(sectionIds.filter(Boolean))];
-
-   if (!gameId || uniqueSectionIds.length === 0) {
-      return new Map<string, number>();
-   }
-
-   const counts = await Promise.all(
-      uniqueSectionIds.map(async (sectionId) => [
-         sectionId,
-         await fetchResaleListingCountByGameAndSection(gameId, sectionId),
-      ] as const),
-   );
-
-   return new Map<string, number>(counts);
-};
-
 export const fetchResaleListings = async (): Promise<ResaleListingItem[]> => {
    const response = await apiClient.get<ApiEnvelope<ResaleListingItem[]>>('/api/v1/resales/listings');
    return response.data.data;
 };
 
 export const fetchMyResaleListingSummary = async (): Promise<MyResaleListingSummaryResponse> => {
-   const response = await apiClient.get<ApiEnvelope<MyResaleListingSummaryResponse>>('/api/v1/resales/listings/count/listing');
+   const response = await apiClient.get<ApiEnvelope<MyResaleListingSummaryResponse>>('/api/v1/resales/listings/count');
    return response.data.data;
+};
+
+export const fetchResaleGameStatusByGame = async (gameId: string): Promise<ResaleGameStatus> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleGameStatusResponse>>(
+      `/api/v1/resales/games/${encodeURIComponent(gameId)}/status`,
+   );
+
+   return response.data.data.status;
+};
+
+export const fetchResaleGameStatusesByGames = async (gameIds: string[]): Promise<Map<string, ResaleGameStatus>> => {
+   const uniqueGameIds = [...new Set(gameIds.filter(Boolean))];
+
+   if (uniqueGameIds.length === 0) {
+      return new Map<string, ResaleGameStatus>();
+   }
+
+   const statuses = await Promise.all(
+      uniqueGameIds.map(async (gameId) => [gameId, await fetchResaleGameStatusByGame(gameId)] as const),
+   );
+
+   return new Map<string, ResaleGameStatus>(statuses);
 };
 
 export const fetchResaleHistoryGraph = async (
