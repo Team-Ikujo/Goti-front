@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 
-import { fetchOwnedTicketsCount } from '@/pages/books/api/purchaseLimitApi';
 import { MAX_SELECTED_SEATS, getSeatPurchaseLimitExceededMessage } from '@/entities/seat-selection/model/constants';
 
 type CheckBookingPurchaseLimitParams = {
@@ -53,10 +52,10 @@ export function useBookingPurchaseLimit() {
       setIsChecking(true);
 
       try {
-         const ownedTicketCount = await fetchOwnedTicketsCount(gameId);
-
          return buildBookingPurchaseLimitResult({
-            ownedTicketCount,
+            // 최신 문서 기준 공개된 경기별 보유 티켓 수 사전 조회 API가 없어
+            // 클라이언트에서는 선택 매수 상한만 즉시 검증한다.
+            ownedTicketCount: 0,
             selectedSeatCount,
          });
       } finally {
