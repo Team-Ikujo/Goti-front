@@ -104,8 +104,8 @@ export default function HistoryCard(props: HistoryCardProps) {
 
    const { mode, item } = props;
    const mockTicketInfoError = props.mockTicketInfoError ?? false;
-   const isPurchase = mode === 'purchase';
-   const purchaseItem = isPurchase ? (item as PurchaseHistoryItem) : null;
+   const isPurchase = isPurchaseHistoryItem(mode, item);
+   const purchaseItem = isPurchase ? item : null;
    const purchaseOrderId = purchaseItem?.rawOrderId;
    const actionTicketsQuery = useQuery({
       queryKey: ['historyCardOrderTickets', purchaseOrderId, mockTicketInfoError],
@@ -125,24 +125,14 @@ export default function HistoryCard(props: HistoryCardProps) {
    const price = isPurchase ? (item as PurchaseHistoryItem).price : (item as SaleHistoryItem).salePrice;
    const status = isPurchase ? (item as PurchaseHistoryItem).paymentStatus : (item as SaleHistoryItem).saleStatus;
 
-   // 구매 버튼 노출 조건
    const isBooked = purchaseItem?.paymentStatus === '예매 완료' || purchaseItem?.paymentStatus === '부분 처리';
    const showSellBtn = Boolean(purchaseOrderId) && (isBooked || (purchaseItem?.canSell ?? false));
    const showCancelBtn = Boolean(purchaseOrderId) && (isBooked || purchaseItem?.paymentStatus === '입금 대기');
    const actionTickets = actionTicketsQuery.data ?? [];
    const sellableActionTickets = actionTickets.filter((ticket) => ticket.ticketStatus === 'ISSUED');
    const showQrBtn = Boolean(purchaseOrderId) && isBooked && item.deliveryType === '모바일 티켓';
-   // 판매 오픈 여부: 해당월 1일 11:00 이전 → 판매예정, ~13:00 이전 → 리셀예정
-   const now = new Date();
-   const saleOpenTime = getSaleOpenTime(item.game.datetime);
-   const resellOpenTime = getResellOpenTime(item.game.datetime);
-   const isSaleNotOpen = showSellBtn && now < saleOpenTime;
-   const isResellNotOpen = showSellBtn && !isSaleNotOpen && now < resellOpenTime;
-   // 취소/환불·관람완료는 버튼 없이 '-' 표시
    const showDash =
       isPurchase && (purchaseItem?.paymentStatus === '취소/환불' || purchaseItem?.paymentStatus === '관람 완료');
-
-   // 판매 버튼 노출 조건 — '판매 중'에만 취소 버튼, 그 외 '-' 표시
    const canCancelSale = !isPurchase && (item as SaleHistoryItem).canCancel;
    const showSaleDash = !isPurchase && !canCancelSale;
    const { mutate: cancelSale, isPending: isCancelingSale } = useMutation({

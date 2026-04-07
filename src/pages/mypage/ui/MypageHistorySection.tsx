@@ -53,7 +53,6 @@ export function MypageHistorySection({
    const [appliedStartDate, setAppliedStartDate] = useState('');
    const [appliedEndDate, setAppliedEndDate] = useState('');
    const [appliedPurchaseType, setAppliedPurchaseType] = useState<PurchaseTypeFilter>('전체 내역');
-   const [appliedSaleType, setAppliedSaleType] = useState<SaleTypeFilter>('리셀');
    const [currentPage, setCurrentPage] = useState(1);
    const periodDropdownRef = useRef<HTMLDivElement>(null);
    const typeDropdownRef = useRef<HTMLDivElement>(null);
@@ -97,7 +96,6 @@ export function MypageHistorySection({
       setAppliedStartDate(pendingStartDate);
       setAppliedEndDate(pendingEndDate);
       setAppliedPurchaseType(pendingPurchaseType);
-      setAppliedSaleType(pendingSaleType);
       setAppliedSearchQuery(trimmed);
       setCurrentPage(1);
       return true;
@@ -278,38 +276,7 @@ export function MypageHistorySection({
                   )}
                </div>
 
-               {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-1">
-                     <Button
-                        variant="none"
-                        onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                        className="size-6 p-0 flex items-center justify-center border border-border rounded-xs text-muted-foreground hover:bg-[#f1f2f4] transition-colors [&_svg]:size-4"
-                     >
-                        <ChevronLeft size={16} />
-                     </Button>
-                     {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-                        <Button
-                           key={page}
-                           variant="none"
-                           onClick={() => setCurrentPage(page)}
-                           className={`size-6 p-0 flex items-center justify-center text-body-2-regular rounded-xs transition-all ${
-                              safePage === page
-                                 ? 'bg-primary text-white'
-                                 : 'border border-border text-muted-foreground hover:bg-[#f1f2f4]'
-                           }`}
-                        >
-                           {page}
-                        </Button>
-                     ))}
-                     <Button
-                        variant="none"
-                        onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                        className="size-6 p-0 flex items-center justify-center border border-border rounded-xs text-muted-foreground hover:bg-[#f1f2f4] transition-colors [&_svg]:size-4"
-                     >
-                        <ChevronRight size={16} />
-                     </Button>
-                  </div>
-               )}
+               <HistoryPagination totalPages={totalPages} currentPage={safePage} onChange={setCurrentPage} />
             </div>
          </div>
 

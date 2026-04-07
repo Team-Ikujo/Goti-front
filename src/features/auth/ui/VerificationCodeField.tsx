@@ -46,7 +46,7 @@ const VerificationCodeField = ({
             {submitted && errorMessage && <p className="text-xs text-destructive antialiased">{errorMessage}</p>}
          </div>
          {countdown <= 0 && (
-            <button type="button" onClick={onResend} className="underline text-(--text-tertiary) text-right w-full mt-1">
+            <button type="button" onClick={onResend} className="mt-1 w-full text-right text-(--text-tertiary) underline">
                인증번호 재전송
             </button>
          )}

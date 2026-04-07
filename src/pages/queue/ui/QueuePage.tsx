@@ -4,8 +4,6 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { createBookingFlowSearch, getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 
-type QueueAnimationData = Record<string, unknown>;
-
 const DEFAULT_RANK = 9960;
 const DEFAULT_TICK_MS = 1200;
 const DEFAULT_STEP = 37;
@@ -27,7 +25,7 @@ const parsePositiveNumber = (value: string | null, fallback: number) => {
 const formatRank = (value: number) => new Intl.NumberFormat('ko-KR').format(Math.round(value));
 
 const QueueIllustration = () => {
-   const [animationData, setAnimationData] = useState<QueueAnimationData | null>(null);
+   const [animationData, setAnimationData] = useState<Record<string, unknown> | null>(null);
 
    useEffect(() => {
       let isMounted = true;
@@ -39,7 +37,7 @@ const QueueIllustration = () => {
             throw new Error('queueAnimation.json을 불러오지 못했습니다.');
          }
 
-         const data = (await response.json()) as QueueAnimationData;
+         const data = (await response.json()) as Record<string, unknown>;
 
          if (isMounted) {
             setAnimationData(data);

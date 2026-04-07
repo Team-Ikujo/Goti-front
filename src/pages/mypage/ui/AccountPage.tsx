@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { ChevronLeft } from 'lucide-react';
 import { createMemberAccount, createMemberAddress, withdrawMember, type MemberAccount, type MemberAddress } from '@/entities/user/api/memberApi';
@@ -15,6 +15,13 @@ import { AccountSocialConnectionsCard } from './AccountSocialConnectionsCard';
 import { AccountBankFormCard, type AccountAgreementItem } from './AccountBankFormCard';
 import { AccountAddressFormCard } from './AccountAddressFormCard';
 import { AccountManagementCard } from './AccountManagementCard';
+import {
+   AccountFormCard,
+   AccountInfoCard,
+   AccountManagementCard,
+   AddressFormCard,
+   SocialConnectionsCard,
+} from './AccountPageSections';
 import {
    useMyProfileData,
    useMyOrdersData,
@@ -257,8 +264,6 @@ export default function AccountPage() {
    const clearAuth = useAuthStore(state => state.clearAuth);
    const isPageLoading =
       profileQuery.isLoading || ordersQuery.isLoading || resaleListQuery.isLoading || unsettledAmountQuery.isLoading;
-   const isPageError =
-      profileQuery.isError || ordersQuery.isError || resaleListQuery.isError || unsettledAmountQuery.isError;
 
    const { mutate: saveAccount, isPending: isSavingAccount } = useMutation({
       mutationFn: () =>

@@ -14,7 +14,7 @@ import {
 } from '@/entities/resale/api/resaleApi';
 import { fetchResaleUnsettledAmount, type ResaleUnsettledAmountResponse } from '@/entities/payment/api/paymentApi';
 import { teams } from '@/entities/team/model/teams';
-import type { PurchaseHistoryItem, SaleHistoryItem, PurchaseStatus, SaleStatus } from '../ui/HistoryCard';
+import type { PurchaseHistoryItem, SaleHistoryItem, PurchaseStatus, SaleStatus } from './historyCard';
 import type { TicketType } from '../ui/TicketTypeBadge';
 import { formatTicketNumber } from './ticketNumber';
 

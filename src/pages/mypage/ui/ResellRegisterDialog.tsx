@@ -1,17 +1,16 @@
-// src/pages/mypage/ui/ResellRegisterDialog.tsx
-
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
-import { Button } from '@/shared/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
-import type { PurchaseHistoryItem } from './HistoryCard';
-import ResellRegisterCompleteDialog from './ResellRegisterCompleteDialog';
-import ResellPriceChart from '@/pages/books/ui/components/ResellPriceChart';
-import { formatPrice } from '@/pages/books/model/zoneData';
+import { X } from 'lucide-react';
+
 import { createResaleListings } from '@/entities/resale/api/resaleApi';
 import { useResellRegisterInsights } from '@/features/resale/model/useResellRegisterInsights';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
+import { Button } from '@/shared/ui/button';
+
+import type { PurchaseHistoryItem } from '../model/historyCard';
+import ResellRegisterCompleteDialog from './ResellRegisterCompleteDialog';
+import { ResellInsightsSection, ResellNoticeSection, ResellSeatSelector } from './ResellRegisterSections';
 
 interface Props {
    open: boolean;
@@ -86,7 +85,6 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
    const [bulkToggle, setBulkToggle] = useState(false);
    const [completeOpen, setCompleteOpen] = useState(false);
    const [createdSaleId, setCreatedSaleId] = useState<string | null>(null);
-
    const [isSubmitting, setIsSubmitting] = useState(false);
    const queryClient = useQueryClient();
    const seatPrices = item.seatPrices ?? [];
@@ -105,31 +103,21 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
       unitPrice,
    });
 
-   const getResaleRegisterAlertMessage = (error: unknown) => {
-      const message = getErrorMessage(error, '판매 등록에 실패했습니다. 다시 시도해주세요.');
+   const insights = resaleInsightsQuery.data?.insights ?? null;
+   const checkedCount = checkedSeats.size;
 
-      switch (message) {
-         case '이미 등록된 티켓입니다':
-         case '판매가는 35000원 ~ 65000원 이내여야 합니다.':
-            return message;
-         default:
-            return '판매 등록에 실패했습니다. 다시 시도해주세요.';
-      }
-   };
-
-   // 열릴 때마다 상태 초기화
    useEffect(() => {
-      if (open) {
-         setCheckedSeats(new Set());
-         setPrices({});
-         setBulkPrice('');
-         setBulkToggle(false);
-         setCompleteOpen(false);
-         setCreatedSaleId(null);
+      if (!open) {
+         return;
       }
-   }, [open]);
 
-   if (!open) return null;
+      setCheckedSeats(new Set());
+      setPrices({});
+      setBulkPrice('');
+      setBulkToggle(false);
+      setCompleteOpen(false);
+      setCreatedSaleId(null);
+   }, [open]);
 
    const checkedCount = checkedSeats.size;
    const showBulkToggle = checkedCount >= 2;
@@ -138,15 +126,20 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
    const toggleSeat = (idx: number) => {
       setCheckedSeats(prev => {
          const next = new Set(prev);
-         if (next.has(idx)) next.delete(idx);
-         else next.add(idx);
+         if (next.has(idx)) {
+            next.delete(idx);
+         } else {
+            next.add(idx);
+         }
          return next;
       });
    };
 
    const handleBulkToggle = () => {
       setBulkToggle(prev => {
-         if (prev) setBulkPrice('');
+         if (prev) {
+            setBulkPrice('');
+         }
          return !prev;
       });
    };
@@ -158,15 +151,13 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
          return;
       }
 
-      // 좌석별 ticketId 매핑 (ticketIds 배열 우선, 없으면 item.id로 fallback)
       const ticketIds = item.ticketIds ?? [item.id];
-
       const requests = indices.map(idx => ({
          ticketId: ticketIds[idx] ?? item.id,
          listingPrice: bulkToggle ? Number(bulkPrice) : Number(prices[idx]),
       }));
 
-      if (requests.some(r => !r.listingPrice || isNaN(r.listingPrice))) {
+      if (requests.some(({ listingPrice }) => !listingPrice || Number.isNaN(listingPrice))) {
          alert('판매 가격을 올바르게 입력해주세요.');
          return;
       }
@@ -174,17 +165,25 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
       setIsSubmitting(true);
       try {
          const response = await createResaleListings({ listings: requests });
-         const firstCreatedListingId = response.listings[0]?.listingId ?? null;
+         setCreatedSaleId(response.listings[0]?.listingId ?? null);
 
-         setCreatedSaleId(firstCreatedListingId);
          await Promise.all([
             queryClient.invalidateQueries({ queryKey: ['myOrders'] }),
             queryClient.invalidateQueries({ queryKey: ['myResales'] }),
             queryClient.invalidateQueries({ queryKey: ['myResaleSummary'] }),
          ]);
+
          setCompleteOpen(true);
       } catch (error) {
-         alert(getResaleRegisterAlertMessage(error));
+         const message = getErrorMessage(error, '판매 등록에 실패했습니다. 다시 시도해주세요.');
+         switch (message) {
+            case '이미 등록된 티켓입니다':
+            case '판매가는 35000원 ~ 65000원 이내여야 합니다.':
+               alert(message);
+               break;
+            default:
+               alert('판매 등록에 실패했습니다. 다시 시도해주세요.');
+         }
       } finally {
          setIsSubmitting(false);
       }
@@ -192,7 +191,6 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
 
    return createPortal(
       <>
-         {/* 판매 등록 완료 팝업 */}
          <ResellRegisterCompleteDialog
             open={completeOpen}
             onClose={() => {
@@ -218,7 +216,6 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
                onClick={e => e.stopPropagation()}
             >
-               {/* 헤더 */}
                <div className="relative flex items-center gap-2 p-5 shrink-0">
                   <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">판매 등록</p>
                   <button
@@ -230,9 +227,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                   </button>
                </div>
 
-               {/* 스크롤 콘텐츠 */}
                <div className="flex-1 overflow-y-auto pb-5 px-5 flex flex-col gap-8 min-h-0">
-                  {/* 경기 정보 */}
                   <div className="bg-[#f7f8fa] rounded-lg px-5 py-4 flex flex-col gap-1">
                      <p className="text-[18px] font-bold text-[#2c3e50] text-center leading-[1.6]">{item.game.teams}</p>
                      <p className="text-[14px] text-[#666] text-center leading-[1.6]">
@@ -415,7 +410,6 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                   </div>
                </div>
 
-               {/* 하단 고정 버튼 */}
                <div className="shrink-0 bg-background px-5 pt-5 pb-5 flex gap-2">
                   <Button
                      variant="none"

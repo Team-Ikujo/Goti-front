@@ -8,7 +8,6 @@ import {
    fetchSeatStatuses,
    matchesSectionExpression,
    resolveSeatSectionByCode,
-   summarizeSeatStatusSnapshot,
    type SeatResponse,
    type SeatStatusResponse,
 } from '@/pages/books/api/bookingApi';

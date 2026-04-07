@@ -9,7 +9,6 @@ import LoginTimeoutDialog from "./LoginTimeoutDialog";
 import LoginStatusDialog from "./LoginStatusDialog";
 import {
   useAuthStore,
-  type LoginAlert,
   type SocialProvider,
 } from "@/entities/auth/model/authStore";
 

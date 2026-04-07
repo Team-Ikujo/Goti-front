@@ -3,25 +3,33 @@ import {
    formatIdentityBirthDate,
    type IdentityVerificationFormValues,
 } from '@/features/auth/model/identityVerificationForm';
-import { useSendSignupSmsCode, useSocialSignup } from '@/features/auth/model/useSubmitAuthCode';
+import {
+   useSendProfileEditSmsCode,
+   useSubmitProfileIdentityEdit,
+} from '@/features/auth/model/useProfileIdentityEdit';
 import IdentityVerificationForm from '@/features/auth/ui/IdentityVerificationForm';
 import { useAuthStore } from '@/entities/auth/model/authStore';
-import LoginRetryDialog from '@/pages/signup/ui/LoginRetryDialog';
 import { ApiError } from '@/shared/api/client';
 import { Snackbar } from '@/shared/ui/snackbar';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-const SignUpPage = () => {
+type ProfileEditLocationState = {
+   name?: string;
+   phone?: string;
+};
+
+const ProfileIdentityEditPage = () => {
    const navigate = useNavigate();
-   const socialSignupMutation = useSocialSignup();
-   const sendSignupSmsCodeMutation = useSendSignupSmsCode();
+   const location = useLocation();
+   const queryClient = useQueryClient();
    const hasResolvedSession = useAuthStore(state => state.hasResolvedSession);
    const accessToken = useAuthStore(state => state.accessToken);
-   const socialVerifyToken = useAuthStore(state => state.socialVerifyToken);
-   const setAuthTokens = useAuthStore(state => state.setAuthTokens);
+   const sendProfileEditSmsMutation = useSendProfileEditSmsCode();
+   const submitProfileEditMutation = useSubmitProfileIdentityEdit();
+   const profileEditState = (location.state as ProfileEditLocationState | null) ?? null;
    const [showAlert, setShowAlert] = useState(false);
-   const [showLoginRetryDialog, setShowLoginRetryDialog] = useState(false);
    const [submitError, setSubmitError] = useState<string | null>(null);
 
    useEffect(() => {
@@ -29,15 +37,10 @@ const SignUpPage = () => {
          return;
       }
 
-      if (accessToken) {
-         navigate('/', { replace: true });
-         return;
-      }
-
-      if (!socialVerifyToken) {
+      if (!accessToken) {
          navigate('/auth/login', { replace: true });
       }
-   }, [accessToken, hasResolvedSession, navigate, socialVerifyToken]);
+   }, [accessToken, hasResolvedSession, navigate]);
 
    useEffect(() => {
       if (!showAlert) return;
@@ -57,19 +60,11 @@ const SignUpPage = () => {
       }
    };
 
-   const handleSendCode = async (values: IdentityVerificationFormValues) => {
+   const handleSendCode = async () => {
       setSubmitError(null);
 
-      if (!socialVerifyToken) {
-         setShowLoginRetryDialog(true);
-         throw new Error('회원가입 세션이 만료되었습니다.');
-      }
-
       try {
-         await sendSignupSmsCodeMutation.mutateAsync({
-            socialVerifyToken,
-            mobile: values.phone.trim(),
-         });
+         await sendProfileEditSmsMutation.mutateAsync();
          setShowAlert(true);
       } catch (error) {
          if (error instanceof ApiError) {
@@ -88,26 +83,15 @@ const SignUpPage = () => {
    const handleSubmit = async (values: IdentityVerificationFormValues) => {
       setSubmitError(null);
 
-      if (!socialVerifyToken) {
-         setShowLoginRetryDialog(true);
-         return;
-      }
-
       try {
-         const response = await socialSignupMutation.mutateAsync({
-            socialVerifyToken,
+         await submitProfileEditMutation.mutateAsync({
             name: values.name,
             gender: mapGender(values.gender),
             mobile: values.phone,
             birthDate: formatIdentityBirthDate(values.birthDate),
-            authCode: values.verificationCode,
          });
-
-         setAuthTokens({
-            accessToken: response.accessToken,
-            socialVerifyToken: null,
-         });
-         navigate('/', { replace: true });
+         await queryClient.invalidateQueries({ queryKey: ['myProfile'] });
+         navigate('/mypage/account', { replace: true });
       } catch (error) {
          if (error instanceof ApiError) {
             setSubmitError(error.message);
@@ -117,7 +101,7 @@ const SignUpPage = () => {
             setSubmitError(error.message);
             return;
          }
-         setSubmitError('회원가입 중 오류가 발생했습니다. 다시 시도해 주세요.');
+         setSubmitError('개인정보 수정 중 오류가 발생했습니다. 다시 시도해 주세요.');
       }
    };
 
@@ -130,9 +114,15 @@ const SignUpPage = () => {
             </div>
 
             <IdentityVerificationForm
-               isSendingCode={sendSignupSmsCodeMutation.isPending}
-               isSubmitting={socialSignupMutation.isPending}
-               onSendCode={handleSendCode}
+               defaultValues={{
+                  name: profileEditState?.name ?? '',
+                  phone: profileEditState?.phone ?? '',
+               }}
+               isSendingCode={sendProfileEditSmsMutation.isPending}
+               isSubmitting={submitProfileEditMutation.isPending}
+               onSendCode={async () => {
+                  await handleSendCode();
+               }}
                onSubmit={handleSubmit}
             />
 
@@ -140,17 +130,8 @@ const SignUpPage = () => {
          </section>
 
          <Snackbar open={showAlert} message="인증번호가 전송되었습니다." onClose={() => setShowAlert(false)} />
-
-         <LoginRetryDialog
-            open={showLoginRetryDialog}
-            onOpenChange={setShowLoginRetryDialog}
-            onConfirm={() => {
-               setShowLoginRetryDialog(false);
-               navigate('/auth/login', { replace: true });
-            }}
-         />
       </div>
    );
 };
 
-export default SignUpPage;
+export default ProfileIdentityEditPage;
