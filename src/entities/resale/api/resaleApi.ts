@@ -52,10 +52,7 @@ const getResaleHoldReleaseUrl = (holdId: string) => {
    return new URL(path, configuredApiBaseUrl).toString();
 };
 
-export const fetchMyResaleListings = async (): Promise<ResaleListingItem[]> => {
-   const response = await apiClient.get<ApiEnvelope<ResaleListingItem[]>>('/api/v1/resales/listings');
-   return response.data.data;
-};
+export const fetchMyResaleListings = async (): Promise<ResaleListingItem[]> => fetchResaleListings();
 
 export const holdResaleListing = async (body: ResaleHoldRequest): Promise<ResaleHoldResponse> => {
    const response = await apiClient.post<ApiEnvelope<ResaleHoldResponse>>('/api/v1/resales/holds', body);
@@ -105,17 +102,19 @@ export interface CreateResaleListingsResponse {
    listings: ResaleListingItem[];
 }
 
+type CreateResaleListingsSinglePayload = Partial<ResaleListingItem> & {
+   listingId: string;
+   ticketId: string;
+   listingPrice: number;
+   listingStatus?: ResaleListingItem['listingStatus'];
+   listedAt?: string;
+   isCancelable?: boolean;
+   isPurchasable?: boolean;
+};
+
 type CreateResaleListingsApiPayload =
    | CreateResaleListingsResponse
-   | (Partial<ResaleListingItem> & {
-        listingId: string;
-        ticketId: string;
-        listingPrice: number;
-        listingStatus?: ResaleListingItem['listingStatus'];
-        listedAt?: string;
-        isCancelable?: boolean;
-        isPurchasable?: boolean;
-     });
+   | CreateResaleListingsSinglePayload;
 
 export const createResaleListings = async (body: CreateResaleListingsRequest): Promise<CreateResaleListingsResponse> => {
    const response = await apiClient.post<ApiEnvelope<CreateResaleListingsApiPayload>>('/api/v1/resales/listings', body);
@@ -128,31 +127,33 @@ export const createResaleListings = async (body: CreateResaleListingsRequest): P
       };
    }
 
+   const singlePayload = payload as CreateResaleListingsSinglePayload;
+
    return {
       orders: [],
       listings: [
          {
-            listingId: payload.listingId,
-            ticketId: payload.ticketId,
-            sellerId: payload.sellerId ?? '',
-            gameId: payload.gameId ?? '',
-            seatId: payload.seatId ?? '',
-            gradeId: payload.gradeId ?? '',
-            seatInfo: payload.seatInfo ?? '',
-            dailyBasePrice: payload.dailyBasePrice ?? payload.listingPrice,
-            listingPrice: payload.listingPrice,
-            listingStatus: payload.listingStatus ?? 'LISTING',
-            availableStatus: payload.availableStatus ?? 'ENABLED',
-            lastTransactionPrice: payload.lastTransactionPrice,
-            listedAt: payload.listedAt ?? new Date().toISOString(),
-            soldAt: payload.soldAt,
-            canceledAt: payload.canceledAt,
-            isCancelable: payload.isCancelable ?? true,
-            maxPrice: payload.maxPrice ?? payload.listingPrice,
-            gameTitle: payload.gameTitle,
-            gameDate: payload.gameDate,
-            stadiumName: payload.stadiumName,
-            isPurchasable: payload.isPurchasable ?? true,
+            listingId: singlePayload.listingId,
+            ticketId: singlePayload.ticketId,
+            sellerId: singlePayload.sellerId ?? '',
+            gameId: singlePayload.gameId ?? '',
+            seatId: singlePayload.seatId ?? '',
+            gradeId: singlePayload.gradeId ?? '',
+            seatInfo: singlePayload.seatInfo ?? '',
+            dailyBasePrice: singlePayload.dailyBasePrice ?? singlePayload.listingPrice,
+            listingPrice: singlePayload.listingPrice,
+            listingStatus: singlePayload.listingStatus ?? 'LISTING',
+            availableStatus: singlePayload.availableStatus ?? 'ENABLED',
+            lastTransactionPrice: singlePayload.lastTransactionPrice,
+            listedAt: singlePayload.listedAt ?? new Date().toISOString(),
+            soldAt: singlePayload.soldAt,
+            canceledAt: singlePayload.canceledAt,
+            isCancelable: singlePayload.isCancelable ?? true,
+            maxPrice: singlePayload.maxPrice ?? singlePayload.listingPrice,
+            gameTitle: singlePayload.gameTitle,
+            gameDate: singlePayload.gameDate,
+            stadiumName: singlePayload.stadiumName,
+            isPurchasable: singlePayload.isPurchasable ?? true,
          },
       ],
    };
@@ -254,11 +255,20 @@ export const fetchResaleListingCountsByGrades = async (
    return new Map<string, number>(counts);
 };
 export const fetchResaleListings = async (): Promise<ResaleListingItem[]> => {
-   const response = await apiClient.get<ApiEnvelope<ResaleListingItem[]>>('/api/v1/resales/listings');
-   return response.data.data;
+   const resaleOrders = await fetchMyResaleListingOrders();
+
+   if (resaleOrders.list.length === 0) {
+      return [];
+   }
+
+   const listingGroups = await Promise.all(
+      resaleOrders.list.map((order) => fetchResaleListingOrderDetails(order.orderId)),
+   );
+
+   return listingGroups.flat();
 };
 
-export const fetchMyResaleListingSummary = async (userId?: string): Promise<MyResaleListingSummaryResponse> => {
+export const fetchMyResaleListingSummary = async (_userId?: string): Promise<MyResaleListingSummaryResponse> => {
    const response = await apiClient.get<ApiEnvelope<MyResaleListingSummaryResponse>>('/api/v1/resales/listings/count');
 
    return response.data.data;
@@ -339,14 +349,6 @@ export const fetchResaleLedgerByOrderId = async (orderId: string): Promise<Resal
 
    return response.data.data;
 };
-
-// ─── 리셀 게임 상태 ────────────────────────────────────────────────
-
-export type ResaleGameStatus = 'SCHEDULED' | 'AVAILABLE' | 'UNAVAILABLE';
-
-export interface ResaleGameStatusResponse {
-   status: ResaleGameStatus;
-}
 
 export const fetchResaleGameStatus = async (gameId: string): Promise<ResaleGameStatusResponse> => {
    const response = await apiClient.get<ApiEnvelope<ResaleGameStatusResponse>>(

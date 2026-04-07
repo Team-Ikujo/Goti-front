@@ -1,6 +1,6 @@
 // src/pages/mypage/ui/PurchaseDetailPage.tsx
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
@@ -20,7 +20,6 @@ import type { PurchaseDetailViewModel, PurchaseSeatItem } from '../model/purchas
 import {
    PURCHASE_BADGE,
    mapStatusLabel,
-   parseDateValue,
    formatDateTime,
    parseGradeName,
    getFallbackCancelableUntil,

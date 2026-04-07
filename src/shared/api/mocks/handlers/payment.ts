@@ -740,6 +740,27 @@ const buildPaymentMethodDisplay = (paymentMethod: string): string => {
    }
 };
 
+const MYPAGE_MOCK_PROFILE_STORAGE_KEY = 'mypage-mock-profile';
+const DEFAULT_MOCK_ORDERER_NAME = '테스트 유저';
+
+const getMockOrdererName = () => {
+   if (typeof window === 'undefined') {
+      return DEFAULT_MOCK_ORDERER_NAME;
+   }
+
+   try {
+      const storedValue = window.localStorage.getItem(MYPAGE_MOCK_PROFILE_STORAGE_KEY);
+      if (!storedValue) {
+         return DEFAULT_MOCK_ORDERER_NAME;
+      }
+
+      const parsed = JSON.parse(storedValue) as { name?: string };
+      return parsed.name?.trim() || DEFAULT_MOCK_ORDERER_NAME;
+   } catch {
+      return DEFAULT_MOCK_ORDERER_NAME;
+   }
+};
+
 const isTicketPaymentMethod = (paymentMethod: unknown) => {
    return (
       paymentMethod === 'CARD' ||
@@ -769,6 +790,7 @@ const ensureMockPurchaseHistorySeed = () => {
    const seatInfos = seedSeatIds.map((seatId) => buildSeatInfoStr(seatId));
    const ticketPrices = seedSeatIds.map((seatId) => resolveSeatPrice(seedGame.homeTeamId, seatId, seedGame.startAt));
    const totalAmount = ticketPrices.reduce((sum, price) => sum + price + serviceFee, 0);
+   const ordererName = getMockOrdererName();
 
    ticketOrders.set(seedOrderId, {
       orderId: seedOrderId,
@@ -787,7 +809,17 @@ const ensureMockPurchaseHistorySeed = () => {
       seatGradeName: resolveSeatGradeName(seedSeatIds[0]) ?? '좌석 정보',
       ticketIds: seedTicketIds,
       seatInfos,
-      ordererName: '홍길동',
+      ordererName,
+   });
+
+    ticketPayments.set(`mock-payment-${seedOrderId}`, {
+      paymentId: `mock-payment-${seedOrderId}`,
+      orderId: seedOrderId,
+      paymentMethod: 'CARD',
+      paymentAmount: totalAmount,
+      pgTid: `pg-${seedOrderId}`,
+      paymentStatus: 'SUCCESS',
+      paidAt: orderedAt,
    });
 
    seedTicketIds.forEach((ticketId, index) => {
@@ -812,7 +844,7 @@ const ensureMockPurchaseHistorySeed = () => {
          issuedAt: orderedAt,
          orderedAt,
          cancelableUntil: new Date(new Date(seedGame.startAt.replace(' ', 'T')).getTime() - 4 * 60 * 60 * 1000).toISOString(),
-         ordererName: '홍길동',
+         ordererName,
       });
    });
 };

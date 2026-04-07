@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import HistoryCard, { type PurchaseHistoryItem, type SaleHistoryItem } from './HistoryCard';
+import HistoryCard from './HistoryCard';
 import { Button } from '@/shared/ui/button';
 import { MypageHistoryFilters } from './MypageHistoryFilters';
+import type { PurchaseHistoryItem, SaleHistoryItem } from '../model/historyCard';
 import {
    calcPeriodDates,
    ITEMS_PER_PAGE,
@@ -32,7 +33,7 @@ export function MypageHistorySection({
    mockTicketInfoError = false,
 }: MypageHistorySectionProps) {
    const dataMinDate = useMemo(() => {
-      const dates = [...purchaseItems, ...saleItems].map((item) => toISODate(item.orderDate)).sort();
+      const dates = [...purchaseItems, ...saleItems].map(item => toISODate(item.orderDate)).sort();
       return dates[0] || toInputDate(new Date(2025, 0, 1));
    }, [purchaseItems, saleItems]);
 
@@ -124,7 +125,7 @@ export function MypageHistorySection({
 
    const filteredPurchaseItems = useMemo(
       () =>
-         purchaseItems.filter((item) => {
+         purchaseItems.filter(item => {
             if (purchaseStatus !== '전체' && item.paymentStatus !== purchaseStatus) return false;
             if (appliedPurchaseType !== '전체 내역') {
                const target = appliedPurchaseType === '예매' ? '티켓' : '리셀';
@@ -145,7 +146,7 @@ export function MypageHistorySection({
 
    const filteredSaleItems = useMemo(
       () =>
-         saleItems.filter((item) => {
+         saleItems.filter(item => {
             if (saleStatus !== '전체' && item.saleStatus !== saleStatus) return false;
             if (item.type !== '리셀') return false;
             if (appliedSearchQuery) {
@@ -173,7 +174,7 @@ export function MypageHistorySection({
 
             <div className="flex flex-col gap-5">
                <div className="bg-fill-disabled rounded-[14px] p-1 flex">
-                  {(['purchase', 'sale'] as const).map((tab) => (
+                  {(['purchase', 'sale'] as const).map(tab => (
                      <Button
                         key={tab}
                         variant="none"
@@ -203,25 +204,25 @@ export function MypageHistorySection({
                   mobilePeriodDropdownRef={mobilePeriodDropdownRef}
                   mobileTypeDropdownRef={mobileTypeDropdownRef}
                   onTogglePeriodDropdown={() => {
-                     setShowPeriodDropdown((value) => !value);
+                     setShowPeriodDropdown(value => !value);
                      setShowTypeDropdown(false);
                   }}
                   onToggleTypeDropdown={() => {
-                     setShowTypeDropdown((value) => !value);
+                     setShowTypeDropdown(value => !value);
                      setShowPeriodDropdown(false);
                   }}
                   onChangePeriod={handlePeriodChange}
                   onChangeStartDate={setPendingStartDate}
                   onChangeEndDate={setPendingEndDate}
-                  onChangePurchaseType={(value) => {
+                  onChangePurchaseType={value => {
                      setPendingPurchaseType(value);
                      setShowTypeDropdown(false);
                   }}
-                  onChangeSaleType={(value) => {
+                  onChangeSaleType={value => {
                      setPendingSaleType(value);
                      setShowTypeDropdown(false);
                   }}
-                  onChangeSearchQuery={(value) => {
+                  onChangeSearchQuery={value => {
                      setSearchQuery(value);
                      setSearchError('');
                   }}
@@ -239,7 +240,7 @@ export function MypageHistorySection({
                   {(activeTab === 'purchase'
                      ? PURCHASE_STATUS_CHIPS
                      : (SALE_STATUS_CHIPS as (PurchaseStatusFilter | SaleStatusFilter)[])
-                  ).map((chip) => {
+                  ).map(chip => {
                      const isActive = activeTab === 'purchase' ? chip === purchaseStatus : chip === saleStatus;
                      return (
                         <Button
@@ -251,7 +252,9 @@ export function MypageHistorySection({
                               setCurrentPage(1);
                            }}
                            className={`shrink-0 px-4 py-2 rounded-full text-body-2-bold transition-all ${
-                              isActive ? 'bg-foreground text-white' : 'bg-white border border-border text-disabled-foreground'
+                              isActive
+                                 ? 'bg-foreground text-white'
+                                 : 'bg-white border border-border text-disabled-foreground'
                            }`}
                         >
                            {chip}
@@ -263,11 +266,18 @@ export function MypageHistorySection({
                <div className="flex flex-col gap-5">
                   {pageItems.length > 0 ? (
                      activeTab === 'purchase' ? (
-                        (pageItems as PurchaseHistoryItem[]).map((item) => (
-                           <HistoryCard key={item.id} mode="purchase" item={item} mockTicketInfoError={mockTicketInfoError} />
+                        (pageItems as PurchaseHistoryItem[]).map(item => (
+                           <HistoryCard
+                              key={item.id}
+                              mode="purchase"
+                              item={item}
+                              mockTicketInfoError={mockTicketInfoError}
+                           />
                         ))
                      ) : (
-                        (pageItems as SaleHistoryItem[]).map((item) => <HistoryCard key={item.id} mode="sale" item={item} />)
+                        (pageItems as SaleHistoryItem[]).map(item => (
+                           <HistoryCard key={item.id} mode="sale" item={item} />
+                        ))
                      )
                   ) : (
                      <p className="text-center text-(--text-tertiary) text-body-2-regular h-full">
@@ -279,7 +289,46 @@ export function MypageHistorySection({
                <HistoryPagination totalPages={totalPages} currentPage={safePage} onChange={setCurrentPage} />
             </div>
          </div>
-
       </>
+   );
+}
+
+interface HistoryPaginationProps {
+   totalPages: number;
+   currentPage: number;
+   onChange: (page: number) => void;
+}
+
+function HistoryPagination({ totalPages, currentPage, onChange }: HistoryPaginationProps) {
+   if (totalPages <= 1) {
+      return null;
+   }
+
+   return (
+      <div className="flex items-center justify-center gap-2">
+         <Button
+            variant="none"
+            size="sm"
+            className="size-8 rounded-full border border-border text-muted-foreground disabled:opacity-40"
+            onClick={() => onChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            aria-label="이전 페이지"
+         >
+            <ChevronLeft size={16} />
+         </Button>
+         <span className="min-w-16 text-center text-body-2-medium text-foreground">
+            {currentPage} / {totalPages}
+         </span>
+         <Button
+            variant="none"
+            size="sm"
+            className="size-8 rounded-full border border-border text-muted-foreground disabled:opacity-40"
+            onClick={() => onChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            aria-label="다음 페이지"
+         >
+            <ChevronRight size={16} />
+         </Button>
+      </div>
    );
 }

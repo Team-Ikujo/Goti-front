@@ -14,7 +14,7 @@ interface AccountAddressFormCardProps {
 }
 
 export function AccountAddressFormCard({
-   savedAddress,
+   savedAddress: _savedAddress,
    zipCode,
    address,
    addressDetail,

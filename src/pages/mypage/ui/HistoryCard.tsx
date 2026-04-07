@@ -73,24 +73,10 @@ type HistoryCardProps = ({ mode: 'purchase'; item: PurchaseHistoryItem } | { mod
    mockTicketInfoError?: boolean;
 };
 
-/** 경기 일자 기준으로 판매 오픈 시각 계산: 해당월 1일 11:00 */
-const getSaleOpenTime = (datetime: string): Date => {
-   const parts = datetime.split('.');
-   const year = parts[0];
-   const month = parts[1];
-   return new Date(`${year}-${month}-01T11:00:00`);
-};
-
-/** 리셀 오픈 시각: 판매 오픈 + 2시간 */
-const getResellOpenTime = (datetime: string): Date => {
-   const t = getSaleOpenTime(datetime);
-   return new Date(t.getTime() + 2 * 60 * 60 * 1000);
-};
-
-const getSaleOpenLabel = (datetime: string): string => {
-   const month = parseInt(datetime.split('.')[1], 10);
-   return `${month}월 1일 오전 11시 오픈`;
-};
+const isPurchaseHistoryItem = (
+   mode: HistoryCardProps['mode'],
+   _item: PurchaseHistoryItem | SaleHistoryItem,
+): _item is PurchaseHistoryItem => mode === 'purchase';
 
 export default function HistoryCard(props: HistoryCardProps) {
    const navigate = useNavigate();

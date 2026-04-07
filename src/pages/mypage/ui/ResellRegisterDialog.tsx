@@ -5,12 +5,13 @@ import { X } from 'lucide-react';
 
 import { createResaleListings } from '@/entities/resale/api/resaleApi';
 import { useResellRegisterInsights } from '@/features/resale/model/useResellRegisterInsights';
+import { formatPrice } from '@/pages/books/model/zoneData';
+import ResellPriceChart from '@/pages/books/ui/components/ResellPriceChart';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { Button } from '@/shared/ui/button';
 
 import type { PurchaseHistoryItem } from '../model/historyCard';
 import ResellRegisterCompleteDialog from './ResellRegisterCompleteDialog';
-import { ResellInsightsSection, ResellNoticeSection, ResellSeatSelector } from './ResellRegisterSections';
 
 interface Props {
    open: boolean;
