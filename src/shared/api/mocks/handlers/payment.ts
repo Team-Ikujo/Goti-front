@@ -496,12 +496,13 @@ const ticketOrders = createPersistedMap<TicketOrder>('__msw_ticket_orders__');
 const ticketPayments = new Map<string, TicketPayment>();
 const ticketRecords = createPersistedMap<TicketRecord>('__msw_ticket_records__');
 const resaleHolds = new Map<string, ResaleHold>();
-const resaleOrders = new Map<string, ResaleOrder>();
+const resaleOrders = createPersistedMap<ResaleOrder>('__msw_resale_orders__');
 const resalePayments = new Map<string, ResalePayment>();
 const resaleLedgers = new Map<string, ResaleLedger>();
 
 type ResaleListing = {
    listingId: string;
+   orderId?: string;
    ticketId: string;
    ticketNumber?: string;
    sellerId: string;
@@ -1000,7 +1001,11 @@ export const paymentHandlers = [
 
       if (matchedGame.ticketingStatus === 'SCHEDULED') {
          status = 'SCHEDULED';
-      } else if (matchedGame.ticketingStatus === 'TERMINATED' || matchedGame.gameStatus !== 'SCHEDULED') {
+      } else if (
+         matchedGame.ticketingStatus === 'TERMINATED' ||
+         matchedGame.gameStatus === 'FINISHED' ||
+         matchedGame.gameStatus !== 'SCHEDULED'
+      ) {
          status = 'UNAVAILABLE';
       }
 
@@ -1008,6 +1013,98 @@ export const paymentHandlers = [
          code: 'SUCCESS',
          message: 'ok',
          data: { status },
+      });
+   }),
+
+   http.get('/api/v1/resales/games/:gameId/grade/:gradeId/count', async ({ params }) => {
+      const gameId = String(params.gameId);
+      const gradeId = String(params.gradeId);
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            count: mockResaleListings.filter(
+               (listing) => listing.gameId === gameId && listing.isPurchasable && listing.gradeId === gradeId,
+            ).length,
+         },
+      });
+   }),
+
+   http.get('/api/v1/resales/listings/count', async () => {
+      const myListings = Array.from(resaleListings.values());
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            listingCount: myListings.filter((listing) => listing.listingStatus === 'LISTING' || listing.listingStatus === 'HOLD').length,
+            soldCount: myListings.filter((listing) => listing.listingStatus === 'SOLD' || listing.listingStatus === 'SETTLED').length,
+         },
+      });
+   }),
+
+   // 내 판매 그룹 목록 조회
+   http.get('/api/v1/resales/listings/orders', async () => {
+      const orders = Array.from(resaleOrders.values())
+         .sort((left, right) => right.orderId.localeCompare(left.orderId))
+         .map((order) => ({
+            orderId: order.orderId,
+            orderNumber: order.orderNumber,
+            orderStatus: order.orderStatus,
+            totalQuantity: order.totalQuantity,
+            totalAmount: order.totalAmount,
+            createdAt: order.transactionIds[0] ? new Date().toISOString() : new Date().toISOString(),
+         }));
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            list: orders,
+            totalCount: orders.length,
+            totalPages: orders.length > 0 ? 1 : 0,
+         },
+      });
+   }),
+
+   http.get('/api/v1/resales/listings/orders/:orderId', async ({ params }) => {
+      const orderId = String(params.orderId);
+      const order = resaleOrders.get(orderId);
+
+      if (!order) {
+         return buildErrorResponse('Resale listing order not found.', 404);
+      }
+
+      const listings = Array.from(resaleListings.values())
+         .filter((listing) => listing.orderId === orderId)
+         .map((listing) => ({
+            listingId: listing.listingId,
+            ticketId: listing.ticketId,
+            ticketNumber: listing.ticketNumber,
+            sellerId: listing.sellerId,
+            gameId: '',
+            seatId: '',
+            gradeId: '',
+            seatInfo: listing.seatInfo,
+            dailyBasePrice: listing.listingPrice,
+            listingPrice: listing.listingPrice,
+            listingStatus: listing.listingStatus,
+            availableStatus: 'ENABLED',
+            listedAt: listing.listedAt,
+            canceledAt: listing.canceledAt,
+            isCancelable: listing.listingStatus === 'LISTING' || listing.listingStatus === 'CANCEL_REQUESTED',
+            maxPrice: 999999,
+            gameTitle: listing.gameTitle ?? '',
+            gameDate: listing.gameDate ?? '',
+            stadiumName: listing.stadiumName ?? '',
+            isPurchasable: listing.listingStatus === 'LISTING',
+         }));
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: listings,
       });
    }),
 
@@ -1928,7 +2025,9 @@ export const paymentHandlers = [
          const orderId = createId('resale-order');
          const listing: ResaleListing = {
             listingId,
+            orderId,
             ticketId: ticket.ticketId,
+            ticketNumber: ticket.ticketNumber,
             sellerId: 'mock-seller',
             seatInfo: ticket.seatInfo,
             listingPrice: item.listingPrice!,
@@ -1939,9 +2038,19 @@ export const paymentHandlers = [
             stadiumName: ticket.stadiumName,
          };
          resaleListings.set(listingId, listing);
-         createdOrders.push({
+         const createdOrder = {
             orderId,
             orderNumber: `RSL-${orderId.replace(/^resale-order-/i, '').slice(0, 8).toUpperCase()}`,
+         };
+         createdOrders.push(createdOrder);
+         resaleOrders.set(orderId, {
+            orderId,
+            orderNumber: createdOrder.orderNumber,
+            orderStatus: 'PENDING',
+            totalQuantity: 1,
+            totalAmount: item.listingPrice!,
+            holdIds: [],
+            transactionIds: [],
          });
          createdListings.push({
             listingId,
@@ -2009,21 +2118,6 @@ export const paymentHandlers = [
       }));
 
       return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: listings });
-   }),
-
-   http.get('/api/v1/resales/listings/count', async () => {
-      const listings = Array.from(resaleListings.values());
-      const listingCount = listings.filter((item) => item.listingStatus === 'LISTING' || item.listingStatus === 'HOLD').length;
-      const soldCount = listings.filter((item) => item.listingStatus === 'SETTLED').length;
-
-      return HttpResponse.json({
-         code: 'SUCCESS',
-         message: 'ok',
-         data: {
-            listingCount,
-            soldCount,
-         },
-      });
    }),
 
    // 리셀 상세 조회

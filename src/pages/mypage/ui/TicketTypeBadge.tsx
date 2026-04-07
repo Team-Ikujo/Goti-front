@@ -10,11 +10,6 @@ interface TicketTypeBadgeProps {
    className?: string;
 }
 
-/**
- * 구매/판매 내역 카드에서 사용하는 티켓 종류 뱃지
- * - 티켓: 파란색 배경
- * - 리셀: 보라색 배경
- */
 export default function TicketTypeBadge({ type, className }: TicketTypeBadgeProps) {
    const isTicket = type === '티켓';
 

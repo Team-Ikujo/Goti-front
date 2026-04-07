@@ -7,7 +7,7 @@ import TicketTypeBadge from './TicketTypeBadge';
 import type { TicketType } from './TicketTypeBadge';
 import ResellRegisterDialog from './ResellRegisterDialog';
 import QrViewDialog from './QrViewDialog';
-import type { PurchaseHistoryItem as HistoryCardPurchaseHistoryItem } from './HistoryCard';
+import type { PurchaseHistoryItem as HistoryCardPurchaseHistoryItem } from '../model/historyCard';
 
 export type PurchaseStatus =
    | '입금 대기'

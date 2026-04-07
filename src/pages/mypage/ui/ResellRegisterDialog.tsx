@@ -5,13 +5,12 @@ import { X } from 'lucide-react';
 
 import { createResaleListings } from '@/entities/resale/api/resaleApi';
 import { useResellRegisterInsights } from '@/features/resale/model/useResellRegisterInsights';
-import { formatPrice } from '@/pages/books/model/zoneData';
-import ResellPriceChart from '@/pages/books/ui/components/ResellPriceChart';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { Button } from '@/shared/ui/button';
 
-import type { PurchaseHistoryItem } from './HistoryCard';
+import type { PurchaseHistoryItem } from '../model/historyCard';
 import ResellRegisterCompleteDialog from './ResellRegisterCompleteDialog';
+import { ResellInsightsSection, ResellNoticeSection, ResellSeatSelector } from './ResellRegisterSections';
 
 interface Props {
    open: boolean;
@@ -20,6 +19,24 @@ interface Props {
    item: PurchaseHistoryItem;
 }
 
+const formatGameDateTime = (value: string) => {
+   const date = new Date(value);
+
+   if (Number.isNaN(date.getTime())) {
+      return value;
+   }
+
+   const year = date.getFullYear();
+   const month = String(date.getMonth() + 1).padStart(2, '0');
+   const day = String(date.getDate()).padStart(2, '0');
+   const weekday = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
+   const hours = String(date.getHours()).padStart(2, '0');
+   const minutes = String(date.getMinutes()).padStart(2, '0');
+
+   return `${year}.${month}.${day} (${weekday}) ${hours}:${minutes}`;
+};
+
+// ─── 체크박스 아이콘 ────────────────────────────────────────────────
 function CheckboxIcon({ checked }: { checked: boolean }) {
    if (checked) {
       return (
@@ -37,7 +54,6 @@ function CheckboxIcon({ checked }: { checked: boolean }) {
          </div>
       );
    }
-
    return (
       <div className="relative size-5 shrink-0">
          <div className="absolute left-px top-px size-4.5 bg-white border-[1.5px] border-[#d0d6db] rounded-sm" />
@@ -45,6 +61,7 @@ function CheckboxIcon({ checked }: { checked: boolean }) {
    );
 }
 
+// ─── 가격 입력 필드 ────────────────────────────────────────────────
 function PriceInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
    return (
       <div className="flex items-center bg-white border border-[#d0d6db] rounded-lg h-12 px-4 gap-1">
@@ -60,6 +77,7 @@ function PriceInput({ value, onChange }: { value: string; onChange: (v: string) 
    );
 }
 
+// ─── 메인 컴포넌트 ─────────────────────────────────────────────────
 export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm, item }: Props) {
    const [checkedSeats, setCheckedSeats] = useState<Set<number>>(new Set());
    const [prices, setPrices] = useState<Record<number, string>>({});
@@ -69,7 +87,13 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
    const [createdSaleId, setCreatedSaleId] = useState<string | null>(null);
    const [isSubmitting, setIsSubmitting] = useState(false);
    const queryClient = useQueryClient();
-   const unitPrice = item.game.quantity > 0 ? Math.round(item.price / item.game.quantity) : item.price;
+   const seatPrices = item.seatPrices ?? [];
+   const unitPrice =
+      seatPrices.length > 0
+         ? seatPrices[0]
+         : item.game.quantity > 0
+           ? Math.round(item.price / item.game.quantity)
+           : item.price;
 
    const resaleInsightsQuery = useResellRegisterInsights({
       enabled: open,
@@ -81,7 +105,6 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
 
    const insights = resaleInsightsQuery.data?.insights ?? null;
    const checkedCount = checkedSeats.size;
-   const showBulkToggle = checkedCount >= 2;
 
    useEffect(() => {
       if (!open) {
@@ -96,9 +119,9 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
       setCreatedSaleId(null);
    }, [open]);
 
-   if (!open) {
-      return null;
-   }
+   const checkedCount = checkedSeats.size;
+   const showBulkToggle = checkedCount >= 2;
+   const insights = resaleInsightsQuery.data?.insights ?? null;
 
    const toggleSeat = (idx: number) => {
       setCheckedSeats(prev => {
@@ -145,6 +168,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
          setCreatedSaleId(response.listings[0]?.listingId ?? null);
 
          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['myOrders'] }),
             queryClient.invalidateQueries({ queryKey: ['myResales'] }),
             queryClient.invalidateQueries({ queryKey: ['myResaleSummary'] }),
          ]);
@@ -182,13 +206,18 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
             saleId={createdSaleId ?? item.id}
          />
 
-         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 lg:items-center" onClick={onClose}>
+         {/* 스크림 */}
+         <div
+            className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50"
+            onClick={onClose}
+         >
+            {/* 모달 */}
             <div
                className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
                onClick={e => e.stopPropagation()}
             >
                <div className="relative flex items-center gap-2 p-5 shrink-0">
-                  <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">리셀 판매 등록</p>
+                  <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">판매 등록</p>
                   <button
                      onClick={onClose}
                      className="absolute right-5 top-1/2 -translate-y-1/2 text-[#161d24] hover:text-muted-foreground transition-colors"
@@ -201,22 +230,28 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                <div className="flex-1 overflow-y-auto pb-5 px-5 flex flex-col gap-8 min-h-0">
                   <div className="bg-[#f7f8fa] rounded-lg px-5 py-4 flex flex-col gap-1">
                      <p className="text-[18px] font-bold text-[#2c3e50] text-center leading-[1.6]">{item.game.teams}</p>
-                     <p className="text-[14px] text-[#666] text-center leading-[1.6]">{item.game.datetime}</p>
+                     <p className="text-[14px] text-[#666] text-center leading-[1.6]">
+                        {formatGameDateTime(item.game.datetime)}
+                     </p>
                   </div>
 
+                  {/* 보유 중인 티켓 */}
                   <div className="flex flex-col gap-3">
+                     {/* 섹션 타이틀 */}
                      <div className="flex items-center">
                         <p className="flex-1 text-[20px] font-bold text-[#161d24] leading-normal">보유 중인 티켓</p>
                         <span className="text-[16px] font-bold text-primary leading-normal">{checkedCount}</span>
                         <span className="text-[16px] font-medium text-[#646f7c] leading-normal">매 선택</span>
                      </div>
 
-                     {showBulkToggle ? (
+                     {/* 2개 이상 선택 시 — 동일 가격 토글 */}
+                     {showBulkToggle && (
                         <div className="bg-surface rounded-xl px-5 py-3 flex flex-col gap-3">
                            <div className="flex items-center gap-3">
                               <span className="flex-1 text-[14px] font-semibold text-[#374553] leading-normal">
                                  모든 티켓 동일 가격 적용하기
                               </span>
+                              {/* 토글 스위치 */}
                               <button
                                  onClick={handleBulkToggle}
                                  className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${
@@ -231,16 +266,20 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                                  />
                               </button>
                            </div>
-                           {bulkToggle ? <PriceInput value={bulkPrice} onChange={setBulkPrice} /> : null}
+                           {/* 토글 On: 통합 가격 입력 */}
+                           {bulkToggle && <PriceInput value={bulkPrice} onChange={setBulkPrice} />}
                         </div>
-                     ) : null}
+                     )}
 
+                     {/* 좌석 목록 */}
                      <div className="flex flex-col gap-5">
                         {item.game.seats.map((seat, idx) => {
                            const isChecked = checkedSeats.has(idx);
+                           const seatPrice = seatPrices[idx] ?? unitPrice;
                            return (
                               <div key={idx}>
                                  {isChecked ? (
+                                    /* 선택된 좌석: 파란 테두리 + 가격 입력 */
                                     <div className="border-2 border-primary rounded-lg overflow-hidden">
                                        <div
                                           className="bg-[#f4f7fe] flex gap-3 items-center p-5 cursor-pointer"
@@ -248,36 +287,50 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                                        >
                                           <CheckboxIcon checked />
                                           <div className="flex flex-1 items-center gap-2 min-w-0">
-                                             <span className="text-[16px] font-bold text-[#374553] whitespace-nowrap">{item.game.section}</span>
-                                             <span className="text-[14px] font-medium text-[#666] whitespace-nowrap">{seat}</span>
+                                             <span className="text-[16px] font-bold text-[#374553] whitespace-nowrap">
+                                                {item.game.section}
+                                             </span>
+                                             <span className="text-[14px] font-medium text-[#666] whitespace-nowrap">
+                                                {seat}
+                                             </span>
                                           </div>
                                           <div className="flex items-center gap-1 shrink-0">
                                              <span className="text-[14px] text-[#646f7c] leading-[1.45]">구매가</span>
-                                             <span className="text-[16px] font-bold text-primary">{unitPrice.toLocaleString()}원</span>
+                                             <span className="text-[16px] font-bold text-primary">
+                                                {seatPrice.toLocaleString()}원
+                                             </span>
                                           </div>
                                        </div>
-                                       {!bulkToggle ? (
+                                       {/* 토글 Off일 때만 개별 가격 입력 */}
+                                       {!bulkToggle && (
                                           <div className="px-5 py-5">
                                              <PriceInput
                                                 value={prices[idx] ?? ''}
-                                                onChange={value => setPrices(prev => ({ ...prev, [idx]: value }))}
+                                                onChange={v => setPrices(prev => ({ ...prev, [idx]: v }))}
                                              />
                                           </div>
-                                       ) : null}
+                                       )}
                                     </div>
                                  ) : (
+                                    /* 미선택 좌석 */
                                     <div
                                        className="bg-background border border-[#e5e5e5] rounded-lg flex gap-3 items-center px-4 py-5 cursor-pointer hover:bg-surface transition-colors"
                                        onClick={() => toggleSeat(idx)}
                                     >
                                        <CheckboxIcon checked={false} />
                                        <div className="flex flex-1 items-center gap-2 min-w-0">
-                                          <span className="text-[16px] font-bold text-[#374553] whitespace-nowrap">{item.game.section}</span>
-                                          <span className="text-[14px] font-medium text-[#666] whitespace-nowrap">{seat}</span>
+                                          <span className="text-[16px] font-bold text-[#374553] whitespace-nowrap">
+                                             {item.game.section}
+                                          </span>
+                                          <span className="text-[14px] font-medium text-[#666] whitespace-nowrap">
+                                             {seat}
+                                          </span>
                                        </div>
                                        <div className="flex items-center gap-1 shrink-0">
                                           <span className="text-[14px] text-[#646f7c] leading-[1.45]">구매가</span>
-                                          <span className="text-[16px] font-bold text-[#374553]">{unitPrice.toLocaleString()}원</span>
+                                          <span className="text-[16px] font-bold text-[#374553]">
+                                             {seatPrice.toLocaleString()}원
+                                          </span>
                                        </div>
                                     </div>
                                  )}
@@ -287,6 +340,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                      </div>
                   </div>
 
+                  {/* 거래 변동 + 차트 */}
                   {resaleInsightsQuery.isLoading ? (
                      <div className="bg-surface rounded-xl px-5 py-10 text-center text-[14px] text-[#646f7c]">
                         거래 변동 정보를 불러오는 중입니다.
@@ -308,33 +362,43 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                         </Button>
                      </div>
                   ) : insights ? (
-                     <>
-                        <ResellPriceChart insights={insights} />
+                     <ResellPriceChart insights={insights} />
+                  ) : (
+                     <div className="bg-surface rounded-xl px-5 py-10 text-center text-[14px] text-[#646f7c]">
+                        아직 해당 좌석 등급의 최근 거래 내역이 없습니다.
+                     </div>
+                  )}
 
-                        <div className="flex flex-col gap-3">
-                           <p className="text-[20px] font-bold text-[#161d24] leading-normal">최근 거래 내역</p>
-                           <ul className="flex flex-col gap-1">
-                              {insights.tradeHistory.map(trade => (
-                                 <li
-                                    key={trade.id}
-                                    className="grid grid-cols-[max-content_minmax(0,1fr)_66px] items-center gap-x-3"
-                                 >
-                                    <span className="whitespace-nowrap text-[14px] font-semibold text-[#374553]">
-                                       {formatPrice(trade.price)}
-                                    </span>
-                                    <span className="min-w-0 truncate text-right text-[14px] text-[#374553]">
-                                       {trade.seatLabel}
-                                    </span>
-                                    <span className="whitespace-nowrap text-right text-[12px] text-[#646f7c]">
-                                       {trade.tradedAt}
-                                    </span>
-                                 </li>
-                              ))}
-                           </ul>
+                  {/* 최근 거래 내역 */}
+                  <div className="flex flex-col gap-3">
+                     <p className="text-[20px] font-bold text-[#161d24] leading-normal">최근 거래 내역</p>
+                     {insights ? (
+                        <ul className="flex flex-col gap-1">
+                           {insights.tradeHistory.map(trade => (
+                              <li
+                                 key={trade.id}
+                                 className="grid grid-cols-[max-content_minmax(0,1fr)_66px] items-center gap-x-3"
+                              >
+                                 <span className="whitespace-nowrap text-[14px] font-semibold text-[#374553]">
+                                    {formatPrice(trade.price)}
+                                 </span>
+                                 <span className="min-w-0 truncate text-right text-[14px] text-[#374553]">
+                                    {trade.seatLabel}
+                                 </span>
+                                 <span className="whitespace-nowrap text-right text-[12px] text-[#646f7c]">
+                                    {trade.tradedAt}
+                                 </span>
+                              </li>
+                           ))}
+                        </ul>
+                     ) : (
+                        <div className="rounded-xl bg-surface px-5 py-6 text-center text-[14px] text-[#646f7c]">
+                           최근 거래 내역을 표시할 수 없습니다.
                         </div>
-                     </>
-                  ) : null}
+                     )}
+                  </div>
 
+                  {/* 판매 유의사항 */}
                   <div className="bg-surface rounded-xl p-5 flex flex-col gap-2">
                      <p className="text-[14px] font-bold text-[#374553] leading-normal">판매 유의사항</p>
                      <div className="flex flex-col gap-0.5 text-[12px] text-[#374553] leading-normal">

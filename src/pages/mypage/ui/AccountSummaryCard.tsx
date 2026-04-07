@@ -1,5 +1,26 @@
 import type { MemberAccount, MemberProfile } from '@/entities/user/api/memberApi';
 
+const PROVIDER_META = {
+   GOOGLE: {
+      label: 'Google',
+      iconSrc: '/Icon/Logo/Google.svg',
+      iconClassName: 'size-6',
+      wrapperClassName: 'border border-border-light rounded-full p-0.5',
+   },
+   KAKAO: {
+      label: 'Kakao',
+      iconSrc: '/Icon/Logo/Kakao.svg',
+      iconClassName: 'size-5',
+      wrapperClassName: 'size-7 rounded-full bg-[#ffde00] flex items-center justify-center overflow-hidden',
+   },
+   NAVER: {
+      label: 'Naver',
+      iconSrc: '/Icon/Logo/Naver.svg',
+      iconClassName: 'size-5',
+      wrapperClassName: 'size-7 rounded-full bg-[#00c73c] flex items-center justify-center overflow-hidden p-0.5',
+   },
+} as const;
+
 interface AccountSummaryCardProps {
    profile?: MemberProfile;
    savedAccount: MemberAccount | null;
@@ -13,17 +34,21 @@ export function AccountSummaryCard({
    onEditIdentity,
    onEditAccount,
 }: AccountSummaryCardProps) {
+   const providerMeta = profile?.oAuthProvider ? PROVIDER_META[profile.oAuthProvider] : null;
+
    return (
-      <div className="bg-background border border-[rgba(0,0,0,0.1)] rounded-[14px] p-6.25 flex flex-col gap-7.5">
+      <div className="bg-background border border-border rounded-[14px] p-6.25 flex flex-col gap-7.5">
          <p className="text-heading-3-bold text-foreground">계정 정보</p>
          <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between">
                <p className="text-body-1-bold text-(--text-tertiary)">아이디</p>
                <div className="flex items-center gap-2">
                   <p className="text-body-1-regular text-foreground">{profile?.email || '아이디 정보 없음'}</p>
-                  <div className="border border-border-light rounded-full p-0.5">
-                     <img src="/Icon/Logo/Google.svg" alt="Google" className="size-6" />
-                  </div>
+                  {providerMeta && (
+                     <div className={providerMeta.wrapperClassName}>
+                        <img src={providerMeta.iconSrc} alt={providerMeta.label} className={providerMeta.iconClassName} />
+                     </div>
+                  )}
                </div>
             </div>
             <div className="flex items-center justify-between">

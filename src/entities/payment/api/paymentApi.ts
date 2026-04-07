@@ -35,6 +35,52 @@ export const fetchResaleUnsettledAmount = async (): Promise<ResaleUnsettledAmoun
    return response.data.data;
 };
 
+// ─── 구매 내역 통합 조회 (GET /api/v1/payments/purchases) ─────────
+
+export type PurchaseHistoryType = 'ALL' | 'NORMAL' | 'RESALE';
+
+export interface PurchaseHistoryItem {
+   purchaseType: string;
+   orderId: string;
+   orderNumber: string;
+   orderStatus: string;
+   totalQuantity: number;
+   totalAmount: number;
+   orderedAt: string;
+   gameId: string;
+   stadiumId: string;
+   gameTitle: string;
+   gameDate: string;
+   seatInfos: string[];
+}
+
+interface PurchaseHistoryPageResponse {
+   list: PurchaseHistoryItem[];
+   totalCount: number;
+   totalPages: number;
+}
+
+export interface FetchPurchaseHistoryParams {
+   type?: PurchaseHistoryType;
+   keyword?: string;
+   months?: number;
+   startDate?: string;
+   endDate?: string;
+   page?: number;
+   size?: number;
+}
+
+export const fetchPurchaseHistory = async (
+   params?: FetchPurchaseHistoryParams,
+): Promise<PurchaseHistoryPageResponse> => {
+   const response = await apiClient.get<ApiEnvelope<PurchaseHistoryPageResponse>>(
+      '/api/v1/payments/purchases',
+      { params },
+   );
+
+   return response.data.data;
+};
+
 export const formatOrderPaymentMethod = (paymentMethod?: string): string => {
    switch (paymentMethod) {
       case 'CARD':
