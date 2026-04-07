@@ -127,12 +127,33 @@ export default function HistoryCard(props: HistoryCardProps) {
    const price = isPurchase ? (item as PurchaseHistoryItem).price : (item as SaleHistoryItem).salePrice;
    const status = isPurchase ? (item as PurchaseHistoryItem).paymentStatus : (item as SaleHistoryItem).saleStatus;
 
-   const isBooked = purchaseItem?.paymentStatus === '예매 완료' || purchaseItem?.paymentStatus === '부분 처리';
-   const showSellBtn = Boolean(purchaseOrderId) && (isBooked || (purchaseItem?.canSell ?? false));
-   const showCancelBtn = Boolean(purchaseOrderId) && (isBooked || purchaseItem?.paymentStatus === '입금 대기');
+   const hasPurchaseOrder = Boolean(purchaseOrderId);
+   const isCancelablePurchaseStatus =
+      purchaseItem?.paymentStatus === '입금 대기' ||
+      purchaseItem?.paymentStatus === '예매 완료' ||
+      purchaseItem?.paymentStatus === '부분 처리';
+   const isSellablePurchaseStatus =
+      purchaseItem?.paymentStatus === '예매 완료' || purchaseItem?.paymentStatus === '부분 처리';
    const actionTickets = actionTicketsQuery.data ?? [];
-   const sellableActionTickets = actionTickets.filter((ticket) => ticket.ticketStatus === 'ISSUED');
-   const showQrBtn = Boolean(purchaseOrderId) && isBooked && item.deliveryType === '모바일 티켓';
+   const requestedTicketIds = new Set((purchaseItem?.ticketIds ?? []).filter(Boolean));
+   const requestedSeatDetails = new Set(purchaseItem?.game.seats ?? []);
+   const sellableActionTickets = actionTickets.filter((ticket) => {
+      if (ticket.ticketStatus !== 'ISSUED') {
+         return false;
+      }
+
+      if (requestedTicketIds.size > 0) {
+         return requestedTicketIds.has(ticket.ticketId);
+      }
+
+      return requestedSeatDetails.has(parseSeatDetail(ticket.seatInfo));
+   });
+   const showSellBtn =
+      hasPurchaseOrder &&
+      purchaseItem?.deliveryType === '모바일 티켓' &&
+      isSellablePurchaseStatus;
+   const showCancelBtn = hasPurchaseOrder && isCancelablePurchaseStatus;
+   const showQrBtn = hasPurchaseOrder && isSellablePurchaseStatus && item.deliveryType === '모바일 티켓';
    const showDash =
       isPurchase && (purchaseItem?.paymentStatus === '취소/환불' || purchaseItem?.paymentStatus === '관람 완료');
    const canCancelSale = !isPurchase && (item as SaleHistoryItem).canCancel;
@@ -229,14 +250,12 @@ export default function HistoryCard(props: HistoryCardProps) {
                orderId={purchaseItem.rawOrderId ?? purchaseItem.id}
                game={{ teams: item.game.teams, datetime: item.game.datetime }}
                mockTicketInfoError={mockTicketInfoError}
-               seats={item.game.seats.map(seat => ({
+               seats={item.game.seats.map((seat, index) => ({
                   orderId: item.orderId,
                   section: item.game.section,
                   seatDetail: seat,
-                  price:
-                     item.game.seats.length > 0
-                        ? Math.round(purchaseItem.price / item.game.seats.length)
-                        : purchaseItem.price,
+                  price: purchaseItem.seatPrices?.[index] ?? Math.round(purchaseItem.price / Math.max(item.game.seats.length, 1)),
+                  ticketId: purchaseItem.ticketIds?.[index],
                }))}
             />
          )}
@@ -262,7 +281,7 @@ export default function HistoryCard(props: HistoryCardProps) {
             }}
             aria-label={`${item.game.teams} ${detailLabel}`}
          >
-            <div className="flex items-center justify-between px-4 py-1 lg:justify-start">
+            <div className="flex items-center justify-between px-4 py-1 lg:grid lg:grid-cols-[11.5rem_minmax(0,1fr)] lg:items-center lg:gap-4">
                <div className="flex items-center gap-1 text-body-2-regular shrink-0">
                   <span className="text-foreground">{dateLabel}:</span>
                   <span className="text-body-2-semibold text-foreground">{item.orderDate}</span>
@@ -270,7 +289,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                <Button
                   variant="none"
                   size="xs"
-                  className="flex items-center text-body-2-regular text-foreground shrink-0 px-0 hover:text-primary transition-colors gap-0 lg:ml-7"
+                  className="flex items-center text-body-2-regular text-foreground shrink-0 px-0 hover:text-primary transition-colors gap-0 lg:justify-self-start"
                   onClick={e => {
                      e.stopPropagation();
                      navigate(detailRoute);
@@ -283,7 +302,7 @@ export default function HistoryCard(props: HistoryCardProps) {
             <Separator />
 
             <div className="hidden lg:flex flex-row gap-4 p-4 items-stretch min-h-26.75">
-               <div className="flex flex-col items-center justify-start shrink-0 px-1 gap-1.5">
+               <div className="flex w-44 flex-col items-center justify-start shrink-0 px-1 gap-1.5">
                   <div className="flex flex-col items-start gap-1.5 w-full h-full">
                      <div className="flex flex-col items-start w-full h-full">
                         <TicketTypeBadge type={item.type} />

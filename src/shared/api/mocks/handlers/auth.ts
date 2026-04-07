@@ -6,6 +6,7 @@ type MockAuthSession = {
    provider: string;
    isRegistered: boolean;
    userId: string;
+   email?: string;
    name?: string;
    mobile?: string;
    smsCode?: string;
@@ -16,8 +17,17 @@ type MockAuthSession = {
 type MockRefreshSession = {
    userId: string;
    provider: string;
+   email?: string;
    name?: string;
    mobile?: string;
+};
+
+type MockRegisteredMember = {
+   userId: string;
+   provider: string;
+   email: string;
+   name: string;
+   mobile: string;
 };
 
 type MockMemberAccount = {
@@ -39,6 +49,7 @@ const MOCK_AUTH_SESSIONS_KEY = '__mock_auth_sessions__';
 const MOCK_REFRESH_SESSION_KEY = '__mock_refresh_session__';
 const MOCK_MEMBER_ACCOUNTS_KEY = '__mock_member_accounts__';
 const MOCK_MEMBER_ADDRESSES_KEY = '__mock_member_addresses__';
+const MOCK_REGISTERED_MEMBERS_KEY = '__mock_registered_members__';
 
 const mockAuthSessions = {
    get(token: string): MockAuthSession | undefined {
@@ -131,6 +142,28 @@ const mockMemberAddresses = {
    },
 };
 
+const mockRegisteredMembers = {
+   get(provider: string): MockRegisteredMember | undefined {
+      try {
+         const raw = localStorage.getItem(MOCK_REGISTERED_MEMBERS_KEY);
+         const map: Record<string, MockRegisteredMember> = raw ? JSON.parse(raw) : {};
+         return map[provider.toUpperCase()];
+      } catch {
+         return undefined;
+      }
+   },
+   set(provider: string, member: MockRegisteredMember) {
+      try {
+         const raw = localStorage.getItem(MOCK_REGISTERED_MEMBERS_KEY);
+         const map: Record<string, MockRegisteredMember> = raw ? JSON.parse(raw) : {};
+         map[provider.toUpperCase()] = member;
+         localStorage.setItem(MOCK_REGISTERED_MEMBERS_KEY, JSON.stringify(map));
+      } catch {
+         // ignore
+      }
+   },
+};
+
 const createId = (prefix: string) => {
    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
       return `${prefix}-${crypto.randomUUID()}`;
@@ -189,6 +222,46 @@ const resolveRegisteredState = (authCode: string) => {
 
 const resolveLoginScenario = (): MockLoginScenario => 'normal';
 
+const DEFAULT_PROVIDER_PROFILE: Record<string, Omit<MockRegisteredMember, 'provider'>> = {
+   KAKAO: {
+      userId: 'mock-kakao-user',
+      email: 'kakao.user@goti.co.kr',
+      name: '카카오 사용자',
+      mobile: '010-2222-2222',
+   },
+   GOOGLE: {
+      userId: 'mock-google-user',
+      email: 'google.user@goti.co.kr',
+      name: '구글 사용자',
+      mobile: '010-3333-3333',
+   },
+   NAVER: {
+      userId: 'mock-naver-user',
+      email: 'naver.user@goti.co.kr',
+      name: '네이버 사용자',
+      mobile: '010-4444-4444',
+   },
+};
+
+const getDefaultRegisteredMember = (provider: string): MockRegisteredMember => {
+   const upperProvider = provider.toUpperCase();
+   const fallback = DEFAULT_PROVIDER_PROFILE[upperProvider] ?? {
+      userId: `mock-${upperProvider.toLowerCase()}-user`,
+      email: `${upperProvider.toLowerCase()}.user@goti.co.kr`,
+      name: `${upperProvider} 사용자`,
+      mobile: '010-9999-9999',
+   };
+
+   return {
+      provider: upperProvider,
+      ...fallback,
+   };
+};
+
+const resolveRegisteredMember = (provider: string) => {
+   return mockRegisteredMembers.get(provider) ?? getDefaultRegisteredMember(provider);
+};
+
 export const authHandlers = [
    http.get('/api/v1/auth/:provider/state', async ({ params }) => {
       const provider = String(params.provider ?? '').toUpperCase();
@@ -217,13 +290,17 @@ export const authHandlers = [
 
       const socialVerifyToken = createId('svt');
       const isRegistered = resolveRegisteredState(body.authCode);
-      const userId = createId('user');
+      const registeredMember = isRegistered ? resolveRegisteredMember(provider) : null;
+      const userId = registeredMember?.userId ?? createId('user');
       const loginScenario = isRegistered ? resolveLoginScenario() : undefined;
 
       mockAuthSessions.set(socialVerifyToken, {
          provider,
          isRegistered,
          userId,
+         email: registeredMember?.email,
+         name: registeredMember?.name,
+         mobile: registeredMember?.mobile,
          loginScenario,
       });
 
@@ -263,6 +340,7 @@ export const authHandlers = [
       mockRefreshSession.set({
          userId: session.userId,
          provider: session.provider,
+         email: session.email,
          name: session.name,
          mobile: session.mobile,
       });
@@ -275,8 +353,9 @@ export const authHandlers = [
                sub: session.userId,
                userId: session.userId,
                provider: session.provider,
-               name: '테스트 유저',
-               mobile: '010-0000-0000',
+               email: session.email ?? `${session.provider.toLowerCase()}.user@goti.co.kr`,
+               name: session.name ?? '테스트 유저',
+               mobile: session.mobile ?? '010-0000-0000',
             }),
             ...(scenario !== 'normal' && { accountStatus: scenario }),
             ...(failCountByScenario[scenario] !== undefined && { failCount: failCountByScenario[scenario] }),
@@ -349,6 +428,15 @@ export const authHandlers = [
       mockAuthSessions.set(body.socialVerifyToken, {
          ...session,
          isRegistered: true,
+         email: session.email ?? `${session.provider.toLowerCase()}.user@goti.co.kr`,
+         name: body.name,
+         mobile: body.mobile,
+      });
+
+      mockRegisteredMembers.set(session.provider, {
+         userId: session.userId,
+         provider: session.provider,
+         email: session.email ?? `${session.provider.toLowerCase()}.user@goti.co.kr`,
          name: body.name,
          mobile: body.mobile,
       });
@@ -356,6 +444,7 @@ export const authHandlers = [
       mockRefreshSession.set({
          userId: session.userId,
          provider: session.provider,
+         email: session.email ?? `${session.provider.toLowerCase()}.user@goti.co.kr`,
          name: body.name,
          mobile: body.mobile,
       });
@@ -367,8 +456,10 @@ export const authHandlers = [
             accessToken: buildMockAccessToken({
                sub: session.userId,
                userId: session.userId,
+               provider: session.provider,
+               email: session.email ?? `${session.provider.toLowerCase()}.user@goti.co.kr`,
                mobile: body.mobile,
-            name: body.name,
+               name: body.name,
             }),
          },
       });
@@ -385,12 +476,27 @@ export const authHandlers = [
       let email = '';
 
       const decoded = parseMockTokenPayload(token);
+      const refreshSession = mockRefreshSession.get();
 
       if (decoded) {
          if (decoded.name) name = decoded.name;
          if (decoded.mobile) mobile = decoded.mobile;
          if (decoded.email) email = decoded.email;
       }
+
+      if (refreshSession?.name) {
+         name = refreshSession.name;
+      }
+
+      if (refreshSession?.mobile) {
+         mobile = refreshSession.mobile;
+      }
+
+      if (refreshSession?.email) {
+         email = refreshSession.email;
+      }
+
+      const resolvedProvider = (decoded?.provider ?? refreshSession?.provider ?? 'GOOGLE').toUpperCase();
 
       const memberKey = getMockMemberKey(request);
       const account = mockMemberAccounts.get(memberKey);
@@ -405,7 +511,7 @@ export const authHandlers = [
             mobile,
             gender: 'MALE',
             birthDate: '1990-01-01',
-            oAuthProvider: 'GOOGLE',
+            oAuthProvider: resolvedProvider,
             bankAccount: account
                ? { bankName: account.bankName, accountNumber: account.accountNumber, accountHolder: account.accountHolder }
                : null,
@@ -413,9 +519,9 @@ export const authHandlers = [
                ? { zipCode: address.zipCode, baseAddress: address.baseAddress, detailAddress: address.detailAddress }
                : null,
             socialConnection: {
-               isGoogleConnected: true,
-               isKakaoConnected: false,
-               isNaverConnected: false,
+               isGoogleConnected: resolvedProvider === 'GOOGLE',
+               isKakaoConnected: resolvedProvider === 'KAKAO',
+               isNaverConnected: resolvedProvider === 'NAVER',
             },
          },
       });
@@ -497,6 +603,15 @@ export const authHandlers = [
 
       mockRefreshSession.set({
          ...session,
+         email: session.email,
+         name: body.name,
+         mobile: body.mobile,
+      });
+
+      mockRegisteredMembers.set(session.provider, {
+         userId: session.userId,
+         provider: session.provider,
+         email: session.email ?? `${session.provider.toLowerCase()}.user@goti.co.kr`,
          name: body.name,
          mobile: body.mobile,
       });

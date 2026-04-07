@@ -58,7 +58,22 @@ export function PurchaseDetailDialogs({
    onCloseResell,
 }: PurchaseDetailDialogsProps) {
    const navigate = useNavigate();
-   const sellableOrderTickets = orderTickets.filter((ticket) => ticket.ticketStatus === 'ISSUED');
+   const activeSeatDetails = new Set(
+      detail.seatItems
+         .filter((seat) => seat.status !== '취소완료' && seat.status !== '판매취소')
+         .map((seat) => seat.seatDetail),
+   );
+   const sellableOrderTickets = orderTickets.filter((ticket) => {
+      if (ticket.ticketStatus !== 'ISSUED') {
+         return false;
+      }
+
+      if (activeSeatDetails.size === 0) {
+         return true;
+      }
+
+      return activeSeatDetails.has(ticket.seatInfo);
+   });
 
    return (
       <>
@@ -75,6 +90,8 @@ export function PurchaseDetailDialogs({
                      ticket.ticketNumber,
                      ticket.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(ticket.ticketNumber, 'ticket'),
                   ),
+                  orderItemId: ticket.orderItemId,
+                  ticketId: ticket.ticketId,
                   section: ticket.seatInfo.split(' ')[0] ?? '',
                   seatDetail: ticket.seatInfo,
                   price: ticket.ticketPrice,

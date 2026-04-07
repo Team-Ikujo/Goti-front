@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useAuthStore } from '@/entities/auth/model/authStore';
-import { fetchMyProfile, MY_PROFILE_MOCK } from '@/entities/user/api/memberApi';
+import { fetchMyProfile } from '@/entities/user/api/memberApi';
 import { fetchMyOrders, type OrderListItem } from '@/entities/order/api/orderApi';
 import { fetchOrderTickets, fetchTicketDetail, type OrderTicket, type TicketDetail } from '@/entities/ticket/api/ticketApi';
 import {
@@ -186,8 +186,6 @@ export const useMyProfileData = () => {
    return useQuery({
       queryKey: ['myProfile', accessToken],
       queryFn: fetchMyProfile,
-      initialData: MY_PROFILE_MOCK,
-      placeholderData: MY_PROFILE_MOCK,
       enabled: !!accessToken,
    });
 };
@@ -312,8 +310,11 @@ export const useMyResaleSummaryData = () => {
 };
 
 export const useMyResaleUnsettledAmountData = () => {
+   const currentUserId = useAuthStore(s => s.currentUserId);
+
    return useQuery<ResaleUnsettledAmountResponse>({
-      queryKey: ['myResaleUnsettledAmount'],
-      queryFn: fetchResaleUnsettledAmount,
+      queryKey: ['myResaleUnsettledAmount', currentUserId],
+      queryFn: () => fetchResaleUnsettledAmount(currentUserId!),
+      enabled: Boolean(currentUserId),
    });
 };

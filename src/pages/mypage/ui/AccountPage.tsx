@@ -45,6 +45,11 @@ const readStringClaim = (payload: Record<string, unknown> | null, keys: string[]
    return undefined;
 };
 
+const readProviderClaim = (payload: Record<string, unknown> | null) => {
+   const provider = readStringClaim(payload, ['provider', 'oauthProvider', 'oAuthProvider', 'registrationId']);
+   return toOAuthProvider(provider);
+};
+
 const toOAuthProvider = (provider?: string | null) => {
    if (!provider) {
       return undefined;
@@ -76,15 +81,15 @@ export default function AccountPage() {
    const profile = profileQuery.data;
    const authPayload = useMemo(() => decodeJwtPayload(accessToken), [accessToken]);
    const effectiveProvider = useMemo(
-      () => toOAuthProvider(profile?.oAuthProvider) ?? toOAuthProvider(recentLoginProvider),
-      [profile?.oAuthProvider, recentLoginProvider],
+      () => toOAuthProvider(profile?.oAuthProvider) ?? readProviderClaim(authPayload) ?? toOAuthProvider(recentLoginProvider),
+      [authPayload, profile?.oAuthProvider, recentLoginProvider],
    );
    const resolvedProfile = useMemo(
       () => ({
          ...profile,
-         email: profile?.email ?? readStringClaim(authPayload, ['email']),
-         name: profile?.name ?? readStringClaim(authPayload, ['name']),
-         mobile: profile?.mobile ?? readStringClaim(authPayload, ['mobile', 'phoneNumber', 'phone_number']),
+         email: profile?.email ?? readStringClaim(authPayload, ['email', 'preferred_username', 'loginId', 'login_id', 'username']),
+         name: profile?.name ?? readStringClaim(authPayload, ['name', 'nickname']),
+         mobile: profile?.mobile ?? readStringClaim(authPayload, ['mobile', 'phoneNumber', 'phone_number', 'phone']),
          oAuthProvider: effectiveProvider,
       }),
       [authPayload, effectiveProvider, profile],
@@ -264,8 +269,7 @@ export default function AccountPage() {
    const isAccountSaveEnabled = !!(bank && accountNumber && depositor && agreeOpen && agreeThird && agreePersonal);
    const isAddressSaveEnabled = Boolean(zipCode && address && addressDetail.trim());
    const clearAuth = useAuthStore(state => state.clearAuth);
-   const isPageLoading =
-      profileQuery.isLoading || ordersQuery.isLoading || resaleListQuery.isLoading || unsettledAmountQuery.isLoading;
+   const isPageLoading = profileQuery.isLoading || ordersQuery.isLoading || resaleListQuery.isLoading;
 
    const { mutate: saveAccount, isPending: isSavingAccount } = useMutation({
       mutationFn: () =>
@@ -423,7 +427,7 @@ export default function AccountPage() {
       );
    }
 
-   if (profileQuery.isError || ordersQuery.isError || resaleListQuery.isError || unsettledAmountQuery.isError) {
+   if (profileQuery.isError || ordersQuery.isError || resaleListQuery.isError) {
       return (
          <div className="flex flex-col items-center justify-center gap-4 py-24">
             <p className="text-body-1-regular text-muted-foreground">
