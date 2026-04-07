@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { fetchResaleListingCountsBySections, fetchResaleListings } from '@/entities/resale/api/resaleApi';
+import { fetchResaleListings } from '@/entities/resale/api/resaleApi';
 import {
    fetchSeatGrades,
    fetchSeatSections,
@@ -79,13 +79,6 @@ export function useBookingZones({
             });
          }
 
-         const remainingBySectionId =
-            bookingFlowMode === 'resell'
-               ? await fetchResaleListingCountsBySections(
-                    bookingEntryState!.gameId!,
-                    sections.map(section => section.sectionId),
-                 )
-               : undefined;
          const pricingByGradeId = resolvePricingByGradeId({
             policy: pricingPolicy,
             gameDate: bookingEntryState?.gameDate,
@@ -98,7 +91,6 @@ export function useBookingZones({
                grades,
                teamId: bookingEntryState?.homeTeamId,
                pricingByGradeId,
-               remainingBySectionId,
             });
          }
 

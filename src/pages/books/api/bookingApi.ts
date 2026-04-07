@@ -36,8 +36,54 @@ export type SeatResponse = {
 
 export type SeatStatusResponse = {
    seatId: string;
+   rowName?: string;
+   seatNum?: number;
    status: string;
 };
+
+export const mapSeatStatusToUiStatus = (status: string | undefined): SeatStatus => {
+   switch (status?.toUpperCase()) {
+      case 'AVAILABLE':
+         return 'available';
+      case 'HELD':
+         return 'held';
+      case 'SOLD':
+      case 'BLOCKED':
+         return 'disabled';
+      default:
+         return 'available';
+   }
+};
+
+export const mapSeatStatusesToSeats = ({
+   sectionId,
+   statuses,
+}: {
+   sectionId: string;
+   statuses: SeatStatusResponse[];
+}): SeatResponse[] =>
+   statuses.flatMap((seatStatus) => {
+      if (!isNonEmptyString(seatStatus.seatId) || !isNonEmptyString(seatStatus.rowName) || !Number.isFinite(seatStatus.seatNum)) {
+         console.error('[bookingApi] 좌석 상태 응답 정규화 실패', {
+            sectionId,
+            seatStatus,
+         });
+         return [];
+      }
+
+      const normalizedStatus = seatStatus.status?.toUpperCase?.();
+
+      return [
+         {
+            seatId: seatStatus.seatId,
+            apiSeatId: seatStatus.seatId,
+            sectionId,
+            rowName: seatStatus.rowName,
+            seatNum: seatStatus.seatNum,
+            available: true,
+         } satisfies SeatResponse,
+      ];
+   });
 
 export type TicketPricingPolicyPriceResponse = {
    priceId: string;
@@ -194,19 +240,7 @@ const toSeatStatus = (status: string | undefined, available: boolean): SeatStatu
       return 'disabled';
    }
 
-   switch (status?.toUpperCase()) {
-      case 'AVAILABLE':
-         return 'available';
-      case 'HELD':
-         return 'held';
-      case 'SELECTED':
-         return 'selected';
-      case 'SOLD':
-      case 'BLOCKED':
-         return 'disabled';
-      default:
-         return 'available';
-   }
+   return mapSeatStatusToUiStatus(status);
 };
 
 const sortRowNames = (left: string, right: string) =>
