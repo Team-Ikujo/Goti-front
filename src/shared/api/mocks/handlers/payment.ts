@@ -1140,31 +1140,6 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/resales/listings', async () => {
-      return HttpResponse.json({
-         code: 'SUCCESS',
-         message: 'ok',
-         data: mockResaleListings,
-      });
-   }),
-
-   http.post('/api/v1/resales/listings', async ({ request }) => {
-      const body = (await request.json()) as { ticketId: string; listingPrice: number };
-      return HttpResponse.json({
-         code: 'SUCCESS',
-         message: 'ok',
-         data: {
-            listingId: 'resale-listing-new',
-            ticketId: body.ticketId,
-            listingPrice: body.listingPrice,
-            listingStatus: 'LISTING',
-            listedAt: new Date().toISOString(),
-            isCancelable: true,
-            isPurchasable: true,
-         },
-      });
-   }),
-
    http.get('/api/v1/resales/histories/games/:gameId/grade/:gradeId/ranges/:range/graph', async ({ params }) => {
       const gameId = String(params.gameId);
       const gradeId = String(params.gradeId);

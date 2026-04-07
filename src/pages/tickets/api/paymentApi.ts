@@ -1,4 +1,4 @@
-import apiClient, { ApiError } from '@/shared/api/client';
+import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import type {
    CashReceiptNumType,

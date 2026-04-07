@@ -12,7 +12,12 @@ import {
    type ResaleListingItem,
    type ResaleListingOrderStatus,
 } from '@/entities/resale/api/resaleApi';
-import { fetchResaleUnsettledAmount, type ResaleUnsettledAmountResponse } from '@/entities/payment/api/paymentApi';
+import {
+   fetchPurchaseHistory,
+   fetchResaleUnsettledAmount,
+   type PurchaseHistoryItem as PaymentPurchaseHistoryItem,
+   type ResaleUnsettledAmountResponse,
+} from '@/entities/payment/api/paymentApi';
 import { teams } from '@/entities/team/model/teams';
 import type { PurchaseHistoryItem, SaleHistoryItem, PurchaseStatus, SaleStatus } from './historyCard';
 import type { TicketType } from '../ui/TicketTypeBadge';
@@ -60,7 +65,7 @@ const parseSeatDetail = (seatInfo: string): string => {
    return rowIndex > 0 ? tokens.slice(rowIndex).join(' ') : tokens.slice(1).join(' ');
 };
 
-const mapPurchaseStatus = (status: OrderListItem['orderStatus']): PurchaseStatus => {
+const mapPurchaseStatus = (status: OrderListItem['orderStatus'] | string): PurchaseStatus => {
    switch (status) {
       case 'PENDING':
          return '입금 대기';
@@ -88,7 +93,7 @@ const mapSaleStatus = (status: ResaleListingItem['listingStatus']): SaleStatus =
 };
 
 type EnrichedOrderListItem = {
-   order: OrderListItem;
+   order: OrderListItem | PaymentPurchaseHistoryItem;
    tickets: OrderTicket[];
    primaryTicketDetail?: TicketDetail;
 };
@@ -102,7 +107,14 @@ type EnrichedResaleListingItem = ResaleListingItem & {
 };
 
 const fetchMyOrderSummaries = async (): Promise<EnrichedOrderListItem[]> => {
-   const orders = await fetchMyOrders();
+   let orders: Array<OrderListItem | PaymentPurchaseHistoryItem> = [];
+
+   try {
+      const purchaseHistory = await fetchPurchaseHistory({ type: 'NORMAL', size: 100 });
+      orders = purchaseHistory.list;
+   } catch {
+      orders = await fetchMyOrders();
+   }
 
    return Promise.all(
       orders.map(async (order) => {
@@ -132,32 +144,36 @@ const fetchMyResaleListingsWithGameInfo = async (): Promise<EnrichedResaleListin
 
    const listingGroups = await Promise.all(
       resaleOrders.list.map(async (order) => {
-         const listings = await fetchResaleListingOrderDetails(order.orderId);
+         try {
+            const listings = await fetchResaleListingOrderDetails(order.orderId);
 
-         return Promise.all(
-            listings.map(async (listing) => {
-               try {
-                  const ticketDetail = await fetchTicketDetail(listing.ticketId);
+            return Promise.all(
+               listings.map(async (listing) => {
+                  try {
+                     const ticketDetail = await fetchTicketDetail(listing.ticketId);
 
-                  return {
-                     ...listing,
-                     orderId: order.orderId,
-                     orderNumber: order.orderNumber,
-                     orderStatus: order.orderStatus,
-                     orderCreatedAt: order.createdAt,
-                     ticketDetail,
-                  };
-               } catch {
-                  return {
-                     ...listing,
-                     orderId: order.orderId,
-                     orderNumber: order.orderNumber,
-                     orderStatus: order.orderStatus,
-                     orderCreatedAt: order.createdAt,
-                  };
-               }
-            }),
-         );
+                     return {
+                        ...listing,
+                        orderId: order.orderId,
+                        orderNumber: order.orderNumber,
+                        orderStatus: order.orderStatus,
+                        orderCreatedAt: order.createdAt,
+                        ticketDetail,
+                     };
+                  } catch {
+                     return {
+                        ...listing,
+                        orderId: order.orderId,
+                        orderNumber: order.orderNumber,
+                        orderStatus: order.orderStatus,
+                        orderCreatedAt: order.createdAt,
+                     };
+                  }
+               }),
+            );
+         } catch {
+            return [];
+         }
       }),
    );
 
@@ -184,18 +200,34 @@ export const useMyOrdersData = () => {
 
    const data = useMemo((): PurchaseHistoryItem[] => {
       return (query.data ?? []).map(({ order, tickets, primaryTicketDetail }) => {
-         const stadiumName =
-            primaryTicketDetail?.stadiumName || teamStadiumMap[order.stadiumId] || '야구장';
-         const gameTitle = primaryTicketDetail?.gameTitle ?? 'KBO 리그 경기';
-         const sectionLabel =
-            tickets[0]?.seatInfo ? parseGradeName(tickets[0].seatInfo) : '좌석 정보';
-         const seats = tickets.length > 0
-            ? tickets.map((ticket) => ticket.seatInfo)
+         const purchaseSeatInfos = 'seatInfos' in order ? order.seatInfos : [];
+         const displaySeatInfos = purchaseSeatInfos.length > 0
+            ? purchaseSeatInfos
+            : tickets.length > 0
+               ? tickets.map((ticket) => ticket.seatInfo)
+               : primaryTicketDetail?.seatInfo
+                  ? [primaryTicketDetail.seatInfo]
+                  : [];
+         const primarySeatInfo = displaySeatInfos[0];
+         const sectionLabel = primarySeatInfo ? parseGradeName(primarySeatInfo) : '좌석 정보';
+         const seats = displaySeatInfos.length > 0
+            ? displaySeatInfos.map((seatInfo) => parseSeatDetail(seatInfo))
             : Array.from({ length: order.totalQuantity }, (_, i) => `좌석${i + 1}`);
          const ticketIds = tickets.map((ticket) => ticket.ticketId);
          const seatPrices = tickets.map((ticket) => ticket.ticketPrice);
+         const gameTitle = 'gameTitle' in order ? order.gameTitle : (primaryTicketDetail?.gameTitle ?? 'KBO 리그 경기');
+         const stadiumName = 'stadiumId' in order
+            ? (teamStadiumMap[order.stadiumId] ?? primaryTicketDetail?.stadiumName ?? '야구장')
+            : (primaryTicketDetail?.stadiumName ?? '야구장');
+         const gameDate = 'gameDate' in order ? order.gameDate : primaryTicketDetail?.gameDate;
+         const purchaseQuantity = 'totalQuantity' in order ? order.totalQuantity : (tickets.length > 0 ? tickets.length : 1);
+         const purchaseAmount = 'totalAmount' in order
+            ? order.totalAmount
+            : seatPrices.length > 0
+               ? seatPrices.reduce((sum, price) => sum + price, 0)
+               : 0;
 
-        return {
+         return {
             id: ticketIds[0] ?? order.orderId,
             rawOrderId: order.orderId,
             gameId: order.gameId,
@@ -206,14 +238,14 @@ export const useMyOrdersData = () => {
             game: {
                teams: gameTitle,
                venue: stadiumName,
-               datetime: primaryTicketDetail?.gameDate
-                  ? formatDateTime(primaryTicketDetail.gameDate)
+               datetime: gameDate
+                  ? formatDateTime(gameDate)
                   : formatDateTime(order.orderedAt),
-               quantity: order.totalQuantity,
+               quantity: purchaseQuantity,
                section: sectionLabel,
                seats,
             },
-            price: order.totalAmount,
+            price: purchaseAmount,
             paymentStatus: mapPurchaseStatus(order.orderStatus),
             deliveryType: '모바일 티켓',
             canSell: order.orderStatus === 'CONFIRMED',
