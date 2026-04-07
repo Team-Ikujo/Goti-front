@@ -1,5 +1,4 @@
 import type { RefObject } from 'react';
-import type { RefObject } from 'react';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { DatePicker } from '@/shared/ui/date-picker';
 import type {

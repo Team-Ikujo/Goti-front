@@ -24,10 +24,12 @@ export interface PurchaseHistoryItem {
    deliveryType: string;
    canSell: boolean;
    ticketIds?: string[];
+   seatPrices?: number[];
 }
 
 export interface SaleHistoryItem {
    id: string;
+   ticketId?: string;
    orderId: string;
    orderDate: string;
    soldAt?: string;

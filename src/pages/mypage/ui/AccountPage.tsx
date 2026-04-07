@@ -1,9 +1,15 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { ChevronLeft } from 'lucide-react';
-import { createMemberAccount, createMemberAddress, withdrawMember, type MemberAccount, type MemberAddress } from '@/entities/user/api/memberApi';
+import {
+   createMemberAccount,
+   createMemberAddress,
+   withdrawMember,
+   type MemberAccount,
+   type MemberAddress,
+} from '@/entities/user/api/memberApi';
 import { logout } from '@/features/auth/api/authApi';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { AccountModals } from './AccountModals';
@@ -15,13 +21,6 @@ import { AccountSocialConnectionsCard } from './AccountSocialConnectionsCard';
 import { AccountBankFormCard, type AccountAgreementItem } from './AccountBankFormCard';
 import { AccountAddressFormCard } from './AccountAddressFormCard';
 import { AccountManagementCard } from './AccountManagementCard';
-import {
-   AccountFormCard,
-   AccountInfoCard,
-   AccountManagementCard,
-   AddressFormCard,
-   SocialConnectionsCard,
-} from './AccountPageSections';
 import {
    useMyProfileData,
    useMyOrdersData,
@@ -80,13 +79,16 @@ export default function AccountPage() {
       () => toOAuthProvider(profile?.oAuthProvider) ?? toOAuthProvider(recentLoginProvider),
       [profile?.oAuthProvider, recentLoginProvider],
    );
-   const resolvedProfile = useMemo(() => ({
-      ...profile,
-      email: profile?.email ?? readStringClaim(authPayload, ['email']),
-      name: profile?.name ?? readStringClaim(authPayload, ['name']),
-      mobile: profile?.mobile ?? readStringClaim(authPayload, ['mobile', 'phoneNumber', 'phone_number']),
-      oAuthProvider: effectiveProvider,
-   }), [authPayload, effectiveProvider, profile]);
+   const resolvedProfile = useMemo(
+      () => ({
+         ...profile,
+         email: profile?.email ?? readStringClaim(authPayload, ['email']),
+         name: profile?.name ?? readStringClaim(authPayload, ['name']),
+         mobile: profile?.mobile ?? readStringClaim(authPayload, ['mobile', 'phoneNumber', 'phone_number']),
+         oAuthProvider: effectiveProvider,
+      }),
+      [authPayload, effectiveProvider, profile],
+   );
    const resolvedSocialConnection = useMemo(() => {
       const base = {
          isGoogleConnected: profile?.socialConnection?.isGoogleConnected ?? false,
@@ -217,8 +219,8 @@ export default function AccountPage() {
          setAddress(addr.baseAddress);
          setAddressDetail(addr.detailAddress);
       }
-   // profile이 바뀔 때 한 번만 적용 (사용자 직접 수정 값은 유지)
-   // eslint-disable-next-line react-hooks/exhaustive-deps
+      // profile이 바뀔 때 한 번만 적용 (사용자 직접 수정 값은 유지)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [profile, writeStoredAccount]);
    const [agreeAll, setAgreeAll] = useState(false);
    const [agreeOpen, setAgreeOpen] = useState(false);
@@ -272,7 +274,7 @@ export default function AccountPage() {
             bankName: bank,
             accountHolder: depositor,
          }),
-      onSuccess: (registeredAccount) => {
+      onSuccess: registeredAccount => {
          setSavedAccount(registeredAccount);
          setBank(registeredAccount.bankName);
          setAccountNumber(registeredAccount.accountNumber);
@@ -280,7 +282,7 @@ export default function AccountPage() {
          writeStoredAccount(registeredAccount);
          alert('계좌 정보가 저장되었습니다.');
       },
-      onError: (error) => {
+      onError: error => {
          alert(getErrorMessage(error, '계좌 정보 저장에 실패했습니다. 다시 시도해주세요.'));
       },
    });
@@ -292,14 +294,14 @@ export default function AccountPage() {
             baseAddress: address,
             detailAddress: addressDetail.trim(),
          }),
-      onSuccess: (registeredAddress) => {
+      onSuccess: registeredAddress => {
          setSavedAddress(registeredAddress);
          setZipCode(registeredAddress.zipCode);
          setAddress(registeredAddress.baseAddress);
          setAddressDetail(registeredAddress.detailAddress);
          alert('주소 정보가 저장되었습니다.');
       },
-      onError: (error) => {
+      onError: error => {
          alert(getErrorMessage(error, '주소 정보 저장에 실패했습니다. 다시 시도해주세요.'));
       },
    });
@@ -375,7 +377,7 @@ export default function AccountPage() {
 
          const targetKey = keyByProvider[targetProvider];
 
-         setSocialConnectionState((prev) => {
+         setSocialConnectionState(prev => {
             const nextChecked = !prev[targetKey];
 
             if (!nextChecked && targetProvider === effectiveProvider) {
@@ -414,10 +416,14 @@ export default function AccountPage() {
    ];
 
    if (isPageLoading) {
-      return <div className="py-24 text-center text-body-1-regular text-muted-foreground">계정 정보를 불러오는 중입니다.</div>;
+      return (
+         <div className="py-24 text-center text-body-1-regular text-muted-foreground">
+            계정 정보를 불러오는 중입니다.
+         </div>
+      );
    }
 
-   if (isPageError) {
+   if (profileQuery.isError || ordersQuery.isError || resaleListQuery.isError || unsettledAmountQuery.isError) {
       return (
          <div className="flex flex-col items-center justify-center gap-4 py-24">
             <p className="text-body-1-regular text-muted-foreground">
@@ -472,15 +478,13 @@ export default function AccountPage() {
                   agreementItems={accountAgreementItems}
                   isAccountSaveEnabled={isAccountSaveEnabled}
                   isSavingAccount={isSavingAccount}
-                  onToggleBankDropdown={() => setBankDropdownOpen((value) => !value)}
-                  onSelectBank={(value) => {
+                  onToggleBankDropdown={() => setBankDropdownOpen(value => !value)}
+                  onSelectBank={value => {
                      setBank(value);
                      setBankDropdownOpen(false);
                   }}
-                  onChangeAccountNumber={(value) => setAccountNumber(value.replace(/[^0-9]/g, ''))}
-                  onChangeDepositor={(value) =>
-                     setDepositor(value.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, ''))
-                  }
+                  onChangeAccountNumber={value => setAccountNumber(value.replace(/[^0-9]/g, ''))}
+                  onChangeDepositor={value => setDepositor(value.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, ''))}
                   onToggleAgreeAll={handleAgreeAll}
                   onOpenTerms={setTermsDialog}
                   onSave={() => saveAccount()}
