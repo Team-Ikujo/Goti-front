@@ -10,6 +10,7 @@ import { useSeatMapViewport } from '@/pages/books/model/useSeatMapViewport';
 import { useSeatsPageEntry } from '@/pages/books/model/useSeatsPageEntry';
 import { useZoneSeatState } from '@/pages/books/model/useZoneSeatState';
 import { formatPrice } from '@/pages/books/model/zoneData';
+import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { useBotDetector } from '@/shared/lib/useBotDetector';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
 import BooksPurchaseLimitDialog from '@/shared/widgets/layout/books/BooksPurchaseLimitDialog';
@@ -100,6 +101,20 @@ function SeatsPage() {
    }, [isResellMode, isSeatInteractionLocked, resellSeatSelection.displaySeats, seats]);
 
    useEffect(() => {
+      logBookingFlow('SeatsPage', 'render snapshot', {
+         zoneId,
+         isResellMode,
+         bookingEntryState: summarizeBookingEntry(bookingEntryState),
+         bookingZoneCount: bookingZones.length,
+         selectedSeatCount,
+         allSelectedSeatsAreHeld,
+         hasApiSeatMap,
+         isSeatInteractionLocked,
+         isSeatMapError,
+      });
+   }, [allSelectedSeatsAreHeld, bookingEntryState, bookingZones.length, hasApiSeatMap, isResellMode, isSeatInteractionLocked, isSeatMapError, selectedSeatCount, zoneId]);
+
+   useEffect(() => {
       const mediaQuery = window.matchMedia('(min-width: 1280px)');
       const handleChange = (event: MediaQueryListEvent | MediaQueryList) => {
          if (event.matches) {
@@ -116,6 +131,11 @@ function SeatsPage() {
    }, []);
 
    const handleProceedToPayment = async () => {
+      logBookingFlow('SeatsPage', 'handleProceedToPayment', {
+         isResellMode,
+         selectedSeatCount,
+         bookingEntryState: summarizeBookingEntry(bookingEntryState),
+      });
       if (isResellMode) {
          if (!resellSeatSelection.selectedResellListing) {
             return;
@@ -153,6 +173,13 @@ function SeatsPage() {
    };
 
    const toggleSeat = (seat: SeatItem) => {
+      logBookingFlow('SeatsPage', 'toggleSeat', {
+         seat,
+         isResellMode,
+         isSeatInteractionLocked,
+         hasApiSeatMap,
+         pendingSeatIds,
+      });
       if (isSeatInteractionLocked) {
          return;
       }
