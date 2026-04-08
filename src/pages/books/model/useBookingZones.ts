@@ -46,6 +46,12 @@ export function useBookingZones({
 }: UseBookingZonesParams): UseBookingZonesResult {
    const shouldForceNewSessionRef = useRef(Boolean(bookingEntryState?.forceNewSession));
 
+   useEffect(() => {
+      if (bookingEntryState?.forceNewSession) {
+         shouldForceNewSessionRef.current = true;
+      }
+   }, [bookingEntryState?.forceNewSession]);
+
    const localZones = useMemo(
       () =>
          [...getBookingZones(bookingEntryState?.homeTeamId)].sort(
@@ -62,6 +68,7 @@ export function useBookingZones({
          bookingFlowMode,
          bookingEntryState?.stadiumId,
          bookingEntryState?.gameId,
+         bookingEntryState?.queueTokenJti,
          bookingEntryState?.serverHomeTeamId,
          bookingEntryState?.leagueType,
          bookingEntryState?.gameDate,

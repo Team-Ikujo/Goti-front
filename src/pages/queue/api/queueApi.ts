@@ -74,6 +74,7 @@ export const seatEnterQueue = async (
   return response.data.data;
 };
 
+/** 대기열 이탈 — 결제 완료/명시적 종료 시 현재 수용 인원을 해제한다. */
 export const leaveQueue = async (gameId: string): Promise<QueueLeaveResponse> => {
   const response = await apiClient.post<ApiEnvelope<QueueLeaveResponse>>(
     `/api/v1/queue/${encodeURIComponent(gameId)}/leave`,
