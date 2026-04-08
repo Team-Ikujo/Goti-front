@@ -3,6 +3,7 @@
 import apiClient from '@/shared/api/client';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 import { logBookingFlow, logBookingFlowError } from '@/shared/lib/bookingFlowDebug';
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();

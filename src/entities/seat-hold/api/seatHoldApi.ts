@@ -1,9 +1,7 @@
 import apiClient, { unwrapApiData } from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import { createBookingFlowHeaders } from '@/shared/lib/guardrailHeaders';
-
-const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
-const shouldUseRelativeApiBase = import.meta.env.DEV;
+import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 
 export type HoldSeatRequest = {
    gameId: string;
