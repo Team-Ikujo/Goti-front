@@ -109,12 +109,9 @@ export function useBookingEntryFlow() {
     <BookingGuideDialog
       open={isGuideOpen}
       onOpenChange={setIsGuideOpen}
-      onConfirm={(turnstileToken: string) => {
+      onConfirm={() => {
         setIsGuideOpen(false);
-        const nextEntryState = {
-          ...(pendingEntry?.entryState ?? { requireCaptcha: true }),
-          turnstileToken,
-        } satisfies BookingEntryState;
+        const nextEntryState = (pendingEntry?.entryState ?? { requireCaptcha: true }) satisfies BookingEntryState;
 
         setBookingEntry(nextEntryState);
         navigate({
