@@ -51,23 +51,6 @@ const isTicketPurchaseLimitError = (error: unknown) => {
    return TICKET_PURCHASE_LIMIT_ERROR_PATTERNS.some((pattern) => pattern.test(error.message));
 };
 
-const createFallbackOrderNumber = () => {
-   const digits = String(Date.now()).slice(-13).padStart(13, '0');
-   return `ORD${digits}`;
-};
-
-const formatReceiptDateTime = (date: Date) => {
-   const year = date.getFullYear();
-   const month = String(date.getMonth() + 1).padStart(2, '0');
-   const day = String(date.getDate()).padStart(2, '0');
-   const hours24 = date.getHours();
-   const minutes = String(date.getMinutes()).padStart(2, '0');
-   const meridiem = hours24 >= 12 ? 'PM' : 'AM';
-   const hours12 = hours24 % 12 || 12;
-
-   return `${year}.${month}.${day} ${String(hours12).padStart(2, '0')}:${minutes} ${meridiem}`;
-};
-
 const savePaymentCompleteState = (order: PaymentResponse) => {
    if (typeof window === 'undefined' || !order.orderId) {
       return;
