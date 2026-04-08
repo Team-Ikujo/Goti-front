@@ -30,8 +30,10 @@ export const fetchOrderPaymentDetail = async (orderId: string): Promise<OrderPay
    return response.data.data;
 };
 
-export const fetchResaleUnsettledAmount = async (): Promise<ResaleUnsettledAmountResponse> => {
-   const response = await apiClient.get<ApiEnvelope<ResaleUnsettledAmountResponse>>('/api/v1/payments/resales/unsettled');
+export const fetchResaleUnsettledAmount = async (userId: string): Promise<ResaleUnsettledAmountResponse> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleUnsettledAmountResponse>>('/api/v1/payments/resales/unsettled', {
+      params: { userId },
+   });
    return response.data.data;
 };
 

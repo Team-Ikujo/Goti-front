@@ -14,6 +14,7 @@ import { isPurchasableResaleListing, resolveResaleListingZoneId } from '@/pages/
 import type { ZoneItem } from '@/pages/books/model/types';
 import { getBookingZones, getZoneDisplayOrder } from '@/pages/books/model/zoneData';
 import { getCompletedResalePurchaseLookup } from '@/shared/lib/paymentCompleteStorage';
+import { ApiError } from '@/shared/api/client';
 import type { BookingFlowMode } from '@/shared/lib/booking-flow';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 
@@ -23,11 +24,28 @@ type UseBookingZonesParams = {
    patchBookingEntry: (partialEntry: Partial<BookingEntryState>) => void;
 };
 
+type UseBookingZonesResult = {
+   zones: ZoneItem[];
+   isSeatGradeBotBlocked: boolean;
+};
+
+const hasBotBlockedMessage = (value: unknown): boolean => {
+   if (typeof value === 'string') {
+      return value.includes('봇 감지');
+   }
+
+   if (value && typeof value === 'object' && 'message' in value) {
+      return hasBotBlockedMessage((value as { message?: unknown }).message);
+   }
+
+   return false;
+};
+
 export function useBookingZones({
    bookingEntryState,
    bookingFlowMode,
    patchBookingEntry,
-}: UseBookingZonesParams): ZoneItem[] {
+}: UseBookingZonesParams): UseBookingZonesResult {
    const shouldForceNewSessionRef = useRef(Boolean(bookingEntryState?.forceNewSession));
 
    const localZones = useMemo(
@@ -40,7 +58,7 @@ export function useBookingZones({
       [bookingEntryState?.homeTeamId],
    );
 
-   const { data: apiZones } = useQuery({
+   const { data: apiZones, error: apiZonesError } = useQuery({
       queryKey: [
          'booking-zones',
          bookingFlowMode,
@@ -174,5 +192,12 @@ export function useBookingZones({
       });
    }, [patchBookingEntry, zones]);
 
-   return zones;
+   const isSeatGradeBotBlocked =
+      apiZonesError instanceof ApiError &&
+      (hasBotBlockedMessage(apiZonesError.message) || hasBotBlockedMessage(apiZonesError.data));
+
+   return {
+      zones,
+      isSeatGradeBotBlocked,
+   };
 }

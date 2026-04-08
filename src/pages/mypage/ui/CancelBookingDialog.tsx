@@ -67,7 +67,7 @@ export default function CancelBookingDialog({
    onClose,
    orderId,
    game,
-   seats: _seats,
+   seats,
    isBankTransfer = false,
    paymentMethod,
    mockTicketInfoError = false,
@@ -154,7 +154,29 @@ export default function CancelBookingDialog({
       );
    }
 
-   const resolvedSeats = (orderTicketsQuery.data ?? []).map((ticket) => ({
+   const requestedTicketIds = new Set(seats.map((seat) => seat.ticketId).filter((value): value is string => Boolean(value)));
+   const requestedOrderItemIds = new Set(seats.map((seat) => seat.orderItemId).filter((value): value is string => Boolean(value)));
+   const requestedSeatDetails = new Set(seats.map((seat) => seat.seatDetail));
+   const requestedSeatKeys = new Set(seats.map((seat) => `${seat.section}::${seat.seatDetail}`));
+
+   const filteredTickets = (orderTicketsQuery.data ?? []).filter((ticket) => {
+      if (requestedTicketIds.size > 0 && requestedTicketIds.has(ticket.ticketId)) {
+         return true;
+      }
+
+      if (requestedOrderItemIds.size > 0 && requestedOrderItemIds.has(ticket.orderItemId)) {
+         return true;
+      }
+
+      const ticketSection = ticket.seatInfo.split(' ')[0] ?? '';
+      if (requestedSeatKeys.has(`${ticketSection}::${ticket.seatInfo}`)) {
+         return true;
+      }
+
+      return requestedSeatDetails.has(ticket.seatInfo);
+   });
+
+   const resolvedSeats = (filteredTickets.length > 0 ? filteredTickets : orderTicketsQuery.data ?? []).map((ticket) => ({
       orderId: formatTicketNumber(
          ticket.ticketNumber,
          ticket.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(ticket.ticketNumber, 'ticket'),

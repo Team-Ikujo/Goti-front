@@ -24,7 +24,15 @@ export function useZoneSeatState({
    zone,
 }: UseZoneSeatStateParams) {
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
-   const { apiSeatItems, seatBlocks, hasApiSeatMap, isSeatMapLoading, refetchSeatMap } = useSeatMapData({
+   const {
+      apiSeatItems,
+      seatBlocks,
+      hasApiSeatMap,
+      isSeatMapError,
+      seatMapErrorMessage,
+      isSeatMapLoading,
+      refetchSeatMap,
+   } = useSeatMapData({
       gameId: bookingEntryState?.gameId,
       stadiumId: bookingEntryState?.stadiumId,
       zone,
@@ -83,8 +91,11 @@ export function useZoneSeatState({
    return {
       allSelectedSeatsAreHeld,
       clearSelectedSeats,
+      hasApiSeatMap,
       holdSeat,
       holdsBySeatId,
+      isSeatMapError,
+      seatMapErrorMessage,
       isSeatInteractionLocked,
       pendingSeatIds,
       releaseSeat,

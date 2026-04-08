@@ -30,8 +30,11 @@ function SeatsPage() {
    const {
       allSelectedSeatsAreHeld: allStandardSelectedSeatsAreHeld,
       clearSelectedSeats,
+      hasApiSeatMap,
       holdSeat,
       holdsBySeatId,
+      isSeatMapError,
+      seatMapErrorMessage,
       isSeatInteractionLocked,
       pendingSeatIds,
       releaseSeat,
@@ -83,7 +86,7 @@ function SeatsPage() {
          return resellSeatSelection.displaySeats;
       }
 
-      if (isSeatInteractionLocked) {
+      if (isSeatInteractionLocked || !hasApiSeatMap) {
          return seats.map(
             seat =>
                ({
@@ -151,6 +154,13 @@ function SeatsPage() {
 
    const toggleSeat = (seat: SeatItem) => {
       if (isSeatInteractionLocked) {
+         return;
+      }
+
+      if (!isResellMode && !hasApiSeatMap) {
+         if (isSeatMapError && seatMapErrorMessage) {
+            window.alert(seatMapErrorMessage);
+         }
          return;
       }
 

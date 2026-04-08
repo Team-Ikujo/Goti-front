@@ -7,7 +7,6 @@ import {
    useMyResaleUnsettledAmountData,
 } from '../model/useMypageData';
 import { isMswEnabled } from '@/shared/config/runtime';
-import { MY_PROFILE_MOCK } from '@/entities/user/api/memberApi';
 import { MypageProfileCard } from './MypageProfileCard';
 import { MypageSummaryCard } from './MypageSummaryCard';
 import { MypageHistorySection } from './MypageHistorySection';
@@ -25,7 +24,7 @@ export default function MypagePage() {
    const resaleListQuery = useMyResaleListData();
    const unsettledAmountQuery = useMyResaleUnsettledAmountData();
 
-   const profile = profileQuery.data ?? MY_PROFILE_MOCK;
+   const profile = profileQuery.data;
    const rawPurchaseItems = ordersQuery.data ?? [];
    const saleItems = resaleListQuery.data ?? [];
    const listedTicketIdSet = new Set(
