@@ -13,6 +13,7 @@ type UseBookingCaptchaParams = {
    requiresCaptcha: boolean;
    location: Location;
    navigate: NavigateFunction;
+   onCaptchaResolved?: () => void;
    resolvedBookingEntryState: BookingEntryState | undefined;
 };
 
@@ -20,6 +21,7 @@ export function useBookingCaptcha({
    requiresCaptcha,
    location,
    navigate,
+   onCaptchaResolved,
    resolvedBookingEntryState,
 }: UseBookingCaptchaParams) {
    const [isCaptchaOpen, setIsCaptchaOpen] = useState(requiresCaptcha);
@@ -54,6 +56,7 @@ export function useBookingCaptcha({
       setIsCaptchaOpen(false);
       setCaptchaInput('');
       setCaptchaError('');
+      onCaptchaResolved?.();
       navigate(
          {
             pathname: location.pathname,
