@@ -76,6 +76,21 @@ const scheduleQueueLeave = (gameId: string) => {
   pendingLeaveTimeoutIds.set(gameId, timeoutId);
 };
 
+const getHttpStatus = (error: unknown) => {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof (error as { response?: unknown }).response === 'object' &&
+    (error as { response?: { status?: unknown } }).response !== null
+  ) {
+    const status = (error as { response?: { status?: unknown } }).response?.status;
+    return typeof status === 'number' ? status : null;
+  }
+
+  return null;
+};
+
 const QueueIllustration = () => {
   const [animationData, setAnimationData] = useState<Record<string, unknown> | null>(null);
 
@@ -273,6 +288,14 @@ const QueuePage = () => {
       .catch((err: unknown) => {
         if (cancelled) return;
         console.error('[Queue] seatEnterQueue 실패:', err);
+        if (getHttpStatus(err) === 409) {
+          clearPendingLeave(gameId);
+          clearQueuedEntryCache(gameId);
+          setErrorMessage('이전 예매 세션과 충돌했습니다. 다시 예매를 시작해 주세요.');
+          setPhase('error');
+          return;
+        }
+
         setPhase('waiting');
       })
       .finally(() => {
