@@ -1,7 +1,6 @@
 import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/entities/auth/model/authStore";
 import { redirectToErrorPage } from '@/shared/lib/error-navigation';
-import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import { applyGuardrailHeadersToAxiosConfig } from '@/shared/lib/guardrailHeaders';
 
 export class ApiError extends Error {
@@ -250,7 +249,6 @@ const reissueAccessTokenFromCookie = async () => {
 
 apiClient.interceptors.request.use((config) => {
   const accessToken = useAuthStore.getState().accessToken;
-  const turnstileToken = useBookingEntryStore.getState().entry?.turnstileToken;
   const shouldSkipAuth = shouldSkipAuthorizationHeader(config);
   const shouldOmitCredentials = shouldSkipCredentials(config);
   const shouldIncludeGuardrailHeaders = shouldAttachGuardrailHeaders(config);
@@ -260,7 +258,7 @@ apiClient.interceptors.request.use((config) => {
   }
 
   if (shouldIncludeGuardrailHeaders) {
-    applyGuardrailHeadersToAxiosConfig(config, turnstileToken);
+    applyGuardrailHeadersToAxiosConfig(config);
   }
 
   if (accessToken && !shouldSkipAuth) {
@@ -304,10 +302,8 @@ apiClient.interceptors.response.use(
       requestConfig._retry = true;
 
       return reissueAccessTokenFromCookie().then((accessToken) => {
-        const turnstileToken = useBookingEntryStore.getState().entry?.turnstileToken;
-
         if (shouldAttachGuardrailHeaders(requestConfig)) {
-          applyGuardrailHeadersToAxiosConfig(requestConfig, turnstileToken);
+          applyGuardrailHeadersToAxiosConfig(requestConfig);
         }
 
         if (!shouldSkipAuthorizationHeader(requestConfig)) {
