@@ -6,6 +6,7 @@ import { createBookingFlowHeaders } from '@/shared/lib/guardrailHeaders';
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
 const shouldUseRelativeApiBase = import.meta.env.DEV;
+const FORCE_RESALE_SOLD_OUT_MOCK = true;
 
 export interface ResaleListingItem {
    listingId: string;
@@ -203,6 +204,10 @@ export interface ResaleHistoryPointResponse {
 }
 
 export const fetchResaleListingCountByGame = async (gameId: string): Promise<number> => {
+   if (FORCE_RESALE_SOLD_OUT_MOCK) {
+      return 0;
+   }
+
    const response = await apiClient.get<ApiEnvelope<ResaleGameListingCountResponse>>(
       `/api/v1/resales/games/${encodeURIComponent(gameId)}/count`,
    );
@@ -215,6 +220,10 @@ export const fetchResaleListingCountsByGames = async (gameIds: string[]): Promis
 
    if (uniqueGameIds.length === 0) {
       return new Map<string, number>();
+   }
+
+   if (FORCE_RESALE_SOLD_OUT_MOCK) {
+      return new Map<string, number>(uniqueGameIds.map((gameId) => [gameId, 0]));
    }
 
    const counts = await Promise.all(
@@ -269,6 +278,10 @@ export const fetchResaleListings = async (): Promise<ResaleListingItem[]> => {
 
 /** 구매자용 마켓 전체 리스팅 조회 — GET /api/v1/resales/listings */
 export const fetchMarketResaleListings = async (): Promise<ResaleListingItem[]> => {
+   if (FORCE_RESALE_SOLD_OUT_MOCK) {
+      return [];
+   }
+
    const response = await apiClient.get<ApiEnvelope<ResaleListingItem[]>>('/api/v1/resales/listings');
    return response.data.data;
 };
@@ -282,6 +295,10 @@ export const fetchMyResaleListingSummary = async (userId: string): Promise<MyRes
 };
 
 export const fetchResaleGameStatusByGame = async (gameId: string): Promise<ResaleGameStatus> => {
+   if (FORCE_RESALE_SOLD_OUT_MOCK) {
+      return 'UNAVAILABLE';
+   }
+
    const response = await apiClient.get<ApiEnvelope<ResaleGameStatusResponse>>(
       `/api/v1/resales/games/${encodeURIComponent(gameId)}/status`,
    );
@@ -294,6 +311,10 @@ export const fetchResaleGameStatusesByGames = async (gameIds: string[]): Promise
 
    if (uniqueGameIds.length === 0) {
       return new Map<string, ResaleGameStatus>();
+   }
+
+   if (FORCE_RESALE_SOLD_OUT_MOCK) {
+      return new Map<string, ResaleGameStatus>(uniqueGameIds.map((gameId) => [gameId, 'UNAVAILABLE']));
    }
 
    const statuses = await Promise.all(
