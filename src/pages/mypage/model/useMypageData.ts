@@ -3,7 +3,14 @@ import { useMemo } from 'react';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { fetchMyProfile } from '@/entities/user/api/memberApi';
 import { fetchMyOrders, type OrderListItem } from '@/entities/order/api/orderApi';
-import { fetchOrderTickets, fetchTicketDetail, type OrderTicket, type TicketDetail } from '@/entities/ticket/api/ticketApi';
+import {
+   fetchMyTicketInfo,
+   fetchOrderTickets,
+   fetchTicketDetail,
+   type MyTicketInfo,
+   type OrderTicket,
+   type TicketDetail,
+} from '@/entities/ticket/api/ticketApi';
 import {
    fetchMyResaleListingSummary,
    fetchMyResaleListingOrders,
@@ -18,12 +25,9 @@ import {
    type PurchaseHistoryItem as PaymentPurchaseHistoryItem,
    type ResaleUnsettledAmountResponse,
 } from '@/entities/payment/api/paymentApi';
-import { teams } from '@/entities/team/model/teams';
 import type { PurchaseHistoryItem, SaleHistoryItem, PurchaseStatus, SaleStatus } from './historyCard';
 import type { TicketType } from '../ui/TicketTypeBadge';
 import { formatTicketNumber } from './ticketNumber';
-
-const teamStadiumMap = Object.fromEntries(teams.map((t) => [t.serverTeamId, t.stadiumName]));
 
 const formatDate = (dateStr: string) => {
    const date = new Date(dateStr);
@@ -190,6 +194,16 @@ export const useMyProfileData = () => {
    });
 };
 
+export const useMyTicketInfoData = () => {
+   const accessToken = useAuthStore(s => s.accessToken);
+
+   return useQuery<MyTicketInfo>({
+      queryKey: ['myTicketInfo', accessToken],
+      queryFn: fetchMyTicketInfo,
+      enabled: Boolean(accessToken),
+   });
+};
+
 export const useMyOrdersData = () => {
    const query = useQuery({
       queryKey: ['myOrders'],
@@ -199,24 +213,34 @@ export const useMyOrdersData = () => {
    const data = useMemo((): PurchaseHistoryItem[] => {
       return (query.data ?? []).map(({ order, tickets, primaryTicketDetail }) => {
          const purchaseSeatInfos = 'seatInfos' in order ? order.seatInfos : [];
+         const groupedSeatInfos = 'seatGradeGroups' in order
+            ? (order.seatGradeGroups ?? []).flatMap((group) => group.seatInfos ?? [])
+            : [];
+         const primarySeatGradeName = 'seatGradeGroups' in order
+            ? order.seatGradeGroups?.[0]?.seatGradeName
+            : undefined;
          const displaySeatInfos = purchaseSeatInfos.length > 0
             ? purchaseSeatInfos
+            : groupedSeatInfos.length > 0
+               ? groupedSeatInfos
             : tickets.length > 0
                ? tickets.map((ticket) => ticket.seatInfo)
                : primaryTicketDetail?.seatInfo
                   ? [primaryTicketDetail.seatInfo]
                   : [];
          const primarySeatInfo = displaySeatInfos[0];
-         const sectionLabel = primarySeatInfo ? parseGradeName(primarySeatInfo) : '좌석 정보';
+         const sectionLabel = primarySeatGradeName
+            ?? primaryTicketDetail?.seatGradeName
+            ?? (primarySeatInfo ? parseGradeName(primarySeatInfo) : '좌석 정보');
          const seats = displaySeatInfos.length > 0
             ? displaySeatInfos.map((seatInfo) => parseSeatDetail(seatInfo))
             : Array.from({ length: order.totalQuantity }, (_, i) => `좌석${i + 1}`);
          const ticketIds = tickets.map((ticket) => ticket.ticketId);
          const seatPrices = tickets.map((ticket) => ticket.ticketPrice);
-         const gameTitle = 'gameTitle' in order ? order.gameTitle : (primaryTicketDetail?.gameTitle ?? 'KBO 리그 경기');
-         const stadiumName = 'stadiumId' in order
-            ? (teamStadiumMap[order.stadiumId] ?? primaryTicketDetail?.stadiumName ?? '야구장')
-            : (primaryTicketDetail?.stadiumName ?? '야구장');
+         const gameTitle = ('gameTitle' in order ? order.gameTitle : primaryTicketDetail?.gameTitle) ?? 'KBO 리그 경기';
+         const stadiumName = ('stadiumLocation' in order ? order.stadiumLocation : undefined)
+            ?? primaryTicketDetail?.stadiumName
+            ?? '야구장';
          const gameDate = 'gameDate' in order ? order.gameDate : primaryTicketDetail?.gameDate;
          const purchaseQuantity = 'totalQuantity' in order ? order.totalQuantity : (tickets.length > 0 ? tickets.length : 1);
          const purchaseAmount = 'totalAmount' in order
@@ -270,10 +294,10 @@ export const useMyResaleListData = () => {
       queryKey: ['myResales'],
       queryFn: fetchMyResaleListingsWithGameInfo,
       select: (data): SaleHistoryItem[] => {
-        return data.map((listing) => ({
+      return data.map((listing) => ({
            id: listing.listingId,
             ticketId: listing.ticketId,
-            orderId: formatTicketNumber(listing.ticketDetail?.ticketNumber ?? listing.ticketNumber ?? listing.ticketId, 'ticket'),
+            orderId: formatTicketNumber(listing.orderNumber ?? listing.ticketDetail?.ticketNumber ?? listing.ticketNumber ?? listing.ticketId, 'resale'),
             orderDate: formatDate(listing.orderCreatedAt ?? listing.listedAt),
             soldAt: listing.soldAt ? formatDateTime(listing.soldAt) : undefined,
             canceledAt: listing.canceledAt ? formatDateTime(listing.canceledAt) : undefined,
@@ -287,7 +311,9 @@ export const useMyResaleListData = () => {
                      ? formatDate(listing.gameDate)
                      : formatDate(listing.orderCreatedAt ?? listing.listedAt),
                quantity: 1,
-               section: parseGradeName(listing.ticketDetail?.seatInfo ?? listing.seatInfo) || '정보 없음',
+               section:
+                  listing.ticketDetail?.seatGradeName
+                  ?? (parseGradeName(listing.ticketDetail?.seatInfo ?? listing.seatInfo) || '정보 없음'),
                seats: [parseSeatDetail(listing.ticketDetail?.seatInfo ?? listing.seatInfo)],
             },
             salePrice: listing.listingPrice,

@@ -1,5 +1,6 @@
 export const ACCOUNT_PAGE_QUERY_KEYS = {
    profile: ['myProfile'] as const,
+   ticketInfo: ['myTicketInfo'] as const,
    orders: ['myOrders'] as const,
    resales: ['myResales'] as const,
    resaleUnsettledAmount: ['myResaleUnsettledAmount'] as const,

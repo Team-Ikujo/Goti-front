@@ -12,6 +12,7 @@ export interface TicketDetail {
    gameId: string;
    gameTitle: string;
    gameDate: string;
+   seatGradeName?: string;
    stadiumName?: string;
    seatInfo: string;
    ticketPrice: number;
