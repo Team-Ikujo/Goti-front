@@ -4,7 +4,7 @@ import {
    useMyProfileData,
    useMyOrdersData,
    useMyResaleListData,
-   useMyResaleUnsettledAmountData,
+   useMyTicketInfoData,
 } from '../model/useMypageData';
 import { isMswEnabled } from '@/shared/config/runtime';
 import { MypageProfileCard } from './MypageProfileCard';
@@ -22,7 +22,7 @@ export default function MypagePage() {
    const profileQuery = useMyProfileData();
    const ordersQuery = useMyOrdersData();
    const resaleListQuery = useMyResaleListData();
-   const unsettledAmountQuery = useMyResaleUnsettledAmountData();
+   const ticketInfoQuery = useMyTicketInfoData();
 
    const profile = profileQuery.data;
    const rawPurchaseItems = ordersQuery.data ?? [];
@@ -76,11 +76,11 @@ export default function MypagePage() {
 
    const isPageLoading = profileQuery.isLoading || ordersQuery.isLoading || resaleListQuery.isLoading;
    const historyHasError = ordersQuery.isError || resaleListQuery.isError;
-   const totalHeld = purchaseItems.filter((item) => item.paymentStatus === '예매 완료').length;
-   const onSale = saleItems.filter((item) => item.saleStatus === '판매 중').length;
-   const soldCount = saleItems.filter((item) => item.saleStatus === '판매 완료').length;
-   const unsettledAmount = unsettledAmountQuery.data?.unsettledAmount ?? 0;
-   const isSummaryLoading = !unsettledAmountQuery.isError && unsettledAmountQuery.isLoading;
+   const totalHeld = ticketInfoQuery.data?.ownedTicketCount ?? 0;
+   const onSale = ticketInfoQuery.data?.listingCount ?? 0;
+   const soldCount = ticketInfoQuery.data?.soldCount ?? 0;
+   const unsettledAmount = ticketInfoQuery.data?.unsettledAmount ?? 0;
+   const isSummaryLoading = ticketInfoQuery.isLoading;
 
    if (isPageLoading) {
       return <div className="py-24 text-center text-body-1-regular text-muted-foreground">마이페이지 정보를 불러오는 중입니다.</div>;
@@ -126,9 +126,9 @@ export default function MypagePage() {
                      soldCount={soldCount}
                      unsettledAmount={unsettledAmount}
                      isLoading={isSummaryLoading}
-                     isError={unsettledAmountQuery.isError}
+                     isError={ticketInfoQuery.isError}
                      onRetry={() => {
-                        void unsettledAmountQuery.refetch();
+                        void ticketInfoQuery.refetch();
                      }}
                   />
                   {historyHasError && (
