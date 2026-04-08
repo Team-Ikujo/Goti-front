@@ -3,6 +3,7 @@ import Lottie from 'lottie-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createBookingFlowSearch, getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import apiClient from '@/shared/api/client';
 import {
   enterQueue,
   getQueueGlobalStatus,
@@ -113,8 +114,9 @@ const QueuePage = () => {
         setQueueNumber(res.queueNumber);
         setPhase('waiting');
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (cancelled) return;
+        console.error('[Queue] enterQueue 실패:', err);
         setErrorMessage('대기열 진입에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         setPhase('error');
       });
@@ -125,10 +127,23 @@ const QueuePage = () => {
   }, [gameId]);
 
   // 언마운트 시 대기열 이탈 (입장 허용 전에만)
+  // cleanup에서는 apiClient 사용 (MSW 가로채기 가능)
+  // 실제 페이지 닫기(beforeunload)에서는 keepalive fetch 사용
   useEffect(() => {
-    return () => {
-      if (gameId && !admittedRef.current) {
+    if (!gameId) return;
+
+    const handleBeforeUnload = () => {
+      if (!admittedRef.current) {
         leaveQueueKeepalive(gameId);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (!admittedRef.current) {
+        void apiClient.post(`/api/v1/queue/${encodeURIComponent(gameId)}/leave`).catch(() => {});
       }
     };
   }, [gameId]);
@@ -146,8 +161,8 @@ const QueuePage = () => {
         if (queueNumber <= status.publishedRank) {
           setPhase('checking');
         }
-      } catch {
-        // polling 실패는 무시하고 다음 tick에 재시도
+      } catch (err: unknown) {
+        console.error('[Queue] global-status polling 실패:', err);
       }
     };
 
@@ -185,9 +200,9 @@ const QueuePage = () => {
           setPhase('waiting');
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (cancelled) return;
-        // seat-enter 실패 시 polling으로 복귀
+        console.error('[Queue] seatEnterQueue 실패:', err);
         setPhase('waiting');
       });
 

@@ -335,6 +335,22 @@ const createResalePayment = async (payload: ResalePaymentRequest) => {
    return response.data.data;
 };
 
+type CompleteResaleOrderResponse = {
+   orderId: string;
+   orderNumber: string;
+   buyerId: string;
+   totalAmount: number;
+   orderStatus: string;
+   ticketIds: string[];
+};
+
+const completeResaleOrder = async (orderId: string): Promise<CompleteResaleOrderResponse> => {
+   const response = await apiClient.patch<ApiEnvelope<CompleteResaleOrderResponse>>(
+      `/api/v1/resales/orders/${encodeURIComponent(orderId)}/complete`,
+   );
+   return response.data.data;
+};
+
 const buildPaymentResponse = ({
    orderType,
    amount,
@@ -569,6 +585,15 @@ export const submitResaleOrder = async (
          idempotencyKey: createClientTransactionId('resale-idempotency'),
       });
 
+      // 결제 완료 후 주문 완료 처리 — 리셀 티켓 발급 및 리스팅 SOLD 전환
+      let issuedTicketCount: number | undefined;
+      try {
+         const completeResult = await completeResaleOrder(order.orderId);
+         issuedTicketCount = completeResult.ticketIds.length;
+      } catch (err) {
+         console.error('[submitResaleOrder] completeResaleOrder 실패', err);
+      }
+
       return buildPaymentResponse({
          orderType: 'resale',
          amount: payment.paymentAmount,
@@ -583,6 +608,7 @@ export const submitResaleOrder = async (
          gameVenue: payload.gameVenue,
          seats: [payload.seatInfo],
          resaleListingId: payload.listingId,
+         issuedTicketCount,
       });
    } catch (error) {
       if (resaleHoldId) {

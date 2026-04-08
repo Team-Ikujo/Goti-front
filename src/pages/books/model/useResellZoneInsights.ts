@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import {
    fetchResaleHistoryGraph,
-   fetchResaleListings,
+   fetchMarketResaleListings,
    type ResaleListingItem as ApiResaleListingItem,
 } from '@/entities/resale/api/resaleApi';
 import type { SeatItem, ZoneItem } from './types';
@@ -67,7 +67,7 @@ export const useResellZoneInsights = ({
          }
 
          const [listings, minuteGraph, dayGraph] = await Promise.all([
-            fetchResaleListings(),
+            fetchMarketResaleListings(),
             primaryGradeId ? fetchResaleHistoryGraph(gameId, primaryGradeId, 'HOUR') : Promise.resolve([]),
             primaryGradeId ? fetchResaleHistoryGraph(gameId, primaryGradeId, 'DAY') : Promise.resolve([]),
          ]);

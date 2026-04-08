@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { fetchResaleListings } from '@/entities/resale/api/resaleApi';
+import { fetchMarketResaleListings } from '@/entities/resale/api/resaleApi';
 
 type ResaleGameMarketSnapshot = {
    count: number;
@@ -15,7 +15,7 @@ export const useResaleListingMarket = (gameIds: string[], enabled = true) => {
       queryKey: ['resales', 'listing-market', normalizedGameIds],
       enabled: enabled && normalizedGameIds.length > 0,
       queryFn: async () => {
-         const listings = await fetchResaleListings();
+         const listings = await fetchMarketResaleListings();
          const gameIdSet = new Set(normalizedGameIds);
          const marketByGameId = new Map<string, ResaleGameMarketSnapshot>();
 

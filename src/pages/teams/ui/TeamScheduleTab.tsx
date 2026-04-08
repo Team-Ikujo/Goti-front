@@ -3,13 +3,37 @@ import { useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { mapGamesToDaySchedules, useGameSchedules } from '@/entities/game/model/schedule';
+import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
+import { useResaleGameStatuses } from '@/entities/resale/model/useResaleGameStatuses';
+import type { ResaleGameStatus } from '@/entities/resale/api/resaleApi';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import ScheduleList from '@/pages/home/ui/game-schedule/ScheduleList';
 import { YearMonthPicker } from '@/pages/home/ui/game-schedule/YearMonthPicker';
 import { WEEK_OPTIONS, TAB_WEEK } from '@/pages/home/ui/game-schedule/constants';
 import { filterScheduleData } from '@/pages/home/ui/game-schedule/utils';
+import type { DaySchedule, ReselStatus } from '@/pages/home/ui/game-schedule/types';
 import { BookingGuide } from './BookingGuide';
+
+const getResellStatus = (
+   resaleStatus: ResaleGameStatus | undefined,
+   resaleCount: number | undefined,
+   fallback: ReselStatus,
+): ReselStatus => {
+   switch (resaleStatus) {
+      case 'SCHEDULED':
+         return '리셀예정';
+      case 'AVAILABLE':
+         return typeof resaleCount === 'number' && resaleCount > 0 ? '리셀예매' : '리셀매진';
+      case 'UNAVAILABLE':
+         return '리셀매진';
+      default:
+         if (typeof resaleCount === 'number') {
+            return resaleCount > 0 ? '리셀예매' : '리셀매진';
+         }
+         return fallback;
+   }
+};
 
 function getCurrentWeek(): number {
    return Math.ceil(new Date().getDate() / 7);
@@ -48,6 +72,29 @@ export function TeamScheduleTab({ serverTeamId }: Props) {
          allMonth: weekMonth,
       });
    }, [schedules, weekMonth, selectedWeek, weekYear]);
+
+   const allGameIds = useMemo(
+      () => filteredData.flatMap(day => day.games.map(g => g.gameId).filter((id): id is string => Boolean(id))),
+      [filteredData],
+   );
+   const resaleCountsQuery = useResaleGameCounts(allGameIds);
+   const resaleStatusesQuery = useResaleGameStatuses(allGameIds);
+
+   const enrichedData = useMemo<DaySchedule[]>(
+      () =>
+         filteredData.map(day => ({
+            ...day,
+            games: day.games.map(game => {
+               const resaleCount = game.gameId ? resaleCountsQuery.data?.get(game.gameId) : undefined;
+               const resaleStatus = game.gameId ? resaleStatusesQuery.data?.get(game.gameId) : undefined;
+               return {
+                  ...game,
+                  resell: getResellStatus(resaleStatus, resaleCount, game.resell),
+               };
+            }),
+         })),
+      [filteredData, resaleCountsQuery.data, resaleStatusesQuery.data],
+   );
 
    const prevMonth = () => {
       if (weekMonth === 1) {
@@ -151,7 +198,7 @@ export function TeamScheduleTab({ serverTeamId }: Props) {
                      경기 일정을 불러오지 못했습니다.
                   </div>
                ) : (
-                  <ScheduleList activeTab={TAB_WEEK} filteredData={filteredData} />
+                  <ScheduleList activeTab={TAB_WEEK} filteredData={enrichedData} />
                )}
             </div>
 

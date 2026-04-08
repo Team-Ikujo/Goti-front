@@ -117,21 +117,10 @@ export function useBookingEntryFlow() {
         } satisfies BookingEntryState;
 
         setBookingEntry(nextEntryState);
-        navigate({
-          pathname: '/queue',
-          search: (() => {
-            const modeSearch = createBookingFlowSearch(pendingEntry?.mode ?? 'standard');
-            const params = new URLSearchParams(modeSearch);
-            params.set('rank', '120');
-            params.set('tickMs', '300');
-            params.set('step', '8');
-            const nextSearch = params.toString();
-
-            return nextSearch ? `?${nextSearch}` : '';
-          })(),
-        }, {
-          state: nextEntryState,
-        });
+        navigate(
+          { pathname: '/queue', search: createBookingFlowSearch(pendingEntry?.mode ?? 'standard') },
+          { state: nextEntryState },
+        );
       }}
     />
   );
