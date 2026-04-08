@@ -3,10 +3,10 @@ import { ChevronLeft, HelpCircle, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getBookingTeamConfig, getBookingTeamId } from '@/pages/books/model/zoneData';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
+import { fetchBaseballTeamDetails, fetchGameDetail } from '@/entities/game/api/scheduleApi';
 import { formatBookingHeaderDateTime } from '@/shared/lib/bookingDateTime';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { DEFAULT_BOOKING_TIMER_SECONDS, useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
-import { mockGameSchedules } from '@/shared/api/mocks/handlers/game';
 import { teams } from '@/entities/team/model/teams';
 import { releaseQueueSession } from '@/pages/queue/api/queueApi';
 
@@ -38,29 +38,10 @@ const teamNameByServerId = new Map(
       .map((team) => [team.serverTeamId as string, team.name]),
 );
 
-const resolveBookingEntryGameFallback = (entry?: BookingEntryState | null) => {
-   if (!entry?.gameId) {
-      return null;
-   }
-
-   const matchedGame = mockGameSchedules.find((game) => game.gameId === entry.gameId);
-
-   if (!matchedGame) {
-      return null;
-   }
-
-   const homeTeamName = teamNameByServerId.get(matchedGame.homeTeamId);
-   const awayTeamName = teamNameByServerId.get(matchedGame.awayTeamId);
-   const homeTeam = teams.find((team) => team.serverTeamId === matchedGame.homeTeamId);
-
-   return {
-      matchTitle:
-         awayTeamName && homeTeamName
-            ? `${awayTeamName} vs ${homeTeamName}`
-            : undefined,
-      venue: entry.venue ?? homeTeam?.stadiumName,
-      dateTime: matchedGame.startAt,
-   };
+type BookingHeaderGameFallback = {
+   matchTitle?: string;
+   venue?: string;
+   dateTime?: string;
 };
 
 const resolveHeaderVenue = ({
@@ -139,7 +120,7 @@ const BooksHeader = ({
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
    const clearBookingEntry = useBookingEntryStore((store) => store.clearEntry);
    const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
-   const bookingEntryGameFallback = resolveBookingEntryGameFallback(bookingEntryState);
+   const [bookingEntryGameFallback, setBookingEntryGameFallback] = useState<BookingHeaderGameFallback | null>(null);
    const resolvedCurrentStepIndex = currentStepIndex ?? (pathname.includes('/books/seats/') ? 1 : 0);
    const shouldShowBackButton = showBackButton ?? resolvedCurrentStepIndex > 0;
    const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
@@ -150,6 +131,54 @@ const BooksHeader = ({
    const ensureTimerStarted = useBookingFlowTimerStore(state => state.ensureTimerStarted);
    const clearTimer = useBookingFlowTimerStore(state => state.clearTimer);
    const clearAllSelections = useSeatSelectionStore(state => state.clearAllSelections);
+
+   useEffect(() => {
+      let cancelled = false;
+
+      const loadBookingGameFallback = async () => {
+         const gameId = bookingEntryState?.gameId?.trim();
+
+         if (!gameId) {
+            setBookingEntryGameFallback(null);
+            return;
+         }
+
+         if (bookingEntryState?.matchTitle && bookingEntryState?.dateTime) {
+            setBookingEntryGameFallback(null);
+            return;
+         }
+
+         try {
+            const game = await fetchGameDetail(gameId);
+            const teamDetails = await fetchBaseballTeamDetails([game.homeTeamId, game.awayTeamId]);
+            const homeTeamName =
+               teamNameByServerId.get(game.homeTeamId) ?? teamDetails.get(game.homeTeamId)?.teamName;
+            const awayTeamName =
+               teamNameByServerId.get(game.awayTeamId) ?? teamDetails.get(game.awayTeamId)?.teamName;
+            const homeTeam = teams.find((team) => team.serverTeamId === game.homeTeamId);
+
+            if (cancelled) {
+               return;
+            }
+
+            setBookingEntryGameFallback({
+               matchTitle: awayTeamName && homeTeamName ? `${awayTeamName} vs ${homeTeamName}` : undefined,
+               venue: bookingEntryState?.venue ?? homeTeam?.stadiumName,
+               dateTime: game.startAt,
+            });
+         } catch {
+            if (!cancelled) {
+               setBookingEntryGameFallback(null);
+            }
+         }
+      };
+
+      void loadBookingGameFallback();
+
+      return () => {
+         cancelled = true;
+      };
+   }, [bookingEntryState?.dateTime, bookingEntryState?.gameId, bookingEntryState?.matchTitle, bookingEntryState?.venue]);
 
    useEffect(() => {
       if (!showTimer) {
