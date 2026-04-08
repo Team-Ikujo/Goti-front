@@ -11,7 +11,7 @@ import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSe
 import { getBookingTeamConfig, getBookingZones } from '@/pages/books/model/zoneData';
 import { Button } from '@/shared/ui/button';
 import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
-import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import { mergeBookingEntryState, useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import BooksPurchaseLimitDialog from '@/shared/widgets/layout/books/BooksPurchaseLimitDialog';
 import type { TicketCheckoutRequest } from '@/pages/tickets/api/paymentApi';
 import {
@@ -55,7 +55,7 @@ export default function TicketPaymentPage() {
    const locationState = location.state as BookingEntryState | null;
    const routeBookingEntryState = locationState;
    const storedBookingEntryState = useBookingEntryStore(state => state.entry);
-   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
+   const bookingEntryState = mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState);
    const setBookingEntry = useBookingEntryStore(state => state.setEntry);
    const zonesState = useSeatSelectionStore(state => state.zones);
    const holdsBySeatId = useSeatHoldStore(state => state.holdsBySeatId);
