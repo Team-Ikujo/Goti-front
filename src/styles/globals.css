@@ -1,7 +1,14 @@
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 @import 'tailwindcss';
 @source "../**/*.{tsx,ts,jsx,js}";
 @import 'tw-animate-css';
+
+@font-face {
+   font-family: 'Pretendard Variable';
+   src: url('../../public/font/PretendardVariable.woff2') format('woff2');
+   font-weight: 45 920;
+   font-style: normal;
+   font-display: swap;
+}
 
 /* =====================================================
    Color Palette (Internal Only)

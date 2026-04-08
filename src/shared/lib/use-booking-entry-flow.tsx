@@ -109,29 +109,15 @@ export function useBookingEntryFlow() {
     <BookingGuideDialog
       open={isGuideOpen}
       onOpenChange={setIsGuideOpen}
-      onConfirm={(turnstileToken: string) => {
+      onConfirm={() => {
         setIsGuideOpen(false);
-        const nextEntryState = {
-          ...(pendingEntry?.entryState ?? { requireCaptcha: true }),
-          turnstileToken,
-        } satisfies BookingEntryState;
+        const nextEntryState = (pendingEntry?.entryState ?? { requireCaptcha: true }) satisfies BookingEntryState;
 
         setBookingEntry(nextEntryState);
-        navigate({
-          pathname: '/queue',
-          search: (() => {
-            const modeSearch = createBookingFlowSearch(pendingEntry?.mode ?? 'standard');
-            const params = new URLSearchParams(modeSearch);
-            params.set('rank', '120');
-            params.set('tickMs', '300');
-            params.set('step', '8');
-            const nextSearch = params.toString();
-
-            return nextSearch ? `?${nextSearch}` : '';
-          })(),
-        }, {
-          state: nextEntryState,
-        });
+        navigate(
+          { pathname: '/queue', search: createBookingFlowSearch(pendingEntry?.mode ?? 'standard') },
+          { state: nextEntryState },
+        );
       }}
     />
   );
