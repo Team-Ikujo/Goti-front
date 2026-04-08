@@ -32,9 +32,9 @@ export interface GameScheduleResponse {
    gameId: string;
    startAt: string;
    leagueType: ApiLeagueType;
-   homeTeamId: string;
-   awayTeamId: string;
-   stadiumId: string;
+   homeTeamId?: string;
+   awayTeamId?: string;
+   stadiumId?: string;
    gameStatus: ApiGameStatus;
    homeTeamScore: number;
    awayTeamScore: number;

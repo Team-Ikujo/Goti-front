@@ -13,8 +13,8 @@ import type { DaySchedule, GameRow, GameStatus, ReselStatus, TicketStatus } from
 
 export type NormalizedScheduleGame = {
   id: string;
-  serverHomeTeamId: string;
-  serverAwayTeamId: string;
+  serverHomeTeamId?: string;
+  serverAwayTeamId?: string;
   leagueType: ApiLeagueType;
   homeTeamId?: string;
   awayTeamId?: string;
@@ -197,8 +197,8 @@ const mergeScheduleWithTeamDetails = (game: GameScheduleResponse, teamDetails: M
   teamName: string;
   homeGround?: string;
 }>) => {
-  const homeTeamDetail = teamDetails.get(game.homeTeamId);
-  const awayTeamDetail = teamDetails.get(game.awayTeamId);
+  const homeTeamDetail = game.homeTeamId ? teamDetails.get(game.homeTeamId) : undefined;
+  const awayTeamDetail = game.awayTeamId ? teamDetails.get(game.awayTeamId) : undefined;
 
   return {
     ...game,
