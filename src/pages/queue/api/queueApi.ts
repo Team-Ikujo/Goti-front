@@ -3,9 +3,7 @@
 import apiClient from '@/shared/api/client';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import type { ApiEnvelope } from '@/features/auth/api/types';
-
-const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
-const shouldUseRelativeApiBase = import.meta.env.DEV;
+import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 
 export interface QueueEnterResponse {
   queueToken: string;

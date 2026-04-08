@@ -3,9 +3,7 @@
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import { createBookingFlowHeaders } from '@/shared/lib/guardrailHeaders';
-
-const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
-const shouldUseRelativeApiBase = import.meta.env.DEV;
+import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 const FORCE_RESALE_SOLD_OUT_MOCK = true;
 
 export interface ResaleListingItem {

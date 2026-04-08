@@ -10,6 +10,7 @@ import type { BotReport } from '@/shared/lib/botDetector';
 import { type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
 import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 import { useAuthStore } from '@/entities/auth/model/authStore';
+import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 
 interface CheckoutFormRequest {
    deliveryMethod: 'mobile' | 'onsite' | 'delivery';
@@ -163,8 +164,6 @@ type ResalePaymentRequest = {
 
 type PaymentMethodCode = 'CARD' | 'ACCOUNT_TRANSFER';
 const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
-const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
-const shouldUseRelativeApiBase = import.meta.env.DEV;
 
 const formatOrderedAt = (date: Date) => {
    const pad = (n: number) => String(n).padStart(2, '0');
