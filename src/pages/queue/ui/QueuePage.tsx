@@ -81,7 +81,7 @@ const QueuePage = () => {
   const [queueToken, setQueueToken] = useState<string | null>(null);
   const [queueNumber, setQueueNumber] = useState<number | null>(null);
   const [currentAllowedRank, setCurrentAllowedRank] = useState<number | null>(null);
-  const [publishedRank, setPublishedRank] = useState<number | null>(null);
+  const [, setPublishedRank] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const gameId = bookingEntryState?.gameId ?? '';
