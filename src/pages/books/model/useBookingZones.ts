@@ -47,9 +47,7 @@ export function useBookingZones({
 }: UseBookingZonesParams): UseBookingZonesResult {
    const shouldForceNewSessionRef = useRef(Boolean(bookingEntryState?.forceNewSession));
    const isEnabled = Boolean(
-      bookingEntryState?.stadiumId &&
-         bookingEntryState?.gameId &&
-         bookingEntryState?.serverHomeTeamId &&
+      bookingEntryState?.gameId &&
          bookingEntryState?.leagueType &&
          bookingEntryState?.gameDate,
    );
@@ -93,21 +91,32 @@ export function useBookingZones({
             gameId: bookingEntryState!.gameId!,
             forceNewSession: shouldForceNewSession,
          });
+         const resolvedStadiumId = bookingEntryState?.stadiumId ?? grades.find((grade) => grade.stadiumId)?.stadiumId;
 
          const [sections, pricingPolicy] = await Promise.all([
-            fetchSeatSections({
-               stadiumId: bookingEntryState!.stadiumId!,
-               gameId: bookingEntryState!.gameId!,
-            }),
-            fetchTicketPricingPolicy(bookingEntryState!.serverHomeTeamId!).catch(() => undefined),
+            resolvedStadiumId
+               ? fetchSeatSections({
+                    stadiumId: resolvedStadiumId,
+                    gameId: bookingEntryState!.gameId!,
+                 })
+               : Promise.resolve([]),
+            bookingEntryState?.serverHomeTeamId
+               ? fetchTicketPricingPolicy(bookingEntryState.serverHomeTeamId).catch(() => undefined)
+               : Promise.resolve(undefined),
          ]);
 
-         if (shouldForceNewSession) {
-            shouldForceNewSessionRef.current = false;
-            logBookingFlow('useBookingZones', 'clear forceNewSession after query');
-            patchBookingEntry({
-               forceNewSession: false,
-            });
+         if (shouldForceNewSession || resolvedStadiumId !== bookingEntryState?.stadiumId) {
+            const nextEntryPatch = {
+               forceNewSession: shouldForceNewSession ? false : bookingEntryState?.forceNewSession,
+               stadiumId: resolvedStadiumId,
+            } satisfies Partial<BookingEntryState>;
+
+            if (shouldForceNewSession) {
+               shouldForceNewSessionRef.current = false;
+               logBookingFlow('useBookingZones', 'clear forceNewSession after query');
+            }
+
+            patchBookingEntry(nextEntryPatch);
          }
 
          const pricingByGradeId = resolvePricingByGradeId({

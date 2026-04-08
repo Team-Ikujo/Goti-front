@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { getBookingFlowMode } from '@/shared/lib/booking-flow';
-import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import { mergeBookingEntryState, useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { getBookingZones, getStadiumName, getZoneOverviewImage } from './zoneData';
 
 export function useSeatsPageEntry(zoneId: string) {
@@ -12,7 +12,7 @@ export function useSeatsPageEntry(zoneId: string) {
    const routeBookingEntryState = location.state as BookingEntryState | null;
    const storedBookingEntryState = useBookingEntryStore(state => state.entry);
    const setBookingEntry = useBookingEntryStore(state => state.setEntry);
-   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
+   const bookingEntryState = mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState);
 
    useEffect(() => {
       if (routeBookingEntryState) {

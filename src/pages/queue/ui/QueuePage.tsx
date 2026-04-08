@@ -3,7 +3,7 @@ import Lottie from 'lottie-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createBookingFlowSearch, getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { logBookingFlow, logBookingFlowError, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
-import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import { mergeBookingEntryState, useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import apiClient from '@/shared/api/client';
 import {
   enterQueue,
@@ -147,7 +147,7 @@ const QueuePage = () => {
   const storedBookingEntryState = useBookingEntryStore(state => state.entry);
   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
   const patchEntry = useBookingEntryStore(state => state.patchEntry);
-  const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
+  const bookingEntryState = mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState);
   const bookingFlowMode = getBookingFlowMode(location.search);
 
   const [phase, setPhase] = useState<QueuePhase>('entering');
