@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { leaveQueueKeepalive } from '@/pages/queue/api/queueApi';
+import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
@@ -51,7 +52,26 @@ const BookingFlowStateGuard = () => {
       );
       const requiresEntry = requiresBookingEntry(pathname);
 
+      logBookingFlow('BookingFlowStateGuard', 'route check', {
+         pathname,
+         search,
+         previousPathname,
+         isInitialAppLoad,
+         isCurrentBookingFlow,
+         didExitBookingFlow,
+         requiresEntry,
+         requiresQueueReentryOnBoot: requiresQueueReentryOnBoot(pathname),
+         isReload: isPageReload(),
+         hasHydrated,
+         bookingEntry: summarizeBookingEntry(bookingEntry),
+      });
+
       if (isInitialAppLoad && isPageReload() && requiresQueueReentryOnBoot(pathname) && bookingEntry) {
+         logBookingFlow('BookingFlowStateGuard', 'redirect to /queue on reload', {
+            pathname,
+            search,
+            bookingEntry: summarizeBookingEntry(bookingEntry),
+         });
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
@@ -60,6 +80,7 @@ const BookingFlowStateGuard = () => {
       }
 
       if (requiresEntry && !bookingEntry) {
+         logBookingFlow('BookingFlowStateGuard', 'missing bookingEntry, redirect to /', { pathname, search });
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
@@ -68,6 +89,10 @@ const BookingFlowStateGuard = () => {
       }
 
       if (didExitBookingFlow) {
+         logBookingFlow('BookingFlowStateGuard', 'exit booking flow, clear stores', {
+            previousPathname,
+            pathname,
+         });
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
@@ -83,6 +108,11 @@ const BookingFlowStateGuard = () => {
       }
 
       const handleUnload = () => {
+         logBookingFlow('BookingFlowStateGuard', 'unload -> leaveQueueKeepalive', {
+            pathname,
+            gameId: bookingEntry.gameId,
+            queueTokenJti: bookingEntry.queueTokenJti,
+         });
          leaveQueueKeepalive(bookingEntry.gameId!);
       };
 
