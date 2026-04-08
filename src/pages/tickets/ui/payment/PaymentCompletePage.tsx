@@ -12,6 +12,7 @@ import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSe
 import { resolveBookingEntrySourcePath } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
+import { releaseQueueSession } from '@/pages/queue/api/queueApi';
 import { ApiError } from '@/shared/api/client';
 
 function useTimerStr() {
@@ -179,15 +180,19 @@ export default function PaymentCompletePage() {
    const [paymentReloadError, setPaymentReloadError] = useState<string | null>(null);
 
    const navigateToEntrySource = () => {
-      clearTimer();
-      clearBookingEntry();
-      navigate(entrySourcePath, { replace: true });
+      void (async () => {
+         clearTimer();
+         await releaseQueueSession(useBookingEntryStore.getState().entry?.gameId);
+         clearBookingEntry();
+         navigate(entrySourcePath, { replace: true });
+      })();
    };
 
    useEffect(() => {
       useSeatHoldStore.getState().clearSeatHolds();
       useSeatSelectionStore.getState().clearAllSelections();
       clearTimer();
+      void releaseQueueSession(useBookingEntryStore.getState().entry?.gameId);
       clearBookingEntry();
    }, [clearBookingEntry, clearTimer]);
 
@@ -195,9 +200,12 @@ export default function PaymentCompletePage() {
       window.history.pushState({ paymentCompleteExitGuard: true }, '', window.location.href);
 
       const handlePopState = () => {
-         clearTimer();
-         clearBookingEntry();
-         navigate(entrySourcePath, { replace: true });
+         void (async () => {
+            clearTimer();
+            await releaseQueueSession(useBookingEntryStore.getState().entry?.gameId);
+            clearBookingEntry();
+            navigate(entrySourcePath, { replace: true });
+         })();
       };
 
       window.addEventListener('popstate', handlePopState);

@@ -74,6 +74,13 @@ export const seatEnterQueue = async (
   return response.data.data;
 };
 
+export const leaveQueue = async (gameId: string): Promise<QueueLeaveResponse> => {
+  const response = await apiClient.post<ApiEnvelope<QueueLeaveResponse>>(
+    `/api/v1/queue/${encodeURIComponent(gameId)}/leave`,
+  );
+  return response.data.data;
+};
+
 const getLeaveQueueUrl = (gameId: string) => {
   const path = `/api/v1/queue/${encodeURIComponent(gameId)}/leave`;
   if (shouldUseRelativeApiBase || !configuredApiBaseUrl) return path;
@@ -98,4 +105,18 @@ export const leaveQueueKeepalive = (gameId: string) => {
     headers,
     keepalive: true,
   });
+};
+
+export const releaseQueueSession = async (gameId?: string) => {
+  const trimmedGameId = gameId?.trim();
+
+  if (!trimmedGameId) {
+    return;
+  }
+
+  try {
+    await leaveQueue(trimmedGameId);
+  } catch {
+    leaveQueueKeepalive(trimmedGameId);
+  }
 };

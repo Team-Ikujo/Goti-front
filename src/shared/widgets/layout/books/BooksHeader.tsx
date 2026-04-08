@@ -8,6 +8,7 @@ import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBo
 import { DEFAULT_BOOKING_TIMER_SECONDS, useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import { mockGameSchedules } from '@/shared/api/mocks/handlers/game';
 import { teams } from '@/entities/team/model/teams';
+import { releaseQueueSession } from '@/pages/queue/api/queueApi';
 
 import BooksExitDialog from './BooksExitDialog';
 import BooksTimeoutDialog from './BooksTimeoutDialog';
@@ -208,9 +209,12 @@ const BooksHeader = ({
       }
 
       if (!confirmBeforeExit) {
-         clearTimer();
-         clearBookingEntry();
-         navigate(EXIT_DESTINATIONS[destination]);
+         void (async () => {
+            clearTimer();
+            await releaseQueueSession(bookingEntryState?.gameId);
+            clearBookingEntry();
+            navigate(EXIT_DESTINATIONS[destination]);
+         })();
          return;
       }
 
@@ -225,18 +229,24 @@ const BooksHeader = ({
             onOpenChange={setIsExitDialogOpen}
             onConfirm={() => {
                setIsExitDialogOpen(false);
-               clearTimer();
-               clearBookingEntry();
-               navigate(EXIT_DESTINATIONS[exitDestination]);
+               void (async () => {
+                  clearTimer();
+                  await releaseQueueSession(bookingEntryState?.gameId);
+                  clearBookingEntry();
+                  navigate(EXIT_DESTINATIONS[exitDestination]);
+               })();
             }}
          />
          <BooksTimeoutDialog
             open={isTimeoutDialogOpen}
             onConfirm={() => {
                setIsTimeoutDialogOpen(false);
-               clearTimer();
-               clearBookingEntry();
-               navigate('/');
+               void (async () => {
+                  clearTimer();
+                  await releaseQueueSession(bookingEntryState?.gameId);
+                  clearBookingEntry();
+                  navigate('/');
+               })();
             }}
          />
 
