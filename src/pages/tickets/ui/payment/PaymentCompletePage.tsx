@@ -10,6 +10,7 @@ import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { resolveBookingEntrySourcePath } from '@/shared/lib/booking-flow';
+import { logBookingFlow, logBookingFlowError, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import { releaseQueueSession } from '@/pages/queue/api/queueApi';
@@ -179,7 +180,18 @@ export default function PaymentCompletePage() {
    });
    const [paymentReloadError, setPaymentReloadError] = useState<string | null>(null);
 
+   useEffect(() => {
+      logBookingFlow('PaymentCompletePage', 'render snapshot', {
+         pathname: location.pathname,
+         orderId,
+         deliveryMethod,
+         locationOrder,
+         bookingEntry: summarizeBookingEntry(useBookingEntryStore.getState().entry),
+      });
+   }, [deliveryMethod, location.pathname, locationOrder, orderId]);
+
    const navigateToEntrySource = () => {
+      logBookingFlow('PaymentCompletePage', 'navigateToEntrySource');
       void (async () => {
          clearTimer();
          await releaseQueueSession(useBookingEntryStore.getState().entry?.gameId);
@@ -189,6 +201,7 @@ export default function PaymentCompletePage() {
    };
 
    useEffect(() => {
+      logBookingFlow('PaymentCompletePage', 'mount cleanup booking flow state');
       useSeatHoldStore.getState().clearSeatHolds();
       useSeatSelectionStore.getState().clearAllSelections();
       clearTimer();
@@ -200,6 +213,7 @@ export default function PaymentCompletePage() {
       window.history.pushState({ paymentCompleteExitGuard: true }, '', window.location.href);
 
       const handlePopState = () => {
+         logBookingFlow('PaymentCompletePage', 'popstate -> navigate entry source');
          void (async () => {
             clearTimer();
             await releaseQueueSession(useBookingEntryStore.getState().entry?.gameId);
@@ -231,7 +245,8 @@ export default function PaymentCompletePage() {
       }
 
       const restorePayment = async () => {
-         try {
+        try {
+            logBookingFlow('PaymentCompletePage', 'restorePayment request', { orderId });
             const payment = await getOrderPayment(orderId);
 
             if (isCancelled) {
@@ -252,7 +267,8 @@ export default function PaymentCompletePage() {
                writeStoredPaymentCompleteState(nextOrder);
                return nextOrder;
             });
-         } catch (error) {
+        } catch (error) {
+            logBookingFlowError('PaymentCompletePage', 'restorePayment error', { orderId, error });
             if (isCancelled) {
                return;
             }
