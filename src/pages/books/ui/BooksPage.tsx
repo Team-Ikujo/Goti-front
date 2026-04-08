@@ -86,6 +86,12 @@ const BooksPage = () => {
       requiresCaptcha,
       location,
       navigate,
+      onCaptchaResolved: () => {
+         patchBookingEntry({
+            forceNewSession: undefined,
+            requireCaptcha: undefined,
+         });
+      },
       resolvedBookingEntryState,
    });
    const exitGuard = useBookingExitGuard({
