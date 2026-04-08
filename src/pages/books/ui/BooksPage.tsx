@@ -12,6 +12,7 @@ import { getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import BooksExitDialog from '@/shared/widgets/layout/books/BooksExitDialog';
+import { releaseQueueSession } from '@/pages/queue/api/queueApi';
 
 import BookingCaptchaGate from './components/BookingCaptchaGate';
 import BookingZoneDesktopLayout from './components/BookingZoneDesktopLayout';
@@ -74,10 +75,11 @@ const BooksPage = () => {
       } satisfies BookingEntryState;
    }, [bookingEntryState, zones]);
 
-   const exitBookingFlow = () => {
+   const exitBookingFlow = async () => {
       clearTimer();
       clearSeatHolds();
       clearAllSelections();
+      await releaseQueueSession(bookingEntryState?.gameId);
       clearBookingEntry();
       navigate('/', { replace: true });
    };
