@@ -25,7 +25,9 @@ export type BookingEntryState = {
 };
 
 type BookingEntryStore = {
+   hasHydrated: boolean;
    entry: BookingEntryState | null;
+   setHasHydrated: (hasHydrated: boolean) => void;
    setEntry: (nextEntry: BookingEntryState) => void;
    patchEntry: (partialEntry: Partial<BookingEntryState>) => void;
    clearEntry: () => void;
@@ -34,7 +36,9 @@ type BookingEntryStore = {
 export const useBookingEntryStore = create<BookingEntryStore>()(
    persist(
       (set) => ({
+         hasHydrated: false,
          entry: null,
+         setHasHydrated: hasHydrated => set({ hasHydrated }),
 
          setEntry: (nextEntry) => set({ entry: nextEntry }),
 
@@ -51,6 +55,9 @@ export const useBookingEntryStore = create<BookingEntryStore>()(
          partialize: (state) => ({
             entry: state.entry,
          }),
+         onRehydrateStorage: () => state => {
+            state?.setHasHydrated(true);
+         },
       },
    ),
 );

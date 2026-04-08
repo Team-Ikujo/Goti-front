@@ -150,7 +150,7 @@ const QueuePage = () => {
   const bookingFlowMode = getBookingFlowMode(location.search);
 
   const [phase, setPhase] = useState<QueuePhase>('entering');
-  const [queueToken, setQueueToken] = useState<string | null>(null);
+  const [queueToken, setQueueToken] = useState<string | null>(bookingEntryState?.queueTokenJti ?? null);
   const [queueNumber, setQueueNumber] = useState<number | null>(null);
   const [currentAllowedRank, setCurrentAllowedRank] = useState<number | null>(null);
   const [, setPublishedRank] = useState<number | null>(null);
@@ -188,6 +188,9 @@ const QueuePage = () => {
         if (cancelled) return;
         setQueueToken(res.queueToken);
         setQueueNumber(res.queueNumber);
+        patchEntry({
+          queueTokenJti: res.queueToken,
+        });
         setPhase('waiting');
       })
       .catch((err: unknown) => {
@@ -271,11 +274,18 @@ const QueuePage = () => {
           admittedRef.current = true;
           clearPendingLeave(gameId);
           clearQueuedEntryCache(gameId);
-          // 실제 queueToken을 bookingEntryState에 반영
-          patchEntry({ queueTokenJti: queueToken });
+          // queue 최종 입장 이후에는 예매 세션을 새로 열어 선행 API를 다시 호출한다.
+          const nextBookingEntryState = {
+            ...bookingEntryState,
+            queueTokenJti: queueToken,
+            forceNewSession: true,
+            bookingZones: undefined,
+          } satisfies BookingEntryState;
+
+          patchEntry(nextBookingEntryState);
           navigate(
             { pathname: '/books', search: createBookingFlowSearch(bookingFlowMode) },
-            { replace: true, state: { ...bookingEntryState, queueTokenJti: queueToken } },
+            { replace: true, state: nextBookingEntryState },
           );
         } else if (res.status === 'EXPIRED') {
           setErrorMessage('대기 시간이 만료되었습니다. 다시 시도해 주세요.');

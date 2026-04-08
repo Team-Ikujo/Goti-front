@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { releaseQueueSession } from '@/pages/queue/api/queueApi';
 import {
    releaseResaleHold,
    releaseResaleHoldKeepalive,
@@ -16,6 +17,7 @@ import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { ApiError } from '@/shared/api/client';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
+import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import BooksPurchaseLimitDialog from '@/shared/widgets/layout/books/BooksPurchaseLimitDialog';
 
 import { PaymentHeader } from './_shared';
@@ -129,16 +131,21 @@ export default function PaymentProcessingPage() {
       hasStartedRef.current = true;
 
       const { request: paymentRequest, amount: clientAmount } = locationState;
+      const bookingEntry = useBookingEntryStore.getState().entry;
       const isStillOnProcessingPage = () => window.location.pathname === '/tickets/payment/processing';
       const isResaleRequest = 'listingId' in paymentRequest;
 
-      const completePayment = (result: PaymentResponse) => {
+      const completePayment = async (result: PaymentResponse) => {
          if (!isMountedRef.current || !isStillOnProcessingPage()) {
             return;
          }
 
          hasCompletedRef.current = true;
          resaleHoldIdRef.current = null;
+
+         if (bookingEntry?.gameId) {
+            await releaseQueueSession(bookingEntry.gameId);
+         }
 
          try {
             savePaymentCompleteState({ ...result, amount: clientAmount });
@@ -206,7 +213,7 @@ export default function PaymentProcessingPage() {
                hasSuccessfulTicketPaymentRef.current = true;
             }
 
-            completePayment(result);
+            await completePayment(result);
          } catch (error) {
             if (isMountedRef.current && isStillOnProcessingPage()) {
                if (!isResaleRequest) {
