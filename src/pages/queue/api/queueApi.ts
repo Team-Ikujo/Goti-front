@@ -3,6 +3,7 @@
 import apiClient from '@/shared/api/client';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import { logBookingFlow, logBookingFlowError } from '@/shared/lib/bookingFlowDebug';
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
 const shouldUseRelativeApiBase = import.meta.env.DEV;
@@ -39,11 +40,18 @@ export interface QueueLeaveResponse {
 
 /** 대기열 진입 — 새 대기 순번(queueNumber)과 토큰(queueToken) 발급 */
 export const enterQueue = async (gameId: string): Promise<QueueEnterResponse> => {
-  const response = await apiClient.post<ApiEnvelope<QueueEnterResponse>>(
-    '/api/v1/queue/enter',
-    { gameId },
-  );
-  return response.data.data;
+  logBookingFlow('queueApi', 'enterQueue request', { gameId });
+  try {
+    const response = await apiClient.post<ApiEnvelope<QueueEnterResponse>>(
+      '/api/v1/queue/enter',
+      { gameId },
+    );
+    logBookingFlow('queueApi', 'enterQueue response', response.data.data);
+    return response.data.data;
+  } catch (error) {
+    logBookingFlowError('queueApi', 'enterQueue error', { gameId, error });
+    throw error;
+  }
 };
 
 /** 대기열 전역 상태 조회 — CDN 1초 캐싱, 인증 불필요 */
@@ -56,10 +64,17 @@ export const getQueueGlobalStatus = async (gameId: string): Promise<QueueStatusR
 
 /** 대기열 실제 상태 조회 — 인증 기반 실시간 상태 */
 export const getQueueStatus = async (gameId: string): Promise<QueueStatusResponse> => {
-  const response = await apiClient.get<ApiEnvelope<QueueStatusResponse>>(
-    `/api/v1/queue/${encodeURIComponent(gameId)}/status`,
-  );
-  return response.data.data;
+  logBookingFlow('queueApi', 'getQueueStatus request', { gameId });
+  try {
+    const response = await apiClient.get<ApiEnvelope<QueueStatusResponse>>(
+      `/api/v1/queue/${encodeURIComponent(gameId)}/status`,
+    );
+    logBookingFlow('queueApi', 'getQueueStatus response', response.data.data);
+    return response.data.data;
+  } catch (error) {
+    logBookingFlowError('queueApi', 'getQueueStatus error', { gameId, error });
+    throw error;
+  }
 };
 
 /** 대기열 최종 입장 시도 — enterAllowed: true 면 예매 페이지로 이동 가능 */
@@ -67,19 +82,33 @@ export const seatEnterQueue = async (
   gameId: string,
   queueToken: string,
 ): Promise<QueueSeatEnterResponse> => {
-  const response = await apiClient.post<ApiEnvelope<QueueSeatEnterResponse>>(
-    `/api/v1/queue/${encodeURIComponent(gameId)}/seat-enter`,
-    { queueToken },
-  );
-  return response.data.data;
+  logBookingFlow('queueApi', 'seatEnterQueue request', { gameId, queueToken });
+  try {
+    const response = await apiClient.post<ApiEnvelope<QueueSeatEnterResponse>>(
+      `/api/v1/queue/${encodeURIComponent(gameId)}/seat-enter`,
+      { queueToken },
+    );
+    logBookingFlow('queueApi', 'seatEnterQueue response', response.data.data);
+    return response.data.data;
+  } catch (error) {
+    logBookingFlowError('queueApi', 'seatEnterQueue error', { gameId, queueToken, error });
+    throw error;
+  }
 };
 
 /** 대기열 이탈 — 결제 완료/명시적 종료 시 현재 수용 인원을 해제한다. */
 export const leaveQueue = async (gameId: string): Promise<QueueLeaveResponse> => {
-  const response = await apiClient.post<ApiEnvelope<QueueLeaveResponse>>(
-    `/api/v1/queue/${encodeURIComponent(gameId)}/leave`,
-  );
-  return response.data.data;
+  logBookingFlow('queueApi', 'leaveQueue request', { gameId });
+  try {
+    const response = await apiClient.post<ApiEnvelope<QueueLeaveResponse>>(
+      `/api/v1/queue/${encodeURIComponent(gameId)}/leave`,
+    );
+    logBookingFlow('queueApi', 'leaveQueue response', response.data.data);
+    return response.data.data;
+  } catch (error) {
+    logBookingFlowError('queueApi', 'leaveQueue error', { gameId, error });
+    throw error;
+  }
 };
 
 const getLeaveQueueUrl = (gameId: string) => {
@@ -101,6 +130,7 @@ export const leaveQueueKeepalive = (gameId: string) => {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
+  logBookingFlow('queueApi', 'leaveQueueKeepalive request', { gameId, headers });
   void fetch(getLeaveQueueUrl(gameId), {
     method: 'POST',
     headers,
@@ -111,13 +141,17 @@ export const leaveQueueKeepalive = (gameId: string) => {
 export const releaseQueueSession = async (gameId?: string) => {
   const trimmedGameId = gameId?.trim();
 
+  logBookingFlow('queueApi', 'releaseQueueSession start', { gameId, trimmedGameId });
+
   if (!trimmedGameId) {
+    logBookingFlow('queueApi', 'releaseQueueSession skipped: no gameId');
     return;
   }
 
   try {
     await leaveQueue(trimmedGameId);
   } catch {
+    logBookingFlow('queueApi', 'releaseQueueSession fallback to keepalive', { trimmedGameId });
     leaveQueueKeepalive(trimmedGameId);
   }
 };

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
+import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 
 type UseBooksPageEntryResult = {
@@ -19,7 +20,16 @@ export function useBooksPageEntry(): UseBooksPageEntryResult {
    const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
 
    useEffect(() => {
+      logBookingFlow('useBooksPageEntry', 'resolved bookingEntryState', {
+         routeBookingEntryState: summarizeBookingEntry(routeBookingEntryState),
+         storedBookingEntryState: summarizeBookingEntry(storedBookingEntryState),
+         bookingEntryState: summarizeBookingEntry(bookingEntryState),
+      });
+   }, [bookingEntryState, routeBookingEntryState, storedBookingEntryState]);
+
+   useEffect(() => {
       if (routeBookingEntryState) {
+         logBookingFlow('useBooksPageEntry', 'sync route state to store', summarizeBookingEntry(routeBookingEntryState));
          setBookingEntry(routeBookingEntryState);
       }
    }, [routeBookingEntryState, setBookingEntry]);

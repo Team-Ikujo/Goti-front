@@ -16,6 +16,7 @@ import { releaseSeatReservation, releaseSeatReservationKeepalive } from '@/entit
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { ApiError } from '@/shared/api/client';
+import { logBookingFlow, logBookingFlowError, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import BooksPurchaseLimitDialog from '@/shared/widgets/layout/books/BooksPurchaseLimitDialog';
@@ -115,11 +116,16 @@ export default function PaymentProcessingPage() {
    const resaleHoldIdRef = useRef<string | null>(null);
 
    useEffect(() => {
+      logBookingFlow('PaymentProcessingPage', 'effect start', {
+         locationState,
+         bookingEntry: summarizeBookingEntry(useBookingEntryStore.getState().entry),
+      });
       isMountedRef.current = true;
       hasCompletedRef.current = false;
       hasSuccessfulTicketPaymentRef.current = false;
 
       if (!locationState?.request) {
+         logBookingFlow('PaymentProcessingPage', 'missing locationState.request -> redirect /tickets/payment');
          navigate('/tickets/payment', { replace: true });
          return;
       }
@@ -136,6 +142,10 @@ export default function PaymentProcessingPage() {
       const isResaleRequest = 'listingId' in paymentRequest;
 
       const completePayment = async (result: PaymentResponse) => {
+         logBookingFlow('PaymentProcessingPage', 'completePayment start', {
+            result,
+            bookingEntry: summarizeBookingEntry(bookingEntry),
+         });
          if (!isMountedRef.current || !isStillOnProcessingPage()) {
             return;
          }
@@ -167,6 +177,10 @@ export default function PaymentProcessingPage() {
             `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}&orderId=${encodeURIComponent(result.orderId ?? '')}`,
             { state: { ...result, amount: clientAmount }, replace: true },
          );
+         logBookingFlow('PaymentProcessingPage', 'navigate /tickets/payment/complete', {
+            orderId: result.orderId,
+            deliveryMethod: paymentRequest.deliveryMethod,
+         });
       };
 
       const releasePendingHolds = async () => {
@@ -191,6 +205,10 @@ export default function PaymentProcessingPage() {
 
       const process = async () => {
          try {
+            logBookingFlow('PaymentProcessingPage', 'submit payment start', {
+               paymentRequest,
+               isResaleRequest,
+            });
             const submitOrder =
                'gameId' in paymentRequest && 'selectedSeats' in paymentRequest
                   ? () => submitTicketOrder(paymentRequest)
@@ -215,6 +233,7 @@ export default function PaymentProcessingPage() {
 
             await completePayment(result);
          } catch (error) {
+            logBookingFlowError('PaymentProcessingPage', 'submit payment error', error);
             if (isMountedRef.current && isStillOnProcessingPage()) {
                if (!isResaleRequest) {
                   await releasePendingHolds();
@@ -240,6 +259,11 @@ export default function PaymentProcessingPage() {
       void process();
 
       const handlePageHide = () => {
+         logBookingFlow('PaymentProcessingPage', 'pagehide', {
+            hasCompleted: hasCompletedRef.current,
+            hasSuccessfulTicketPayment: hasSuccessfulTicketPaymentRef.current,
+            isResaleRequest,
+         });
          if (hasCompletedRef.current || hasSuccessfulTicketPaymentRef.current) {
             return;
          }

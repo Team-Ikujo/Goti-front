@@ -10,6 +10,7 @@ import { MAX_SELECTED_SEATS, MAX_SELECTED_SEATS_MESSAGE } from '@/entities/seat-
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { getBookingTeamConfig, getBookingZones } from '@/pages/books/model/zoneData';
 import { Button } from '@/shared/ui/button';
+import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import BooksPurchaseLimitDialog from '@/shared/widgets/layout/books/BooksPurchaseLimitDialog';
 import type { TicketCheckoutRequest } from '@/pages/tickets/api/paymentApi';
@@ -146,13 +147,32 @@ export default function TicketPaymentPage() {
    const totalPayment = ticketPrice + shippingFee + fee; // 할인 0원
 
    useEffect(() => {
+      logBookingFlow('TicketPaymentPage', 'render snapshot', {
+         pathname: location.pathname,
+         bookingEntryState: summarizeBookingEntry(bookingEntryState),
+         selectedSeatCount: selectedSeats.length,
+         selectedSeats,
+         totalPayment,
+         isFormValid,
+      });
+   }, [bookingEntryState, isFormValid, location.pathname, selectedSeats, totalPayment]);
+
+   useEffect(() => {
       if (routeBookingEntryState) {
+         logBookingFlow('TicketPaymentPage', 'sync route state to store', summarizeBookingEntry(routeBookingEntryState));
          setBookingEntry(routeBookingEntryState);
       }
    }, [routeBookingEntryState, setBookingEntry]);
 
    const handlePay = async () => {
+      logBookingFlow('TicketPaymentPage', 'handlePay start', {
+         bookingEntryState: summarizeBookingEntry(bookingEntryState),
+         selectedSeatCount: selectedSeats.length,
+         selectedSeats,
+         totalPayment,
+      });
       if (!bookingEntryState?.gameId || !bookingEntryState.queueTokenJti) {
+         logBookingFlow('TicketPaymentPage', 'handlePay blocked: missing booking entry');
          return;
       }
 
@@ -199,6 +219,10 @@ export default function TicketPaymentPage() {
       };
 
       navigate('/tickets/payment/processing', { state: { request: paymentRequest, amount: totalPayment } });
+      logBookingFlow('TicketPaymentPage', 'navigate /tickets/payment/processing', {
+         paymentRequest,
+         amount: totalPayment,
+      });
    };
 
    return (

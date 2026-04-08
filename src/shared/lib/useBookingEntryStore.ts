@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { ZoneItem } from '@/pages/books/model/types';
+import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import type { ApiLeagueType } from '@/shared/types/game';
 import type { BotReport } from '@/shared/lib/botDetector';
 
@@ -38,16 +39,34 @@ export const useBookingEntryStore = create<BookingEntryStore>()(
       (set) => ({
          hasHydrated: false,
          entry: null,
-         setHasHydrated: hasHydrated => set({ hasHydrated }),
+         setHasHydrated: (hasHydrated) => {
+            logBookingFlow('BookingEntryStore', 'setHasHydrated', { hasHydrated });
+            set({ hasHydrated });
+         },
 
-         setEntry: (nextEntry) => set({ entry: nextEntry }),
+         setEntry: (nextEntry) => {
+            logBookingFlow('BookingEntryStore', 'setEntry', summarizeBookingEntry(nextEntry));
+            set({ entry: nextEntry });
+         },
 
          patchEntry: (partialEntry) =>
-            set((state) => ({
-               entry: state.entry ? { ...state.entry, ...partialEntry } : { ...partialEntry },
-            })),
+            set((state) => {
+               const nextEntry = state.entry ? { ...state.entry, ...partialEntry } : { ...partialEntry };
+               logBookingFlow('BookingEntryStore', 'patchEntry', {
+                  partialEntry,
+                  previousEntry: summarizeBookingEntry(state.entry),
+                  nextEntry: summarizeBookingEntry(nextEntry),
+               });
 
-         clearEntry: () => set({ entry: null }),
+               return {
+                  entry: nextEntry,
+               };
+            }),
+
+         clearEntry: () => {
+            logBookingFlow('BookingEntryStore', 'clearEntry');
+            set({ entry: null });
+         },
       }),
       {
          name: 'booking-entry-store',
@@ -56,6 +75,7 @@ export const useBookingEntryStore = create<BookingEntryStore>()(
             entry: state.entry,
          }),
          onRehydrateStorage: () => state => {
+            logBookingFlow('BookingEntryStore', 'onRehydrateStorage', summarizeBookingEntry(state?.entry ?? null));
             state?.setHasHydrated(true);
          },
       },
