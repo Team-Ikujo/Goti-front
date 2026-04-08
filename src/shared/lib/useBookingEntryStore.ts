@@ -25,6 +25,28 @@ export type BookingEntryState = {
    botData?: BotReport;
 };
 
+export const mergeBookingEntryState = (
+   routeEntry: BookingEntryState | null | undefined,
+   storedEntry: BookingEntryState | null | undefined,
+): BookingEntryState | null => {
+   if (!routeEntry) {
+      return storedEntry ?? null;
+   }
+
+   if (!storedEntry) {
+      return routeEntry;
+   }
+
+   if (routeEntry.gameId && storedEntry.gameId && routeEntry.gameId !== storedEntry.gameId) {
+      return routeEntry;
+   }
+
+   return {
+      ...routeEntry,
+      ...storedEntry,
+   };
+};
+
 type BookingEntryStore = {
    hasHydrated: boolean;
    entry: BookingEntryState | null;

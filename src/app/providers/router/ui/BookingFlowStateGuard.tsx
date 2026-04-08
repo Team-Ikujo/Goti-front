@@ -75,7 +75,7 @@ const BookingFlowStateGuard = () => {
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
-         navigate('/queue', { replace: true, search, state: bookingEntry });
+         navigate({ pathname: '/queue', search }, { replace: true, state: bookingEntry });
          return;
       }
 

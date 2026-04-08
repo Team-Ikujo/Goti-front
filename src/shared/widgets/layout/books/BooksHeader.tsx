@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { getBookingTeamConfig, getBookingTeamId } from '@/pages/books/model/zoneData';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { formatBookingHeaderDateTime } from '@/shared/lib/bookingDateTime';
-import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import { mergeBookingEntryState, useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { DEFAULT_BOOKING_TIMER_SECONDS, useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import { mockGameSchedules } from '@/shared/api/mocks/handlers/game';
 import { teams } from '@/entities/team/model/teams';
@@ -136,7 +136,7 @@ const BooksHeader = ({
    const { pathname, state } = useLocation();
    const routeBookingEntryState = state as BookingEntryState | null;
    const storedBookingEntryState = useBookingEntryStore((store) => store.entry);
-   const bookingEntryState = routeBookingEntryState ?? storedBookingEntryState;
+   const bookingEntryState = mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState);
    const clearBookingEntry = useBookingEntryStore((store) => store.clearEntry);
    const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
    const bookingEntryGameFallback = resolveBookingEntryGameFallback(bookingEntryState);

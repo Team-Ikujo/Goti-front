@@ -219,12 +219,17 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
          }
 
          if (!isAggregatedSectionCode(zone.sectionCode)) {
-            const resolvedSection =
-               (await resolveSeatSectionByCode({
-                  stadiumId,
-                  gameId,
-                  sectionCode: zone.sectionCode,
-               }));
+            const resolvedSectionId = zone.sectionIds?.[0];
+            const resolvedSection = resolvedSectionId
+               ? {
+                    sectionId: resolvedSectionId,
+                    sectionCode: zone.sectionCode,
+                 }
+               : await resolveSeatSectionByCode({
+                    stadiumId,
+                    gameId,
+                    sectionCode: zone.sectionCode,
+                 });
 
             if (!resolvedSection) {
                throw new Error(DEFAULT_SEAT_MAP_ERROR_MESSAGE);
@@ -235,7 +240,7 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
                statuses,
             });
 
-           const [seatBlock] = buildSeatBlockFromApiSeats(zone.sectionCode, seats);
+            const [seatBlock] = buildSeatBlockFromApiSeats(zone.sectionCode, seats);
 
             if (!seatBlock) {
                throw new Error(DEFAULT_SEAT_MAP_ERROR_MESSAGE);

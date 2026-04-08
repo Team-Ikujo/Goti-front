@@ -2,6 +2,7 @@ import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig } from "axios"
 import { useAuthStore } from "@/entities/auth/model/authStore";
 import { redirectToErrorPage } from '@/shared/lib/error-navigation';
 import { applyGuardrailHeadersToAxiosConfig } from '@/shared/lib/guardrailHeaders';
+import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 
 export class ApiError extends Error {
    status?: number;
@@ -15,10 +16,6 @@ export class ApiError extends Error {
    }
 }
 
-const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? "").trim();
-// dev 환경에서는 Rsbuild proxy가 /api 요청을 백엔드로 전달한다.
-// preview/build 환경에서는 정적 서버가 /api를 처리하지 않으므로 절대 base URL을 사용한다.
-const shouldUseRelativeApiBase = import.meta.env.DEV;
 const tokenReissuePath = "/api/v1/auth/reissue";
 const authorizationOptionalApiPaths = new Set([
   "/api/v1/auth/login",
