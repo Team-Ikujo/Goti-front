@@ -8,6 +8,7 @@ import {
   enterQueue,
   getQueueStatus,
   leaveQueueKeepalive,
+  type QueueEnterResponse,
   seatEnterQueue,
 } from '../api/queueApi';
 
@@ -16,8 +17,64 @@ const POLL_INTERVAL_MS = 2000;
 
 type QueuePhase = 'entering' | 'waiting' | 'checking' | 'error';
 
+const queuedEnterResponses = new Map<string, QueueEnterResponse>();
+const queuedEnterPromises = new Map<string, Promise<QueueEnterResponse>>();
+const pendingLeaveTimeoutIds = new Map<string, number>();
+
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 const formatRank = (value: number) => new Intl.NumberFormat('ko-KR').format(Math.round(value));
+
+const clearPendingLeave = (gameId: string) => {
+  const timeoutId = pendingLeaveTimeoutIds.get(gameId);
+
+  if (timeoutId !== undefined) {
+    window.clearTimeout(timeoutId);
+    pendingLeaveTimeoutIds.delete(gameId);
+  }
+};
+
+const clearQueuedEntryCache = (gameId: string) => {
+  queuedEnterResponses.delete(gameId);
+  queuedEnterPromises.delete(gameId);
+};
+
+const getOrCreateQueueEntry = (gameId: string) => {
+  const cachedResponse = queuedEnterResponses.get(gameId);
+
+  if (cachedResponse) {
+    return Promise.resolve(cachedResponse);
+  }
+
+  const pendingPromise = queuedEnterPromises.get(gameId);
+
+  if (pendingPromise) {
+    return pendingPromise;
+  }
+
+  const createdPromise = enterQueue(gameId).then((response) => {
+    queuedEnterResponses.set(gameId, response);
+    queuedEnterPromises.delete(gameId);
+    return response;
+  }).catch((error) => {
+    queuedEnterPromises.delete(gameId);
+    throw error;
+  });
+
+  queuedEnterPromises.set(gameId, createdPromise);
+  return createdPromise;
+};
+
+const scheduleQueueLeave = (gameId: string) => {
+  clearPendingLeave(gameId);
+
+  const timeoutId = window.setTimeout(() => {
+    pendingLeaveTimeoutIds.delete(gameId);
+    clearQueuedEntryCache(gameId);
+    void apiClient.post(`/api/v1/queue/${encodeURIComponent(gameId)}/leave`).catch(() => {});
+  }, 300);
+
+  pendingLeaveTimeoutIds.set(gameId, timeoutId);
+};
 
 const QueueIllustration = () => {
   const [animationData, setAnimationData] = useState<Record<string, unknown> | null>(null);
@@ -87,6 +144,7 @@ const QueuePage = () => {
   const gameId = bookingEntryState?.gameId ?? '';
   // 입장 허용 전 언마운트 시에만 leave 호출을 위한 플래그
   const admittedRef = useRef(false);
+  const seatEnterInFlightRef = useRef(false);
 
   // location.state → store 동기화
   useEffect(() => {
@@ -108,7 +166,9 @@ const QueuePage = () => {
 
     let cancelled = false;
 
-    enterQueue(gameId)
+    clearPendingLeave(gameId);
+
+    getOrCreateQueueEntry(gameId)
       .then(res => {
         if (cancelled) return;
         setQueueToken(res.queueToken);
@@ -135,16 +195,20 @@ const QueuePage = () => {
 
     const handleBeforeUnload = () => {
       if (!admittedRef.current) {
+        clearPendingLeave(gameId);
+        clearQueuedEntryCache(gameId);
         leaveQueueKeepalive(gameId);
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
       if (!admittedRef.current) {
-        void apiClient.post(`/api/v1/queue/${encodeURIComponent(gameId)}/leave`).catch(() => {});
+        scheduleQueueLeave(gameId);
       }
     };
   }, [gameId]);
@@ -179,8 +243,10 @@ const QueuePage = () => {
   // 3단계: 최종 입장 시도
   useEffect(() => {
     if (phase !== 'checking' || !gameId || !queueToken) return;
+    if (seatEnterInFlightRef.current) return;
 
     let cancelled = false;
+    seatEnterInFlightRef.current = true;
 
     seatEnterQueue(gameId, queueToken)
       .then(res => {
@@ -188,6 +254,8 @@ const QueuePage = () => {
 
         if (res.enterAllowed) {
           admittedRef.current = true;
+          clearPendingLeave(gameId);
+          clearQueuedEntryCache(gameId);
           // 실제 queueToken을 bookingEntryState에 반영
           patchEntry({ queueTokenJti: queueToken });
           navigate(
@@ -206,6 +274,9 @@ const QueuePage = () => {
         if (cancelled) return;
         console.error('[Queue] seatEnterQueue 실패:', err);
         setPhase('waiting');
+      })
+      .finally(() => {
+        seatEnterInFlightRef.current = false;
       });
 
     return () => {
