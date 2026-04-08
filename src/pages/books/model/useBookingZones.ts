@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { fetchResaleListings } from '@/entities/resale/api/resaleApi';
+import { fetchMarketResaleListings } from '@/entities/resale/api/resaleApi';
 import {
    fetchSeatGrades,
    fetchSeatSections,
@@ -138,7 +138,7 @@ export function useBookingZones({
             return new Map<string, number>();
          }
 
-         const listings = await fetchResaleListings();
+         const listings = await fetchMarketResaleListings();
          const completedResaleLookup = getCompletedResalePurchaseLookup();
          const nextCounts = new Map<string, number>();
 

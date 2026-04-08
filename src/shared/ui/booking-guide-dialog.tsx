@@ -33,6 +33,17 @@ function BookingGuideDialog({ open, onOpenChange, onConfirm }: BookingGuideDialo
           </div>
         </div>
 
+        {/* Invisible Turnstile 위젯 — 대화상자가 열린 상태에서 자동으로 챌린지 실행 */}
+        {open && widget}
+
+        {open && errorMessage ? (
+          <div className="px-5 pb-4">
+            <p className="rounded-[8px] bg-red-50 px-4 py-3 text-[13px] leading-[1.5] text-red-600">
+              {errorMessage}
+            </p>
+          </div>
+        ) : null}
+
         <div className="px-5 pb-5">
           <Button
             type="button"

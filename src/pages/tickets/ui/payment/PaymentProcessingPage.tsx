@@ -79,27 +79,6 @@ const savePaymentCompleteState = (order: PaymentResponse) => {
    );
 };
 
-const createFallbackResalePaymentResponse = (
-   request: ResaleCheckoutRequest,
-   amount: number,
-): PaymentResponse => ({
-   orderType: 'resale',
-   orderId: `resale-order-${Date.now()}`,
-   orderNumber: createFallbackOrderNumber(),
-   orderStatus: 'COMPLETED',
-   paymentStatus: 'SUCCESS',
-   paidAt: new Date().toISOString(),
-   gameTitle: request.matchTitle,
-   gameDate: request.gameDate,
-   gameVenue: request.gameVenue,
-   quantity: 1,
-   seats: [request.seatInfo],
-   paymentMethod: request.paymentMethod === 'bank' ? '무통장 입금' : '신용/체크카드',
-   orderedAt: formatReceiptDateTime(new Date()),
-   amount,
-   resaleListingId: request.listingId,
-});
-
 const releasePendingTicketSeatHolds = async () => {
    const seatHolds = Object.values(useSeatHoldStore.getState().holdsBySeatId);
 
@@ -247,13 +226,10 @@ export default function PaymentProcessingPage() {
             completePayment(result);
          } catch (error) {
             if (isMountedRef.current && isStillOnProcessingPage()) {
-               if (isResaleRequest) {
-                  completePayment(createFallbackResalePaymentResponse(paymentRequest, clientAmount));
-                  return;
-               }
-
                if (!isResaleRequest) {
                   await releasePendingHolds();
+               } else {
+                  resaleHoldIdRef.current = null;
                }
 
                if (isTicketPurchaseLimitError(error)) {

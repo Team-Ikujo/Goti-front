@@ -3,9 +3,10 @@ import Lottie from 'lottie-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createBookingFlowSearch, getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import apiClient from '@/shared/api/client';
 import {
   enterQueue,
-  getQueueGlobalStatus,
+  getQueueStatus,
   leaveQueueKeepalive,
   seatEnterQueue,
 } from '../api/queueApi';
@@ -79,6 +80,7 @@ const QueuePage = () => {
   const [phase, setPhase] = useState<QueuePhase>('entering');
   const [queueToken, setQueueToken] = useState<string | null>(null);
   const [queueNumber, setQueueNumber] = useState<number | null>(null);
+  const [currentAllowedRank, setCurrentAllowedRank] = useState<number | null>(null);
   const [publishedRank, setPublishedRank] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -113,8 +115,9 @@ const QueuePage = () => {
         setQueueNumber(res.queueNumber);
         setPhase('waiting');
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (cancelled) return;
+        console.error('[Queue] enterQueue 실패:', err);
         setErrorMessage('대기열 진입에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         setPhase('error');
       });
@@ -125,29 +128,43 @@ const QueuePage = () => {
   }, [gameId]);
 
   // 언마운트 시 대기열 이탈 (입장 허용 전에만)
+  // cleanup에서는 apiClient 사용 (MSW 가로채기 가능)
+  // 실제 페이지 닫기(beforeunload)에서는 keepalive fetch 사용
   useEffect(() => {
-    return () => {
-      if (gameId && !admittedRef.current) {
+    if (!gameId) return;
+
+    const handleBeforeUnload = () => {
+      if (!admittedRef.current) {
         leaveQueueKeepalive(gameId);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (!admittedRef.current) {
+        void apiClient.post(`/api/v1/queue/${encodeURIComponent(gameId)}/leave`).catch(() => {});
       }
     };
   }, [gameId]);
 
-  // 2단계: global-status polling
+  // 2단계: 실시간 대기열 상태 polling
   useEffect(() => {
     if (phase !== 'waiting' || !gameId || queueNumber === null) return;
 
     const poll = async () => {
       try {
-        const status = await getQueueGlobalStatus(gameId);
+        const status = await getQueueStatus(gameId);
+        setCurrentAllowedRank(status.currentAllowedRank);
         setPublishedRank(status.publishedRank);
 
-        // 내 순번이 허용 순번 이하면 최종 입장 시도로 전환
+        // publishedRank까지는 선입장 후보군으로 보고 최종 입장 API로 재검증한다.
         if (queueNumber <= status.publishedRank) {
           setPhase('checking');
         }
-      } catch {
-        // polling 실패는 무시하고 다음 tick에 재시도
+      } catch (err: unknown) {
+        console.error('[Queue] global-status polling 실패:', err);
       }
     };
 
@@ -185,9 +202,9 @@ const QueuePage = () => {
           setPhase('waiting');
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (cancelled) return;
-        // seat-enter 실패 시 polling으로 복귀
+        console.error('[Queue] seatEnterQueue 실패:', err);
         setPhase('waiting');
       });
 
@@ -196,18 +213,18 @@ const QueuePage = () => {
     };
   }, [phase, gameId, queueToken, patchEntry, navigate, bookingFlowMode, bookingEntryState]);
 
-  // 표시할 대기 순서: 내 순번 - 현재 허용 순번
+  // 표시할 대기 순서: 내 순번 - 현재 실제 허용 순번
   const displayRank = useMemo(() => {
-    if (queueNumber === null || publishedRank === null) return null;
-    return Math.max(0, queueNumber - publishedRank);
-  }, [queueNumber, publishedRank]);
+    if (queueNumber === null || currentAllowedRank === null) return null;
+    return Math.max(0, queueNumber - currentAllowedRank);
+  }, [currentAllowedRank, queueNumber]);
 
-  // 진행률 (0~100%)
+  // 진행률은 캐시용 공개 순번이 아니라 실제 허용 순번 기준으로 계산한다.
   const progress = useMemo(() => {
     if (queueNumber === null || queueNumber === 0) return 0;
-    if (publishedRank === null) return 0;
-    return clamp((publishedRank / queueNumber) * 100, 0, 100);
-  }, [queueNumber, publishedRank]);
+    if (currentAllowedRank === null) return 0;
+    return clamp((currentAllowedRank / queueNumber) * 100, 0, 100);
+  }, [currentAllowedRank, queueNumber]);
 
   if (!bookingEntryState) return null;
 

@@ -267,6 +267,12 @@ export const fetchResaleListings = async (): Promise<ResaleListingItem[]> => {
    return listingGroups.flat();
 };
 
+/** 구매자용 마켓 전체 리스팅 조회 — GET /api/v1/resales/listings */
+export const fetchMarketResaleListings = async (): Promise<ResaleListingItem[]> => {
+   const response = await apiClient.get<ApiEnvelope<ResaleListingItem[]>>('/api/v1/resales/listings');
+   return response.data.data;
+};
+
 export const fetchMyResaleListingSummary = async (userId: string): Promise<MyResaleListingSummaryResponse> => {
    const response = await apiClient.get<ApiEnvelope<MyResaleListingSummaryResponse>>('/api/v1/resales/listings/count', {
       params: { userId },
