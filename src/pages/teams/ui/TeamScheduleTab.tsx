@@ -20,17 +20,25 @@ const getResellStatus = (
    resaleCount: number | undefined,
    fallback: ReselStatus,
 ): ReselStatus => {
+   // 실제 판매 좌석 개수가 내려오면 이를 최우선으로 사용한다.
+   // 상태/개수 API가 따로 오기 때문에 count 미수신 시 AVAILABLE만으로
+   // 즉시 "리셀예매"로 단정하면 잘못된 라벨이 잠깐 보일 수 있다.
+   if (typeof resaleCount === 'number') {
+      if (resaleCount > 0) {
+         return '리셀예매';
+      }
+
+      return resaleStatus === 'SCHEDULED' ? '리셀예정' : '리셀매진';
+   }
+
    switch (resaleStatus) {
       case 'SCHEDULED':
          return '리셀예정';
       case 'AVAILABLE':
-         return typeof resaleCount === 'number' && resaleCount > 0 ? '리셀예매' : '리셀매진';
+         return '리셀예정';
       case 'UNAVAILABLE':
          return '리셀매진';
       default:
-         if (typeof resaleCount === 'number') {
-            return resaleCount > 0 ? '리셀예매' : '리셀매진';
-         }
          return fallback;
    }
 };

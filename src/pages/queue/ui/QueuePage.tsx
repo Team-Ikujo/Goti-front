@@ -6,7 +6,7 @@ import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBo
 import apiClient from '@/shared/api/client';
 import {
   enterQueue,
-  getQueueGlobalStatus,
+  getQueueStatus,
   leaveQueueKeepalive,
   seatEnterQueue,
 } from '../api/queueApi';
@@ -80,6 +80,7 @@ const QueuePage = () => {
   const [phase, setPhase] = useState<QueuePhase>('entering');
   const [queueToken, setQueueToken] = useState<string | null>(null);
   const [queueNumber, setQueueNumber] = useState<number | null>(null);
+  const [currentAllowedRank, setCurrentAllowedRank] = useState<number | null>(null);
   const [publishedRank, setPublishedRank] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -148,16 +149,17 @@ const QueuePage = () => {
     };
   }, [gameId]);
 
-  // 2단계: global-status polling
+  // 2단계: 실시간 대기열 상태 polling
   useEffect(() => {
     if (phase !== 'waiting' || !gameId || queueNumber === null) return;
 
     const poll = async () => {
       try {
-        const status = await getQueueGlobalStatus(gameId);
+        const status = await getQueueStatus(gameId);
+        setCurrentAllowedRank(status.currentAllowedRank);
         setPublishedRank(status.publishedRank);
 
-        // 내 순번이 허용 순번 이하면 최종 입장 시도로 전환
+        // publishedRank까지는 선입장 후보군으로 보고 최종 입장 API로 재검증한다.
         if (queueNumber <= status.publishedRank) {
           setPhase('checking');
         }
@@ -211,18 +213,18 @@ const QueuePage = () => {
     };
   }, [phase, gameId, queueToken, patchEntry, navigate, bookingFlowMode, bookingEntryState]);
 
-  // 표시할 대기 순서: 내 순번 - 현재 허용 순번
+  // 표시할 대기 순서: 내 순번 - 현재 실제 허용 순번
   const displayRank = useMemo(() => {
-    if (queueNumber === null || publishedRank === null) return null;
-    return Math.max(0, queueNumber - publishedRank);
-  }, [queueNumber, publishedRank]);
+    if (queueNumber === null || currentAllowedRank === null) return null;
+    return Math.max(0, queueNumber - currentAllowedRank);
+  }, [currentAllowedRank, queueNumber]);
 
-  // 진행률 (0~100%)
+  // 진행률은 캐시용 공개 순번이 아니라 실제 허용 순번 기준으로 계산한다.
   const progress = useMemo(() => {
     if (queueNumber === null || queueNumber === 0) return 0;
-    if (publishedRank === null) return 0;
-    return clamp((publishedRank / queueNumber) * 100, 0, 100);
-  }, [queueNumber, publishedRank]);
+    if (currentAllowedRank === null) return 0;
+    return clamp((currentAllowedRank / queueNumber) * 100, 0, 100);
+  }, [currentAllowedRank, queueNumber]);
 
   if (!bookingEntryState) return null;
 

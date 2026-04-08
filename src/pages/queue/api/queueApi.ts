@@ -54,6 +54,14 @@ export const getQueueGlobalStatus = async (gameId: string): Promise<QueueStatusR
   return response.data.data;
 };
 
+/** 대기열 실제 상태 조회 — 인증 기반 실시간 상태 */
+export const getQueueStatus = async (gameId: string): Promise<QueueStatusResponse> => {
+  const response = await apiClient.get<ApiEnvelope<QueueStatusResponse>>(
+    `/api/v1/queue/${encodeURIComponent(gameId)}/status`,
+  );
+  return response.data.data;
+};
+
 /** 대기열 최종 입장 시도 — enterAllowed: true 면 예매 페이지로 이동 가능 */
 export const seatEnterQueue = async (
   gameId: string,

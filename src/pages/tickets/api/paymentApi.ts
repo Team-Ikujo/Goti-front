@@ -341,12 +341,21 @@ type CompleteResaleOrderResponse = {
    buyerId: string;
    totalAmount: number;
    orderStatus: string;
-   ticketIds: string[];
+   items: Array<{
+      transactionId: string;
+      listingId: string;
+      seatInfo: string;
+      price: number;
+   }>;
 };
 
-const completeResaleOrder = async (orderId: string): Promise<CompleteResaleOrderResponse> => {
+const completeResaleOrder = async (orderId: string, paymentId: string): Promise<CompleteResaleOrderResponse> => {
    const response = await apiClient.patch<ApiEnvelope<CompleteResaleOrderResponse>>(
       `/api/v1/resales/orders/${encodeURIComponent(orderId)}/complete`,
+      undefined,
+      {
+         params: { paymentId },
+      },
    );
    return response.data.data;
 };
@@ -419,52 +428,6 @@ const buildPaymentResponse = ({
    return paymentResponse;
 };
 
-const buildOptimisticResalePaymentResponse = ({
-   order,
-   payload,
-}: {
-   order?: ResaleOrderResponse | null;
-   payload: ResaleCheckoutRequest;
-}): PaymentResponse => {
-   const fallbackOrder: ResaleOrderResponse = order ?? {
-      orderId: createClientTransactionId('resale-order'),
-      orderNumber: `RESALE${Date.now()}`,
-      orderStatus: 'COMPLETED',
-      totalQuantity: 1,
-      totalAmount: payload.totalAmount,
-   };
-
-   const syntheticPayment: OrderPaymentResponse = {
-      paymentId: createClientTransactionId('resale-payment'),
-      orderId: fallbackOrder.orderId,
-      paymentType: 'PAYMENT',
-      paymentMethod: toPaymentMethodCode(payload.paymentMethod as SupportedPaymentMethod),
-      paymentAmount: payload.totalAmount,
-      pgProvider: 'FALLBACK',
-      pgTid: createClientTransactionId('resale-pg-tid'),
-      paymentStatus: 'SUCCESS',
-      paidAt: new Date().toISOString(),
-      failedReason: null,
-   };
-
-   return buildPaymentResponse({
-      orderType: 'resale',
-      amount: payload.totalAmount,
-      order: {
-         ...fallbackOrder,
-         orderStatus: 'COMPLETED',
-         totalAmount: payload.totalAmount,
-      },
-      payment: syntheticPayment,
-      paymentMethod: payload.paymentMethod,
-      gameTitle: payload.matchTitle,
-      gameDate: payload.gameDate,
-      gameVenue: payload.gameVenue,
-      seats: [payload.seatInfo],
-      resaleListingId: payload.listingId,
-   });
-};
-
 export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise<PaymentResponse> => {
    const heldSeats = payload.selectedSeats.map(({ seatId, holdId, label }) => ({
       seatId,
@@ -531,13 +494,10 @@ export const submitResaleOrder = async (
    const resolvedBuyerId = resolveUserIdFromJwt(useAuthStore.getState().accessToken) ?? payload.buyerId;
 
    let resaleHoldId: string | null = null;
-   let createdOrder: ResaleOrderResponse | null = null;
 
    try {
       if (!resolvedBuyerId) {
-         return buildOptimisticResalePaymentResponse({
-            payload,
-         });
+         throw new Error('구매자 정보를 확인할 수 없습니다.');
       }
 
       if (payload.holdId) {
@@ -559,15 +519,11 @@ export const submitResaleOrder = async (
          buyerEmail: payload.ordererEmail,
          buyerPhone: payload.ordererPhone,
       });
-      createdOrder = order;
 
       const transactionIds = await getResaleTransactionsWithRetry(order.orderId);
 
       if (transactionIds.length === 0) {
-         return buildOptimisticResalePaymentResponse({
-            order,
-            payload,
-         });
+         throw new Error('리셀 주문에 연결된 거래 정보를 확인할 수 없습니다.');
       }
 
       const payment = await createResalePayment({
@@ -587,12 +543,8 @@ export const submitResaleOrder = async (
 
       // 결제 완료 후 주문 완료 처리 — 리셀 티켓 발급 및 리스팅 SOLD 전환
       let issuedTicketCount: number | undefined;
-      try {
-         const completeResult = await completeResaleOrder(order.orderId);
-         issuedTicketCount = completeResult.ticketIds.length;
-      } catch (err) {
-         console.error('[submitResaleOrder] completeResaleOrder 실패', err);
-      }
+      const completeResult = await completeResaleOrder(order.orderId, payment.paymentId);
+      issuedTicketCount = completeResult.items.length;
 
       return buildPaymentResponse({
          orderType: 'resale',
@@ -623,9 +575,6 @@ export const submitResaleOrder = async (
          }
       }
 
-      return buildOptimisticResalePaymentResponse({
-         order: createdOrder,
-         payload,
-      });
+      throw error;
    }
 };
