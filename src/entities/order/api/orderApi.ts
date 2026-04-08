@@ -12,6 +12,13 @@ export interface OrderListItem {
    orderedAt: string;
    gameId: string;
    stadiumId: string;
+   gameTitle?: string;
+   gameDate?: string;
+   stadiumLocation?: string;
+   seatGradeGroups?: Array<{
+      seatGradeName?: string;
+      seatInfos?: string[];
+   }>;
 }
 
 export interface FetchMyOrdersParams {

@@ -25,7 +25,7 @@ import {
    useMyProfileData,
    useMyOrdersData,
    useMyResaleListData,
-   useMyResaleUnsettledAmountData,
+   useMyTicketInfoData,
 } from '../model/useMypageData';
 import { ACCOUNT_PAGE_QUERY_KEYS, BANKS } from '../model/accountPageConstants';
 import { openDaumPostcode } from '../model/useDaumPostcode';
@@ -77,7 +77,7 @@ export default function AccountPage() {
    const profileQuery = useMyProfileData();
    const ordersQuery = useMyOrdersData();
    const resaleListQuery = useMyResaleListData();
-   const unsettledAmountQuery = useMyResaleUnsettledAmountData();
+   const ticketInfoQuery = useMyTicketInfoData();
    const profile = profileQuery.data;
    const authPayload = useMemo(() => decodeJwtPayload(accessToken), [accessToken]);
    const effectiveProvider = useMemo(
@@ -116,14 +116,9 @@ export default function AccountPage() {
       return base;
    }, [effectiveProvider, profile?.socialConnection]);
    const [socialConnectionState, setSocialConnectionState] = useState(resolvedSocialConnection);
-   const purchaseItems = ordersQuery.data ?? [];
-   const saleItems = resaleListQuery.data ?? [];
-
-   // 미정산 금액 존재 여부: 판매 완료 후 정산 대기 중인 항목
-   const hasUnpaidAmount = (unsettledAmountQuery.data?.unsettledAmount ?? 0) > 0;
-   // 예매 완료 또는 판매 중인 티켓 존재 여부
+   const hasUnpaidAmount = (ticketInfoQuery.data?.unsettledAmount ?? 0) > 0;
    const hasActiveTickets =
-      purchaseItems.some(i => i.paymentStatus === '예매 완료') || saleItems.some(i => i.saleStatus === '판매 중');
+      (ticketInfoQuery.data?.ownedTicketCount ?? 0) > 0 || (ticketInfoQuery.data?.listingCount ?? 0) > 0;
 
    const [modal, setModal] = useState<ModalType>(null);
    const closeModal = () => setModal(null);
@@ -366,6 +361,7 @@ export default function AccountPage() {
 
    const refetchAccountPageQueries = useCallback(() => {
       void queryClient.invalidateQueries({ queryKey: ACCOUNT_PAGE_QUERY_KEYS.profile });
+      void queryClient.invalidateQueries({ queryKey: ACCOUNT_PAGE_QUERY_KEYS.ticketInfo });
       void queryClient.invalidateQueries({ queryKey: ACCOUNT_PAGE_QUERY_KEYS.orders });
       void queryClient.invalidateQueries({ queryKey: ACCOUNT_PAGE_QUERY_KEYS.resales });
       void queryClient.invalidateQueries({ queryKey: ACCOUNT_PAGE_QUERY_KEYS.resaleUnsettledAmount });

@@ -10,6 +10,7 @@ const FORCE_RESALE_SOLD_OUT_MOCK = true;
 
 export interface ResaleListingItem {
    listingId: string;
+   orderId?: string;
    ticketId: string;
    ticketNumber?: string;
    sellerId: string;
@@ -161,6 +162,7 @@ export const createResaleListings = async (body: CreateResaleListingsRequest): P
 
 export interface ResaleListingDetail {
    listingId: string;
+   orderId?: string;
    ticketId: string;
    ticketNumber?: string;
    seatInfo: string;
