@@ -467,6 +467,29 @@ export const authHandlers = [
 
    // 내 프로필 조회 — Authorization 헤더의 JWT에서 유저 정보 파싱
    // 실제 응답: MemberDetailResponse (bankAccount, address, socialConnection 포함)
+   http.get('/api/v1/members/me/summary', async ({ request }) => {
+      const authHeader = request.headers.get('Authorization') ?? '';
+      const token = authHeader.replace(/^Bearer\s+/i, '');
+
+      let name = '테스트 유저';
+      let mobile = '010-0000-0000';
+      let email = '';
+
+      const decoded = parseMockTokenPayload(token);
+      const refreshSession = mockRefreshSession.get();
+
+      if (decoded) {
+         if (decoded.name) name = decoded.name;
+         if (decoded.mobile) mobile = decoded.mobile;
+         if (decoded.email) email = decoded.email;
+      }
+      if (refreshSession?.name) name = refreshSession.name;
+      if (refreshSession?.mobile) mobile = refreshSession.mobile;
+      if (refreshSession?.email) email = refreshSession.email;
+
+      return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: { name, email, mobile } });
+   }),
+
    http.get('/api/v1/members/me', async ({ request }) => {
       const authHeader = request.headers.get('Authorization') ?? '';
       const token = authHeader.replace(/^Bearer\s+/i, '');
