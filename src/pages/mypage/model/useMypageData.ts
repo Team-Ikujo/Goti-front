@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useAuthStore } from '@/entities/auth/model/authStore';
-import { fetchMyProfile } from '@/entities/user/api/memberApi';
+import { fetchMyProfile, fetchMyProfileSummary } from '@/entities/user/api/memberApi';
 import {
    fetchMyTicketInfo,
    fetchOrderTickets,
@@ -185,6 +185,16 @@ export const useMyProfileData = () => {
    return useQuery({
       queryKey: ['myProfile', accessToken],
       queryFn: fetchMyProfile,
+      enabled: !!accessToken,
+   });
+};
+
+export const useMyProfileSummaryData = () => {
+   const accessToken = useAuthStore(s => s.accessToken);
+
+   return useQuery({
+      queryKey: ['myProfileSummary', accessToken],
+      queryFn: fetchMyProfileSummary,
       enabled: !!accessToken,
    });
 };
