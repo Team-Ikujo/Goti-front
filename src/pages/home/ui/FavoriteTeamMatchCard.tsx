@@ -84,6 +84,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const homeTeamName = match.homeTeamFullName;
    const resaleCount = resaleCountsQuery.data?.get(match.id);
    const resaleStatus = resaleStatusesQuery.data?.get(match.id);
+   const canBook = match.ticket === '예매하기' && (match.remainingSeatCount === undefined || match.remainingSeatCount > 0);
    const canResellBook = resaleStatus === 'AVAILABLE' && typeof resaleCount === 'number' && resaleCount > 0;
    const resellButtonLabel =
       resaleStatus === 'SCHEDULED'
@@ -97,6 +98,10 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                : '리셀매진';
 
    const handleBookingClick = () => {
+      if (!canBook) {
+         return;
+      }
+
       openBookingEntry({
          homeTeamId: match.homeTeamId,
          serverHomeTeamId: match.serverHomeTeamId,
@@ -188,6 +193,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                <Button
                   variant="primary"
                   className="flex-1 max-w-[300px] h-[46px] text-[14px] font-bold rounded-[10px] tracking-[-0.15px]"
+                  disabled={!canBook}
                   onClick={handleBookingClick}
                >
                   예매하기
@@ -263,6 +269,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                   <Button
                      variant="primary"
                      className="h-12 text-[16px] font-bold rounded-lg"
+                     disabled={!canBook}
                      onClick={handleBookingClick}
                   >
                      예매하기
