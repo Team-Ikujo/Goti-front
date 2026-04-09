@@ -1,5 +1,6 @@
 import apiClient, { unwrapApiData } from "@/shared/api/client";
 import type { ApiEnvelope } from "./types";
+import { reissueAccessTokenFromCookie } from '@/shared/lib/reissueAccessToken';
 
 // 로그인 성공 후 서버에서 반환하는 계정 상태
 export type LoginAccountStatus =
@@ -81,15 +82,8 @@ export const sendSignupSmsCode = async (
 };
 
 export const reissueAccessToken = async (): Promise<ReissueAccessTokenResponse> => {
-  const response = await apiClient.post<ApiEnvelope<ReissueAccessTokenResponse>>(
-    "/api/v1/auth/reissue",
-    undefined,
-    {
-      withCredentials: true,
-    },
-  );
-
-  return unwrapApiData<ReissueAccessTokenResponse>(response.data);
+  const accessToken = await reissueAccessTokenFromCookie();
+  return { accessToken };
 };
 
 export const logout = async (): Promise<void> => {
