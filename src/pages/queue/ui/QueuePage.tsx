@@ -5,9 +5,10 @@ import { createBookingFlowSearch, getBookingFlowMode } from '@/shared/lib/bookin
 import { logBookingFlow, logBookingFlowError, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { mergeBookingEntryState, useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import apiClient from '@/shared/api/client';
+import { useAuthStore } from '@/entities/auth/model/authStore';
 import {
   enterQueue,
-  getQueueStatus,
+  getQueueGlobalStatus,
   leaveQueueKeepalive,
   type QueueEnterResponse,
   seatEnterQueue,
@@ -147,6 +148,8 @@ const QueuePage = () => {
   const storedBookingEntryState = useBookingEntryStore(state => state.entry);
   const setBookingEntry = useBookingEntryStore(state => state.setEntry);
   const patchEntry = useBookingEntryStore(state => state.patchEntry);
+  const hasHydrated = useAuthStore(state => state.hasHydrated);
+  const hasResolvedSession = useAuthStore(state => state.hasResolvedSession);
   const bookingEntryState = mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState);
   const bookingFlowMode = getBookingFlowMode(location.search);
 
@@ -202,7 +205,7 @@ const QueuePage = () => {
 
   // 1단계: 대기열 진입
   useEffect(() => {
-    if (!gameId) return;
+    if (!gameId || !hasHydrated || !hasResolvedSession) return;
 
     let cancelled = false;
 
@@ -229,7 +232,7 @@ const QueuePage = () => {
     return () => {
       cancelled = true;
     };
-  }, [gameId]);
+  }, [gameId, hasHydrated, hasResolvedSession]);
 
   // 언마운트 시 대기열 이탈 (입장 허용 전에만)
   // cleanup에서는 apiClient 사용 (MSW 가로채기 가능)
@@ -265,7 +268,7 @@ const QueuePage = () => {
 
     const poll = async () => {
       try {
-        const status = await getQueueStatus(gameId);
+        const status = await getQueueGlobalStatus(gameId);
         logBookingFlow('QueuePage', 'poll status', status);
         setCurrentAllowedRank(status.currentAllowedRank);
         setPublishedRank(status.publishedRank);
@@ -289,7 +292,7 @@ const QueuePage = () => {
 
   // 3단계: 최종 입장 시도
   useEffect(() => {
-    if (phase !== 'checking' || !gameId || !queueToken) return;
+    if (phase !== 'checking' || !gameId || !queueToken || !hasHydrated || !hasResolvedSession) return;
     if (seatEnterInFlightRef.current) return;
 
     let cancelled = false;
@@ -346,7 +349,7 @@ const QueuePage = () => {
     return () => {
       cancelled = true;
     };
-  }, [phase, gameId, queueToken, patchEntry, navigate, bookingFlowMode, bookingEntryState]);
+  }, [phase, gameId, queueToken, patchEntry, navigate, bookingFlowMode, bookingEntryState, hasHydrated, hasResolvedSession]);
 
   // 표시할 대기 순서: 내 순번 - 현재 실제 허용 순번
   const displayRank = useMemo(() => {

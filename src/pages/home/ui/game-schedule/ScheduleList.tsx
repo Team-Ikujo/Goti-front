@@ -174,8 +174,9 @@ function ActionButtons({
    onOpenResellFlow: (game: GameRow) => void;
 }) {
    const { effectiveTicket, effectiveResell, ticketInfo, reselInfo } = getEffectiveSaleStatuses(game);
+   const hasRemainingSeats = game.remainingSeatCount === undefined || game.remainingSeatCount > 0;
 
-   const canBook = effectiveTicket === '예매하기';
+   const canBook = effectiveTicket === '예매하기' && hasRemainingSeats;
    const canResellBook = effectiveResell === '리셀예매';
    const isTicketScheduled = effectiveTicket === '판매예정';
    const isResellScheduled = effectiveResell === '리셀예정';
