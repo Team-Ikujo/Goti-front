@@ -24,6 +24,7 @@ export interface PurchaseHistoryItem {
    id: string;
    rawOrderId?: string;
    gameId?: string;
+   stadiumId?: string;
    orderId: string;
    orderDate: string;
    type: TicketType;
@@ -123,6 +124,13 @@ export default function HistoryCard(props: HistoryCardProps) {
    const dateLabel = isPurchase ? '예약일자' : '판매일자';
    const detailLabel = isPurchase ? '예약상세' : '판매상세';
    const detailRoute = isPurchase ? `/mypage/purchase/${purchaseOrderId ?? item.id}` : `/mypage/sale/${item.id}`;
+   const navigateToDetail = () => {
+      if (isPurchase) {
+         navigate(detailRoute, { state: { historyItem: item } });
+      } else {
+         navigate(detailRoute);
+      }
+   };
    const priceLabel = isPurchase ? '구매가' : '판매가';
    const price = isPurchase ? (item as PurchaseHistoryItem).price : (item as SaleHistoryItem).salePrice;
    const status = isPurchase ? (item as PurchaseHistoryItem).paymentStatus : (item as SaleHistoryItem).saleStatus;
@@ -273,11 +281,11 @@ export default function HistoryCard(props: HistoryCardProps) {
 
          <div
             className="bg-background border border-border rounded-[14px] flex flex-col gap-2.5 px-px py-3.25 cursor-pointer hover:border-primary/40 transition-colors"
-            onClick={() => navigate(detailRoute)}
+            onClick={navigateToDetail}
             role="button"
             tabIndex={0}
             onKeyDown={e => {
-               if (e.key === 'Enter' || e.key === ' ') navigate(detailRoute);
+               if (e.key === 'Enter' || e.key === ' ') navigateToDetail();
             }}
             aria-label={`${item.game.teams} ${detailLabel}`}
          >
@@ -292,7 +300,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                   className="flex items-center text-body-2-regular text-foreground shrink-0 px-0 hover:text-primary transition-colors gap-0 lg:justify-self-start"
                   onClick={e => {
                      e.stopPropagation();
-                     navigate(detailRoute);
+                     navigateToDetail();
                   }}
                >
                   {detailLabel} <ChevronRight size={16} />

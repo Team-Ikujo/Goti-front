@@ -7,6 +7,8 @@ import { Button } from '@/shared/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTicketDetail, fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 import { fetchOrderPaymentDetail, formatOrderPaymentMethod } from '@/entities/payment/api/paymentApi';
+import { fetchStadiumById } from '@/entities/game/api/stadiumApi';
+import type { PurchaseHistoryItem } from '../model/historyCard';
 import StatusBadge from './StatusBadge';
 import TicketItem from './TicketItem';
 import InfoItem from './InfoItem';
@@ -63,6 +65,8 @@ export default function PurchaseDetailPage() {
    const [cancelOpen, setCancelOpen] = useState(false);
    const [resellOpen, setResellOpen] = useState(false);
 
+   const locationStateItem = (location.state as { historyItem?: PurchaseHistoryItem } | null)?.historyItem;
+
    const fallbackOrdererName = useMemo(() => {
       const payload = decodeJwtPayload(accessToken);
       const candidates = [payload?.name, payload?.nickname, payload?.preferred_username, payload?.email, payload?.sub];
@@ -94,6 +98,13 @@ export default function PurchaseDetailPage() {
       retry: false,
    });
 
+   const stadiumQuery = useQuery({
+      queryKey: ['stadium', locationStateItem?.stadiumId],
+      queryFn: () => fetchStadiumById(locationStateItem!.stadiumId!),
+      enabled: Boolean(locationStateItem?.stadiumId),
+      staleTime: Infinity,
+   });
+
    const apiDetail = ticketDetailQuery.data;
    const storedPaymentDetail = useMemo(() => {
       if (!orderId) return undefined;
@@ -102,9 +113,12 @@ export default function PurchaseDetailPage() {
       });
    }, [orderId]);
    const isLoading = orderTicketsQuery.isLoading || (Boolean(primaryTicketId) && ticketDetailQuery.isLoading);
+   // fetchOrderTickets(GET /orders/{id}/tickets)가 백엔드 미구현 상태이므로
+   // location.state 또는 storedPaymentDetail로 fallback 가능한 경우 에러로 처리하지 않음
+   const hasLocationFallback = Boolean(locationStateItem) || Boolean(storedPaymentDetail);
    const isError =
-      orderTicketsQuery.isError ||
-      (!primaryTicketId && !orderTicketsQuery.isLoading && !storedPaymentDetail) ||
+      (orderTicketsQuery.isError && !hasLocationFallback) ||
+      (!primaryTicketId && !orderTicketsQuery.isLoading && !hasLocationFallback) ||
       (Boolean(primaryTicketId) && ticketDetailQuery.isError);
 
    useEffect(() => {
@@ -115,7 +129,71 @@ export default function PurchaseDetailPage() {
    }, [location.state]);
 
    const detail = useMemo<PurchaseDetailViewModel | undefined>(() => {
-      if (!apiDetail && !storedPaymentDetail) return undefined;
+      if (!apiDetail && !storedPaymentDetail && !locationStateItem) return undefined;
+
+      // fetchOrderTickets 실패 + location.state 데이터로 fallback 렌더링
+      if (!apiDetail && !storedPaymentDetail && locationStateItem) {
+         const paymentStatusToTicketStatus = (s: string): string => {
+            if (s === '취소/환불') return 'INVALID';
+            if (s === '관람 완료') return 'USED';
+            return 'ISSUED';
+         };
+         const ticketStatus = paymentStatusToTicketStatus(locationStateItem.paymentStatus);
+         const unitPrice = Math.round(locationStateItem.price / Math.max(locationStateItem.game.quantity, 1));
+         const seatItems: PurchaseSeatItem[] = locationStateItem.game.seats.map((seat, index) => ({
+            ticketId: locationStateItem.ticketIds?.[index] ?? `${locationStateItem.rawOrderId ?? locationStateItem.id}-${index}`,
+            orderId: locationStateItem.orderId,
+            section: locationStateItem.game.section,
+            seatDetail: seat,
+            status: mapTicketItemStatus(ticketStatus),
+            price: locationStateItem.seatPrices?.[index] ?? unitPrice,
+         }));
+         const venue = stadiumQuery.data?.stadiumName ?? locationStateItem.game.venue;
+         const paymentMethodDisplay = orderPaymentQuery.data?.paymentMethod
+            ? formatOrderPaymentMethod(orderPaymentQuery.data.paymentMethod)
+            : undefined;
+         const paidAt = orderPaymentQuery.data?.paidAt;
+         const total = orderPaymentQuery.data?.paymentAmount ?? locationStateItem.price;
+
+         return {
+            id: locationStateItem.rawOrderId ?? locationStateItem.id,
+            rawOrderId: locationStateItem.rawOrderId ?? locationStateItem.id,
+            overallStatus: mapOverallStatus(ticketStatus),
+            ticketStatus,
+            game: { teams: locationStateItem.game.teams, venue, datetime: locationStateItem.game.datetime },
+            orderId: locationStateItem.orderId,
+            orderDate: locationStateItem.orderDate,
+            orderer: fallbackOrdererName,
+            issuedAt: locationStateItem.orderDate,
+            cancelDeadline: ticketStatus !== 'INVALID'
+               ? getFallbackCancelableUntil(locationStateItem.orderDate)
+               : undefined,
+            seatInfo: locationStateItem.game.seats[0] ?? '',
+            ticketPrice: unitPrice,
+            paymentMethodDisplay,
+            paidAt,
+            seatItems,
+            paymentSummary: {
+               status: '결제 완료',
+               ticketCount: locationStateItem.game.quantity,
+               ticketAmount: locationStateItem.price,
+               fee: locationStateItem.game.quantity * 1000,
+               total,
+               date: paidAt,
+            },
+            paymentEvents: [{ type: '결제 완료' as const, method: paymentMethodDisplay ?? '-' }],
+            refundInfo: ticketStatus === 'INVALID' ? {
+               ticketAmount: locationStateItem.price,
+               cancelFee: 0,
+               refundTotal: locationStateItem.price,
+               method: paymentMethodDisplay ?? '정보 없음',
+               date: paidAt,
+            } : undefined,
+            canCancel: ticketStatus !== 'INVALID',
+            canSell: locationStateItem.canSell,
+            deliveryMethod: '모바일 QR',
+         };
+      }
 
       if (!apiDetail && storedPaymentDetail) {
          const seats = storedPaymentDetail.seats.length > 0 ? storedPaymentDetail.seats : ['좌석 정보'];
@@ -156,8 +234,8 @@ export default function PurchaseDetailPage() {
                status: '결제 완료',
                ticketCount: seats.length,
                ticketAmount: storedPaymentDetail.amount,
-               fee: 0,
-               total: storedPaymentDetail.amount,
+               fee: seats.length * 1000,
+               total: storedPaymentDetail.amount + seats.length * 1000,
                date: storedPaymentDetail.paidAt ?? storedPaymentDetail.orderedAt,
             },
             paymentEvents: [{ type: '결제 완료', method: storedPaymentDetail.paymentMethod }],
@@ -206,10 +284,8 @@ export default function PurchaseDetailPage() {
 
       const ticketCount = seatItems.length;
       const ticketAmount = seatItems.reduce((sum, s) => sum + s.price, 0);
-      const fee =
-         orderTickets.length > 0
-            ? orderTickets.reduce((sum, t) => sum + (t.serviceFee ?? 0), 0)
-            : (currentApiDetail.serviceFee ?? 0);
+      // 서비스 수수료는 인당 1,000원 고정
+      const fee = ticketCount * 1000;
       const total = ticketAmount + fee;
       const paymentMethodDisplay = orderPaymentQuery.data?.paymentMethod
          ? formatOrderPaymentMethod(orderPaymentQuery.data.paymentMethod)
@@ -224,7 +300,7 @@ export default function PurchaseDetailPage() {
          ticketStatus: currentApiDetail.ticketStatus,
          game: {
             teams: currentApiDetail.gameTitle,
-            venue: currentApiDetail.stadiumName ?? '',
+            venue: currentApiDetail.stadiumName ?? stadiumQuery.data?.stadiumName ?? '',
             datetime: currentApiDetail.gameDate,
          },
          orderId: formatReservationNumber(currentApiDetail.ticketNumber),
@@ -265,7 +341,7 @@ export default function PurchaseDetailPage() {
          canSell: isActionableTicket,
          deliveryMethod: '모바일 QR',
       };
-   }, [apiDetail, fallbackOrdererName, orderPaymentQuery.data, orderTickets, storedPaymentDetail]);
+   }, [apiDetail, fallbackOrdererName, locationStateItem, orderPaymentQuery.data, orderTickets, stadiumQuery.data, storedPaymentDetail]);
 
    if (isLoading) return <div className="py-24 text-center text-body-1-regular">정보를 불러오는 중입니다...</div>;
    if (isError || !detail) {
