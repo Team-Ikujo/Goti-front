@@ -320,6 +320,21 @@ const mapTicketStatus = (value: string): TicketStatus => {
   }
 };
 
+const closeTicketStatusForEmptyInventory = (
+  ticketStatus: TicketStatus,
+  remainingSeatCount?: number,
+): TicketStatus => {
+  if (ticketStatus !== '예매하기') {
+    return ticketStatus;
+  }
+
+  if (typeof remainingSeatCount === 'number' && remainingSeatCount <= 0) {
+    return '매진';
+  }
+
+  return ticketStatus;
+};
+
 const mapResellStatus = (ticketStatus: TicketStatus): ReselStatus => {
   switch (ticketStatus) {
     case '예매하기':
@@ -377,7 +392,10 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
   const gameDateTime = date && time ? new Date(`${date}T${time}`) : null;
   const status: GameStatus = (apiStatus !== '종료' && gameDateTime && gameDateTime < new Date()) ? '종료' : apiStatus;
 
-  const ticket = closeTicketStatusForUnavailableGame(mapTicketStatus(game.ticketingStatus), status);
+  const ticket = closeTicketStatusForUnavailableGame(
+    closeTicketStatusForEmptyInventory(mapTicketStatus(game.ticketingStatus), game.remainingSeatCount),
+    status,
+  );
   const fallbackHomeName = game.homeTeamDisplayName ?? game.homeTeamName ?? game.homeTeamCode ?? game.homeTeamId;
   const fallbackAwayName = game.awayTeamDisplayName ?? game.awayTeamName ?? game.awayTeamCode ?? game.awayTeamId;
 
@@ -442,6 +460,7 @@ export const mapGamesToDaySchedules = (games: NormalizedScheduleGame[]): DaySche
       resell: game.resell,
       ticketInfo: game.ticketInfo,
       reselInfo: game.reselInfo,
+      remainingSeatCount: game.remainingSeatCount,
     };
 
     const current = grouped.get(game.date);

@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useAuthStore } from '@/entities/auth/model/authStore';
-import { fetchMyProfile } from '@/entities/user/api/memberApi';
-import { fetchMyOrders, type OrderListItem } from '@/entities/order/api/orderApi';
+import { fetchMyProfile, fetchMyProfileSummary } from '@/entities/user/api/memberApi';
 import {
    fetchMyTicketInfo,
    fetchOrderTickets,
@@ -69,7 +68,7 @@ const parseSeatDetail = (seatInfo: string): string => {
    return rowIndex > 0 ? tokens.slice(rowIndex).join(' ') : tokens.slice(1).join(' ');
 };
 
-const mapPurchaseStatus = (status: OrderListItem['orderStatus'] | string): PurchaseStatus => {
+const mapPurchaseStatus = (status: string): PurchaseStatus => {
    switch (status) {
       case 'PENDING':
          return '입금 대기';
@@ -97,7 +96,7 @@ const mapSaleStatus = (status: ResaleListingItem['listingStatus']): SaleStatus =
 };
 
 type EnrichedOrderListItem = {
-   order: OrderListItem | PaymentPurchaseHistoryItem;
+   order: PaymentPurchaseHistoryItem;
    tickets: OrderTicket[];
    primaryTicketDetail?: TicketDetail;
 };
@@ -111,14 +110,10 @@ type EnrichedResaleListingItem = ResaleListingItem & {
 };
 
 const fetchMyOrderSummaries = async (): Promise<EnrichedOrderListItem[]> => {
-   let orders: Array<OrderListItem | PaymentPurchaseHistoryItem> = [];
-
-   try {
-      const purchaseHistory = await fetchPurchaseHistory({ type: 'NORMAL', size: 100 });
-      orders = purchaseHistory.list;
-   } catch {
-      orders = await fetchMyOrders();
-   }
+   // GET /api/v1/orders 는 백엔드에 존재하지 않음 (POST만 지원)
+   // 구매 내역은 /api/v1/payments/purchases 단일 엔드포인트만 사용
+   const purchaseHistory = await fetchPurchaseHistory({ type: 'NORMAL', size: 100 });
+   const orders: PaymentPurchaseHistoryItem[] = purchaseHistory.list;
 
    return Promise.all(
       orders.map(async (order) => {
@@ -194,6 +189,16 @@ export const useMyProfileData = () => {
    });
 };
 
+export const useMyProfileSummaryData = () => {
+   const accessToken = useAuthStore(s => s.accessToken);
+
+   return useQuery({
+      queryKey: ['myProfileSummary', accessToken],
+      queryFn: fetchMyProfileSummary,
+      enabled: !!accessToken,
+   });
+};
+
 export const useMyTicketInfoData = () => {
    const accessToken = useAuthStore(s => s.accessToken);
 
@@ -212,47 +217,34 @@ export const useMyOrdersData = () => {
 
    const data = useMemo((): PurchaseHistoryItem[] => {
       return (query.data ?? []).map(({ order, tickets, primaryTicketDetail }) => {
-         const purchaseSeatInfos = 'seatInfos' in order ? order.seatInfos : [];
-         const groupedSeatInfos = 'seatGradeGroups' in order
-            ? (order.seatGradeGroups ?? []).flatMap((group) => group.seatInfos ?? [])
-            : [];
-         const primarySeatGradeName = 'seatGradeGroups' in order
-            ? order.seatGradeGroups?.[0]?.seatGradeName
-            : undefined;
-         const displaySeatInfos = purchaseSeatInfos.length > 0
-            ? purchaseSeatInfos
-            : groupedSeatInfos.length > 0
-               ? groupedSeatInfos
+         // PurchaseSearchResponse 기준: seatInfos 배열 직접 사용
+         const displaySeatInfos = order.seatInfos.length > 0
+            ? order.seatInfos
             : tickets.length > 0
                ? tickets.map((ticket) => ticket.seatInfo)
                : primaryTicketDetail?.seatInfo
                   ? [primaryTicketDetail.seatInfo]
                   : [];
          const primarySeatInfo = displaySeatInfos[0];
-         const sectionLabel = primarySeatGradeName
-            ?? primaryTicketDetail?.seatGradeName
+         const sectionLabel = primaryTicketDetail?.seatGradeName
             ?? (primarySeatInfo ? parseGradeName(primarySeatInfo) : '좌석 정보');
          const seats = displaySeatInfos.length > 0
             ? displaySeatInfos.map((seatInfo) => parseSeatDetail(seatInfo))
             : Array.from({ length: order.totalQuantity }, (_, i) => `좌석${i + 1}`);
          const ticketIds = tickets.map((ticket) => ticket.ticketId);
          const seatPrices = tickets.map((ticket) => ticket.ticketPrice);
-         const gameTitle = ('gameTitle' in order ? order.gameTitle : primaryTicketDetail?.gameTitle) ?? 'KBO 리그 경기';
-         const stadiumName = ('stadiumLocation' in order ? order.stadiumLocation : undefined)
-            ?? primaryTicketDetail?.stadiumName
-            ?? '야구장';
-         const gameDate = 'gameDate' in order ? order.gameDate : primaryTicketDetail?.gameDate;
-         const purchaseQuantity = 'totalQuantity' in order ? order.totalQuantity : (tickets.length > 0 ? tickets.length : 1);
-         const purchaseAmount = 'totalAmount' in order
+         const gameTitle = order.gameTitle ?? primaryTicketDetail?.gameTitle ?? 'KBO 리그 경기';
+         const stadiumName = primaryTicketDetail?.stadiumName ?? '야구장';
+         const gameDate = order.gameDate ?? primaryTicketDetail?.gameDate;
+         const purchaseAmount = order.totalAmount > 0
             ? order.totalAmount
-            : seatPrices.length > 0
-               ? seatPrices.reduce((sum, price) => sum + price, 0)
-               : 0;
+            : seatPrices.reduce((sum, price) => sum + price, 0);
 
          return {
             id: ticketIds[0] ?? order.orderId,
             rawOrderId: order.orderId,
             gameId: order.gameId,
+            stadiumId: order.stadiumId,
             orderId: formatTicketNumber(order.orderNumber, 'ticket'),
             orderDate: formatDate(order.orderedAt),
             type: '티켓' as TicketType,
@@ -263,7 +255,7 @@ export const useMyOrdersData = () => {
                datetime: gameDate
                   ? formatDateTime(gameDate)
                   : formatDateTime(order.orderedAt),
-               quantity: purchaseQuantity,
+               quantity: order.totalQuantity,
                section: sectionLabel,
                seats,
             },

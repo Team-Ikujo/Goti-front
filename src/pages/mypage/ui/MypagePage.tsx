@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-   useMyProfileData,
+   useMyProfileSummaryData,
    useMyOrdersData,
    useMyResaleListData,
    useMyTicketInfoData,
@@ -19,7 +19,7 @@ export default function MypagePage() {
    const location = useLocation();
    const initialActiveTab = (location.state as { activeTab?: 'purchase' | 'sale' } | null)?.activeTab || 'purchase';
 
-   const profileQuery = useMyProfileData();
+   const profileQuery = useMyProfileSummaryData();
    const ordersQuery = useMyOrdersData();
    const resaleListQuery = useMyResaleListData();
    const ticketInfoQuery = useMyTicketInfoData();
