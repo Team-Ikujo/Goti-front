@@ -10,7 +10,6 @@ import {
    type MemberAccount,
    type MemberAddress,
 } from '@/entities/user/api/memberApi';
-import { logout } from '@/features/auth/api/authApi';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { AccountModals } from './AccountModals';
 import type { ModalType } from './AccountModals';
@@ -323,12 +322,7 @@ export default function AccountPage() {
    }, []);
 
    /** 로그아웃 */
-   const handleLogout = useCallback(async () => {
-      try {
-         await logout();
-      } catch {
-         // 서버 로그아웃 실패해도 클라이언트 인증 상태는 초기화
-      }
+   const handleLogout = useCallback(() => {
       clearAuth('manual');
       navigate('/');
    }, [clearAuth, navigate]);
