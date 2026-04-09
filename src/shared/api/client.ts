@@ -26,6 +26,8 @@ const authorizationOptionalApiPaths = new Set([
 ]);
 const shouldKeepSessionAlivePathPrefixes = ["/books", "/tickets"];
 const PUBLIC_API_PATH_PATTERNS = [
+  /^\/api\/v1\/games(?:\/|$)/,
+  /^\/api\/v1\/baseball-teams(?:\/|$)/,
   /^\/api\/v1\/queue(?:\/|$)/,
   /^\/api\/v1\/seat-reservations(?:\/|$)/,
   // 예매/리셀 플로우 API는 queue token / hold 기반으로 동작하므로
@@ -150,6 +152,10 @@ const shouldWaitForInitialSessionResolution = (config: AxiosRequestConfig) => {
   }
 
   if (useAuthStore.getState().hasResolvedSession) {
+    return false;
+  }
+
+  if (shouldSkipAuthorizationHeader(config) || shouldSkipCredentials(config)) {
     return false;
   }
 
