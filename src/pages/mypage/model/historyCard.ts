@@ -7,6 +7,7 @@ export interface PurchaseHistoryItem {
    id: string;
    rawOrderId?: string;
    gameId?: string;
+   stadiumId?: string;
    orderId: string;
    orderDate: string;
    type: TicketType;
