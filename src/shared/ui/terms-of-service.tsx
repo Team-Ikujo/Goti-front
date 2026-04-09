@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { Field, FieldGroup } from '@/shared/ui/field';

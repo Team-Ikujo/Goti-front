@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { Separator } from '@/shared/ui/separator';
 import { Button } from '@/shared/ui/button';
@@ -15,8 +15,7 @@ import NoAccountDialog from './NoAccountDialog';
 import ActionStatusDialog from './ActionStatusDialog';
 import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 import { MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO } from '@/shared/api/mockScenarios';
-
-// ── 타입 ────────────────────────────────────────────────────────────
+import { cancelResaleListing } from '@/entities/resale/api/resaleApi';
 
 export type PurchaseStatus = '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
 export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판매 취소 대기' | '취소 대기' | '취소 완료';
@@ -24,9 +23,12 @@ export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판
 export interface PurchaseHistoryItem {
    id: string;
    rawOrderId?: string;
+   gameId?: string;
+   stadiumId?: string;
    orderId: string;
    orderDate: string;
    type: TicketType;
+   seatGradeName?: string;
    game: {
       teams: string;
       venue: string;
@@ -41,12 +43,16 @@ export interface PurchaseHistoryItem {
    /** 모바일 티켓이고 판매 등록 가능한 경우 */
    canSell: boolean;
    ticketIds?: string[];
+   seatPrices?: number[];
 }
 
 export interface SaleHistoryItem {
    id: string;
+   ticketId?: string;
    orderId: string;
    orderDate: string;
+   soldAt?: string;
+   canceledAt?: string;
    type: TicketType;
    game: {
       teams: string;
@@ -68,43 +74,41 @@ type HistoryCardProps = ({ mode: 'purchase'; item: PurchaseHistoryItem } | { mod
    mockTicketInfoError?: boolean;
 };
 
-// ── 유틸 ─────────────────────────────────────────────────────────────
+const isPurchaseHistoryItem = (
+   mode: HistoryCardProps['mode'],
+   _item: PurchaseHistoryItem | SaleHistoryItem,
+): _item is PurchaseHistoryItem => mode === 'purchase';
 
-
-/** 경기 일자 기준으로 판매 오픈 시각 계산: 해당월 1일 11:00 */
-const getSaleOpenTime = (datetime: string): Date => {
-   const parts = datetime.split('.');
-   const year = parts[0];
-   const month = parts[1];
-   return new Date(`${year}-${month}-01T11:00:00`);
+const parseGradeName = (seatInfo: string): string => {
+   const tokens = seatInfo.split(' ');
+   const sectionIndex = tokens.findIndex((token) => token.endsWith('구역'));
+   if (sectionIndex > 0) return tokens.slice(0, sectionIndex).join(' ');
+   const rowIndex = tokens.findIndex((token) => /^[A-Z가-힣\d]+열$/.test(token));
+   return rowIndex > 0 ? tokens.slice(0, rowIndex).join(' ') : (tokens[0] ?? '');
 };
 
-/** 리셀 오픈 시각: 판매 오픈 + 2시간 */
-const getResellOpenTime = (datetime: string): Date => {
-   const t = getSaleOpenTime(datetime);
-   return new Date(t.getTime() + 2 * 60 * 60 * 1000);
+const parseSeatDetail = (seatInfo: string): string => {
+   const tokens = seatInfo.split(' ');
+   const sectionIndex = tokens.findIndex((token) => token.endsWith('구역'));
+   if (sectionIndex > 0) return tokens.slice(sectionIndex).join(' ');
+   const rowIndex = tokens.findIndex((token) => /^[A-Z가-힣\d]+열$/.test(token));
+   return rowIndex > 0 ? tokens.slice(rowIndex).join(' ') : tokens.slice(1).join(' ');
 };
-
-/** 판매예정 서브텍스트용 레이블: 'N월 1일 오전 11시 오픈' */
-const getSaleOpenLabel = (datetime: string): string => {
-   const month = parseInt(datetime.split('.')[1], 10);
-   return `${month}월 1일 오전 11시 오픈`;
-};
-
-// ── 컴포넌트 ─────────────────────────────────────────────────────────
 
 export default function HistoryCard(props: HistoryCardProps) {
    const navigate = useNavigate();
+   const queryClient = useQueryClient();
    const [expanded, setExpanded] = useState(false);
    const [resellOpen, setResellOpen] = useState(false);
    const [cancelOpen, setCancelOpen] = useState(false);
    const [noAccountOpen, setNoAccountOpen] = useState(false);
    const [qrOpen, setQrOpen] = useState(false);
+   const [saleCancelDialogType, setSaleCancelDialogType] = useState<'success' | 'error' | null>(null);
 
    const { mode, item } = props;
    const mockTicketInfoError = props.mockTicketInfoError ?? false;
-   const isPurchase = mode === 'purchase';
-   const purchaseItem = isPurchase ? (item as PurchaseHistoryItem) : null;
+   const isPurchase = isPurchaseHistoryItem(mode, item);
+   const purchaseItem = isPurchase ? item : null;
    const purchaseOrderId = purchaseItem?.rawOrderId;
    const actionTicketsQuery = useQuery({
       queryKey: ['historyCardOrderTickets', purchaseOrderId, mockTicketInfoError],
@@ -112,80 +116,138 @@ export default function HistoryCard(props: HistoryCardProps) {
          fetchOrderTickets(purchaseOrderId!, {
             mockScenario: mockTicketInfoError ? MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO : undefined,
          }),
-      enabled: isPurchase && Boolean(purchaseOrderId) && (qrOpen || resellOpen),
+      enabled: isPurchase && Boolean(purchaseOrderId) && resellOpen,
       staleTime: 0,
    });
 
    // 모드별 파생값
    const dateLabel = isPurchase ? '예약일자' : '판매일자';
    const detailLabel = isPurchase ? '예약상세' : '판매상세';
-   const detailRoute = isPurchase
-      ? `/mypage/purchase/${purchaseOrderId ?? item.id}`
-      : `/mypage/sale/${item.id}`;
+   const detailRoute = isPurchase ? `/mypage/purchase/${purchaseOrderId ?? item.id}` : `/mypage/sale/${item.id}`;
+   const navigateToDetail = () => {
+      if (isPurchase) {
+         navigate(detailRoute, { state: { historyItem: item } });
+      } else {
+         navigate(detailRoute);
+      }
+   };
    const priceLabel = isPurchase ? '구매가' : '판매가';
    const price = isPurchase ? (item as PurchaseHistoryItem).price : (item as SaleHistoryItem).salePrice;
    const status = isPurchase ? (item as PurchaseHistoryItem).paymentStatus : (item as SaleHistoryItem).saleStatus;
 
-   // 구매 버튼 노출 조건
-   const isBooked = purchaseItem?.paymentStatus === '예매 완료' || purchaseItem?.paymentStatus === '부분 처리';
-   const showSellBtn = Boolean(purchaseOrderId) && (isBooked || (purchaseItem?.canSell ?? false));
-   const showCancelBtn = Boolean(purchaseOrderId) && (isBooked || purchaseItem?.paymentStatus === '입금 대기');
+   const hasPurchaseOrder = Boolean(purchaseOrderId);
+   const isCancelablePurchaseStatus =
+      purchaseItem?.paymentStatus === '입금 대기' ||
+      purchaseItem?.paymentStatus === '예매 완료' ||
+      purchaseItem?.paymentStatus === '부분 처리';
+   const isSellablePurchaseStatus =
+      purchaseItem?.paymentStatus === '예매 완료' || purchaseItem?.paymentStatus === '부분 처리';
    const actionTickets = actionTicketsQuery.data ?? [];
-   const showQrBtn = Boolean(purchaseOrderId) && isBooked && item.deliveryType === '모바일 티켓';
-   // 판매 오픈 여부: 해당월 1일 11:00 이전 → 판매예정, ~13:00 이전 → 리셀예정
-   const now = new Date();
-   const saleOpenTime = getSaleOpenTime(item.game.datetime);
-   const resellOpenTime = getResellOpenTime(item.game.datetime);
-   const isSaleNotOpen = showSellBtn && now < saleOpenTime;
-   const isResellNotOpen = showSellBtn && !isSaleNotOpen && now < resellOpenTime;
-   // 취소/환불·관람완료는 버튼 없이 '-' 표시
+   const requestedTicketIds = new Set((purchaseItem?.ticketIds ?? []).filter(Boolean));
+   const requestedSeatDetails = new Set(purchaseItem?.game.seats ?? []);
+   const sellableActionTickets = actionTickets.filter((ticket) => {
+      if (ticket.ticketStatus !== 'ISSUED') {
+         return false;
+      }
+
+      if (requestedTicketIds.size > 0) {
+         return requestedTicketIds.has(ticket.ticketId);
+      }
+
+      return requestedSeatDetails.has(parseSeatDetail(ticket.seatInfo));
+   });
+   const showSellBtn =
+      hasPurchaseOrder &&
+      purchaseItem?.deliveryType === '모바일 티켓' &&
+      isSellablePurchaseStatus;
+   const showCancelBtn = hasPurchaseOrder && isCancelablePurchaseStatus;
+   const showQrBtn = hasPurchaseOrder && isSellablePurchaseStatus && item.deliveryType === '모바일 티켓';
    const showDash =
       isPurchase && (purchaseItem?.paymentStatus === '취소/환불' || purchaseItem?.paymentStatus === '관람 완료');
-
-   // 판매 버튼 노출 조건 — '판매 중'에만 취소 버튼, 그 외 '-' 표시
    const canCancelSale = !isPurchase && (item as SaleHistoryItem).canCancel;
    const showSaleDash = !isPurchase && !canCancelSale;
+   const { mutate: cancelSale, isPending: isCancelingSale } = useMutation({
+      mutationFn: () => cancelResaleListing(item.id),
+      onSuccess: () => {
+         void queryClient.invalidateQueries({ queryKey: ['myResales'] });
+         void queryClient.invalidateQueries({ queryKey: ['myResaleUnsettledAmount'] });
+         setSaleCancelDialogType('success');
+      },
+      onError: () => {
+         setSaleCancelDialogType('error');
+      },
+   });
 
    return (
       <>
-         {/* 구매 전용 다이얼로그 */}
-         {isPurchase && resellOpen && purchaseItem && (
-            actionTicketsQuery.isLoading ? (
+         {!isPurchase && (
+            <ActionStatusDialog
+               open={saleCancelDialogType !== null}
+               title="판매 취소"
+               message={
+                  saleCancelDialogType === 'success'
+                     ? '판매가 취소되었습니다.'
+                     : '판매 취소에 실패했습니다. 잠시 후 다시 시도해주세요.'
+               }
+               onClose={() => setSaleCancelDialogType(null)}
+               onRetry={
+                  saleCancelDialogType === 'error'
+                     ? () => {
+                          setSaleCancelDialogType(null);
+                          cancelSale();
+                       }
+                     : undefined
+               }
+            />
+         )}
+         {isPurchase &&
+            resellOpen &&
+            purchaseItem &&
+            (actionTicketsQuery.isLoading ? (
                <ActionStatusDialog
                   open={resellOpen}
-                  title="리셀 판매 등록"
+                  title="판매 등록"
                   message="판매 가능한 티켓 정보를 불러오는 중입니다."
                   onClose={() => setResellOpen(false)}
                />
             ) : actionTicketsQuery.isError ? (
                <ActionStatusDialog
                   open={resellOpen}
-                  title="리셀 판매 등록"
+                  title="판매 등록"
                   message="판매 가능한 티켓 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
                   onClose={() => setResellOpen(false)}
                   onRetry={() => {
                      void actionTicketsQuery.refetch();
                   }}
                />
-            ) : actionTickets.length > 0 ? (
+            ) : sellableActionTickets.length > 0 ? (
                <ResellRegisterDialog
                   open={resellOpen}
                   onClose={() => setResellOpen(false)}
                   onCompleteConfirm={props.onResellCompleteConfirm}
-                  item={{
+                     item={{
                      ...purchaseItem,
-                     ticketIds: actionTickets.map((ticket) => ticket.ticketId),
+                     game: {
+                        ...purchaseItem.game,
+                        quantity: sellableActionTickets.length,
+                        section: sellableActionTickets[0]?.seatInfo
+                           ? parseGradeName(sellableActionTickets[0].seatInfo)
+                           : purchaseItem.game.section,
+                        seats: sellableActionTickets.map((ticket) => parseSeatDetail(ticket.seatInfo)),
+                     },
+                     price: sellableActionTickets.reduce((sum, ticket) => sum + ticket.ticketPrice, 0),
+                     ticketIds: sellableActionTickets.map(ticket => ticket.ticketId),
+                     seatPrices: sellableActionTickets.map(ticket => ticket.ticketPrice),
                   }}
                />
             ) : (
                <ActionStatusDialog
                   open={resellOpen}
-                  title="리셀 판매 등록"
+                  title="판매 등록"
                   message="판매 가능한 티켓이 없습니다."
                   onClose={() => setResellOpen(false)}
                />
-            )
-         )}
+            ))}
          {isPurchase && noAccountOpen && (
             <NoAccountDialog open={noAccountOpen} onClose={() => setNoAccountOpen(false)} />
          )}
@@ -196,14 +258,12 @@ export default function HistoryCard(props: HistoryCardProps) {
                orderId={purchaseItem.rawOrderId ?? purchaseItem.id}
                game={{ teams: item.game.teams, datetime: item.game.datetime }}
                mockTicketInfoError={mockTicketInfoError}
-               seats={item.game.seats.map(seat => ({
+               seats={item.game.seats.map((seat, index) => ({
                   orderId: item.orderId,
                   section: item.game.section,
                   seatDetail: seat,
-                  price:
-                     item.game.seats.length > 0
-                        ? Math.round(purchaseItem.price / item.game.seats.length)
-                        : purchaseItem.price,
+                  price: purchaseItem.seatPrices?.[index] ?? Math.round(purchaseItem.price / Math.max(item.game.seats.length, 1)),
+                  ticketId: purchaseItem.ticketIds?.[index],
                }))}
             />
          )}
@@ -211,38 +271,37 @@ export default function HistoryCard(props: HistoryCardProps) {
             <QrViewDialog
                open={qrOpen}
                onClose={() => setQrOpen(false)}
-               seats={actionTickets.map((ticket) => ({
-                  ticketId: ticket.ticketId,
-                  section: ticket.seatInfo.split(' ')[0] ?? '',
-                  seatDetail: ticket.seatInfo,
+               seats={item.game.seats.map((seat, index) => ({
+                  ticketId: purchaseItem?.ticketIds?.[index],
+                  section: item.game.section,
+                  seatDetail: seat,
                }))}
-               isTicketInfoLoading={actionTicketsQuery.isLoading}
-               isTicketInfoError={actionTicketsQuery.isError}
-               onRetryTicketInfo={() => {
-                  void actionTicketsQuery.refetch();
-               }}
             />
          )}
 
          <div
             className="bg-background border border-border rounded-[14px] flex flex-col gap-2.5 px-px py-3.25 cursor-pointer hover:border-primary/40 transition-colors"
-            onClick={() => navigate(detailRoute)}
+            onClick={navigateToDetail}
             role="button"
             tabIndex={0}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') navigate(detailRoute); }}
+            onKeyDown={e => {
+               if (e.key === 'Enter' || e.key === ' ') navigateToDetail();
+            }}
             aria-label={`${item.game.teams} ${detailLabel}`}
          >
-            {/* 상단: 일자 / 상세 링크 */}
-            <div className="flex items-center justify-between lg:justify-start lg:gap-8 px-4 py-1">
-               <div className="flex items-center gap-1 text-body-2-regular shrink-0 w-33">
+            <div className="flex items-center justify-between px-4 py-1 lg:grid lg:grid-cols-[11.5rem_minmax(0,1fr)] lg:items-center lg:gap-4">
+               <div className="flex items-center gap-1 text-body-2-regular shrink-0">
                   <span className="text-foreground">{dateLabel}:</span>
                   <span className="text-body-2-semibold text-foreground">{item.orderDate}</span>
                </div>
                <Button
                   variant="none"
                   size="xs"
-                  className="flex items-center text-body-2-regular text-foreground shrink-0 px-0 hover:text-primary transition-colors gap-0"
-                  onClick={e => { e.stopPropagation(); navigate(detailRoute); }}
+                  className="flex items-center text-body-2-regular text-foreground shrink-0 px-0 hover:text-primary transition-colors gap-0 lg:justify-self-start"
+                  onClick={e => {
+                     e.stopPropagation();
+                     navigateToDetail();
+                  }}
                >
                   {detailLabel} <ChevronRight size={16} />
                </Button>
@@ -250,22 +309,19 @@ export default function HistoryCard(props: HistoryCardProps) {
 
             <Separator />
 
-            {/* 본문 — 데스크톱 전용 */}
             <div className="hidden lg:flex flex-row gap-4 p-4 items-stretch min-h-26.75">
-               {/* ① 뱃지 + 주문번호 */}
-               <div className="flex flex-col items-center justify-start w-36 shrink-0 px-1 gap-1.5">
+               <div className="flex w-44 flex-col items-center justify-start shrink-0 px-1 gap-1.5">
                   <div className="flex flex-col items-start gap-1.5 w-full h-full">
                      <div className="flex flex-col items-start w-full h-full">
                         <TicketTypeBadge type={item.type} />
                      </div>
-                     <p className="text-foreground text-body-2-medium break-all">{item.orderId}</p>
+                     <p className="w-full text-foreground text-body-2-medium whitespace-nowrap">{item.orderId}</p>
                      <p className="flex w-full items-center justify-center text-(--text-tertiary) text-caption-1-regular text-center whitespace-nowrap mt-auto h-full">
                         {item.deliveryType}
                      </p>
                   </div>
                </div>
 
-               {/* ② 경기 정보 */}
                <div className="flex flex-1 flex-col gap-2 min-w-0 px-1 justify-center min-h-24">
                   <p className="text-foreground text-body-1-bold whitespace-nowrap">{item.game.teams}</p>
                   <div className="flex items-center gap-2 h-4">
@@ -284,7 +340,10 @@ export default function HistoryCard(props: HistoryCardProps) {
                   <div className="flex flex-col gap-1">
                      <button
                         className="flex items-center gap-1 text-left"
-                        onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
+                        onClick={e => {
+                           e.stopPropagation();
+                           setExpanded(v => !v);
+                        }}
                         aria-expanded={expanded}
                      >
                         <span className="text-foreground text-body-2-medium whitespace-nowrap">
@@ -310,21 +369,16 @@ export default function HistoryCard(props: HistoryCardProps) {
                   </div>
                </div>
 
-               {/* ③ 가격 */}
                <div className="flex flex-col items-center justify-center gap-1 w-28 shrink-0 text-center whitespace-nowrap">
                   <p className="text-(--text-tertiary) text-caption-1-regular whitespace-nowrap">{priceLabel}</p>
                   <p className="text-body-1-bold text-foreground">{price.toLocaleString()}원</p>
                </div>
 
-               {/* ④ 상태 */}
                <div className="flex items-center justify-center w-28 shrink-0">
                   <p className="text-body-1-semibold whitespace-nowrap text-foreground">{status}</p>
                </div>
 
-               {/* 구분선 */}
                <div className="block w-px self-stretch bg-border shrink-0" />
-
-               {/* ⑤ 액션 버튼 (항상 3행 높이 유지) */}
                <div className="flex flex-col items-center justify-center gap-1 px-3 shrink-0 w-25 min-h-28.25">
                   {isPurchase ? (
                      showDash ? (
@@ -336,7 +390,10 @@ export default function HistoryCard(props: HistoryCardProps) {
                                  variant="secondary"
                                  size="sm"
                                  className="w-full"
-                                 onClick={e => { e.stopPropagation(); setResellOpen(true); }}
+                                 onClick={e => {
+                                    e.stopPropagation();
+                                    setResellOpen(true);
+                                 }}
                               >
                                  판매 등록
                               </Button>
@@ -348,7 +405,10 @@ export default function HistoryCard(props: HistoryCardProps) {
                                  variant="tertiary"
                                  size="sm"
                                  className="w-full"
-                                 onClick={e => { e.stopPropagation(); setCancelOpen(true); }}
+                                 onClick={e => {
+                                    e.stopPropagation();
+                                    setCancelOpen(true);
+                                 }}
                               >
                                  예매 취소
                               </Button>
@@ -356,7 +416,15 @@ export default function HistoryCard(props: HistoryCardProps) {
                               <div className="h-8.25 w-full" />
                            )}
                            {showQrBtn ? (
-                              <Button variant="tertiary" size="sm" className="w-full" onClick={e => { e.stopPropagation(); setQrOpen(true); }}>
+                              <Button
+                                 variant="tertiary"
+                                 size="sm"
+                                 className="w-full"
+                                 onClick={e => {
+                                    e.stopPropagation();
+                                    setQrOpen(true);
+                                 }}
+                              >
                                  QR 확인
                               </Button>
                            ) : (
@@ -367,22 +435,28 @@ export default function HistoryCard(props: HistoryCardProps) {
                   ) : showSaleDash ? (
                      <span className="text-body-1-regular text-muted-foreground">-</span>
                   ) : (
-                     <Button variant="tertiary" size="sm" className="w-full" onClick={e => e.stopPropagation()}>
-                        판매 취소
+                     <Button
+                        variant="tertiary"
+                        size="sm"
+                        className="w-full"
+                        disabled={isCancelingSale}
+                        onClick={e => {
+                           e.stopPropagation();
+                           cancelSale();
+                        }}
+                     >
+                        {isCancelingSale ? '처리 중...' : '판매 취소'}
                      </Button>
                   )}
                </div>
             </div>
 
-            {/* 본문 — 모바일 전용 */}
             <div className="flex flex-col gap-4 px-4 pt-1 pb-3 lg:hidden">
-               {/* 내부 컨테이너 — Figma: border=#e5e7eb, gap=10 */}
-               <div className="flex flex-col gap-2.5 border border-[#e5e7eb]">
-                  {/* Row1: 뱃지 + 주문번호 | 상태 */}
+               <div className="flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-1.5">
+                     <div className="flex min-w-0 flex-1 items-center gap-1.5">
                         <TicketTypeBadge type={item.type} />
-                        <span className="text-[14px] font-medium leading-5.25 text-[#161d24] break-all max-w-40">
+                        <span className="min-w-0 whitespace-nowrap text-[14px] font-medium leading-5.25 text-[#161d24]">
                            {item.orderId}
                         </span>
                      </div>
@@ -391,11 +465,8 @@ export default function HistoryCard(props: HistoryCardProps) {
                      </span>
                   </div>
 
-                  {/* 경기 정보 — Figma: teams fs=16/fw=700, meta fs=14/fw=400 color=#646f7c */}
                   <div className="flex flex-col gap-1">
-                     <p className="text-[16px] font-bold leading-6 text-black whitespace-nowrap">
-                        {item.game.teams}
-                     </p>
+                     <p className="text-[16px] font-bold leading-6 text-black whitespace-nowrap">{item.game.teams}</p>
                      <div className="flex items-center gap-2">
                         <span className="text-[14px] text-[#646f7c] whitespace-nowrap">{item.game.venue}</span>
                         <span className="w-px h-2.5 bg-[#d1d5dc] shrink-0" />
@@ -405,15 +476,15 @@ export default function HistoryCard(props: HistoryCardProps) {
                      </div>
                   </div>
 
-                  {/* 좌석 / 수령방법 / 가격 — Figma: label w=42px fs=12/fw=400, value fs=14/fw=400 */}
                   <div className="flex flex-col gap-1">
                      <div className="flex items-center gap-2.5">
-                        <span className="text-[12px] font-normal leading-4.5 text-[#646f7c] w-10.5 shrink-0">
-                           좌석
-                        </span>
+                        <span className="text-[12px] font-normal leading-4.5 text-[#646f7c] w-10.5 shrink-0">좌석</span>
                         <button
                            className="flex items-center gap-1 text-left"
-                           onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
+                           onClick={e => {
+                              e.stopPropagation();
+                              setExpanded(v => !v);
+                           }}
                            aria-expanded={expanded}
                         >
                            <span className="text-[14px] font-medium leading-5.25 text-[#161d24]">
@@ -441,9 +512,7 @@ export default function HistoryCard(props: HistoryCardProps) {
                         <span className="text-[12px] font-normal leading-4.5 text-[#646f7c] w-10.5 shrink-0">
                            수령방법
                         </span>
-                        <span className="text-[14px] font-normal leading-5.25 text-[#374553]">
-                           {item.deliveryType}
-                        </span>
+                        <span className="text-[14px] font-normal leading-5.25 text-[#374553]">{item.deliveryType}</span>
                      </div>
                      <div className="flex items-center gap-2.5">
                         <span className="text-[12px] font-normal leading-4.5 text-[#646f7c] w-10.5 shrink-0">
@@ -456,46 +525,66 @@ export default function HistoryCard(props: HistoryCardProps) {
                   </div>
                </div>
 
-               {/* 액션 버튼 — Figma: gap=8, each flex-1 */}
-               {isPurchase ? (
-                  !showDash && (
-                     <div className="flex gap-2">
-                        {showSellBtn && (
-                           <Button
-                              variant="secondary"
-                              size="sm"
-                              className="flex-1"
-                              onClick={e => { e.stopPropagation(); setResellOpen(true); }}
-                           >
-                              판매 등록
-                           </Button>
-                        )}
-                        {showCancelBtn && (
-                           <Button
-                              variant="tertiary"
-                              size="sm"
-                              className="flex-1"
-                              onClick={e => { e.stopPropagation(); setCancelOpen(true); }}
-                           >
-                              예매 취소
-                           </Button>
-                        )}
-                        {showQrBtn && (
-                           <Button variant="tertiary" size="sm" className="flex-1" onClick={e => { e.stopPropagation(); setQrOpen(true); }}>
-                              QR 확인
-                           </Button>
-                        )}
-                     </div>
-                  )
-               ) : (
-                  canCancelSale && (
-                     <div className="flex gap-2">
-                        <Button variant="tertiary" size="sm" className="flex-1" onClick={e => e.stopPropagation()}>
-                           판매 취소
-                        </Button>
-                     </div>
-                  )
-               )}
+               {isPurchase
+                  ? !showDash && (
+                       <div className="flex gap-2">
+                          {showSellBtn && (
+                             <Button
+                                variant="secondary"
+                                size="sm"
+                                className="flex-1"
+                                onClick={e => {
+                                   e.stopPropagation();
+                                   setResellOpen(true);
+                                }}
+                             >
+                                판매 등록
+                             </Button>
+                          )}
+                          {showCancelBtn && (
+                             <Button
+                                variant="tertiary"
+                                size="sm"
+                                className="flex-1"
+                                onClick={e => {
+                                   e.stopPropagation();
+                                   setCancelOpen(true);
+                                }}
+                             >
+                                예매 취소
+                             </Button>
+                          )}
+                          {showQrBtn && (
+                             <Button
+                                variant="tertiary"
+                                size="sm"
+                                className="flex-1"
+                                onClick={e => {
+                                   e.stopPropagation();
+                                   setQrOpen(true);
+                                }}
+                             >
+                                QR 확인
+                             </Button>
+                          )}
+                       </div>
+                    )
+                  : canCancelSale && (
+                       <div className="flex gap-2">
+                          <Button
+                             variant="tertiary"
+                             size="sm"
+                             className="flex-1"
+                             disabled={isCancelingSale}
+                             onClick={e => {
+                                e.stopPropagation();
+                                cancelSale();
+                             }}
+                          >
+                             {isCancelingSale ? '처리 중...' : '판매 취소'}
+                          </Button>
+                       </div>
+                    )}
             </div>
          </div>
       </>

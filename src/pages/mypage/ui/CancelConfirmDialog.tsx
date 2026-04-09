@@ -83,7 +83,6 @@ export default function CancelConfirmDialog({
             className="bg-background rounded-2xl w-[371px] shadow-xl"
             onClick={e => e.stopPropagation()}
          >
-            {/* 콘텐츠 */}
             <div className="relative flex flex-col gap-5 p-5">
                <button
                   onClick={onClose}
@@ -93,12 +92,10 @@ export default function CancelConfirmDialog({
                   <X size={24} />
                </button>
 
-               {/* 제목 */}
                <p className="text-[18px] font-bold text-[#161d24] leading-[1.55] pr-8">
                   {isBankTransfer ? '구매를 취소 하시겠습니까?' : '취소하시겠습니까?'}
                </p>
 
-               {/* 환불 정보 박스 */}
                <div className="bg-surface rounded-lg p-4 flex flex-col gap-[10px]">
                   <p className="text-[14px] font-bold text-destructive leading-normal">
                      {isBankTransfer ? '환불 계좌 확인' : '취소/환불 수단 확인'}
@@ -116,6 +113,12 @@ export default function CancelConfirmDialog({
                            계좌변경
                         </button>
                      </>
+                  ) : isBankTransfer ? (
+                     <p className="text-[14px] text-[#374553] leading-normal w-[260px] whitespace-pre-wrap">
+                        등록된 환불 계좌로 환불되며, 은행 영업일 기준 1~3일 정도 소요됩니다.
+                        {'\n\n'}
+                        현재 마이페이지에서는 환불 계좌 조회 API가 없어 상세 계좌번호를 표시하지 않습니다.
+                     </p>
                   ) : (
                      <p className="text-[14px] text-[#374553] leading-normal w-[260px]">
                         기존 결제 수단{paymentMethod && <span className="font-bold">({paymentMethod})</span>}으로 환불되며,{' '}
@@ -124,7 +127,6 @@ export default function CancelConfirmDialog({
                   )}
                </div>
 
-               {/* 금액 요약 */}
                <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between text-[13px] text-[#4b5563]">
                      <span>티켓 금액 ({ticketCount}매)</span>
@@ -145,7 +147,6 @@ export default function CancelConfirmDialog({
                </div>
             </div>
 
-            {/* 버튼 */}
             <div className="flex gap-3 px-5 pb-5">
                <Button variant="tertiary" className="flex-1 py-3" onClick={onBack}>
                   이전

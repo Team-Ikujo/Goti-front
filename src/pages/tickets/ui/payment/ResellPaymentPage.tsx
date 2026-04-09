@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { Button } from '@/shared/ui/button';
 import type { ResaleCheckoutRequest } from '@/pages/tickets/api/paymentApi';
+import type { BotReport } from '@/shared/lib/botDetector';
 import {
    CashReceiptCard,
    DiscountCard,
@@ -49,6 +50,7 @@ type ResellPaymentEntryState = Partial<typeof MOCK_RESALE_ENTRY> & {
    matchTitle?: string;
    venue?: string;
    dateTime?: string;
+   botData?: BotReport;
 };
 
 const resolveUserIdFromAccessToken = (accessToken: string | null) => {
@@ -64,12 +66,7 @@ const resolveUserIdFromAccessToken = (accessToken: string | null) => {
 
    try {
       const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>;
-      const userId =
-         payload.userId ??
-         payload.user_id ??
-         payload.memberId ??
-         payload.member_id ??
-         payload.sub;
+      const userId = payload.userId ?? payload.user_id ?? payload.memberId ?? payload.member_id ?? payload.sub;
 
       return typeof userId === 'string' && userId.length > 0 ? userId : undefined;
    } catch {
@@ -80,7 +77,7 @@ const resolveUserIdFromAccessToken = (accessToken: string | null) => {
 export default function ResellPaymentPage() {
    const navigate = useNavigate();
    const location = useLocation();
-   const accessToken = useAuthStore((state) => state.accessToken);
+   const accessToken = useAuthStore(state => state.accessToken);
    const resellEntryState = location.state as ResellPaymentEntryState | null;
    const resaleEntry = {
       ...MOCK_RESALE_ENTRY,
@@ -102,7 +99,13 @@ export default function ResellPaymentPage() {
 
    // 무통장 입금 + 미발행이 아닌 경우 현금영수증 번호 필수
    const isCashReceiptValid = paymentMethod !== 'bank' || cashReceiptType === 'none' || !!cashReceiptNum;
-   const isFormValid = !!name && phone.replace(/\D/g, '').length === 11 && !!email && isCashReceiptValid && agreedPrivacy && agreedResell;
+   const isFormValid =
+      !!name &&
+      phone.replace(/\D/g, '').length === 11 &&
+      !!email &&
+      isCashReceiptValid &&
+      agreedPrivacy &&
+      agreedResell;
    const resolvedBuyerId = resellEntryState?.buyerId ?? resolveUserIdFromAccessToken(accessToken);
 
    const orderInfo = {
@@ -152,6 +155,7 @@ export default function ResellPaymentPage() {
          ordererPhone: phone,
          ordererEmail: email,
          paymentMethod,
+         botData: resellEntryState?.botData,
          ...(paymentMethod === 'bank' && {
             cashReceiptType,
             cashReceiptNumType,
@@ -176,10 +180,6 @@ export default function ResellPaymentPage() {
                <div className="flex flex-col lg:flex-row gap-8 items-start">
                   {/* 왼쪽: 주문자 정보 */}
                   <div className="w-full lg:flex-1 min-w-0 flex flex-col gap-[10px]">
-                     <h2 className="hidden lg:block text-heading-1-bold leading-normal text-foreground h-9">
-                        주문자 정보 입력
-                     </h2>
-
                      <div className="flex flex-col gap-6">
                         {/* 수령 방식 — 리셀은 모바일 티켓만 가능 */}
                         <PaymentCard>
@@ -261,8 +261,6 @@ export default function ResellPaymentPage() {
 
                   {/* 오른쪽: 주문 정보 — 데스크톱 전용 */}
                   <div className="hidden lg:flex flex-col flex-1 max-w-100 shrink-0 gap-[10px]">
-                     <h2 className="text-heading-1-bold leading-normal text-foreground h-9">주문 정보 확인</h2>
-
                      <div className="flex flex-col gap-6">
                         <OrderSummaryCard orderInfo={orderInfo} />
 

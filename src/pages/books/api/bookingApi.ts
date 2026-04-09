@@ -1,5 +1,6 @@
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import { logBookingFlow, logBookingFlowError } from '@/shared/lib/bookingFlowDebug';
 import { getBookingZones } from '@/pages/books/model/zoneData';
 import type { SeatBlock, SeatItem, SeatStatus, ZoneItem } from '@/pages/books/model/types';
 
@@ -36,8 +37,54 @@ export type SeatResponse = {
 
 export type SeatStatusResponse = {
    seatId: string;
+   rowName?: string;
+   seatNum?: number;
    status: string;
 };
+
+export const mapSeatStatusToUiStatus = (status: string | undefined): SeatStatus => {
+   switch (status?.toUpperCase()) {
+      case 'AVAILABLE':
+         return 'available';
+      case 'HELD':
+         return 'held';
+      case 'SOLD':
+      case 'BLOCKED':
+         return 'disabled';
+      default:
+         return 'available';
+   }
+};
+
+export const mapSeatStatusesToSeats = ({
+   sectionId,
+   statuses,
+}: {
+   sectionId: string;
+   statuses: SeatStatusResponse[];
+}): SeatResponse[] =>
+   statuses.flatMap((seatStatus) => {
+      const seatNum = toOptionalFiniteNumber(seatStatus.seatNum);
+
+      if (!isNonEmptyString(seatStatus.seatId) || !isNonEmptyString(seatStatus.rowName) || seatNum === undefined) {
+         console.error('[bookingApi] 좌석 상태 응답 정규화 실패', {
+            sectionId,
+            seatStatus,
+         });
+         return [];
+      }
+
+      return [
+         {
+            seatId: seatStatus.seatId,
+            apiSeatId: seatStatus.seatId,
+            sectionId,
+            rowName: seatStatus.rowName,
+            seatNum,
+            available: true,
+         } satisfies SeatResponse,
+      ];
+   });
 
 export type TicketPricingPolicyPriceResponse = {
    priceId: string;
@@ -64,12 +111,18 @@ const SEAT_STEP = 20;
 
 type RawSeatResponse = Partial<SeatResponse> & {
    id?: string;
+   apiSeatId?: string;
+   seatCode?: string;
    seatNumber?: number;
    row?: string;
    isAvailable?: boolean;
 };
 
 const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const isUuidString = (value: unknown): value is string => isNonEmptyString(value) && UUID_PATTERN.test(value);
+
 const toOptionalFiniteNumber = (value: unknown) => {
    if (typeof value === 'number' && Number.isFinite(value)) {
       return value;
@@ -89,8 +142,20 @@ const toOptionalFiniteNumber = (value: unknown) => {
 const normalizeSeatResponse = (seat: RawSeatResponse): SeatResponse | null => {
    const rawSeatId = isNonEmptyString(seat.seatId) ? seat.seatId : undefined;
    const rawId = isNonEmptyString(seat.id) ? seat.id : undefined;
-   const seatId = rawSeatId ?? rawId;
-   const apiSeatId = rawSeatId ?? rawId;
+   const rawApiSeatId = isNonEmptyString(seat.apiSeatId) ? seat.apiSeatId : undefined;
+   const rawSeatCode = isNonEmptyString(seat.seatCode) ? seat.seatCode : undefined;
+   const apiSeatId =
+      rawApiSeatId ??
+      (isUuidString(rawSeatId) ? rawSeatId : undefined) ??
+      (isUuidString(rawId) ? rawId : undefined) ??
+      rawId ??
+      rawSeatId;
+   const seatId =
+      rawSeatCode ??
+      (rawSeatId && rawSeatId !== apiSeatId ? rawSeatId : undefined) ??
+      (rawId && rawId !== apiSeatId ? rawId : undefined) ??
+      rawSeatId ??
+      rawId;
    const sectionId = isNonEmptyString(seat.sectionId) ? seat.sectionId : undefined;
    const rowName = isNonEmptyString(seat.rowName) ? seat.rowName : isNonEmptyString(seat.row) ? seat.row : undefined;
    const seatNum = toOptionalFiniteNumber(seat.seatNum) ?? toOptionalFiniteNumber(seat.seatNumber);
@@ -194,19 +259,7 @@ const toSeatStatus = (status: string | undefined, available: boolean): SeatStatu
       return 'disabled';
    }
 
-   switch (status?.toUpperCase()) {
-      case 'AVAILABLE':
-         return 'available';
-      case 'HELD':
-         return 'held';
-      case 'SELECTED':
-         return 'selected';
-      case 'SOLD':
-      case 'BLOCKED':
-         return 'disabled';
-      default:
-         return 'available';
-   }
+   return mapSeatStatusToUiStatus(status);
 };
 
 const sortRowNames = (left: string, right: string) =>
@@ -246,14 +299,26 @@ export const fetchSeatGrades = async ({
    gameId: string;
    forceNewSession?: boolean;
 }) => {
-   const response = await apiClient.get<ApiEnvelope<SeatGradeSearchResultResponse>>(
-      `/api/v1/stadium-seats/games/${gameId}/seat-grades`,
-      {
-         params: forceNewSession ? { forceNewSession: true } : undefined,
-      },
-   );
-
-   return response.data.data?.seatGrades ?? [];
+   logBookingFlow('bookingApi', 'fetchSeatGrades request', { gameId, forceNewSession });
+   try {
+      const response = await apiClient.get<ApiEnvelope<SeatGradeSearchResultResponse>>(
+         `/api/v1/stadium-seats/games/${gameId}/seat-grades`,
+         {
+            params: forceNewSession ? { forceNewSession: true } : undefined,
+         },
+      );
+      const seatGrades = response.data.data?.seatGrades ?? [];
+      logBookingFlow('bookingApi', 'fetchSeatGrades response', {
+         gameId,
+         forceNewSession,
+         count: seatGrades.length,
+         seatGradeIds: seatGrades.map((seatGrade) => seatGrade.seatGradeId),
+      });
+      return seatGrades;
+   } catch (error) {
+      logBookingFlowError('bookingApi', 'fetchSeatGrades error', { gameId, forceNewSession, error });
+      throw error;
+   }
 };
 
 export const fetchSeatSections = async ({
@@ -263,11 +328,21 @@ export const fetchSeatSections = async ({
    stadiumId: string;
    gameId?: string;
 }) => {
-   const response = await apiClient.get<ApiEnvelope<SeatSectionResponse[]>>(`/api/v1/stadium-seats/stadiums/${stadiumId}/seat-sections`, {
-      params: gameId ? { gameId } : undefined,
-   });
-
-   return response.data.data;
+   logBookingFlow('bookingApi', 'fetchSeatSections request', { stadiumId, gameId });
+   try {
+      const response = await apiClient.get<ApiEnvelope<SeatSectionResponse[]>>(`/api/v1/stadium-seats/stadiums/${stadiumId}/seat-sections`, {
+         params: gameId ? { gameId } : undefined,
+      });
+      logBookingFlow('bookingApi', 'fetchSeatSections response', {
+         stadiumId,
+         gameId,
+         count: response.data.data?.length ?? 0,
+      });
+      return response.data.data;
+   } catch (error) {
+      logBookingFlowError('bookingApi', 'fetchSeatSections error', { stadiumId, gameId, error });
+      throw error;
+   }
 };
 
 export const resolveSeatSectionByCode = async ({
@@ -339,11 +414,22 @@ export const summarizeSeatStatusSnapshot = (statuses: SeatStatusResponse[]) => {
 };
 
 export const fetchTicketPricingPolicy = async (teamId: string) => {
-   const response = await apiClient.get<ApiEnvelope<TicketPricingPolicyResponse>>(
-      `/api/v1/teams/${teamId}/ticket-pricing-policies`,
-   );
-
-   return response.data.data;
+   logBookingFlow('bookingApi', 'fetchTicketPricingPolicy request', { teamId });
+   try {
+      const response = await apiClient.get<ApiEnvelope<TicketPricingPolicyResponse>>(
+         `/api/v1/teams/${teamId}/ticket-pricing-policies`,
+      );
+      logBookingFlow('bookingApi', 'fetchTicketPricingPolicy response', {
+         teamId,
+         policyId: response.data.data?.policyId,
+         isActive: response.data.data?.isActive,
+         priceCount: response.data.data?.prices?.length ?? 0,
+      });
+      return response.data.data;
+   } catch (error) {
+      logBookingFlowError('bookingApi', 'fetchTicketPricingPolicy error', { teamId, error });
+      throw error;
+   }
 };
 
 const resolveZonePrice = ({

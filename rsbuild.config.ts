@@ -7,6 +7,10 @@ const apiTarget = (process.env.PUBLIC_API_BASE_URL ?? 'https://dev.go-ti.shop').
 // Rsbuild configuration — https://rsbuild.rs/config/
 export default defineConfig({
    plugins: [pluginReact()],
+   html: {
+      title: 'GO-TI',
+      favicon: './public/Logo/favicon.ico',
+   },
    source: {
       alias: {
          '@': path.resolve(__dirname, 'src'),

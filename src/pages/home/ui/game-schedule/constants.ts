@@ -1,4 +1,4 @@
-import type { DaySchedule, GameStatus } from './types';
+import type { GameStatus } from './types';
 
 export const teamOrder = ['삼성', 'KIA', 'LG', '한화', 'SSG', 'NC', 'KT', '롯데', '두산', '키움'];
 export const TEAM_IDS: Record<string, string> = {

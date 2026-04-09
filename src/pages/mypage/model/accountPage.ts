@@ -1,0 +1,50 @@
+export const BANKS = [
+   '국민은행',
+   '신한은행',
+   '우리은행',
+   '하나은행',
+   'IBK기업은행',
+   'NH농협은행',
+   '카카오뱅크',
+   '토스뱅크',
+   '케이뱅크',
+   '새마을금고',
+   '신협',
+   '수협은행',
+   'SC제일은행',
+   '씨티은행',
+   '광주은행',
+   '전북은행',
+   '경남은행',
+   '제주은행',
+   '부산은행',
+   '대구은행',
+] as const;
+
+export const SOCIAL_CONNECTION_ITEMS = [
+   {
+      key: 'google',
+      label: 'Google 계정 연결',
+      iconSrc: '/Icon/Logo/Google.svg',
+      iconAlt: 'Google',
+      iconWrapperClassName: 'rounded-full border border-border-light p-0.5',
+      showSignupBadge: true,
+   },
+   {
+      key: 'kakao',
+      label: '카카오 계정 연결',
+      iconSrc: '/Icon/Logo/Kakao.svg',
+      iconAlt: 'Kakao',
+      iconWrapperClassName: 'flex size-7 items-center justify-center overflow-hidden rounded-full bg-[#ffde00]',
+      textClassName: 'text-muted-foreground',
+   },
+   {
+      key: 'naver',
+      label: '네이버 계정 연결',
+      iconSrc: '/Icon/Logo/Naver.svg',
+      iconAlt: 'Naver',
+      iconWrapperClassName:
+         'flex size-7 items-center justify-center overflow-hidden rounded-full bg-[#00c73c] p-0.5',
+      textClassName: 'text-muted-foreground',
+   },
+] as const;

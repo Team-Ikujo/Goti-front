@@ -1,4 +1,4 @@
-import apiClient, { ApiError } from '@/shared/api/client';
+import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import type {
    CashReceiptNumType,
@@ -6,9 +6,11 @@ import type {
    PaymentMethod,
    SupportedPaymentMethod,
 } from '../ui/payment/types';
+import type { BotReport } from '@/shared/lib/botDetector';
 import { type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
 import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 import { useAuthStore } from '@/entities/auth/model/authStore';
+import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 
 interface CheckoutFormRequest {
    deliveryMethod: 'mobile' | 'onsite' | 'delivery';
@@ -22,6 +24,7 @@ interface CheckoutFormRequest {
    cashReceiptType?: CashReceiptType;
    cashReceiptNumType?: CashReceiptNumType;
    cashReceiptNum?: string;
+   botData?: BotReport;
 }
 
 export interface PaymentResponse {
@@ -125,6 +128,9 @@ type ResaleHoldResponse = {
 
 type ResaleOrderRequest = {
    holdIds: string[];
+   buyerNickname: string;
+   buyerEmail: string;
+   buyerPhone: string;
 };
 
 type ResaleOrderResponse = {
@@ -137,21 +143,6 @@ type ResaleOrderResponse = {
 
 type ResaleOrderTransactionsResponse = {
    transactionIds: string[];
-};
-
-type ResaleOrderCompleteResponse = {
-   orderId: string;
-   orderNumber: string;
-   buyerId: string;
-   totalAmount: number;
-   orderStatus: string;
-   ticketIds?: string[];
-   items?: Array<{
-      transactionId: string;
-      listingId: string;
-      seatInfo: string;
-      price: number;
-   }>;
 };
 
 type ResalePaymentItem = {
@@ -173,8 +164,6 @@ type ResalePaymentRequest = {
 
 type PaymentMethodCode = 'CARD' | 'ACCOUNT_TRANSFER';
 const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
-const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? '').trim();
-const shouldUseRelativeApiBase = import.meta.env.DEV;
 
 const formatOrderedAt = (date: Date) => {
    const pad = (n: number) => String(n).padStart(2, '0');
@@ -196,26 +185,7 @@ const createClientTransactionId = (prefix: string) => {
    return `${prefix}-${Date.now()}`;
 };
 
-const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
-
-const isAuthorizationConflictError = (error: unknown) => {
-   if (!(error instanceof ApiError)) {
-      return false;
-   }
-
-   const normalizedMessage = error.message.trim().toLowerCase();
-
-   return (
-      error.status === 401 ||
-      error.status === 403 ||
-      normalizedMessage.includes('rbac') ||
-      normalizedMessage.includes('access denied') ||
-      normalizedMessage.includes('jwt issuer') ||
-      normalizedMessage.includes('issuer is not configured') ||
-      normalizedMessage.includes('unauthorized') ||
-      normalizedMessage.includes('forbidden')
-   );
-};
+const delay = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms));
 
 const getResaleHoldReleaseUrl = (holdId: string) => {
    const path = `/api/v1/resales/holds/${encodeURIComponent(holdId)}/release`;
@@ -361,17 +331,28 @@ const createResalePayment = async (payload: ResalePaymentRequest) => {
    return response.data.data;
 };
 
-const completeResaleOrder = async (orderId: string, paymentId: string) => {
-   const response = await apiClient.patch<ApiEnvelope<ResaleOrderCompleteResponse>>(
-      `/api/v1/resales/orders/${orderId}/complete`,
+type CompleteResaleOrderResponse = {
+   orderId: string;
+   orderNumber: string;
+   buyerId: string;
+   totalAmount: number;
+   orderStatus: string;
+   items: Array<{
+      transactionId: string;
+      listingId: string;
+      seatInfo: string;
+      price: number;
+   }>;
+};
+
+const completeResaleOrder = async (orderId: string, paymentId: string): Promise<CompleteResaleOrderResponse> => {
+   const response = await apiClient.patch<ApiEnvelope<CompleteResaleOrderResponse>>(
+      `/api/v1/resales/orders/${encodeURIComponent(orderId)}/complete`,
       undefined,
       {
-         params: {
-            paymentId,
-         },
+         params: { paymentId },
       },
    );
-
    return response.data.data;
 };
 
@@ -443,53 +424,6 @@ const buildPaymentResponse = ({
    return paymentResponse;
 };
 
-const buildOptimisticResalePaymentResponse = ({
-   order,
-   payload,
-}: {
-   order?: ResaleOrderResponse | null;
-   payload: ResaleCheckoutRequest;
-}): PaymentResponse => {
-   const fallbackOrder: ResaleOrderResponse =
-      order ?? {
-         orderId: createClientTransactionId('resale-order'),
-         orderNumber: `RESALE${Date.now()}`,
-         orderStatus: 'COMPLETED',
-         totalQuantity: 1,
-         totalAmount: payload.totalAmount,
-      };
-
-   const syntheticPayment: OrderPaymentResponse = {
-      paymentId: createClientTransactionId('resale-payment'),
-      orderId: fallbackOrder.orderId,
-      paymentType: 'PAYMENT',
-      paymentMethod: toPaymentMethodCode(payload.paymentMethod as SupportedPaymentMethod),
-      paymentAmount: payload.totalAmount,
-      pgProvider: 'FALLBACK',
-      pgTid: createClientTransactionId('resale-pg-tid'),
-      paymentStatus: 'SUCCESS',
-      paidAt: new Date().toISOString(),
-      failedReason: null,
-   };
-
-   return buildPaymentResponse({
-      orderType: 'resale',
-      amount: payload.totalAmount,
-      order: {
-         ...fallbackOrder,
-         orderStatus: 'COMPLETED',
-         totalAmount: payload.totalAmount,
-      },
-      payment: syntheticPayment,
-      paymentMethod: payload.paymentMethod,
-      gameTitle: payload.matchTitle,
-      gameDate: payload.gameDate,
-      gameVenue: payload.gameVenue,
-      seats: [payload.seatInfo],
-      resaleListingId: payload.listingId,
-   });
-};
-
 export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise<PaymentResponse> => {
    const heldSeats = payload.selectedSeats.map(({ seatId, holdId, label }) => ({
       seatId,
@@ -555,13 +489,10 @@ export const submitResaleOrder = async (
    const resolvedBuyerId = resolveUserIdFromJwt(useAuthStore.getState().accessToken) ?? payload.buyerId;
 
    let resaleHoldId: string | null = null;
-   let createdOrder: ResaleOrderResponse | null = null;
 
    try {
       if (!resolvedBuyerId) {
-         return buildOptimisticResalePaymentResponse({
-            payload,
-         });
+         throw new Error('구매자 정보를 확인할 수 없습니다.');
       }
 
       if (payload.holdId) {
@@ -578,16 +509,15 @@ export const submitResaleOrder = async (
 
       const order = await createResaleOrder({
          holdIds: resaleHoldId ? [resaleHoldId] : [],
+         buyerNickname: payload.ordererName,
+         buyerEmail: payload.ordererEmail,
+         buyerPhone: payload.ordererPhone,
       });
-      createdOrder = order;
 
       const transactionIds = await getResaleTransactionsWithRetry(order.orderId);
 
       if (transactionIds.length === 0) {
-         return buildOptimisticResalePaymentResponse({
-            order,
-            payload,
-         });
+         throw new Error('리셀 주문에 연결된 거래 정보를 확인할 수 없습니다.');
       }
 
       const payment = await createResalePayment({
@@ -596,7 +526,7 @@ export const submitResaleOrder = async (
          totalAmount: payload.totalAmount,
          totalBuyerFee: payload.totalBuyerFee,
          totalSellerFee: payload.totalSellerFee,
-         items: transactionIds.map((transactionId) => ({
+         items: transactionIds.map(transactionId => ({
             transactionId,
             sellerId: payload.sellerId,
             settlementAmount: payload.settlementAmount,
@@ -604,33 +534,27 @@ export const submitResaleOrder = async (
          paymentMethod: toPaymentMethodCode(payload.paymentMethod),
          idempotencyKey: createClientTransactionId('resale-idempotency'),
       });
-      let completedOrder: ResaleOrderCompleteResponse | null = null;
 
-      try {
-         completedOrder = await completeResaleOrder(order.orderId, payment.paymentId);
-      } catch (error) {
-         if (!isAuthorizationConflictError(error)) {
-            throw error;
-         }
-      }
+      // 결제 완료 후 주문 완료 처리 — 리셀 티켓 발급 및 리스팅 SOLD 전환
+      let issuedTicketCount: number | undefined;
+      const completeResult = await completeResaleOrder(order.orderId, payment.paymentId);
+      issuedTicketCount = completeResult.items.length;
 
       return buildPaymentResponse({
          orderType: 'resale',
          amount: payment.paymentAmount,
          order: {
             ...order,
-            orderNumber: completedOrder?.orderNumber ?? order.orderNumber,
-            orderStatus: completedOrder?.orderStatus ?? payment.paymentStatus,
-            totalAmount: completedOrder?.totalAmount ?? order.totalAmount,
+            orderStatus: payment.paymentStatus === 'SUCCESS' ? 'COMPLETED' : order.orderStatus,
          },
          payment,
          paymentMethod: payload.paymentMethod,
          gameTitle: payload.matchTitle,
          gameDate: payload.gameDate,
          gameVenue: payload.gameVenue,
-         seats: completedOrder?.items?.map((item) => item.seatInfo) ?? [payload.seatInfo],
+         seats: [payload.seatInfo],
          resaleListingId: payload.listingId,
-         ticketId: completedOrder?.ticketIds?.[0],
+         issuedTicketCount,
       });
    } catch (error) {
       if (resaleHoldId) {
@@ -645,9 +569,6 @@ export const submitResaleOrder = async (
          }
       }
 
-      return buildOptimisticResalePaymentResponse({
-         order: createdOrder,
-         payload,
-      });
+      throw error;
    }
 };

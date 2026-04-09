@@ -6,15 +6,15 @@ import {
   fetchBaseballTeamDetails,
   fetchGameSchedules,
   type FetchGameSchedulesParams,
-  type GameScheduleResponse,
 } from '@/entities/game/api/scheduleApi';
+import type { GameScheduleResponse } from '@/shared/types/game';
 import { teams } from '@/entities/team/model/teams';
 import type { DaySchedule, GameRow, GameStatus, ReselStatus, TicketStatus } from '@/pages/home/ui/game-schedule/types';
 
 export type NormalizedScheduleGame = {
   id: string;
-  serverHomeTeamId: string;
-  serverAwayTeamId: string;
+  serverHomeTeamId?: string;
+  serverAwayTeamId?: string;
   leagueType: ApiLeagueType;
   homeTeamId?: string;
   awayTeamId?: string;
@@ -152,6 +152,7 @@ const findTeamReference = (...candidates: Array<string | undefined>) => {
       reference.fullName,
       ...reference.aliases,
     ]
+      .filter((candidate): candidate is string => Boolean(candidate))
       .map(normalizeLookupValue);
 
     return normalizedCandidates.some((candidate) => referenceCandidates.includes(candidate));
@@ -196,8 +197,8 @@ const mergeScheduleWithTeamDetails = (game: GameScheduleResponse, teamDetails: M
   teamName: string;
   homeGround?: string;
 }>) => {
-  const homeTeamDetail = teamDetails.get(game.homeTeamId);
-  const awayTeamDetail = teamDetails.get(game.awayTeamId);
+  const homeTeamDetail = game.homeTeamId ? teamDetails.get(game.homeTeamId) : undefined;
+  const awayTeamDetail = game.awayTeamId ? teamDetails.get(game.awayTeamId) : undefined;
 
   return {
     ...game,
@@ -319,6 +320,21 @@ const mapTicketStatus = (value: string): TicketStatus => {
   }
 };
 
+const closeTicketStatusForEmptyInventory = (
+  ticketStatus: TicketStatus,
+  remainingSeatCount?: number,
+): TicketStatus => {
+  if (ticketStatus !== '예매하기') {
+    return ticketStatus;
+  }
+
+  if (typeof remainingSeatCount === 'number' && remainingSeatCount <= 0) {
+    return '매진';
+  }
+
+  return ticketStatus;
+};
+
 const mapResellStatus = (ticketStatus: TicketStatus): ReselStatus => {
   switch (ticketStatus) {
     case '예매하기':
@@ -376,7 +392,10 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
   const gameDateTime = date && time ? new Date(`${date}T${time}`) : null;
   const status: GameStatus = (apiStatus !== '종료' && gameDateTime && gameDateTime < new Date()) ? '종료' : apiStatus;
 
-  const ticket = closeTicketStatusForUnavailableGame(mapTicketStatus(game.ticketingStatus), status);
+  const ticket = closeTicketStatusForUnavailableGame(
+    closeTicketStatusForEmptyInventory(mapTicketStatus(game.ticketingStatus), game.remainingSeatCount),
+    status,
+  );
   const fallbackHomeName = game.homeTeamDisplayName ?? game.homeTeamName ?? game.homeTeamCode ?? game.homeTeamId;
   const fallbackAwayName = game.awayTeamDisplayName ?? game.awayTeamName ?? game.awayTeamCode ?? game.awayTeamId;
 
@@ -441,6 +460,7 @@ export const mapGamesToDaySchedules = (games: NormalizedScheduleGame[]): DaySche
       resell: game.resell,
       ticketInfo: game.ticketInfo,
       reselInfo: game.reselInfo,
+      remainingSeatCount: game.remainingSeatCount,
     };
 
     const current = grouped.get(game.date);

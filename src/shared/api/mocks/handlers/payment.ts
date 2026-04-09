@@ -8,6 +8,44 @@ const teamNameByServerId = Object.fromEntries(
    teams.filter(t => t.serverTeamId).map(t => [t.serverTeamId, t.name]),
 );
 
+const parseMockTokenPayload = (token: string) => {
+   if (!token) {
+      return null;
+   }
+
+   try {
+      const payloadB64 = token.split('.')[1] ?? '';
+      return JSON.parse(
+         decodeURIComponent(
+            atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'))
+               .split('')
+               .map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
+               .join(''),
+         ),
+      ) as Record<string, string>;
+   } catch {
+      return null;
+   }
+};
+
+const getMockMemberKey = (request: Request) => {
+   const authHeader = request.headers.get('Authorization') ?? '';
+   const token = authHeader.replace(/^Bearer\s+/i, '');
+   const decoded = parseMockTokenPayload(token);
+
+   return decoded?.userId || decoded?.sub || decoded?.email || 'guest';
+};
+
+const getRequiredUserId = (request: Request) => {
+   const userId = new URL(request.url).searchParams.get('userId')?.trim();
+
+   if (!userId) {
+      return null;
+   }
+
+   return userId;
+};
+
 type SeatGrade = {
    seatGradeId: string;
    stadiumId: string;
@@ -443,9 +481,15 @@ const seatSectionsByStadium: Record<string, SeatSection[]> = {
 
 // ── MSW localStorage 영속화 ────────────────────────────────────────
 
-const MSW_STORAGE_VERSION = '6';
+const MSW_STORAGE_VERSION = '7';
 const MSW_VERSION_KEY = '__msw_storage_version__';
-const MSW_STORAGE_KEYS = ['__msw_ticket_orders__', '__msw_ticket_records__', '__msw_seat_holds__'];
+const MSW_STORAGE_KEYS = [
+   '__msw_ticket_orders__',
+   '__msw_ticket_records__',
+   '__msw_seat_holds__',
+   '__msw_resale_listings__',
+   '__msw_resale_orders__',
+];
 
 (function migrateStorage() {
    try {
@@ -496,13 +540,15 @@ const ticketOrders = createPersistedMap<TicketOrder>('__msw_ticket_orders__');
 const ticketPayments = new Map<string, TicketPayment>();
 const ticketRecords = createPersistedMap<TicketRecord>('__msw_ticket_records__');
 const resaleHolds = new Map<string, ResaleHold>();
-const resaleOrders = new Map<string, ResaleOrder>();
+const resaleOrders = createPersistedMap<ResaleOrder>('__msw_resale_orders__');
 const resalePayments = new Map<string, ResalePayment>();
 const resaleLedgers = new Map<string, ResaleLedger>();
 
 type ResaleListing = {
    listingId: string;
+   orderId?: string;
    ticketId: string;
+   ticketNumber?: string;
    sellerId: string;
    seatInfo: string;
    listingPrice: number;
@@ -718,6 +764,66 @@ const mockResaleHistoryGraphByKey: Record<string, Array<{ transactionPrice: numb
    ],
 };
 
+const buildMockGameTitle = (gameId: string) => {
+   const matchedGame = mockGameSchedules.find((game) => game.gameId === gameId);
+
+   if (!matchedGame) {
+      return 'KBO 리그 경기';
+   }
+
+   return `${matchedGame.awayTeamDisplayName} vs ${matchedGame.homeTeamDisplayName}`;
+};
+
+const buildMockStadiumName = (gameId: string) => {
+   const matchedGame = mockGameSchedules.find((game) => game.gameId === gameId);
+
+   if (!matchedGame) {
+      return '';
+   }
+
+   return `${matchedGame.stadiumLocation} ${matchedGame.homeTeamDisplayName} 홈구장`;
+};
+
+const getResaleListingFromSeed = (listingId: string): ResaleListing | null => {
+   const seedListing = mockResaleListings.find((listing) => listing.listingId === listingId);
+
+   if (!seedListing) {
+      return null;
+   }
+
+   return {
+      listingId: seedListing.listingId,
+      ticketId: seedListing.ticketId,
+      sellerId: seedListing.sellerId,
+      seatInfo: seedListing.seatInfo,
+      listingPrice: seedListing.listingPrice,
+      listingStatus: seedListing.listingStatus as ResaleListing['listingStatus'],
+      listedAt: seedListing.listedAt,
+      canceledAt: seedListing.canceledAt,
+      gameTitle: buildMockGameTitle(seedListing.gameId),
+      gameDate: mockGameSchedules.find((game) => game.gameId === seedListing.gameId)?.startAt ?? '',
+      stadiumName: buildMockStadiumName(seedListing.gameId),
+   };
+};
+
+const ensureMockResaleListingsSeed = () => {
+   mockResaleListings.forEach((listing) => {
+      if (resaleListings.has(listing.listingId)) {
+         return;
+      }
+
+      const seededListing = getResaleListingFromSeed(listing.listingId);
+
+      if (!seededListing) {
+         return;
+      }
+
+      resaleListings.set(listing.listingId, seededListing);
+   });
+};
+
+ensureMockResaleListingsSeed();
+
 const buildErrorResponse = (message: string, status = 400) => {
    return HttpResponse.json({ message }, { status });
 };
@@ -735,6 +841,27 @@ const buildPaymentMethodDisplay = (paymentMethod: string): string => {
       case 'CARD': return '카드 결제(신한카드 1234)';
       case 'ACCOUNT_TRANSFER': return '무통장 입금';
       default: return paymentMethod;
+   }
+};
+
+const MYPAGE_MOCK_PROFILE_STORAGE_KEY = 'mypage-mock-profile';
+const DEFAULT_MOCK_ORDERER_NAME = '테스트 유저';
+
+const getMockOrdererName = () => {
+   if (typeof window === 'undefined') {
+      return DEFAULT_MOCK_ORDERER_NAME;
+   }
+
+   try {
+      const storedValue = window.localStorage.getItem(MYPAGE_MOCK_PROFILE_STORAGE_KEY);
+      if (!storedValue) {
+         return DEFAULT_MOCK_ORDERER_NAME;
+      }
+
+      const parsed = JSON.parse(storedValue) as { name?: string };
+      return parsed.name?.trim() || DEFAULT_MOCK_ORDERER_NAME;
+   } catch {
+      return DEFAULT_MOCK_ORDERER_NAME;
    }
 };
 
@@ -767,6 +894,7 @@ const ensureMockPurchaseHistorySeed = () => {
    const seatInfos = seedSeatIds.map((seatId) => buildSeatInfoStr(seatId));
    const ticketPrices = seedSeatIds.map((seatId) => resolveSeatPrice(seedGame.homeTeamId, seatId, seedGame.startAt));
    const totalAmount = ticketPrices.reduce((sum, price) => sum + price + serviceFee, 0);
+   const ordererName = getMockOrdererName();
 
    ticketOrders.set(seedOrderId, {
       orderId: seedOrderId,
@@ -785,7 +913,17 @@ const ensureMockPurchaseHistorySeed = () => {
       seatGradeName: resolveSeatGradeName(seedSeatIds[0]) ?? '좌석 정보',
       ticketIds: seedTicketIds,
       seatInfos,
-      ordererName: '홍길동',
+      ordererName,
+   });
+
+    ticketPayments.set(`mock-payment-${seedOrderId}`, {
+      paymentId: `mock-payment-${seedOrderId}`,
+      orderId: seedOrderId,
+      paymentMethod: 'CARD',
+      paymentAmount: totalAmount,
+      pgTid: `pg-${seedOrderId}`,
+      paymentStatus: 'SUCCESS',
+      paidAt: orderedAt,
    });
 
    seedTicketIds.forEach((ticketId, index) => {
@@ -810,7 +948,7 @@ const ensureMockPurchaseHistorySeed = () => {
          issuedAt: orderedAt,
          orderedAt,
          cancelableUntil: new Date(new Date(seedGame.startAt.replace(' ', 'T')).getTime() - 4 * 60 * 60 * 1000).toISOString(),
-         ordererName: '홍길동',
+         ordererName,
       });
    });
 };
@@ -854,8 +992,134 @@ const buildPageResponse = <T>(content: T[], page = 0, size = content.length || 1
    };
 };
 
+const getPurchaseSeatInfos = (order: TicketOrder) => {
+   if (Array.isArray(order.seatInfos) && order.seatInfos.length > 0) {
+      return order.seatInfos;
+   }
+
+   if (Array.isArray(order.ticketIds) && order.ticketIds.length > 0) {
+      return order.ticketIds
+         .map((ticketId) => ticketRecords.get(ticketId)?.seatInfo)
+         .filter((seatInfo): seatInfo is string => typeof seatInfo === 'string' && seatInfo.length > 0);
+   }
+
+   return [];
+};
+
+const getOwnedTicketCountForGame = (gameId: string) => {
+   return Array.from(ticketOrders.values()).reduce((count, order) => {
+      if (order.gameId !== gameId) {
+         return count;
+      }
+
+      if (order.orderStatus !== 'CONFIRMED' && order.orderStatus !== 'PARTIALLY_CANCELED') {
+         return count;
+      }
+
+      return count + order.totalQuantity;
+   }, 0);
+};
+
 export const paymentHandlers = [
-   http.get('/api/v1/resales/listings/games/:gameId/count', async ({ params }) => {
+   http.get('/api/v1/tickets/myinfo', async ({ request }) => {
+      const currentUserId = getMockMemberKey(request);
+      const userListings = Array.from(resaleListings.values()).filter((listing) => listing.sellerId === currentUserId);
+      const ownedTicketCount = Array.from(ticketRecords.values()).filter((ticket) => {
+         if (ticket.ticketStatus === 'INVALID') {
+            return false;
+         }
+
+         return true;
+      }).length;
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            ownedTicketCount,
+            listingCount: userListings.filter((listing) => listing.listingStatus === 'LISTING' || listing.listingStatus === 'HOLD').length,
+            soldCount: userListings.filter((listing) => listing.listingStatus === 'SOLD' || listing.listingStatus === 'SETTLED').length,
+            unsettledAmount: userListings
+               .filter((listing) => listing.listingStatus === 'SOLD')
+               .reduce((sum, listing) => sum + listing.listingPrice, 0),
+         },
+      });
+   }),
+
+   http.get('/api/v1/tickets/resales/count', async ({ request }) => {
+      const url = new URL(request.url);
+      const gameId = (url.searchParams.get('gameId') ?? '').trim();
+
+      if (!gameId) {
+         return buildErrorResponse('Missing gameId.');
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            ownedTicketCount: getOwnedTicketCountForGame(gameId),
+         },
+      });
+   }),
+
+   http.get('/api/v1/payments/purchases', async ({ request }) => {
+      const url = new URL(request.url);
+      const page = Number(url.searchParams.get('page') ?? '0');
+      const size = Number(url.searchParams.get('size') ?? '20');
+      const keyword = (url.searchParams.get('keyword') ?? '').trim().toLowerCase();
+
+      const purchases = Array.from(ticketOrders.values())
+         .sort((left, right) => right.orderedAt.localeCompare(left.orderedAt))
+         .map((order) => {
+            const matchedGame = mockGameSchedules.find((game) => game.gameId === order.gameId);
+            const seatInfos = getPurchaseSeatInfos(order);
+
+            return {
+               purchaseType: 'TICKET',
+               orderId: order.orderId,
+               orderNumber: order.orderNumber,
+               orderStatus: order.orderStatus,
+               totalQuantity: order.totalQuantity,
+               totalAmount: order.totalAmount,
+               orderedAt: order.orderedAt,
+               gameId: order.gameId,
+               stadiumId: order.stadiumId,
+               gameTitle:
+                  order.homeTeamName && order.awayTeamName
+                     ? `${order.awayTeamName} vs ${order.homeTeamName}`
+                     : matchedGame
+                        ? `${matchedGame.awayTeamDisplayName} vs ${matchedGame.homeTeamDisplayName}`
+                        : 'KBO 리그 경기',
+               gameDate: order.gameStartAt ?? matchedGame?.startAt ?? order.orderedAt,
+               seatInfos,
+            };
+         })
+         .filter((purchase) => {
+            if (!keyword) {
+               return true;
+            }
+
+            return (
+               purchase.orderNumber.toLowerCase().includes(keyword) ||
+               purchase.gameTitle.toLowerCase().includes(keyword) ||
+               purchase.seatInfos.some((seatInfo) => seatInfo.toLowerCase().includes(keyword))
+            );
+         });
+      const pagedPurchases = buildPageResponse(purchases, page, size);
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            list: pagedPurchases.content,
+            totalCount: purchases.length,
+            totalPages: pagedPurchases.totalPages,
+         },
+      });
+   }),
+
+   http.get('/api/v1/resales/games/:gameId/count', async ({ params }) => {
       const gameId = String(params.gameId);
       const gameExists = mockGameSchedules.some((game) => game.gameId === gameId);
 
@@ -879,46 +1143,135 @@ export const paymentHandlers = [
       });
    }),
 
-   http.get('/api/v1/resales/listings/games/:gameId/section/:sectionId/count', async ({ params }) => {
+   http.get('/api/v1/resales/games/:gameId/status', async ({ params }) => {
       const gameId = String(params.gameId);
-      const sectionId = String(params.sectionId);
+      const matchedGame = mockGameSchedules.find((game) => game.gameId === gameId);
+
+      if (!matchedGame) {
+         return HttpResponse.json(
+            {
+               code: 'NOT_FOUND',
+               message: 'game not found',
+               data: null,
+            },
+            { status: 404 },
+         );
+      }
+
+      let status: 'SCHEDULED' | 'AVAILABLE' | 'UNAVAILABLE' = 'AVAILABLE';
+
+      if (matchedGame.ticketingStatus === 'SCHEDULED') {
+         status = 'SCHEDULED';
+      } else if (
+         matchedGame.ticketingStatus === 'TERMINATED' ||
+         matchedGame.gameStatus === 'FINISHED' ||
+         matchedGame.gameStatus !== 'SCHEDULED'
+      ) {
+         status = 'UNAVAILABLE';
+      }
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: { status },
+      });
+   }),
+
+   http.get('/api/v1/resales/games/:gameId/grade/:gradeId/count', async ({ params }) => {
+      const gameId = String(params.gameId);
+      const gradeId = String(params.gradeId);
 
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
          data: {
             count: mockResaleListings.filter(
-               (listing) =>
-                  listing.gameId === gameId &&
-                  listing.isPurchasable &&
-                  extractSectionId(listing.seatId) === sectionId,
+               (listing) => listing.gameId === gameId && listing.isPurchasable && listing.gradeId === gradeId,
             ).length,
          },
       });
    }),
 
-   http.get('/api/v1/resales/listings', async () => {
-      return HttpResponse.json({
-         code: 'SUCCESS',
-         message: 'ok',
-         data: mockResaleListings,
-      });
-   }),
+   http.get('/api/v1/resales/listings/count', async ({ request }) => {
+      const userId = getRequiredUserId(request);
 
-   http.post('/api/v1/resales/listings', async ({ request }) => {
-      const body = (await request.json()) as { ticketId: string; listingPrice: number };
+      if (!userId) {
+         return buildErrorResponse('Missing userId.', 400);
+      }
+
+      const myListings = Array.from(resaleListings.values()).filter((listing) => listing.sellerId === userId);
+
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
          data: {
-            listingId: 'resale-listing-new',
-            ticketId: body.ticketId,
-            listingPrice: body.listingPrice,
-            listingStatus: 'LISTING',
-            listedAt: new Date().toISOString(),
-            isCancelable: true,
-            isPurchasable: true,
+            listingCount: myListings.filter((listing) => listing.listingStatus === 'LISTING' || listing.listingStatus === 'HOLD').length,
+            soldCount: myListings.filter((listing) => listing.listingStatus === 'SOLD' || listing.listingStatus === 'SETTLED').length,
          },
+      });
+   }),
+
+   // 내 판매 그룹 목록 조회
+   http.get('/api/v1/resales/listings/orders', async () => {
+      const orders = Array.from(resaleOrders.values())
+         .sort((left, right) => right.orderId.localeCompare(left.orderId))
+         .map((order) => ({
+            orderId: order.orderId,
+            orderNumber: order.orderNumber,
+            orderStatus: order.orderStatus,
+            totalQuantity: order.totalQuantity,
+            totalAmount: order.totalAmount,
+            createdAt: order.transactionIds[0] ? new Date().toISOString() : new Date().toISOString(),
+         }));
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            list: orders,
+            totalCount: orders.length,
+            totalPages: orders.length > 0 ? 1 : 0,
+         },
+      });
+   }),
+
+   http.get('/api/v1/resales/listings/orders/:orderId', async ({ params }) => {
+      const orderId = String(params.orderId);
+      const order = resaleOrders.get(orderId);
+
+      if (!order) {
+         return buildErrorResponse('Resale listing order not found.', 404);
+      }
+
+      const listings = Array.from(resaleListings.values())
+         .filter((listing) => listing.orderId === orderId)
+         .map((listing) => ({
+            listingId: listing.listingId,
+            ticketId: listing.ticketId,
+            ticketNumber: listing.ticketNumber,
+            sellerId: listing.sellerId,
+            gameId: '',
+            seatId: '',
+            gradeId: '',
+            seatInfo: listing.seatInfo,
+            dailyBasePrice: listing.listingPrice,
+            listingPrice: listing.listingPrice,
+            listingStatus: listing.listingStatus,
+            availableStatus: 'ENABLED',
+            listedAt: listing.listedAt,
+            canceledAt: listing.canceledAt,
+            isCancelable: listing.listingStatus === 'LISTING' || listing.listingStatus === 'CANCEL_REQUESTED',
+            maxPrice: 999999,
+            gameTitle: listing.gameTitle ?? '',
+            gameDate: listing.gameDate ?? '',
+            stadiumName: listing.stadiumName ?? '',
+            isPurchasable: listing.listingStatus === 'LISTING',
+         }));
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: listings,
       });
    }),
 
@@ -992,6 +1345,8 @@ export const paymentHandlers = [
          message: 'ok',
          data: sectionSeats.map((seat, index) => ({
             seatId: seat.seatId,
+            rowName: seat.rowName,
+            seatNum: seat.seatNum,
             status: !seat.available ? 'SOLD' : index % 7 === 0 ? 'HELD' : 'AVAILABLE',
          })),
       });
@@ -1120,6 +1475,13 @@ export const paymentHandlers = [
 
       if (missingHold) {
          return buildErrorResponse(`Seat hold not found: ${missingHold}`, 404);
+      }
+
+      const ownedTicketCount = getOwnedTicketCountForGame(body.gameId);
+      const requestedTicketCount = body.holdIds.length;
+
+      if (ownedTicketCount + requestedTicketCount > 4) {
+         return buildErrorResponse('티켓 보유 수량 초과로 구매가 불가능합니다.', 409);
       }
 
       const orderId = createId('order');
@@ -1499,6 +1861,26 @@ export const paymentHandlers = [
       });
    }),
 
+   http.get('/api/v1/payments/resales/unsettled', async ({ request }) => {
+      const userId = getRequiredUserId(request);
+
+      if (!userId) {
+         return buildErrorResponse('Missing userId.', 400);
+      }
+
+      const unsettledAmount = Array.from(resaleListings.values())
+         .filter((listing) => listing.sellerId === userId && listing.listingStatus === 'SOLD')
+         .reduce((sum, listing) => sum + listing.listingPrice, 0);
+
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            unsettledAmount,
+         },
+      });
+   }),
+
    http.get('/api/v1/payments/resales/ledgers/orders/:orderId', async ({ params }) => {
       const ledger = resaleLedgers.get(String(params.orderId));
 
@@ -1745,47 +2127,156 @@ export const paymentHandlers = [
 
    // 리셀 등록
    http.post('/api/v1/resales/listings', async ({ request }) => {
-      const body = (await request.json()) as { ticketId?: string; listingPrice?: number } | null;
+      const sellerId = getMockMemberKey(request);
+      type ListingItem = { ticketId?: string; listingPrice?: number };
+      const body = (await request.json()) as
+         | ListingItem
+         | { listings?: Array<ListingItem> }
+         | null;
 
-      if (!body?.ticketId || !body?.listingPrice) {
+      const listings: ListingItem[] = 'listings' in (body ?? {}) ? (body as { listings?: ListingItem[] })?.listings ?? [] : body ? [body as ListingItem] : [];
+
+      if (listings.length === 0 || listings.some((item) => !item?.ticketId || !item?.listingPrice)) {
          return buildErrorResponse('Missing ticketId or listingPrice.');
       }
 
-      const ticket = ticketRecords.get(body.ticketId);
-      if (!ticket) {
-         return buildErrorResponse('Ticket not found.', 404);
+      const createdListings: Array<{
+         listingId: string;
+         orderId: string;
+         ticketId: string;
+         sellerId: string;
+         gameId: string;
+         seatId: string;
+         gradeId: string;
+         seatInfo: string;
+         dailyBasePrice: number;
+         listingPrice: number;
+         listingStatus: 'LISTING';
+         availableStatus: 'ENABLED';
+         lastTransactionPrice: number;
+         listedAt: string;
+         soldAt?: string;
+         canceledAt?: string;
+         isCancelable: boolean;
+         isPurchasable: boolean;
+         minPrice: number;
+         maxPrice: number;
+      }> = [];
+      const createdOrders: Array<{ orderId: string; orderNumber: string }> = [];
+
+      for (const item of listings) {
+         const ticket = ticketRecords.get(item.ticketId!);
+         if (!ticket) {
+            return buildErrorResponse('Ticket not found.', 404);
+         }
+
+         const listingId = createId('listing');
+         const orderId = createId('resale-order');
+         const listing: ResaleListing = {
+            listingId,
+            orderId,
+            ticketId: ticket.ticketId,
+            ticketNumber: ticket.ticketNumber,
+            sellerId,
+            seatInfo: ticket.seatInfo,
+            listingPrice: item.listingPrice!,
+            listingStatus: 'LISTING',
+            listedAt: new Date().toISOString(),
+            gameTitle: ticket.gameTitle,
+            gameDate: ticket.gameDate,
+            stadiumName: ticket.stadiumName,
+         };
+         resaleListings.set(listingId, listing);
+         const createdOrder = {
+            orderId,
+            orderNumber: `RSL-${orderId.replace(/^resale-order-/i, '').slice(0, 8).toUpperCase()}`,
+         };
+         createdOrders.push(createdOrder);
+         resaleOrders.set(orderId, {
+            orderId,
+            orderNumber: createdOrder.orderNumber,
+            orderStatus: 'PENDING',
+            totalQuantity: 1,
+            totalAmount: item.listingPrice!,
+            holdIds: [],
+            transactionIds: [],
+         });
+         createdListings.push({
+            listingId,
+            orderId,
+            ticketId: ticket.ticketId,
+            sellerId,
+            gameId: '',
+            seatId: '',
+            gradeId: '',
+            seatInfo: ticket.seatInfo,
+            dailyBasePrice: item.listingPrice!,
+            listingPrice: item.listingPrice!,
+            listingStatus: 'LISTING',
+            availableStatus: 'ENABLED',
+            lastTransactionPrice: 0,
+            listedAt: listing.listedAt,
+            soldAt: undefined,
+            canceledAt: undefined,
+            isCancelable: true,
+            isPurchasable: true,
+            minPrice: 0,
+            maxPrice: 999999,
+         });
+
+         ticketRecords.set(ticket.ticketId, {
+            ...ticket,
+            ticketStatus: 'ISSUED',
+            resaleEnabledStatus: 'DISABLED',
+         });
       }
 
-      const listingId = createId('listing');
-      const listing: ResaleListing = {
-         listingId,
-         ticketId: ticket.ticketId,
-         sellerId: 'mock-seller',
-         seatInfo: ticket.seatInfo,
-         listingPrice: body.listingPrice,
-         listingStatus: 'LISTING',
-         listedAt: new Date().toISOString(),
-         gameTitle: ticket.gameTitle,
-         gameDate: ticket.gameDate,
-         stadiumName: ticket.stadiumName,
-      };
-      resaleListings.set(listingId, listing);
-
-      // 티켓 상태 RESALE_ISSUED로 변경 및 리셀 등록 후 canSell 비활성화
-      ticketRecords.set(ticket.ticketId, {
-         ...ticket,
-         ticketStatus: 'ISSUED',
-         resaleEnabledStatus: 'DISABLED',
+      return HttpResponse.json({
+         code: 'SUCCESS',
+         message: 'ok',
+         data: {
+            orders: createdOrders,
+            listings: createdListings,
+         },
       });
-
-      return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: { listingId } });
    }),
 
    // 내 리셀 목록 조회
    http.get('/api/v1/resales/listings', async () => {
-      const listings = Array.from(resaleListings.values()).map((l) => ({
-         listingId: l.listingId,
-         ticketId: l.ticketId,
+      const persistedListingIds = new Set(Array.from(resaleListings.keys()));
+      const listings = [
+         ...mockResaleListings
+            .filter((listing) => !persistedListingIds.has(listing.listingId))
+            .map((listing) => {
+               const seededListing = getResaleListingFromSeed(listing.listingId)!;
+
+               return {
+                  listingId: seededListing.listingId,
+                  ticketId: seededListing.ticketId,
+                  ticketNumber: undefined,
+                  sellerId: seededListing.sellerId,
+                  gameId: listing.gameId,
+                  seatId: listing.seatId,
+                  gradeId: listing.gradeId,
+                  seatInfo: seededListing.seatInfo,
+                  dailyBasePrice: listing.dailyBasePrice,
+                  listingPrice: seededListing.listingPrice,
+                  listingStatus: seededListing.listingStatus,
+                  availableStatus: listing.availableStatus,
+                  listedAt: seededListing.listedAt,
+                  isCancelable: seededListing.listingStatus === 'LISTING' || seededListing.listingStatus === 'CANCEL_REQUESTED',
+                  isPurchasable: listing.isPurchasable,
+                  minPrice: listing.minPrice,
+                  maxPrice: listing.maxPrice,
+                  gameTitle: seededListing.gameTitle ?? '',
+                  gameDate: seededListing.gameDate ?? '',
+                  stadiumName: seededListing.stadiumName ?? '',
+               };
+            }),
+         ...Array.from(resaleListings.values()).map((l) => ({
+            listingId: l.listingId,
+            ticketId: l.ticketId,
+            ticketNumber: l.ticketNumber,
          sellerId: l.sellerId,
          gameId: '',
          seatId: '',
@@ -1802,15 +2293,17 @@ export const paymentHandlers = [
          maxPrice: 999999,
          gameTitle: l.gameTitle ?? '',
          gameDate: l.gameDate ?? '',
-         stadiumName: l.stadiumName ?? '',
-      }));
+            stadiumName: l.stadiumName ?? '',
+         })),
+      ];
 
       return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: listings });
    }),
 
    // 리셀 상세 조회
    http.get('/api/v1/resales/listings/:listingId', async ({ params }) => {
-      const listing = resaleListings.get(String(params.listingId));
+      const listingId = String(params.listingId);
+      const listing = resaleListings.get(listingId) ?? getResaleListingFromSeed(listingId);
 
       if (!listing) {
          return buildErrorResponse('Listing not found.', 404);
@@ -1822,6 +2315,7 @@ export const paymentHandlers = [
          data: {
             listingId: listing.listingId,
             ticketId: listing.ticketId,
+            ticketNumber: listing.ticketNumber,
             seatInfo: listing.seatInfo,
             listingPrice: listing.listingPrice,
             listingStatus: listing.listingStatus,

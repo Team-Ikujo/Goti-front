@@ -7,14 +7,16 @@ import { teams } from '@/entities/team/model/teams';
 import type { Team } from '@/entities/team/model/types';
 import { getClosestMatch, getDDay, useGameSchedules } from '@/entities/game/model/schedule';
 import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
+import { useResaleGameStatuses } from '@/entities/resale/model/useResaleGameStatuses';
 import { Button } from '@/shared/ui/button';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 
 const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const { openBookingEntry, openResellEntry, bookingGuideDialog } = useBookingEntryFlow();
    const { data, isPending } = useGameSchedules();
-   const resaleGameIds = (data ?? []).map((game) => game.id);
+   const resaleGameIds = (data ?? []).map(game => game.id);
    const resaleCountsQuery = useResaleGameCounts(resaleGameIds);
+   const resaleStatusesQuery = useResaleGameStatuses(resaleGameIds);
    const match = getClosestMatch(data ?? [], team.id);
 
    /** 헤더 — 경기 없을 때도 공통 사용 */
@@ -81,10 +83,25 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const awayTeamName = match.awayTeamFullName;
    const homeTeamName = match.homeTeamFullName;
    const resaleCount = resaleCountsQuery.data?.get(match.id);
-   const canResellBook = match.resell === '리셀예매' && typeof resaleCount === 'number' && resaleCount > 0;
-   const resellButtonLabel = match.resell === '리셀예정' ? '리셀예정' : canResellBook ? '리셀예매' : '리셀매진';
+   const resaleStatus = resaleStatusesQuery.data?.get(match.id);
+   const canBook = match.ticket === '예매하기' && (match.remainingSeatCount === undefined || match.remainingSeatCount > 0);
+   const canResellBook = resaleStatus === 'AVAILABLE' && typeof resaleCount === 'number' && resaleCount > 0;
+   const resellButtonLabel =
+      resaleStatus === 'SCHEDULED'
+         ? '리셀예정'
+         : resaleStatus === 'UNAVAILABLE'
+           ? '리셀매진'
+           : canResellBook
+             ? '리셀예매'
+             : match.resell === '리셀예정'
+               ? '리셀예정'
+               : '리셀매진';
 
    const handleBookingClick = () => {
+      if (!canBook) {
+         return;
+      }
+
       openBookingEntry({
          homeTeamId: match.homeTeamId,
          serverHomeTeamId: match.serverHomeTeamId,
@@ -126,9 +143,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
          <div className="flex flex-col gap-4 p-[10px] lg:hidden">
             {/* 1행: D-DAY + 날짜·장소 */}
             <div className="flex items-start justify-between">
-               <span className="text-[24px] font-bold text-primary leading-[32px] tracking-[-0.5px] px-5">
-                  {dDay}
-               </span>
+               <span className="text-[24px] font-bold text-primary leading-[32px] tracking-[-0.5px] px-5">{dDay}</span>
                <div className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-1">
                      <Calendar className="size-3.5 text-[#646f7c] shrink-0" />
@@ -157,9 +172,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                </div>
 
                {/* VS */}
-               <span className="text-[24px] font-bold text-[#161d24] leading-8 tracking-[0.07px] shrink-0">
-                  VS
-               </span>
+               <span className="text-[24px] font-bold text-[#161d24] leading-8 tracking-[0.07px] shrink-0">VS</span>
 
                {/* 원정팀 */}
                <div className="flex-1 flex flex-col items-center gap-2">
@@ -180,6 +193,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                <Button
                   variant="primary"
                   className="flex-1 max-w-[300px] h-[46px] text-[14px] font-bold rounded-[10px] tracking-[-0.15px]"
+                  disabled={!canBook}
                   onClick={handleBookingClick}
                >
                   예매하기
@@ -255,6 +269,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                   <Button
                      variant="primary"
                      className="h-12 text-[16px] font-bold rounded-lg"
+                     disabled={!canBook}
                      onClick={handleBookingClick}
                   >
                      예매하기

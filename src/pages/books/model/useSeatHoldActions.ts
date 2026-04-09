@@ -2,9 +2,10 @@ import { useState } from 'react';
 
 import { holdSeatReservation, releaseSeatReservation } from '@/entities/seat-hold/api/seatHoldApi';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
-import { MAX_SELECTED_SEATS } from '@/entities/seat-selection/model/constants';
+import { MAX_SELECTED_SEATS, MAX_SELECTED_SEATS_MESSAGE } from '@/entities/seat-selection/model/constants';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { ApiError } from '@/shared/api/client';
+import { logBookingFlow, logBookingFlowError, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import type { SeatItem } from './types';
@@ -12,6 +13,9 @@ import type { SelectedSeatDetail } from './selectedSeats';
 
 type UseSeatHoldActionsOptions = {
    onSeatHoldConflict?: () => void | Promise<void>;
+   onPurchaseLimitReached?: () => void;
+   seatSelectionLimit?: number;
+   seatSelectionLimitMessage?: string;
 };
 
 const HOLD_CONFLICT_MESSAGE = '좌석 점유 가능 상태에서만 점유 상태로 변경할 수 있습니다.';
@@ -63,6 +67,13 @@ export const useSeatHoldActions = (
       syncSelection?: boolean;
       showErrorAlert?: boolean;
    }) => {
+      logBookingFlow('useSeatHoldActions', 'releaseSeat start', {
+         zoneId,
+         seatId,
+         holdId,
+         syncSelection,
+         bookingEntryState: summarizeBookingEntry(bookingEntryState),
+      });
       markPending(seatId, true);
 
       try {
@@ -76,7 +87,9 @@ export const useSeatHoldActions = (
 
          removeSeatHold(seatId);
          applyServerSeatPatch(zoneId, seatId, 'available');
+         logBookingFlow('useSeatHoldActions', 'releaseSeat success', { zoneId, seatId, holdId });
       } catch (error) {
+         logBookingFlowError('useSeatHoldActions', 'releaseSeat error', { zoneId, seatId, holdId, error });
          if (showErrorAlert) {
             window.alert(getErrorMessage(error, '좌석 점유 해제 중 오류가 발생했습니다.'));
          }
@@ -87,6 +100,11 @@ export const useSeatHoldActions = (
    };
 
    const holdSeat = async (zoneId: string, seat: SeatItem) => {
+      logBookingFlow('useSeatHoldActions', 'holdSeat start', {
+         zoneId,
+         seat,
+         bookingEntryState: summarizeBookingEntry(bookingEntryState),
+      });
       const currentZone = zonesState[zoneId];
       const isAlreadySelected = currentZone?.selectedSeatIds.includes(seat.id) ?? false;
 
@@ -104,12 +122,22 @@ export const useSeatHoldActions = (
          (count, zoneState) => count + zoneState.selectedSeatIds.length,
          0,
       );
+      const seatSelectionLimit = options?.seatSelectionLimit ?? MAX_SELECTED_SEATS;
 
-      if (totalSelectedSeats >= MAX_SELECTED_SEATS) {
+      if (totalSelectedSeats >= seatSelectionLimit) {
+         if (seatSelectionLimit === 0) {
+            options?.onPurchaseLimitReached?.();
+            return;
+         }
+
+         window.alert(options?.seatSelectionLimitMessage ?? MAX_SELECTED_SEATS_MESSAGE);
          return;
       }
 
       if (!bookingEntryState?.gameId || !bookingEntryState.queueTokenJti) {
+         logBookingFlow('useSeatHoldActions', 'holdSeat blocked: missing booking entry', {
+            bookingEntryState: summarizeBookingEntry(bookingEntryState),
+         });
          window.alert('예매 정보가 없어 좌석 점유를 진행할 수 없습니다.');
          return;
       }
@@ -132,7 +160,19 @@ export const useSeatHoldActions = (
          });
          applyServerSeatPatch(zoneId, seat.id, 'selected');
          toggleSelectedSeat(zoneId, seat.id);
+         logBookingFlow('useSeatHoldActions', 'holdSeat success', {
+            zoneId,
+            seatId: seat.id,
+            apiSeatId: seat.apiSeatId,
+            holdId: hold.holdId,
+         });
       } catch (error) {
+         logBookingFlowError('useSeatHoldActions', 'holdSeat error', {
+            zoneId,
+            seatId: seat.id,
+            apiSeatId: seat.apiSeatId,
+            error,
+         });
          if (isSeatAlreadyHeldConflict(error)) {
             window.alert('해당 좌석은 이미 선점된 좌석입니다.');
             await options?.onSeatHoldConflict?.();

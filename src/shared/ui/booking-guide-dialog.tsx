@@ -34,7 +34,11 @@ function BookingGuideDialog({ open, onOpenChange, onConfirm }: BookingGuideDialo
         </div>
 
         <div className="px-5 pb-5">
-          <Button type="button" className="h-12 w-full rounded-[8px] text-[16px] font-bold leading-[1.5]" onClick={onConfirm}>
+          <Button
+            type="button"
+            className="h-12 w-full rounded-[8px] text-[16px] font-bold leading-[1.5]"
+            onClick={onConfirm}
+          >
             확인
           </Button>
         </div>

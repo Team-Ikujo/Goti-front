@@ -12,20 +12,26 @@ export interface OrderListItem {
    orderedAt: string;
    gameId: string;
    stadiumId: string;
-   // 서버/MSW 확장 필드 (game 정보)
-   homeTeamName?: string;
-   awayTeamName?: string;
-   stadiumName?: string;
-   gameStartAt?: string;
-   seatGradeName?: string;
-   seatInfos?: string[];
-   ticketId?: string;
-   ticketIds?: string[];
-   orderItemIds?: string[];
+   gameTitle?: string;
+   gameDate?: string;
+   stadiumLocation?: string;
+   seatGradeGroups?: Array<{
+      seatGradeName?: string;
+      seatInfos?: string[];
+   }>;
 }
 
-export const fetchMyOrders = async (): Promise<OrderListItem[]> => {
-   const response = await apiClient.get<ApiEnvelope<OrderListItem[]>>('/api/v1/orders');
+export interface FetchMyOrdersParams {
+   months?: number;
+   startDate?: string;
+   endDate?: string;
+}
+
+export const fetchMyOrders = async (params?: FetchMyOrdersParams): Promise<OrderListItem[]> => {
+   const response = await apiClient.get<ApiEnvelope<OrderListItem[]>>('/api/v1/orders', {
+      params,
+   });
+
    return response.data.data;
 };
 

@@ -10,8 +10,10 @@ import BooksHeader from '@/shared/widgets/layout/books/BooksHeader';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { resolveBookingEntrySourcePath } from '@/shared/lib/booking-flow';
+import { logBookingFlow, logBookingFlowError, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
+import { releaseQueueSession } from '@/pages/queue/api/queueApi';
 import { ApiError } from '@/shared/api/client';
 
 function useTimerStr() {
@@ -102,10 +104,7 @@ const writeStoredPaymentCompleteState = (order: PaymentResponse) => {
       return;
    }
 
-   window.sessionStorage.setItem(
-      `${PAYMENT_COMPLETE_STORAGE_KEY}:${order.orderId}`,
-      JSON.stringify(order),
-   );
+   window.sessionStorage.setItem(`${PAYMENT_COMPLETE_STORAGE_KEY}:${order.orderId}`, JSON.stringify(order));
 };
 
 const isResalePaymentResponse = (order: PaymentResponse | null) => {
@@ -181,16 +180,32 @@ export default function PaymentCompletePage() {
    });
    const [paymentReloadError, setPaymentReloadError] = useState<string | null>(null);
 
+   useEffect(() => {
+      logBookingFlow('PaymentCompletePage', 'render snapshot', {
+         pathname: location.pathname,
+         orderId,
+         deliveryMethod,
+         locationOrder,
+         bookingEntry: summarizeBookingEntry(useBookingEntryStore.getState().entry),
+      });
+   }, [deliveryMethod, location.pathname, locationOrder, orderId]);
+
    const navigateToEntrySource = () => {
-      clearTimer();
-      clearBookingEntry();
-      navigate(entrySourcePath, { replace: true });
+      logBookingFlow('PaymentCompletePage', 'navigateToEntrySource');
+      void (async () => {
+         clearTimer();
+         await releaseQueueSession(useBookingEntryStore.getState().entry?.gameId);
+         clearBookingEntry();
+         navigate(entrySourcePath, { replace: true });
+      })();
    };
 
    useEffect(() => {
+      logBookingFlow('PaymentCompletePage', 'mount cleanup booking flow state');
       useSeatHoldStore.getState().clearSeatHolds();
       useSeatSelectionStore.getState().clearAllSelections();
       clearTimer();
+      void releaseQueueSession(useBookingEntryStore.getState().entry?.gameId);
       clearBookingEntry();
    }, [clearBookingEntry, clearTimer]);
 
@@ -198,9 +213,13 @@ export default function PaymentCompletePage() {
       window.history.pushState({ paymentCompleteExitGuard: true }, '', window.location.href);
 
       const handlePopState = () => {
-         clearTimer();
-         clearBookingEntry();
-         navigate(entrySourcePath, { replace: true });
+         logBookingFlow('PaymentCompletePage', 'popstate -> navigate entry source');
+         void (async () => {
+            clearTimer();
+            await releaseQueueSession(useBookingEntryStore.getState().entry?.gameId);
+            clearBookingEntry();
+            navigate(entrySourcePath, { replace: true });
+         })();
       };
 
       window.addEventListener('popstate', handlePopState);
@@ -226,7 +245,8 @@ export default function PaymentCompletePage() {
       }
 
       const restorePayment = async () => {
-         try {
+        try {
+            logBookingFlow('PaymentCompletePage', 'restorePayment request', { orderId });
             const payment = await getOrderPayment(orderId);
 
             if (isCancelled) {
@@ -234,7 +254,7 @@ export default function PaymentCompletePage() {
             }
 
             setPaymentReloadError(null);
-            setOrder((currentOrder) => {
+            setOrder(currentOrder => {
                const nextOrder: PaymentResponse = {
                   ...currentOrder,
                   orderId: payment.orderId,
@@ -247,13 +267,13 @@ export default function PaymentCompletePage() {
                writeStoredPaymentCompleteState(nextOrder);
                return nextOrder;
             });
-         } catch (error) {
+        } catch (error) {
+            logBookingFlowError('PaymentCompletePage', 'restorePayment error', { orderId, error });
             if (isCancelled) {
                return;
             }
 
-            const hasFallbackOrder =
-               Boolean(locationOrder) || Boolean(readStoredPaymentCompleteState(orderId));
+            const hasFallbackOrder = Boolean(locationOrder) || Boolean(readStoredPaymentCompleteState(orderId));
 
             // 완료 페이지는 결제 직전 state/sessionStorage에 이미 결과를 저장해두므로
             // 후속 조회가 RBAC 등 권한 문제로 실패해도 사용자 경험을 깨지 않게 기존 완료 데이터를 우선 유지한다.
@@ -262,9 +282,7 @@ export default function PaymentCompletePage() {
                return;
             }
 
-            setPaymentReloadError(
-               error instanceof ApiError ? error.message : '결제 정보를 다시 불러오지 못했습니다.',
-            );
+            setPaymentReloadError(error instanceof ApiError ? error.message : '결제 정보를 다시 불러오지 못했습니다.');
          }
       };
 
@@ -324,6 +342,9 @@ export default function PaymentCompletePage() {
          {/* 데스크톱 헤더 */}
          <div className="hidden lg:block">
             <BooksHeader
+               matchTitle={order.gameTitle}
+               venue={order.gameVenue}
+               dateTime={order.gameDate}
                confirmBeforeExit={false}
                showTimer={false}
                currentStepIndex={3}

@@ -91,3 +91,9 @@ export const reissueAccessToken = async (): Promise<ReissueAccessTokenResponse> 
 
   return unwrapApiData<ReissueAccessTokenResponse>(response.data);
 };
+
+export const logout = async (): Promise<void> => {
+  await apiClient.post("/api/v1/auth/logout", undefined, {
+    withCredentials: true,
+  });
+};

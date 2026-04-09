@@ -12,6 +12,7 @@ export interface TicketDetail {
    gameId: string;
    gameTitle: string;
    gameDate: string;
+   seatGradeName?: string;
    stadiumName?: string;
    seatInfo: string;
    ticketPrice: number;
@@ -64,5 +65,18 @@ export interface TicketQrResponse {
 
 export const fetchTicketQr = async (ticketId: string): Promise<TicketQrResponse> => {
    const response = await apiClient.get<ApiEnvelope<TicketQrResponse>>(`/api/v1/tickets/${ticketId}/qr`);
+   return response.data.data;
+};
+
+// GET /api/v1/tickets/myinfo — 사용자 티켓 현황 조회
+export interface MyTicketInfo {
+   ownedTicketCount: number;
+   listingCount: number;
+   soldCount: number;
+   unsettledAmount: number;
+}
+
+export const fetchMyTicketInfo = async (): Promise<MyTicketInfo> => {
+   const response = await apiClient.get<ApiEnvelope<MyTicketInfo>>('/api/v1/tickets/myinfo');
    return response.data.data;
 };

@@ -60,11 +60,13 @@ export const createGuardrailHeaders = (): Record<string, string> => {
    };
 };
 
-export const applyGuardrailHeadersToAxiosConfig = (config: AxiosRequestConfig) => {
-   const nextHeaders = AxiosHeaders.from(config.headers);
-   const guardrailHeaders = createGuardrailHeaders();
+export const createBookingFlowHeaders = (): Record<string, string> => createGuardrailHeaders();
 
-   for (const [headerName, headerValue] of Object.entries(guardrailHeaders)) {
+export const applyGuardrailHeadersToAxiosConfig = (config: AxiosRequestConfig) => {
+   const nextHeaders = AxiosHeaders.from(config.headers as AxiosHeaders | undefined);
+   const bookingFlowHeaders = createBookingFlowHeaders();
+
+   for (const [headerName, headerValue] of Object.entries(bookingFlowHeaders)) {
       nextHeaders.set(headerName, headerValue);
    }
 

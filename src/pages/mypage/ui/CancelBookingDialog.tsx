@@ -8,6 +8,7 @@ import CancelConfirmDialog from './CancelConfirmDialog';
 import { useQuery } from '@tanstack/react-query';
 import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 import { MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO } from '@/shared/api/mockScenarios';
+import { formatTicketNumber, getTicketNumberKind } from '../model/ticketNumber';
 
 export interface CancelTicketItem {
    orderId: string;
@@ -31,13 +32,6 @@ interface Props {
    paymentMethod?: string;
    mockTicketInfoError?: boolean;
 }
-
-// ─── Mock: 등록된 계좌 (없으면 null) ──────────────────────────────
-const MOCK_REGISTERED_ACCOUNT: { bank: string; number: string; holder: string } | null = {
-   bank: '카카오뱅크',
-   number: '3333-67-8765445',
-   holder: '홍길동',
-};
 
 // ─── Mock: 취소 수수료 (실제로는 API에서 수신) ────────────────────
 const MOCK_CANCEL_FEE = 0;
@@ -73,7 +67,7 @@ export default function CancelBookingDialog({
    onClose,
    orderId,
    game,
-   seats: _seats,
+   seats,
    isBankTransfer = false,
    paymentMethod,
    mockTicketInfoError = false,
@@ -160,8 +154,33 @@ export default function CancelBookingDialog({
       );
    }
 
-   const resolvedSeats = (orderTicketsQuery.data ?? []).map((ticket) => ({
-      orderId: ticket.ticketNumber,
+   const requestedTicketIds = new Set(seats.map((seat) => seat.ticketId).filter((value): value is string => Boolean(value)));
+   const requestedOrderItemIds = new Set(seats.map((seat) => seat.orderItemId).filter((value): value is string => Boolean(value)));
+   const requestedSeatDetails = new Set(seats.map((seat) => seat.seatDetail));
+   const requestedSeatKeys = new Set(seats.map((seat) => `${seat.section}::${seat.seatDetail}`));
+
+   const filteredTickets = (orderTicketsQuery.data ?? []).filter((ticket) => {
+      if (requestedTicketIds.size > 0 && requestedTicketIds.has(ticket.ticketId)) {
+         return true;
+      }
+
+      if (requestedOrderItemIds.size > 0 && requestedOrderItemIds.has(ticket.orderItemId)) {
+         return true;
+      }
+
+      const ticketSection = ticket.seatInfo.split(' ')[0] ?? '';
+      if (requestedSeatKeys.has(`${ticketSection}::${ticket.seatInfo}`)) {
+         return true;
+      }
+
+      return requestedSeatDetails.has(ticket.seatInfo);
+   });
+
+   const resolvedSeats = (filteredTickets.length > 0 ? filteredTickets : orderTicketsQuery.data ?? []).map((ticket) => ({
+      orderId: formatTicketNumber(
+         ticket.ticketNumber,
+         ticket.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(ticket.ticketNumber, 'ticket'),
+      ),
       orderItemId: ticket.orderItemId,
       ticketId: ticket.ticketId,
       section: ticket.seatInfo.split(' ')[0] ?? '',
@@ -231,10 +250,6 @@ export default function CancelBookingDialog({
             onBack={() => setConfirmOpen(false)}
             orderId={orderId}
             isBankTransfer={isBankTransfer}
-            account={isBankTransfer && MOCK_REGISTERED_ACCOUNT
-               ? { bank: MOCK_REGISTERED_ACCOUNT.bank, number: MOCK_REGISTERED_ACCOUNT.number }
-               : undefined
-            }
             paymentMethod={paymentMethod}
             ticketAmount={totalPrice}
             ticketCount={selectedSeats.length}
@@ -245,7 +260,10 @@ export default function CancelBookingDialog({
          />
 
          {/* 스크림 */}
-         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50" onClick={onClose}>
+         <div
+            className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50"
+            onClick={onClose}
+         >
             {/* 모달 */}
             <div
                className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
@@ -273,9 +291,7 @@ export default function CancelBookingDialog({
 
                   {/* 티켓 선택 섹션 */}
                   <div className="flex flex-col gap-6">
-                     <p className="text-[20px] font-bold text-[#161d24] leading-normal">
-                        취소할 티켓을 선택해주세요
-                     </p>
+                     <p className="text-[20px] font-bold text-[#161d24] leading-normal">취소할 티켓을 선택해주세요</p>
 
                      {/* 전체선택 + 카운터 */}
                      <div className="flex items-center justify-between">
@@ -325,18 +341,10 @@ export default function CancelBookingDialog({
 
                {/* 하단 고정 버튼 */}
                <div className="shrink-0 bg-background px-5 pb-5 flex gap-2">
-                  <Button
-                     variant="tertiary"
-                     className="flex-1 py-3"
-                     onClick={onClose}
-                  >
+                  <Button variant="tertiary" className="flex-1 py-3" onClick={onClose}>
                      닫기
                   </Button>
-                  <Button
-                     disabled={checkedCount === 0}
-                     className="flex-1 py-3"
-                     onClick={() => setConfirmOpen(true)}
-                  >
+                  <Button disabled={checkedCount === 0} className="flex-1 py-3" onClick={() => setConfirmOpen(true)}>
                      예매 취소하기
                   </Button>
                </div>

@@ -3,23 +3,27 @@ import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { KeyValueTable } from '@/shared/ui/table';
 
-type SignUpTermsDialogProps = {
+type IdentityVerificationTermsDialogProps = {
    open: boolean;
    detail?: TermsDetail;
    onOpenChange: (open: boolean) => void;
    onAgreeAndClose: () => void;
 };
 
-const SignUpTermsDialog = ({ open, detail, onOpenChange, onAgreeAndClose }: SignUpTermsDialogProps) => {
+const IdentityVerificationTermsDialog = ({
+   open,
+   detail,
+   onOpenChange,
+   onAgreeAndClose,
+}: IdentityVerificationTermsDialogProps) => {
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-         <DialogContent className="flex flex-col overflow-hidden max-w-147 w-[calc(100%-40px)] gap-0 border-0 p-0">
+         <DialogContent className="flex max-w-147 w-[calc(100%-40px)] flex-col gap-0 overflow-hidden border-0 p-0">
             {detail ? (
                <>
                   <DialogHeader>
                      <DialogTitle align="center">{detail.title}</DialogTitle>
                   </DialogHeader>
-
                   <div className="flex-1 overflow-y-auto px-5 pb-5">
                      <div className="rounded-lg border border-(--neutral-200) p-4">
                         <p className="text-body-2-regular leading-6 text-muted-foreground">
@@ -28,7 +32,6 @@ const SignUpTermsDialog = ({ open, detail, onOpenChange, onAgreeAndClose }: Sign
                            <br />
                            {detail.scopeTitle}
                         </p>
-
                         <KeyValueTable
                            className="mt-4"
                            rows={[
@@ -38,12 +41,10 @@ const SignUpTermsDialog = ({ open, detail, onOpenChange, onAgreeAndClose }: Sign
                               { label: '수집·이용하는 자', value: detail.collector },
                            ]}
                         />
-
                         <p className="mt-4 text-body-2-regular leading-6 text-muted-foreground">{detail.footerNote}</p>
                      </div>
                   </div>
-
-                  <DialogFooter className="p-5 pt-0 shrink-0">
+                  <DialogFooter className="shrink-0 p-5 pt-0">
                      <Button type="button" variant="primary" className="h-12 w-full" onClick={onAgreeAndClose}>
                         동의 후 닫기
                      </Button>
@@ -57,4 +58,4 @@ const SignUpTermsDialog = ({ open, detail, onOpenChange, onAgreeAndClose }: Sign
    );
 };
 
-export default SignUpTermsDialog;
+export default IdentityVerificationTermsDialog;

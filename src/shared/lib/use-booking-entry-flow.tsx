@@ -6,6 +6,7 @@ import {
   createBookingFlowSearch,
   type BookingFlowMode,
 } from '@/shared/lib/booking-flow';
+import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
@@ -71,6 +72,11 @@ export function useBookingEntryFlow() {
       entrySourcePath: createBookingEntrySourcePath(location),
     });
 
+    logBookingFlow('useBookingEntryFlow', 'openEntryWithGuide', {
+      mode,
+      options,
+      nextEntryState: summarizeBookingEntry(nextEntryState),
+    });
     setBookingEntry(nextEntryState);
     setPendingEntry({
       entryState: nextEntryState,
@@ -80,6 +86,11 @@ export function useBookingEntryFlow() {
   };
 
   const openBookingEntry = (options?: OpenBookingEntryOptions) => {
+    logBookingFlow('useBookingEntryFlow', 'openBookingEntry called', {
+      options,
+      hasResolvedSession,
+      hasAccessToken: Boolean(accessToken),
+    });
     if (!hasResolvedSession) {
       return;
     }
@@ -93,6 +104,11 @@ export function useBookingEntryFlow() {
   };
 
   const openResellEntry = (options?: OpenBookingEntryOptions) => {
+    logBookingFlow('useBookingEntryFlow', 'openResellEntry called', {
+      options,
+      hasResolvedSession,
+      hasAccessToken: Boolean(accessToken),
+    });
     if (!hasResolvedSession) {
       return;
     }
@@ -111,12 +127,17 @@ export function useBookingEntryFlow() {
       onOpenChange={setIsGuideOpen}
       onConfirm={() => {
         setIsGuideOpen(false);
-        navigate({
-          pathname: '/books',
-          search: createBookingFlowSearch(pendingEntry?.mode ?? 'standard'),
-        }, {
-          state: pendingEntry?.entryState ?? { requireCaptcha: true },
+        const nextEntryState = (pendingEntry?.entryState ?? { requireCaptcha: true }) satisfies BookingEntryState;
+
+        logBookingFlow('useBookingEntryFlow', 'booking guide confirm', {
+          mode: pendingEntry?.mode ?? 'standard',
+          nextEntryState: summarizeBookingEntry(nextEntryState),
         });
+        setBookingEntry(nextEntryState);
+        navigate(
+          { pathname: '/queue', search: createBookingFlowSearch(pendingEntry?.mode ?? 'standard') },
+          { state: nextEntryState },
+        );
       }}
     />
   );

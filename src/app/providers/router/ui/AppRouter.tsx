@@ -5,6 +5,7 @@ import AuthCallbackPage from '@/pages/auth/callback';
 import LoginPage from '@/pages/auth/login';
 import SignUpPage from '@/pages/signup';
 import VerificationFlowPage from '@/pages/auth/verification-flow';
+import QueuePage from '@/pages/queue';
 import ButtonPage from '@/pages/components/ui/ButtonPage';
 import ControlPage from '@/pages/components/ui/ControlPage';
 import AlertPage from '@/pages/components/ui/AlertPage';
@@ -29,7 +30,13 @@ import PaymentCompletePage from '@/pages/tickets/ui/payment/PaymentCompletePage'
 import BooksPage from '@/pages/books';
 import SeatsPage from '@/pages/books/ui/SeatsPage';
 import SeatHoldLifecycleController from '@/features/seat-booking/ui/SeatHoldLifecycleController';
-import { MypagePage, AccountPage, PurchaseDetailPage, SaleDetailPage } from '@/pages/mypage';
+import {
+   MypagePage,
+   AccountPage,
+   ProfileIdentityEditPage,
+   PurchaseDetailPage,
+   SaleDetailPage,
+} from '@/pages/mypage';
 import MypageLayout from '@/shared/widgets/layout/mypage/MypageLayout';
 import AuthSessionController from './AuthSessionController';
 import BookingFlowStateGuard from './BookingFlowStateGuard';
@@ -73,6 +80,7 @@ const AppRouter = () => {
                <Route path="purchase/:id" element={<PurchaseDetailPage />} />
                <Route path="sale/:id" element={<SaleDetailPage />} />
             </Route>
+            <Route path="/mypage/account/identity" element={<ProfileIdentityEditPage />} />
             <Route path="/books" element={<BooksLayout />}>
                <Route index element={<BooksPage />} />
                <Route path="seats/:zoneId" element={<SeatsPage />} />
@@ -88,6 +96,7 @@ const AppRouter = () => {
             <Route path="/list" element={<ListPage />} />
             <Route path="/chip" element={<Chip />} />
             <Route path="/session-expired" element={<SessionExpiredPage />} />
+            <Route path="/queue" element={<QueuePage />} />
             <Route path="*" element={<Navigate to="/error/404" replace />} />
          </Routes>
       </BrowserRouter>

@@ -1,24 +1,28 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
+import { releaseQueueSession } from '@/pages/queue/api/queueApi';
 import {
    releaseResaleHold,
    releaseResaleHoldKeepalive,
    submitResaleOrder,
    submitTicketOrder,
-   type ResaleCheckoutRequest,
    type PaymentResponse,
+   type ResaleCheckoutRequest,
    type TicketCheckoutRequest,
 } from '@/pages/tickets/api/paymentApi';
 import { releaseSeatReservation, releaseSeatReservationKeepalive } from '@/entities/seat-hold/api/seatHoldApi';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { ApiError } from '@/shared/api/client';
+import { logBookingFlow, logBookingFlowError, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
+import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
+import BooksPurchaseLimitDialog from '@/shared/widgets/layout/books/BooksPurchaseLimitDialog';
 
 import { PaymentHeader } from './_shared';
 
-// TODO: 예매 단계 완성 후 라우터 state/params로 교체
 const MOCK_GAME = {
    matchTitle: '기아 vs LG',
    venue: '기아 챔피언스필드',
@@ -26,6 +30,29 @@ const MOCK_GAME = {
 };
 
 const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
+const TICKET_PURCHASE_LIMIT_ERROR_PATTERNS = [
+   /티켓\s*보유\s*수량\s*초과/i,
+   /보유\s*수량\s*초과/i,
+   /최대\s*4\s*매/i,
+   /4\s*매\s*제한/i,
+   /매수\s*제한/i,
+   /purchase\s*limit/i,
+   /ticket\s*(count|quantity)\s*limit/i,
+   /already\s*(purchased|bought|owned)/i,
+   /owned\s*ticket\s*count/i,
+];
+
+const isTicketPurchaseLimitError = (error: unknown) => {
+   if (!(error instanceof ApiError)) {
+      return false;
+   }
+
+   if (error.status !== 400 && error.status !== 409) {
+      return false;
+   }
+
+   return TICKET_PURCHASE_LIMIT_ERROR_PATTERNS.some((pattern) => pattern.test(error.message));
+};
 
 const savePaymentCompleteState = (order: PaymentResponse) => {
    if (typeof window === 'undefined' || !order.orderId) {
@@ -37,34 +64,6 @@ const savePaymentCompleteState = (order: PaymentResponse) => {
       JSON.stringify(order),
    );
 };
-
-const createFallbackResalePaymentResponse = (
-   request: ResaleCheckoutRequest,
-   amount: number,
-): PaymentResponse => ({
-   orderType: 'resale',
-   orderId: `resale-order-${Date.now()}`,
-   orderNumber: `RSL-${Date.now()}`,
-   orderStatus: 'COMPLETED',
-   paymentStatus: 'SUCCESS',
-   paidAt: new Date().toISOString(),
-   gameTitle: request.matchTitle,
-   gameDate: request.gameDate,
-   gameVenue: request.gameVenue,
-   quantity: 1,
-   seats: [request.seatInfo],
-   paymentMethod: request.paymentMethod === 'bank' ? '무통장 입금' : '신용/체크카드',
-   orderedAt: new Date().toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-   }),
-   amount,
-   resaleListingId: request.listingId,
-});
 
 const releasePendingTicketSeatHolds = async () => {
    const seatHolds = Object.values(useSeatHoldStore.getState().holdsBySeatId);
@@ -106,8 +105,10 @@ const releasePendingTicketSeatHoldsKeepalive = () => {
 
 export default function PaymentProcessingPage() {
    const navigate = useNavigate();
+   const queryClient = useQueryClient();
    const { state } = useLocation();
    const locationState = state as { request: TicketCheckoutRequest | ResaleCheckoutRequest; amount: number } | null;
+   const [isPurchaseLimitDialogOpen, setIsPurchaseLimitDialogOpen] = useState(false);
    const hasStartedRef = useRef(false);
    const isMountedRef = useRef(false);
    const hasCompletedRef = useRef(false);
@@ -115,11 +116,16 @@ export default function PaymentProcessingPage() {
    const resaleHoldIdRef = useRef<string | null>(null);
 
    useEffect(() => {
+      logBookingFlow('PaymentProcessingPage', 'effect start', {
+         locationState,
+         bookingEntry: summarizeBookingEntry(useBookingEntryStore.getState().entry),
+      });
       isMountedRef.current = true;
       hasCompletedRef.current = false;
       hasSuccessfulTicketPaymentRef.current = false;
 
       if (!locationState?.request) {
+         logBookingFlow('PaymentProcessingPage', 'missing locationState.request -> redirect /tickets/payment');
          navigate('/tickets/payment', { replace: true });
          return;
       }
@@ -131,9 +137,15 @@ export default function PaymentProcessingPage() {
       hasStartedRef.current = true;
 
       const { request: paymentRequest, amount: clientAmount } = locationState;
+      const bookingEntry = useBookingEntryStore.getState().entry;
       const isStillOnProcessingPage = () => window.location.pathname === '/tickets/payment/processing';
       const isResaleRequest = 'listingId' in paymentRequest;
-      const completePayment = (result: PaymentResponse) => {
+
+      const completePayment = async (result: PaymentResponse) => {
+         logBookingFlow('PaymentProcessingPage', 'completePayment start', {
+            result,
+            bookingEntry: summarizeBookingEntry(bookingEntry),
+         });
          if (!isMountedRef.current || !isStillOnProcessingPage()) {
             return;
          }
@@ -141,10 +153,22 @@ export default function PaymentProcessingPage() {
          hasCompletedRef.current = true;
          resaleHoldIdRef.current = null;
 
+         if (bookingEntry?.gameId) {
+            await releaseQueueSession(bookingEntry.gameId);
+         }
+
          try {
             savePaymentCompleteState({ ...result, amount: clientAmount });
          } catch {
             // sessionStorage 저장 실패가 완료 페이지 이동을 막지 않게 한다.
+         }
+
+         if (isResaleRequest) {
+            void queryClient.invalidateQueries({ queryKey: ['resell-zone-remaining'] });
+            void queryClient.invalidateQueries({ queryKey: ['resell-zone-insights'] });
+            void queryClient.invalidateQueries({ queryKey: ['resales', 'game-counts'] });
+            void queryClient.invalidateQueries({ queryKey: ['resales', 'listing-market'] });
+            void queryClient.invalidateQueries({ queryKey: ['myResales'] });
          }
 
          useSeatHoldStore.getState().clearSeatHolds();
@@ -153,6 +177,10 @@ export default function PaymentProcessingPage() {
             `/tickets/payment/complete?delivery=${paymentRequest.deliveryMethod}&orderId=${encodeURIComponent(result.orderId ?? '')}`,
             { state: { ...result, amount: clientAmount }, replace: true },
          );
+         logBookingFlow('PaymentProcessingPage', 'navigate /tickets/payment/complete', {
+            orderId: result.orderId,
+            deliveryMethod: paymentRequest.deliveryMethod,
+         });
       };
 
       const releasePendingHolds = async () => {
@@ -177,6 +205,10 @@ export default function PaymentProcessingPage() {
 
       const process = async () => {
          try {
+            logBookingFlow('PaymentProcessingPage', 'submit payment start', {
+               paymentRequest,
+               isResaleRequest,
+            });
             const submitOrder =
                'gameId' in paymentRequest && 'selectedSeats' in paymentRequest
                   ? () => submitTicketOrder(paymentRequest)
@@ -189,6 +221,7 @@ export default function PaymentProcessingPage() {
                              resaleHoldIdRef.current = null;
                           },
                        });
+
             const [result] = await Promise.all([
                submitOrder(),
                new Promise(resolve => setTimeout(resolve, 1000)),
@@ -198,16 +231,19 @@ export default function PaymentProcessingPage() {
                hasSuccessfulTicketPaymentRef.current = true;
             }
 
-            completePayment(result);
+            await completePayment(result);
          } catch (error) {
+            logBookingFlowError('PaymentProcessingPage', 'submit payment error', error);
             if (isMountedRef.current && isStillOnProcessingPage()) {
-               if (isResaleRequest) {
-                  completePayment(createFallbackResalePaymentResponse(paymentRequest, clientAmount));
-                  return;
-               }
-
                if (!isResaleRequest) {
                   await releasePendingHolds();
+               } else {
+                  resaleHoldIdRef.current = null;
+               }
+
+               if (isTicketPurchaseLimitError(error)) {
+                  setIsPurchaseLimitDialogOpen(true);
+                  return;
                }
 
                const message = getErrorMessage(
@@ -220,9 +256,14 @@ export default function PaymentProcessingPage() {
          }
       };
 
-      process();
+      void process();
 
       const handlePageHide = () => {
+         logBookingFlow('PaymentProcessingPage', 'pagehide', {
+            hasCompleted: hasCompletedRef.current,
+            hasSuccessfulTicketPayment: hasSuccessfulTicketPaymentRef.current,
+            isResaleRequest,
+         });
          if (hasCompletedRef.current || hasSuccessfulTicketPaymentRef.current) {
             return;
          }
@@ -248,7 +289,7 @@ export default function PaymentProcessingPage() {
          window.removeEventListener('pagehide', handlePageHide);
          isMountedRef.current = false;
       };
-   }, [locationState, navigate]);
+   }, [locationState, navigate, queryClient]);
 
    const headerRequest = locationState?.request;
    const headerProps =
@@ -262,10 +303,16 @@ export default function PaymentProcessingPage() {
 
    return (
       <div className="min-h-screen flex flex-col bg-background">
+         <BooksPurchaseLimitDialog
+            open={isPurchaseLimitDialogOpen}
+            onConfirm={() => {
+               setIsPurchaseLimitDialogOpen(false);
+               navigate('/tickets/payment', { replace: true });
+            }}
+         />
          <PaymentHeader {...headerProps} />
 
          <main className="flex-1 bg-white flex flex-col items-center justify-center gap-[50px]">
-            {/* 원형 점 스피너 */}
             <div className="relative size-20">
                {Array.from({ length: 10 }).map((_, i) => {
                   const angle = (i / 10) * 360;

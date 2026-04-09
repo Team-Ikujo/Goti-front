@@ -4,11 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import {
    buildSeatBlockFromApiSeats,
    fetchSeatSections,
-   fetchSeats,
    fetchSeatStatuses,
+   mapSeatStatusToUiStatus,
+   mapSeatStatusesToSeats,
    matchesSectionExpression,
    resolveSeatSectionByCode,
-   summarizeSeatStatusSnapshot,
    type SeatResponse,
    type SeatStatusResponse,
 } from '@/pages/books/api/bookingApi';
@@ -74,24 +74,6 @@ const getSectionSeatLayoutMeta = (seats: SeatResponse[]) => {
    };
 };
 
-const toSeatItemStatus = (seat: SeatResponse, statuses: Record<string, string>): SeatItem['status'] => {
-   const status = (statuses[seat.apiSeatId] ?? statuses[seat.seatId])?.toUpperCase();
-
-   if (!seat.available) {
-      return 'disabled';
-   }
-
-   if (status === 'HELD') {
-      return 'held';
-   }
-
-   if (status === 'SOLD' || status === 'BLOCKED') {
-      return 'disabled';
-   }
-
-   return 'available';
-};
-
 const createSeatBlockForLayout = (block: SeatBlock, section: ApiSeatSectionBundle): SeatBlock => {
    if (section.seats.length === 0) {
       return {
@@ -128,7 +110,7 @@ const createSeatItemsForLayout = (block: SeatBlock, zoneId: string, section: Api
          x: block.offsetX + (seat.seatNum - 1) * API_SEAT_SPACING,
          y: block.offsetY + rowIndex * API_SEAT_SPACING,
          zoneId,
-         status: toSeatItemStatus(seat, statusBySeatId),
+         status: mapSeatStatusToUiStatus(statusBySeatId[seat.apiSeatId] ?? statusBySeatId[seat.seatId]),
       } satisfies SeatItem;
    });
 };
@@ -207,13 +189,11 @@ const fetchAggregatedSeatSections = async ({
 
    const sectionBundles = await Promise.all(
       targetSections.map(async (section) => {
-         const [seats, statuses] = await Promise.all([
-            fetchSeats({
-               sectionId: section.sectionId,
-               gameId,
-            }),
-            fetchSeatStatuses(gameId, section.sectionId),
-         ]);
+         const statuses = await fetchSeatStatuses(gameId, section.sectionId);
+         const seats = mapSeatStatusesToSeats({
+            sectionId: section.sectionId,
+            statuses,
+         });
 
          return {
             sectionId: section.sectionId,
@@ -239,25 +219,28 @@ export const useSeatMapData = ({ gameId, stadiumId, zone }: SeatMapDataParams) =
          }
 
          if (!isAggregatedSectionCode(zone.sectionCode)) {
-            const resolvedSection =
-               (await resolveSeatSectionByCode({
-                  stadiumId,
-                  gameId,
-                  sectionCode: zone.sectionCode,
-               }));
+            const resolvedSectionId = zone.sectionIds?.[0];
+            const resolvedSection = resolvedSectionId
+               ? {
+                    sectionId: resolvedSectionId,
+                    sectionCode: zone.sectionCode,
+                 }
+               : await resolveSeatSectionByCode({
+                    stadiumId,
+                    gameId,
+                    sectionCode: zone.sectionCode,
+                 });
 
             if (!resolvedSection) {
                throw new Error(DEFAULT_SEAT_MAP_ERROR_MESSAGE);
             }
-            const [seats, statuses] = await Promise.all([
-               fetchSeats({
-                  sectionId: resolvedSection.sectionId,
-                  gameId,
-               }),
-               fetchSeatStatuses(gameId, resolvedSection.sectionId),
-            ]);
+            const statuses = await fetchSeatStatuses(gameId, resolvedSection.sectionId);
+            const seats = mapSeatStatusesToSeats({
+               sectionId: resolvedSection.sectionId,
+               statuses,
+            });
 
-           const [seatBlock] = buildSeatBlockFromApiSeats(zone.sectionCode, seats);
+            const [seatBlock] = buildSeatBlockFromApiSeats(zone.sectionCode, seats);
 
             if (!seatBlock) {
                throw new Error(DEFAULT_SEAT_MAP_ERROR_MESSAGE);

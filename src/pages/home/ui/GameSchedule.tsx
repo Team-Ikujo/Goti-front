@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameSchedules, mapGamesToDaySchedules } from '@/entities/game/model/schedule';
 import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
+import { useResaleGameStatuses } from '@/entities/resale/model/useResaleGameStatuses';
+import type { ResaleGameStatus } from '@/entities/resale/api/resaleApi';
 
 import {
    AVAILABLE_YEARS,
@@ -21,12 +23,25 @@ import WeekNavigator from './game-schedule/WeekNavigator';
 import { filterScheduleData } from './game-schedule/utils';
 import type { DaySchedule, ReselStatus } from './game-schedule/types';
 
-const getResellStatus = (resaleCount: number | undefined, fallbackStatus: ReselStatus): ReselStatus => {
-   if (typeof resaleCount === 'number') {
-      return resaleCount > 0 ? '리셀예매' : '리셀매진';
-   }
+const getResellStatus = (
+   resaleStatus: ResaleGameStatus | undefined,
+   resaleCount: number | undefined,
+   fallbackStatus: ReselStatus,
+): ReselStatus => {
+   switch (resaleStatus) {
+      case 'SCHEDULED':
+         return '리셀예정';
+      case 'AVAILABLE':
+         return typeof resaleCount === 'number' && resaleCount > 0 ? '리셀예매' : '리셀매진';
+      case 'UNAVAILABLE':
+         return '리셀매진';
+      default:
+         if (typeof resaleCount === 'number') {
+            return resaleCount > 0 ? '리셀예매' : '리셀매진';
+         }
 
-   return fallbackStatus;
+         return fallbackStatus;
+   }
 };
 
 const GameSchedule = () => {
@@ -60,32 +75,34 @@ const GameSchedule = () => {
    })();
 
    const scheduleQuery = useGameSchedules(scheduleParams);
-   const resaleGameIds = useMemo(() => (scheduleQuery.data ?? []).map((game) => game.id), [scheduleQuery.data]);
+   const resaleGameIds = useMemo(() => (scheduleQuery.data ?? []).map(game => game.id), [scheduleQuery.data]);
    const resaleCountsQuery = useResaleGameCounts(resaleGameIds);
+   const resaleStatusesQuery = useResaleGameStatuses(resaleGameIds);
 
    const scheduleData = useMemo(() => {
       const TARGET_TEAMS = ['kia', 'samsung'];
       const filtered = (scheduleQuery.data ?? []).filter(
-         (game) =>
-            TARGET_TEAMS.includes(game.homeTeamId ?? '') ||
-            TARGET_TEAMS.includes(game.awayTeamId ?? ''),
+         game => TARGET_TEAMS.includes(game.homeTeamId ?? '') || TARGET_TEAMS.includes(game.awayTeamId ?? ''),
       );
       const daySchedules = mapGamesToDaySchedules(filtered);
 
-      return daySchedules.map((day): DaySchedule => ({
-         ...day,
-         games: day.games.map((game) => {
-            const resaleCount = game.gameId ? resaleCountsQuery.data?.get(game.gameId) : undefined;
-            const resell = getResellStatus(resaleCount, game.resell);
+      return daySchedules.map(
+         (day): DaySchedule => ({
+            ...day,
+            games: day.games.map(game => {
+               const resaleCount = game.gameId ? resaleCountsQuery.data?.get(game.gameId) : undefined;
+               const resaleStatus = game.gameId ? resaleStatusesQuery.data?.get(game.gameId) : undefined;
+               const resell = getResellStatus(resaleStatus, resaleCount, game.resell);
 
-            return {
-               ...game,
-               resell,
-               reselInfo: resell === '리셀예정' ? '정식 예매 오픈\n2시간 후' : undefined,
-            };
+               return {
+                  ...game,
+                  resell,
+                  reselInfo: resell === '리셀예정' ? '정식 예매 오픈\n2시간 후' : undefined,
+               };
+            }),
          }),
-      }));
-   }, [resaleCountsQuery.data, scheduleQuery.data]);
+      );
+   }, [resaleCountsQuery.data, resaleStatusesQuery.data, scheduleQuery.data]);
 
    const filteredData = useMemo(
       () =>
