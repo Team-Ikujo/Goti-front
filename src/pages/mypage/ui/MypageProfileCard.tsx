@@ -1,9 +1,9 @@
 import { Settings } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
-import type { MemberProfile } from '@/entities/user/api/memberApi';
+import type { MemberSummary } from '@/entities/user/api/memberApi';
 
 interface MypageProfileCardProps {
-   profile?: MemberProfile;
+   profile?: MemberSummary;
    onEditAccount: () => void;
 }
 

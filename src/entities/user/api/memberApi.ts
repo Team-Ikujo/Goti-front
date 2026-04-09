@@ -164,6 +164,18 @@ const mergeMockProfile = (profile?: MemberProfile): MemberProfile => {
    };
 };
 
+// GET /api/v1/members/me/summary 응답 (마이페이지 프로필 카드용 요약 정보)
+export interface MemberSummary {
+   name?: string;
+   email?: string;
+   mobile?: string;
+}
+
+export const fetchMyProfileSummary = async (): Promise<MemberSummary> => {
+   const response = await apiClient.get<ApiEnvelope<MemberSummary>>('/api/v1/members/me/summary');
+   return response.data.data;
+};
+
 export const fetchMyProfile = async (): Promise<MemberProfile> => {
    try {
       const response = await apiClient.get<ApiEnvelope<MemberProfile>>('/api/v1/members/me');
