@@ -210,9 +210,12 @@ export const useMyTicketInfoData = () => {
 };
 
 export const useMyOrdersData = () => {
+   const accessToken = useAuthStore(s => s.accessToken);
+
    const query = useQuery({
-      queryKey: ['myOrders'],
+      queryKey: ['myOrders', accessToken],
       queryFn: fetchMyOrderSummaries,
+      enabled: Boolean(accessToken),
    });
 
    const data = useMemo((): PurchaseHistoryItem[] => {
@@ -282,9 +285,12 @@ export const useMyOrdersData = () => {
 };
 
 export const useMyResaleListData = () => {
+   const accessToken = useAuthStore(s => s.accessToken);
+
    return useQuery({
-      queryKey: ['myResales'],
+      queryKey: ['myResales', accessToken],
       queryFn: fetchMyResaleListingsWithGameInfo,
+      enabled: Boolean(accessToken),
       select: (data): SaleHistoryItem[] => {
       return data.map((listing) => ({
            id: listing.listingId,
