@@ -83,7 +83,6 @@ export interface ResaleCheckoutRequest extends CheckoutFormRequest {
 
 type CreateOrderRequest = {
    gameId: string;
-   queueTokenJti: string;
    holdIds: string[];
    ordererName: string;
    ordererPhone: string;
@@ -441,7 +440,6 @@ export const submitTicketOrder = async (payload: TicketCheckoutRequest): Promise
 
    const order = await createOrder({
       gameId: payload.gameId,
-      queueTokenJti: payload.queueTokenJti,
       holdIds: heldSeats.map(({ holdId }) => holdId),
       ordererName: payload.ordererName,
       ordererPhone: payload.ordererPhone,
