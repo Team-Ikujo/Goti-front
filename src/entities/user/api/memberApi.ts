@@ -1,5 +1,6 @@
 // src/entities/user/api/memberApi.ts
 
+import axios from 'axios';
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import { isMswEnabled } from '@/shared/config/runtime';
@@ -172,8 +173,24 @@ export interface MemberSummary {
 }
 
 export const fetchMyProfileSummary = async (): Promise<MemberSummary> => {
-   const response = await apiClient.get<ApiEnvelope<MemberSummary>>('/api/v1/members/me/summary');
-   return response.data.data;
+   try {
+      const response = await apiClient.get<ApiEnvelope<MemberSummary>>('/api/v1/members/me/summary');
+      return response.data.data;
+   } catch (error) {
+      // 마이페이지 프로필 요약은 summary API를 우선 사용하되,
+      // 일부 배포 환경에서 summary 미배포(404)일 때만 /members/me 로 보완한다.
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+         const profile = await fetchMyProfile();
+
+         return {
+            name: profile.name,
+            email: profile.email,
+            mobile: profile.mobile,
+         };
+      }
+
+      throw error;
+   }
 };
 
 export const fetchMyProfile = async (): Promise<MemberProfile> => {
