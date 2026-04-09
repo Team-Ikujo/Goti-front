@@ -54,9 +54,11 @@ export const enterQueue = async (gameId: string): Promise<QueueEnterResponse> =>
 
 /** 대기열 전역 상태 조회 — CDN 1초 캐싱, 인증 불필요 */
 export const getQueueGlobalStatus = async (gameId: string): Promise<QueueStatusResponse> => {
+  logBookingFlow('queueApi', 'getQueueGlobalStatus request', { gameId });
   const response = await apiClient.get<ApiEnvelope<QueueStatusResponse>>(
     `/api/v1/queue/${encodeURIComponent(gameId)}/global-status`,
   );
+  logBookingFlow('queueApi', 'getQueueGlobalStatus response', response.data.data);
   return response.data.data;
 };
 
