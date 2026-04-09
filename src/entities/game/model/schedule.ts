@@ -38,6 +38,9 @@ export type NormalizedScheduleGame = {
   isToday: boolean;
   ticketingOpenedAt?: string;
   ticketingEndAt?: string;
+  ticketingOpenedAtMs?: number;
+  ticketingEndAtMs?: number;
+  resellOpenedAtMs?: number;
   remainingSeatCount: number;
 };
 
@@ -260,6 +263,17 @@ const parseScheduleBoundary = (value?: string) => {
   return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
 };
 
+const toTimestamp = (value?: string) => parseScheduleBoundary(value)?.getTime();
+
+const getResellOpenTimestamp = (date?: string) => {
+  if (!date) {
+    return undefined;
+  }
+
+  const parsedDate = new Date(`${date}T13:00:00`);
+  return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate.getTime();
+};
+
 const formatOpenBoundaryLabel = (value?: string, fallbackDate?: string): string => {
   const parsedDate = parseScheduleBoundary(value);
 
@@ -392,6 +406,9 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
   const apiStatus = mapGameStatus(game.gameStatus);
   const gameDateTime = date && time ? new Date(`${date}T${time}`) : null;
   const status: GameStatus = (apiStatus !== '종료' && gameDateTime && gameDateTime < new Date()) ? '종료' : apiStatus;
+  const ticketingOpenedAtMs = toTimestamp(game.ticketingOpenedAt);
+  const ticketingEndAtMs = toTimestamp(game.ticketingEndAt);
+  const resellOpenedAtMs = getResellOpenTimestamp(date);
 
   const ticket = closeTicketStatusForUnavailableGame(
     closeTicketStatusForEmptyInventory(mapTicketStatus(game.ticketingStatus), game.remainingSeatCount),
@@ -426,6 +443,9 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
     isToday: isSameCalendarDate(date, new Date()),
     ticketingOpenedAt: game.ticketingOpenedAt,
     ticketingEndAt: game.ticketingEndAt,
+    ticketingOpenedAtMs,
+    ticketingEndAtMs,
+    resellOpenedAtMs,
     remainingSeatCount: game.remainingSeatCount,
   };
 };
@@ -451,6 +471,9 @@ export const mapGamesToDaySchedules = (games: NormalizedScheduleGame[]): DaySche
       rawDate: game.date,
       ticketingOpenedAt: game.ticketingOpenedAt,
       ticketingEndAt: game.ticketingEndAt,
+      ticketingOpenedAtMs: game.ticketingOpenedAtMs,
+      ticketingEndAtMs: game.ticketingEndAtMs,
+      resellOpenedAtMs: game.resellOpenedAtMs,
       time: game.time,
       venue: game.venue,
       away: game.awayTeamName,
