@@ -12,6 +12,8 @@ import {
 } from './resellData';
 import { isPurchasableResaleListing, matchesResaleListingToZone } from './resellMatching';
 import { getCompletedResalePurchaseLookup } from '@/shared/lib/paymentCompleteStorage';
+import { isResaleDemoEnabled } from '@/shared/config/runtime';
+import { ensureDemoListingsForZone } from '@/shared/lib/demo/resaleDemo';
 
 const sortListings = (left: ApiResaleListingItem, right: ApiResaleListingItem) => {
    const leftTime = new Date(left.listedAt).getTime();
@@ -67,7 +69,15 @@ export const useResellZoneInsights = ({
          }
 
          const [listings, minuteGraph, dayGraph] = await Promise.all([
-            fetchMarketResaleListings(),
+            isResaleDemoEnabled
+               ? Promise.resolve(
+                    ensureDemoListingsForZone({
+                       gameId,
+                       zone,
+                       seats,
+                    }),
+                 )
+               : fetchMarketResaleListings(),
             primaryGradeId ? fetchResaleHistoryGraph(gameId, primaryGradeId, 'HOUR') : Promise.resolve([]),
             primaryGradeId ? fetchResaleHistoryGraph(gameId, primaryGradeId, 'DAY') : Promise.resolve([]),
          ]);
