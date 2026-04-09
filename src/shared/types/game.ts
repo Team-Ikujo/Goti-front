@@ -42,7 +42,7 @@ export interface GameScheduleResponse {
    ticketingStatus: ApiTicketingStatus;
    ticketingOpenedAt?: string;
    ticketingEndAt?: string;
-   remainingSeatCount?: number;
+   remainingSeatCount: number;
    homeTeamDisplayName?: string;
    awayTeamDisplayName?: string;
    stadiumLocation?: string;

@@ -3,6 +3,7 @@
 import { Calendar, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import { hasAvailableSeats } from '@/entities/game/model/seatAvailability';
 import { teams } from '@/entities/team/model/teams';
 import type { Team } from '@/entities/team/model/types';
 import { getClosestMatch, getDDay, useGameSchedules } from '@/entities/game/model/schedule';
@@ -84,7 +85,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const homeTeamName = match.homeTeamFullName;
    const resaleCount = resaleCountsQuery.data?.get(match.id);
    const resaleStatus = resaleStatusesQuery.data?.get(match.id);
-   const canBook = match.ticket === '예매하기' && (match.remainingSeatCount === undefined || match.remainingSeatCount > 0);
+   const canBook = match.ticket === '예매하기' && hasAvailableSeats(match.remainingSeatCount);
    const canResellBook = resaleStatus === 'AVAILABLE' && typeof resaleCount === 'number' && resaleCount > 0;
    const resellButtonLabel =
       resaleStatus === 'SCHEDULED'

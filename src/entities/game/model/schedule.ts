@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { buildMockQueueTokenJti } from '@/shared/config/booking';
 import type { ApiLeagueType } from '@/shared/types/game';
+import { hasAvailableSeats } from '@/entities/game/model/seatAvailability';
 import {
   fetchBaseballTeamDetails,
   fetchGameSchedules,
@@ -37,7 +38,7 @@ export type NormalizedScheduleGame = {
   isToday: boolean;
   ticketingOpenedAt?: string;
   ticketingEndAt?: string;
-  remainingSeatCount?: number;
+  remainingSeatCount: number;
 };
 
 type TeamReference = {
@@ -322,13 +323,13 @@ const mapTicketStatus = (value: string): TicketStatus => {
 
 const closeTicketStatusForEmptyInventory = (
   ticketStatus: TicketStatus,
-  remainingSeatCount?: number,
+  remainingSeatCount: number,
 ): TicketStatus => {
   if (ticketStatus !== '예매하기') {
     return ticketStatus;
   }
 
-  if (typeof remainingSeatCount === 'number' && remainingSeatCount <= 0) {
+  if (!hasAvailableSeats(remainingSeatCount)) {
     return '매진';
   }
 

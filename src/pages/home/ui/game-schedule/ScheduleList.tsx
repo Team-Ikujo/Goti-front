@@ -1,5 +1,6 @@
 import { TicketX } from 'lucide-react';
 
+import { hasAvailableSeats } from '@/entities/game/model/seatAvailability';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
@@ -174,7 +175,7 @@ function ActionButtons({
    onOpenResellFlow: (game: GameRow) => void;
 }) {
    const { effectiveTicket, effectiveResell, ticketInfo, reselInfo } = getEffectiveSaleStatuses(game);
-   const hasRemainingSeats = game.remainingSeatCount === undefined || game.remainingSeatCount > 0;
+   const hasRemainingSeats = hasAvailableSeats(game.remainingSeatCount);
 
    const canBook = effectiveTicket === '예매하기' && hasRemainingSeats;
    const canResellBook = effectiveResell === '리셀예매';
