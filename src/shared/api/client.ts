@@ -2,6 +2,7 @@ import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig } from "axios"
 import { useAuthStore } from "@/entities/auth/model/authStore";
 import { redirectToErrorPage } from '@/shared/lib/error-navigation';
 import { applyGuardrailHeadersToAxiosConfig } from '@/shared/lib/guardrailHeaders';
+import { waitForAuthSessionResolution } from '@/shared/lib/authSessionBarrier';
 import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 
 export class ApiError extends Error {
@@ -143,6 +144,25 @@ const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
   }
 };
 
+const shouldWaitForInitialSessionResolution = (config: AxiosRequestConfig) => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  if (useAuthStore.getState().hasResolvedSession) {
+    return false;
+  }
+
+  const requestUrl = toAbsoluteUrl(config);
+
+  try {
+    const { pathname } = new URL(requestUrl, window.location.origin);
+    return pathname !== tokenReissuePath;
+  } catch {
+    return true;
+  }
+};
+
 const shouldSkipCredentials = (config: AxiosRequestConfig) => {
   const requestUrl = toAbsoluteUrl(config);
 
@@ -244,7 +264,11 @@ const reissueAccessTokenFromCookie = async () => {
   return refreshAccessTokenPromise;
 };
 
-apiClient.interceptors.request.use((config) => {
+apiClient.interceptors.request.use(async (config) => {
+  if (shouldWaitForInitialSessionResolution(config)) {
+    await waitForAuthSessionResolution();
+  }
+
   const accessToken = useAuthStore.getState().accessToken;
   const shouldSkipAuth = shouldSkipAuthorizationHeader(config);
   const shouldOmitCredentials = shouldSkipCredentials(config);
