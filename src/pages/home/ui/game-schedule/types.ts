@@ -13,7 +13,10 @@ export type GameRow = {
    rawDate?: string; // YYYY-MM-DD — 시간 기반 상태 전환용
    ticketingOpenedAt?: string;
    ticketingEndAt?: string;
-   remainingSeatCount?: number;
+   ticketingOpenedAtMs?: number;
+   ticketingEndAtMs?: number;
+   resellOpenedAtMs?: number;
+   remainingSeatCount: number;
    time: string;
    venue: string;
    away: string;

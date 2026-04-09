@@ -150,7 +150,10 @@ const QueuePage = () => {
   const patchEntry = useBookingEntryStore(state => state.patchEntry);
   const hasHydrated = useAuthStore(state => state.hasHydrated);
   const hasResolvedSession = useAuthStore(state => state.hasResolvedSession);
-  const bookingEntryState = mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState);
+  const bookingEntryState = useMemo(
+    () => mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState),
+    [routeBookingEntryState, storedBookingEntryState],
+  );
   const bookingFlowMode = getBookingFlowMode(location.search);
 
   const [phase, setPhase] = useState<QueuePhase>('entering');

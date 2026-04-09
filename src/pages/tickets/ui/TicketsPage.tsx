@@ -103,7 +103,7 @@ const TicketsPage = () => {
                      ? 25000
                      : game.ticket === '매진'
                        ? 0
-                       : (game.remainingSeatCount ?? 0),
+                       : game.remainingSeatCount,
                resellRemainingSeats: fallbackResellStatus === '리셀 가능' ? 999 : 0,
                minPrice: 0,
                maxPrice: 0,
