@@ -37,6 +37,19 @@ const formatGameDateTime = (value: string) => {
    return `${year}.${month}.${day} (${weekday}) ${hours}:${minutes}`;
 };
 
+const getAllowedResalePriceRange = (basePrice: number) => {
+   const minPrice = Math.floor(basePrice * 0.7);
+   const maxPrice = Math.ceil(basePrice * 1.3);
+
+   return { minPrice, maxPrice };
+};
+
+const formatAllowedResalePriceRangeText = (basePrice: number) => {
+   const { minPrice, maxPrice } = getAllowedResalePriceRange(basePrice);
+
+   return `판매 가능 금액: ${minPrice.toLocaleString()}원 ~ ${maxPrice.toLocaleString()}원`;
+};
+
 // ─── 체크박스 아이콘 ────────────────────────────────────────────────
 function CheckboxIcon({ checked }: { checked: boolean }) {
    if (checked) {
@@ -161,6 +174,23 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
          return;
       }
 
+      const invalidRequest = requests.find(({ listingPrice }, requestIndex) => {
+         const seatIndex = indices[requestIndex];
+         const basePrice = seatPrices[seatIndex] ?? unitPrice;
+         const { minPrice, maxPrice } = getAllowedResalePriceRange(basePrice);
+
+         return listingPrice < minPrice || listingPrice > maxPrice;
+      });
+
+      if (invalidRequest) {
+         const invalidSeatIndex = indices[requests.indexOf(invalidRequest)];
+         const basePrice = seatPrices[invalidSeatIndex] ?? unitPrice;
+         const { minPrice, maxPrice } = getAllowedResalePriceRange(basePrice);
+
+         alert(`판매가는 ${minPrice.toLocaleString()}원 ~ ${maxPrice.toLocaleString()}원 이내여야 합니다.`);
+         return;
+      }
+
       setIsSubmitting(true);
       try {
          const response = await createResaleListings({ listings: requests });
@@ -266,7 +296,14 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                               </button>
                            </div>
                            {/* 토글 On: 통합 가격 입력 */}
-                           {bulkToggle && <PriceInput value={bulkPrice} onChange={setBulkPrice} />}
+                           {bulkToggle && (
+                              <div className="flex flex-col gap-2">
+                                 <PriceInput value={bulkPrice} onChange={setBulkPrice} />
+                                 <p className="text-[12px] text-[#646f7c] leading-[1.45]">
+                                    선택한 좌석별 구매가 기준으로 70% ~ 130% 범위에서 입력할 수 있습니다.
+                                 </p>
+                              </div>
+                           )}
                         </div>
                      )}
 
@@ -307,6 +344,9 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                                                 value={prices[idx] ?? ''}
                                                 onChange={v => setPrices(prev => ({ ...prev, [idx]: v }))}
                                              />
+                                             <p className="mt-2 text-[12px] text-[#646f7c] leading-[1.45]">
+                                                {formatAllowedResalePriceRangeText(seatPrice)}
+                                             </p>
                                           </div>
                                        )}
                                     </div>
