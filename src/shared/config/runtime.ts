@@ -2,7 +2,20 @@ const mswFlag = (import.meta.env.PUBLIC_ENABLE_MSW ?? '').trim().toLowerCase();
 const resaleDemoFlag = (import.meta.env.PUBLIC_ENABLE_RESALE_DEMO ?? '').trim().toLowerCase();
 
 const isLocalHostname = (hostname: string) => {
-   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0';
+   return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
+      hostname.endsWith('.localhost')
+   );
+};
+
+const isPrivateNetworkHostname = (hostname: string) => {
+   return (
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+   );
 };
 
 const canUseMswInBrowser = () => {
@@ -10,7 +23,7 @@ const canUseMswInBrowser = () => {
       return import.meta.env.DEV;
    }
 
-   return import.meta.env.DEV && isLocalHostname(window.location.hostname);
+   return import.meta.env.DEV || isLocalHostname(window.location.hostname) || isPrivateNetworkHostname(window.location.hostname);
 };
 
 // MSW는 로컬 개발 환경에서만 허용한다.

@@ -92,47 +92,62 @@ const TEAM_REFERENCES: TeamReference[] = teams
 
 type StadiumReference = {
   displayName: string;
+  region: string;
   aliases: string[];
 };
 
 export const STADIUM_REFERENCES: Record<string, StadiumReference> = {
   'stadium-jamsil-baseball': {
     displayName: '잠실 야구장',
+    region: '잠실',
     aliases: ['잠실야구장'],
   },
   'stadium-samsung-lions-park': {
     displayName: '대구 삼성 라이온즈 파크',
+    region: '대구',
     aliases: ['대구삼성라이온즈파크', '삼성라이온즈파크'],
   },
   'stadium-sajik-baseball': {
     displayName: '사직 야구장',
+    region: '사직',
     aliases: ['사직야구장'],
   },
   'stadium-changwon-nc-park': {
     displayName: '창원 NC파크',
+    region: '창원',
     aliases: ['창원nc파크', 'nc파크'],
   },
   'stadium-gocheok-skydome': {
     displayName: '고척 스카이돔',
+    region: '고척',
     aliases: ['고척스카이돔'],
   },
   'stadium-kia-champions-field': {
     displayName: '기아 챔피언스필드',
+    region: '광주',
     aliases: ['광주기아챔피언스필드', '기아챔피언스필드'],
   },
   'stadium-kt-wiz-park': {
     displayName: '수원 KT위즈파크',
+    region: '수원',
     aliases: ['수원kt위즈파크', 'kt위즈파크'],
   },
   'stadium-daejeon-baseball': {
     displayName: '대전 한화생명 볼파크',
+    region: '대전',
     aliases: ['대전한화생명볼파크'],
   },
   'stadium-incheon-landers-field': {
     displayName: '인천 SSG 랜더스필드',
+    region: '인천',
     aliases: ['인천ssg랜더스필드', 'ssg랜더스필드'],
   },
 };
+
+/** displayName → 지역명 매핑 (홈 경기일정 표시용) */
+export const VENUE_REGION_MAP: Record<string, string> = Object.fromEntries(
+  Object.values(STADIUM_REFERENCES).map((s) => [s.displayName, s.region]),
+);
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
