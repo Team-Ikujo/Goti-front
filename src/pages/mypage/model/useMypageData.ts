@@ -256,10 +256,22 @@ export const useMyProfileSummaryData = () => {
 
 export const useMyTicketInfoData = () => {
    const accessToken = useAuthStore(s => s.accessToken);
+   const currentUserId = useAuthStore(s => s.currentUserId);
 
    return useQuery<MyTicketInfo>({
-      queryKey: ['myTicketInfo', accessToken],
-      queryFn: fetchMyTicketInfo,
+      queryKey: ['myTicketInfo', accessToken, currentUserId],
+      queryFn: async () => {
+         const apiInfo = await fetchMyTicketInfo();
+         const storedListingSummary = getStoredResaleListingSummary(currentUserId);
+         const storedResalePurchaseTicketCount = getStoredResalePurchaseTicketCount();
+
+         return {
+            ownedTicketCount: apiInfo.ownedTicketCount + storedResalePurchaseTicketCount,
+            listingCount: apiInfo.listingCount + storedListingSummary.listingCount,
+            soldCount: apiInfo.soldCount + storedListingSummary.soldCount,
+            unsettledAmount: apiInfo.unsettledAmount + storedListingSummary.unsettledAmount,
+         };
+      },
       enabled: Boolean(accessToken),
    });
 };
