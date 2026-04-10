@@ -100,47 +100,47 @@ export const STADIUM_REFERENCES: Record<string, StadiumReference> = {
   'stadium-jamsil-baseball': {
     displayName: '잠실 야구장',
     region: '잠실',
-    aliases: ['잠실야구장'],
+    aliases: ['잠실야구장', '서울종합운동장야구장', '잠실종합운동장야구장', '잠실'],
   },
   'stadium-samsung-lions-park': {
     displayName: '대구 삼성 라이온즈 파크',
     region: '대구',
-    aliases: ['대구삼성라이온즈파크', '삼성라이온즈파크'],
+    aliases: ['대구삼성라이온즈파크', '삼성라이온즈파크', '대구 삼성라이온즈파크', '대구'],
   },
   'stadium-sajik-baseball': {
     displayName: '사직 야구장',
     region: '사직',
-    aliases: ['사직야구장'],
+    aliases: ['사직야구장', '사직'],
   },
   'stadium-changwon-nc-park': {
     displayName: '창원 NC파크',
     region: '창원',
-    aliases: ['창원nc파크', 'nc파크'],
+    aliases: ['창원nc파크', 'nc파크', '창원엔씨파크', '창원 nc 파크', '창원'],
   },
   'stadium-gocheok-skydome': {
     displayName: '고척 스카이돔',
     region: '고척',
-    aliases: ['고척스카이돔'],
+    aliases: ['고척스카이돔', '고척돔', '고척'],
   },
   'stadium-kia-champions-field': {
     displayName: '기아 챔피언스필드',
     region: '광주',
-    aliases: ['광주기아챔피언스필드', '기아챔피언스필드'],
+    aliases: ['광주기아챔피언스필드', '기아챔피언스필드', '광주 기아 챔피언스 필드', '광주-kia챔피언스필드', '광주'],
   },
   'stadium-kt-wiz-park': {
     displayName: '수원 KT위즈파크',
     region: '수원',
-    aliases: ['수원kt위즈파크', 'kt위즈파크'],
+    aliases: ['수원kt위즈파크', 'kt위즈파크', '수원 케이티위즈파크', '수원'],
   },
   'stadium-daejeon-baseball': {
     displayName: '대전 한화생명 볼파크',
     region: '대전',
-    aliases: ['대전한화생명볼파크'],
+    aliases: ['대전한화생명볼파크', '대전 한화생명 이글스파크', '대전한화생명이글스파크', '한화생명이글스파크', '대전베이스볼드림파크', '대전'],
   },
   'stadium-incheon-landers-field': {
     displayName: '인천 SSG 랜더스필드',
     region: '인천',
-    aliases: ['인천ssg랜더스필드', 'ssg랜더스필드'],
+    aliases: ['인천ssg랜더스필드', 'ssg랜더스필드', '랜더스필드', '인천'],
   },
 };
 
@@ -152,6 +152,45 @@ export const VENUE_REGION_MAP: Record<string, string> = Object.fromEntries(
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 const normalizeLookupValue = (value: string) => value.toLowerCase().replace(/[\s\-_./()]/g, '');
+
+const normalizedStadiumEntries = Object.entries(STADIUM_REFERENCES).map(([stadiumId, reference]) => ({
+  stadiumId,
+  region: reference.region,
+  candidates: [stadiumId, reference.displayName, reference.region, ...reference.aliases]
+    .filter((candidate): candidate is string => Boolean(candidate))
+    .map(normalizeLookupValue),
+}));
+
+export const resolveVenueRegionLabel = (venue?: string, stadiumId?: string) => {
+  if (stadiumId) {
+    const mappedById = STADIUM_REFERENCES[stadiumId];
+
+    if (mappedById) {
+      return mappedById.region;
+    }
+  }
+
+  if (!venue?.trim()) {
+    return venue ?? '-';
+  }
+
+  const normalizedVenue = normalizeLookupValue(venue);
+  const exactEntry = normalizedStadiumEntries.find((entry) => entry.candidates.includes(normalizedVenue));
+
+  if (exactEntry) {
+    return exactEntry.region;
+  }
+
+  const partialEntry = normalizedStadiumEntries.find((entry) =>
+    entry.candidates.some((candidate) => normalizedVenue.includes(candidate) || candidate.includes(normalizedVenue)),
+  );
+
+  if (partialEntry) {
+    return partialEntry.region;
+  }
+
+  return venue;
+};
 
 const findTeamReference = (...candidates: Array<string | undefined>) => {
   const normalizedCandidates = candidates
