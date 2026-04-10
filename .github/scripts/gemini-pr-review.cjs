@@ -19,8 +19,20 @@ if (!PR_TITLE || !PR_NUMBER || !REPO) throw new Error("Missing PR env");
 const [owner, repo] = REPO.split("/");
 
 const COMMENT_MARKER = "<!-- gemini-fe-review -->";
+const GEMINI_MAX_RETRIES = 3;
+const GEMINI_RETRY_BASE_MS = 1500;
 
 /** --- helpers --- **/
+
+class GeminiTransientError extends Error {
+    constructor(message, options = {}) {
+        super(message);
+        this.name = "GeminiTransientError";
+        this.status = options.status;
+        this.modelName = options.modelName;
+        this.cause = options.cause;
+    }
+}
 
 function maskSecrets(text) {
     if (!text) return text;
@@ -47,6 +59,20 @@ function chunkString(str, chunkSize) {
     const chunks = [];
     for (let i = 0; i < str.length; i += chunkSize) chunks.push(str.slice(i, i + chunkSize));
     return chunks;
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableGeminiStatus(status) {
+    return status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+function formatAxiosError(err) {
+    const status = err?.response?.status;
+    const apiMessage = err?.response?.data?.error?.message;
+    return apiMessage ? `status=${status} message=${apiMessage}` : err?.message || `status=${status}`;
 }
 
 // 워크플로우 filters와 동일한 제외 기준
@@ -178,8 +204,33 @@ Output format (in Korean):
 
 async function listGeminiModels() {
     const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`;
-    const res = await axios.get(url, { headers: { Accept: "application/json" } });
-    return res.data?.models ?? [];
+    for (let attempt = 1; attempt <= GEMINI_MAX_RETRIES; attempt++) {
+        try {
+            const res = await axios.get(url, { headers: { Accept: "application/json" } });
+            return res.data?.models ?? [];
+        } catch (err) {
+            const status = err?.response?.status;
+            const retryable = isRetryableGeminiStatus(status);
+
+            console.log(
+                `Gemini model listing failed attempt=${attempt}/${GEMINI_MAX_RETRIES} ${formatAxiosError(err)}`
+            );
+
+            if (!retryable || attempt === GEMINI_MAX_RETRIES) {
+                if (retryable) {
+                    throw new GeminiTransientError("Gemini model listing is temporarily unavailable.", {
+                        status,
+                        cause: err,
+                    });
+                }
+                throw err;
+            }
+
+            await sleep(GEMINI_RETRY_BASE_MS * attempt);
+        }
+    }
+
+    return [];
 }
 
 function pickModelForGenerateContent(models) {
@@ -211,14 +262,12 @@ function pickModelForGenerateContent(models) {
 
 async function callGemini(prompt, diffText) {
     const models = await listGeminiModels();
-    const modelName = pickModelForGenerateContent(models);
+    const preferredModelName = pickModelForGenerateContent(models);
 
-    if (!modelName) {
+    if (!preferredModelName) {
         const debug = JSON.stringify(models?.slice?.(0, 3) ?? [], null, 2);
         throw new Error(`No Gemini models support generateContent. models(sample)=${debug}`);
     }
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
 
     const body = {
         contents: [
@@ -230,19 +279,53 @@ async function callGemini(prompt, diffText) {
         generationConfig: { temperature: 0.2, topP: 0.9, maxOutputTokens: 6000 },
     };
 
-    try {
-        const res = await axios.post(url, body, { headers: { "Content-Type": "application/json" } });
-        const text =
-            res.data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ||
-            "No response from Gemini.";
-        return text;
-    } catch (err) {
-        const status = err?.response?.status;
-        const data = err?.response?.data;
-        console.log(`Gemini call failed for ${modelName}:generateContent status=${status}`);
-        if (data) console.log("Gemini error body:", JSON.stringify(data).slice(0, 2000));
-        throw err;
+    const modelCandidates = [
+        preferredModelName,
+        ...models.map((m) => m.name).filter((name) => typeof name === "string" && name !== preferredModelName),
+    ];
+    let lastTransientError = null;
+
+    for (const modelName of modelCandidates) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+
+        for (let attempt = 1; attempt <= GEMINI_MAX_RETRIES; attempt++) {
+            try {
+                const res = await axios.post(url, body, { headers: { "Content-Type": "application/json" } });
+                const text =
+                    res.data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ||
+                    "No response from Gemini.";
+                return text;
+            } catch (err) {
+                const status = err?.response?.status;
+                const data = err?.response?.data;
+                const retryable = isRetryableGeminiStatus(status);
+
+                console.log(
+                    `Gemini call failed for ${modelName}:generateContent attempt=${attempt}/${GEMINI_MAX_RETRIES} status=${status}`
+                );
+                if (data) console.log("Gemini error body:", JSON.stringify(data).slice(0, 2000));
+
+                if (!retryable) {
+                    throw err;
+                }
+
+                lastTransientError = new GeminiTransientError(
+                    `Gemini generateContent is temporarily unavailable for ${modelName}.`,
+                    {
+                        status,
+                        modelName,
+                        cause: err,
+                    }
+                );
+
+                if (attempt < GEMINI_MAX_RETRIES) {
+                    await sleep(GEMINI_RETRY_BASE_MS * attempt);
+                }
+            }
+        }
     }
+
+    throw lastTransientError || new GeminiTransientError("Gemini generateContent is temporarily unavailable.");
 }
 
 /** --- Comment rendering --- **/
@@ -259,6 +342,25 @@ function buildCommentBody(reviewMarkdown, meta) {
         "",
         "---",
         `**Notes:** chunks=${chunksUsed}${truncated ? ", truncated=true" : ""}`,
+        "<sub>Generated by GitHub Actions + Gemini</sub>",
+    ].join("\n");
+}
+
+function buildUnavailableCommentBody(meta = {}) {
+    const { reason } = meta;
+
+    return [
+        COMMENT_MARKER,
+        "## 🤖 Gemini FE Automated Review",
+        `**PR Title:** ${PR_TITLE}`,
+        "",
+        "Gemini API의 일시적인 과부하로 자동 리뷰를 생성하지 못했습니다.",
+        "",
+        `- 사유: ${reason || "일시적 외부 API 장애"}`,
+        "- 조치: 재시도 후에도 실패하여 이번 실행은 실패 처리하지 않고 종료했습니다.",
+        "- 다음 실행: PR 업데이트 또는 워크플로 재실행 시 다시 리뷰 생성을 시도합니다.",
+        "",
+        "---",
         "<sub>Generated by GitHub Actions + Gemini</sub>",
     ].join("\n");
 }
@@ -313,7 +415,32 @@ function buildCommentBody(reviewMarkdown, meta) {
         await createIssueComment(body);
         console.log("✅ Created Gemini review comment.");
     }
-})().catch((e) => {
+})().catch(async (e) => {
+    if (e instanceof GeminiTransientError) {
+        console.warn("⚠️ Gemini PR review skipped due to transient API failure:", e.message);
+
+        try {
+            const comments = await listIssueComments();
+            const existing = comments.find((c) => typeof c.body === "string" && c.body.includes(COMMENT_MARKER));
+            const body = buildUnavailableCommentBody({
+                reason: e.status ? `HTTP ${e.status}` : e.message,
+            });
+
+            if (existing) {
+                await updateIssueComment(existing.id, body);
+                console.log("⚠️ Updated existing Gemini review comment with temporary failure note.");
+            } else {
+                await createIssueComment(body);
+                console.log("⚠️ Created Gemini review temporary failure comment.");
+            }
+        } catch (commentError) {
+            console.warn("Failed to write temporary Gemini failure comment:", commentError?.message ?? commentError);
+        }
+
+        process.exit(0);
+        return;
+    }
+
     console.error("❌ Gemini PR review action failed:", e?.message ?? e);
     process.exit(1);
 });
