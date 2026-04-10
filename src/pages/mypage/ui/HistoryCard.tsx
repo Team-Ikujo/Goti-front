@@ -108,6 +108,7 @@ export default function HistoryCard(props: HistoryCardProps) {
    const price = isPurchase ? (item as PurchaseHistoryItem).price : (item as SaleHistoryItem).salePrice;
    const status = isPurchase ? (item as PurchaseHistoryItem).paymentStatus : (item as SaleHistoryItem).saleStatus;
    const hasPurchaseOrder = Boolean(purchaseOrderId);
+   const isResalePurchase = purchaseItem?.type === '리셀';
    const isCancelablePurchaseStatus =
       (purchaseItem?.paymentStatus === '입금 대기' ||
          purchaseItem?.paymentStatus === '예매 완료' ||
