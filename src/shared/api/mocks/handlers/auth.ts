@@ -258,6 +258,27 @@ const getDefaultRegisteredMember = (provider: string): MockRegisteredMember => {
    };
 };
 
+const ensureDefaultMockRefreshSession = () => {
+   const existingSession = mockRefreshSession.get();
+
+   if (existingSession) {
+      return existingSession;
+   }
+
+   const defaultMember = getDefaultRegisteredMember('KAKAO');
+   const session: MockRefreshSession = {
+      userId: defaultMember.userId,
+      provider: defaultMember.provider,
+      email: defaultMember.email,
+      name: defaultMember.name,
+      mobile: defaultMember.mobile,
+   };
+
+   mockRegisteredMembers.set(defaultMember.provider, defaultMember);
+   mockRefreshSession.set(session);
+   return session;
+};
+
 const resolveRegisteredMember = (provider: string) => {
    return mockRegisteredMembers.get(provider) ?? getDefaultRegisteredMember(provider);
 };
@@ -652,11 +673,7 @@ export const authHandlers = [
    }),
 
    http.post('/api/v1/auth/reissue', async () => {
-      const session = mockRefreshSession.get();
-
-      if (!session) {
-         return HttpResponse.json({ message: 'Mock refresh token session is missing.' }, { status: 401 });
-      }
+      const session = ensureDefaultMockRefreshSession();
 
       return HttpResponse.json({
          code: 'SUCCESS',

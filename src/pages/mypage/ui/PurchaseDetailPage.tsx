@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchTicketDetail, fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
 import { fetchOrderPaymentDetail, formatOrderPaymentMethod } from '@/entities/payment/api/paymentApi';
 import { fetchStadiumById } from '@/entities/game/api/stadiumApi';
+import { fetchMyProfileSummary } from '@/entities/user/api/memberApi';
 import type { PurchaseHistoryItem } from '../model/historyCard';
 import StatusBadge from './StatusBadge';
 import TicketItem from './TicketItem';
@@ -55,6 +56,14 @@ function BulletItem({ text }: { text: string }) {
    );
 }
 
+function looksLikeOrderIdentifier(value: string | undefined) {
+   if (!value) return false;
+   return (
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ||
+      value.startsWith('mock-order-')
+   );
+}
+
 export default function PurchaseDetailPage() {
    const navigate = useNavigate();
    const location = useLocation();
@@ -74,10 +83,23 @@ export default function PurchaseDetailPage() {
       return typeof resolved === 'string' ? resolved : '예매자';
    }, [accessToken]);
 
+   const storedPaymentDetail = useMemo(() => {
+      if (!orderId) return undefined;
+      return readStoredPaymentCompleteItems().find(item => {
+         return item.ticketId === orderId || item.orderId === orderId || item.orderNumber === orderId;
+      });
+   }, [orderId]);
+
+   const resolvedOrderId = useMemo(() => {
+      if (locationStateItem?.rawOrderId) return locationStateItem.rawOrderId;
+      if (storedPaymentDetail?.orderId) return storedPaymentDetail.orderId;
+      return looksLikeOrderIdentifier(orderId) ? orderId : undefined;
+   }, [locationStateItem?.rawOrderId, orderId, storedPaymentDetail?.orderId]);
+
    const orderTicketsQuery = useQuery({
-      queryKey: ['orderTickets', orderId],
-      queryFn: () => fetchOrderTickets(orderId!),
-      enabled: Boolean(orderId),
+      queryKey: ['orderTickets', resolvedOrderId],
+      queryFn: () => fetchOrderTickets(resolvedOrderId!),
+      enabled: Boolean(resolvedOrderId),
       retry: false,
    });
 
@@ -92,9 +114,9 @@ export default function PurchaseDetailPage() {
    });
 
    const orderPaymentQuery = useQuery({
-      queryKey: ['orderPaymentDetail', orderId],
-      queryFn: () => fetchOrderPaymentDetail(orderId!),
-      enabled: Boolean(orderId),
+      queryKey: ['orderPaymentDetail', resolvedOrderId],
+      queryFn: () => fetchOrderPaymentDetail(resolvedOrderId!),
+      enabled: Boolean(resolvedOrderId),
       retry: false,
    });
 
@@ -105,13 +127,14 @@ export default function PurchaseDetailPage() {
       staleTime: Infinity,
    });
 
+   const myProfileSummaryQuery = useQuery({
+      queryKey: ['myProfileSummary'],
+      queryFn: fetchMyProfileSummary,
+      enabled: Boolean(accessToken),
+      staleTime: 5 * 60 * 1000,
+   });
+
    const apiDetail = ticketDetailQuery.data;
-   const storedPaymentDetail = useMemo(() => {
-      if (!orderId) return undefined;
-      return readStoredPaymentCompleteItems().find(item => {
-         return item.ticketId === orderId || item.orderId === orderId || item.orderNumber === orderId;
-      });
-   }, [orderId]);
    const isLoading = orderTicketsQuery.isLoading || (Boolean(primaryTicketId) && ticketDetailQuery.isLoading);
    // fetchOrderTickets(GET /orders/{id}/tickets)가 백엔드 미구현 상태이므로
    // location.state 또는 storedPaymentDetail로 fallback 가능한 경우 에러로 처리하지 않음
@@ -149,6 +172,7 @@ export default function PurchaseDetailPage() {
             price: locationStateItem.seatPrices?.[index] ?? unitPrice,
          }));
          const venue = stadiumQuery.data?.stadiumName ?? locationStateItem.game.venue;
+         const ordererName = myProfileSummaryQuery.data?.name?.trim() || fallbackOrdererName;
          const paymentMethodDisplay = orderPaymentQuery.data?.paymentMethod
             ? formatOrderPaymentMethod(orderPaymentQuery.data.paymentMethod)
             : undefined;
@@ -163,7 +187,7 @@ export default function PurchaseDetailPage() {
             game: { teams: locationStateItem.game.teams, venue, datetime: locationStateItem.game.datetime },
             orderId: locationStateItem.orderId,
             orderDate: locationStateItem.orderDate,
-            orderer: fallbackOrdererName,
+            orderer: ordererName,
             issuedAt: locationStateItem.orderDate,
             cancelDeadline: ticketStatus !== 'INVALID'
                ? getFallbackCancelableUntil(locationStateItem.orderDate)
@@ -222,7 +246,7 @@ export default function PurchaseDetailPage() {
             },
             orderId: formatReservationNumber(storedPaymentDetail.orderNumber),
             orderDate: storedPaymentDetail.orderedAt,
-            orderer: fallbackOrdererName,
+            orderer: myProfileSummaryQuery.data?.name?.trim() || fallbackOrdererName,
             issuedAt: storedPaymentDetail.paidAt ?? storedPaymentDetail.orderedAt,
             cancelDeadline: getFallbackCancelableUntil(storedPaymentDetail.paidAt ?? storedPaymentDetail.orderedAt),
             cancelDate: undefined,
@@ -287,9 +311,12 @@ export default function PurchaseDetailPage() {
       // 서비스 수수료는 인당 1,000원 고정
       const fee = ticketCount * 1000;
       const total = ticketAmount + fee;
+      const ordererName =
+         myProfileSummaryQuery.data?.name?.trim() ||
+         fallbackOrdererName;
       const paymentMethodDisplay = orderPaymentQuery.data?.paymentMethod
          ? formatOrderPaymentMethod(orderPaymentQuery.data.paymentMethod)
-         : (currentApiDetail.paymentMethodDisplay ?? currentApiDetail.paymentMethod ?? undefined);
+         : undefined;
       const paidAt = orderPaymentQuery.data?.paidAt;
       const paymentAmount = orderPaymentQuery.data?.paymentAmount ?? total;
 
@@ -305,7 +332,7 @@ export default function PurchaseDetailPage() {
          },
          orderId: formatReservationNumber(currentApiDetail.ticketNumber),
          orderDate: currentApiDetail.orderedAt ?? currentApiDetail.issuedAt,
-         orderer: currentApiDetail.ordererName ?? fallbackOrdererName,
+         orderer: ordererName,
          issuedAt: currentApiDetail.issuedAt,
          cancelDeadline: isInvalid
             ? undefined
@@ -341,7 +368,16 @@ export default function PurchaseDetailPage() {
          canSell: isActionableTicket,
          deliveryMethod: '모바일 QR',
       };
-   }, [apiDetail, fallbackOrdererName, locationStateItem, orderPaymentQuery.data, orderTickets, stadiumQuery.data, storedPaymentDetail]);
+   }, [
+      apiDetail,
+      fallbackOrdererName,
+      locationStateItem,
+      myProfileSummaryQuery.data?.name,
+      orderPaymentQuery.data,
+      orderTickets,
+      stadiumQuery.data,
+      storedPaymentDetail,
+   ]);
 
    if (isLoading) return <div className="py-24 text-center text-body-1-regular">정보를 불러오는 중입니다...</div>;
    if (isError || !detail) {
@@ -362,7 +398,7 @@ export default function PurchaseDetailPage() {
    const totalPaid = detail.paymentSummary.total;
    const totalRefund = totalTicketPrice - serviceFee;
    const seatTickets = detail.seatItems;
-   const hasPaymentFallback = Boolean(detail.paymentMethodDisplay || detail.paidAt || totalPaid > 0);
+   const hasResolvedPaymentInfo = Boolean(detail.paymentMethodDisplay || detail.paidAt);
 
    return (
       <div className="flex flex-col items-center pt-8 lg:pt-12.5 pb-40 px-4">
@@ -441,17 +477,16 @@ export default function PurchaseDetailPage() {
                   </Button>
                </SectionCard>
 
-               {detail.ticketStatus !== 'INVALID' && (
                <SectionCard>
                   <div className="flex items-start justify-between text-heading-3-bold">
                         <span className="text-foreground leading-normal">결제 정보</span>
                         <span className="text-primary leading-normal">결제 완료</span>
                   </div>
-                  {orderPaymentQuery.isLoading && !hasPaymentFallback ? (
+                  {orderPaymentQuery.isLoading && !hasResolvedPaymentInfo ? (
                      <div className="rounded-xl bg-surface px-5 py-6 text-center text-body-2-regular text-(--text-tertiary)">
                         결제 정보를 불러오는 중입니다.
                      </div>
-                  ) : orderPaymentQuery.isError && !hasPaymentFallback ? (
+                  ) : orderPaymentQuery.isError && !hasResolvedPaymentInfo ? (
                      <div className="rounded-xl bg-surface px-5 py-6 text-center text-body-2-regular text-(--text-tertiary)">
                         결제 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
                      </div>
@@ -472,7 +507,6 @@ export default function PurchaseDetailPage() {
                      </>
                   )}
                </SectionCard>
-               )}
 
                {detail.ticketStatus === 'INVALID' && (
                   <SectionCard>
@@ -490,11 +524,11 @@ export default function PurchaseDetailPage() {
                            </span>
                         </div>
                      </div>
-                     {orderPaymentQuery.isLoading && !hasPaymentFallback ? (
+                     {orderPaymentQuery.isLoading && !hasResolvedPaymentInfo ? (
                         <div className="rounded-xl bg-surface px-5 py-6 text-center text-body-2-regular text-(--text-tertiary)">
                            환불 정보를 불러오는 중입니다.
                         </div>
-                     ) : orderPaymentQuery.isError && !hasPaymentFallback ? (
+                     ) : orderPaymentQuery.isError && !hasResolvedPaymentInfo ? (
                         <div className="rounded-xl bg-surface px-5 py-6 text-center text-body-2-regular text-(--text-tertiary)">
                            환불 수단 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
                         </div>

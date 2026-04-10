@@ -1,6 +1,7 @@
 import { TicketX } from 'lucide-react';
 
 import { hasAvailableSeats } from '@/entities/game/model/seatAvailability';
+import { VENUE_REGION_MAP } from '@/entities/game/model/schedule';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
@@ -8,22 +9,15 @@ import { TAB_TODAY, TEAM_IDS, statusColor, teamLogos } from './constants';
 import type { DaySchedule, GameRow } from './types';
 import { getEffectiveSaleStatuses, getGameResultTexts } from './utils';
 
-const VENUE_REGION_LABELS: Record<string, string> = {
-   '기아 챔피언스필드': '광주',
-   '광주 기아 챔피언스 필드': '광주',
-   '대구 삼성 라이온즈 파크': '대구',
-   '대구 삼성라이온즈파크': '대구',
-   '잠실 야구장': '잠실',
-   '사직 야구장': '사직',
-   '창원 NC파크': '창원',
-   '고척 스카이돔': '고척',
-   '수원 KT위즈파크': '수원',
-   '대전 한화생명 볼파크': '대전',
-   '인천 SSG 랜더스필드': '인천',
-};
+const normalizeVenue = (value: string) => value.toLowerCase().replace(/[\s\-_]/g, '');
 
 const toVenueRegionLabel = (venue: string) => {
-   return VENUE_REGION_LABELS[venue] ?? venue;
+   const direct = VENUE_REGION_MAP[venue];
+   if (direct) return direct;
+   // 공백·구분자 차이를 무시하고 매칭
+   const normalized = normalizeVenue(venue);
+   const entry = Object.entries(VENUE_REGION_MAP).find(([key]) => normalizeVenue(key) === normalized);
+   return entry?.[1] ?? venue;
 };
 
 function ScoreDisplay({ game }: { game: GameRow }) {
