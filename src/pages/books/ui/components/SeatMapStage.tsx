@@ -8,8 +8,6 @@ import SeatBlockGrid from './SeatBlockGrid';
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
 const SCALE_STEP = 0.2;
-const STAGE_WIDTH = 1240;
-const STAGE_HEIGHT = 620;
 const MINIMAP_WIDTH = 215;
 const MINIMAP_HEIGHT = 140;
 
@@ -48,6 +46,10 @@ type SeatMapStageProps = {
       y: number;
    };
    seatMapScale: number;
+   stageSize: {
+      width: number;
+      height: number;
+   };
    seats: SeatItem[];
    selectedSeatIdSet: Set<string>;
    zoneColor: string;
@@ -69,6 +71,7 @@ function SeatMapStage({
    seatBlocks,
    seatMapOffset,
    seatMapScale,
+   stageSize,
    seats,
    selectedSeatIdSet,
    zoneColor,
@@ -106,8 +109,8 @@ function SeatMapStage({
                   'touch-none',
                ].join(' ')}
                style={{
-                  width: `${STAGE_WIDTH}px`,
-                  height: `${STAGE_HEIGHT}px`,
+                  width: `${stageSize.width}px`,
+                  height: `${stageSize.height}px`,
                   transform: `translate3d(calc(-50% + ${seatMapOffset.x}px), ${seatMapOffset.y}px, 0) scale(${seatMapScale})`,
                }}
                onPointerDown={onMapPointerDown}

@@ -1,13 +1,13 @@
 import { useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
-import { getBookingFlowMode } from '@/shared/lib/booking-flow';
+import type { BookingFlowMode } from '@/shared/lib/booking-flow';
 import { mergeBookingEntryState, useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { getBookingZones, getStadiumName, getZoneOverviewImage } from './zoneData';
 
 export function useSeatsPageEntry(zoneId: string) {
    const location = useLocation();
-   const bookingFlowMode = getBookingFlowMode(location.search);
+   const bookingFlowMode: BookingFlowMode = location.pathname.startsWith('/resell-books') ? 'resell' : 'standard';
    const isResellMode = bookingFlowMode === 'resell';
    const routeBookingEntryState = location.state as BookingEntryState | null;
    const storedBookingEntryState = useBookingEntryStore(state => state.entry);

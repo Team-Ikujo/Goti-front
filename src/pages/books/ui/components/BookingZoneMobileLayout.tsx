@@ -15,6 +15,7 @@ type BookingZoneMobileLayoutProps = {
    onSelectZone: (zoneId: string) => void;
    stadiumImage: string;
    stadiumImageAlt: string;
+   showPrice?: boolean;
 };
 
 function BookingZoneMobileLayout({
@@ -27,6 +28,7 @@ function BookingZoneMobileLayout({
    onSelectZone,
    stadiumImage,
    stadiumImageAlt,
+   showPrice = true,
 }: BookingZoneMobileLayoutProps) {
    return (
       <section className="relative min-h-[calc(100vh-140px)] bg-[#f1f2f4] lg:hidden">
@@ -74,6 +76,7 @@ function BookingZoneMobileLayout({
                         zones={zones}
                         selectedZoneId={selectedZoneId}
                         onSelectZone={onSelectZone}
+                        showPrice={showPrice}
                      />
                   </div>
                </DrawerContent>

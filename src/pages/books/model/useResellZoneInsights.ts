@@ -12,7 +12,7 @@ import {
 } from './resellData';
 import { isPurchasableResaleListing, matchesResaleListingToZone } from './resellMatching';
 import { getCompletedResalePurchaseLookup } from '@/shared/lib/paymentCompleteStorage';
-import { isResaleDemoEnabled } from '@/shared/config/runtime';
+import { isResaleBookingMockEnabled, isResaleDemoEnabled } from '@/shared/config/runtime';
 import { ensureDemoListingsForZone } from '@/shared/lib/demo/resaleDemo';
 
 const sortListings = (left: ApiResaleListingItem, right: ApiResaleListingItem) => {
@@ -26,7 +26,13 @@ const sortListings = (left: ApiResaleListingItem, right: ApiResaleListingItem) =
    return left.listingPrice - right.listingPrice;
 };
 
-const buildSeatLabel = (_zone: ZoneItem, seatInfo: string) => seatInfo;
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildSeatLabel = (zone: ZoneItem, seatInfo: string) => {
+   const zonePrefixPattern = new RegExp(`^${escapeRegExp(zone.name)}\\s+`, 'i');
+
+   return seatInfo.replace(zonePrefixPattern, '').trim();
+};
 
 const toResellListingItem = (zone: ZoneItem, listing: ApiResaleListingItem): ResellListingItem => ({
    listingId: listing.listingId,
@@ -57,7 +63,9 @@ export const useResellZoneInsights = ({
    zone: ZoneItem;
    seats: SeatItem[];
 }) => {
-   const primaryGradeId = zone.gradeIds?.[0];
+   const primaryGradeId =
+      zone.gradeIds?.[0] ??
+      (isResaleDemoEnabled || isResaleBookingMockEnabled ? `demo-grade-${zone.id}` : undefined);
    const seatIdentifierSet = new Set(seats.flatMap((seat) => [seat.id, seat.apiSeatId]));
 
    return useQuery({
@@ -69,7 +77,7 @@ export const useResellZoneInsights = ({
          }
 
          const [listings, minuteGraph, dayGraph] = await Promise.all([
-            isResaleDemoEnabled
+            isResaleDemoEnabled || isResaleBookingMockEnabled
                ? Promise.resolve(
                     ensureDemoListingsForZone({
                        gameId,

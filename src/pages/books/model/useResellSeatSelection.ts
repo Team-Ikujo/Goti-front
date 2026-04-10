@@ -6,6 +6,7 @@ import {
    releaseResaleListingHoldKeepalive,
 } from '@/entities/resale/api/resaleApi';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
+import { isResaleBookingMockEnabled } from '@/shared/config/runtime';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { createResellSeatLookupKey, parseResellSeatInfo } from '@/pages/books/lib/resellSeatParser';
@@ -138,6 +139,24 @@ export function useResellSeatSelection({
             nextMap.set(matchedSeat.id, listing);
          }
       });
+
+      if (
+         isResaleBookingMockEnabled &&
+         nextMap.size === 0 &&
+         (resellInsights?.listings?.length ?? 0) > 0 &&
+         seats.length > 0
+      ) {
+         resellInsights!.listings.slice(0, seats.length).forEach((listing, index) => {
+            const fallbackSeat = seats[index];
+
+            if (fallbackSeat) {
+               nextMap.set(fallbackSeat.id, {
+                  ...listing,
+                  seatId: fallbackSeat.id,
+               });
+            }
+         });
+      }
 
       return nextMap;
    }, [resellInsights?.listings, seats]);

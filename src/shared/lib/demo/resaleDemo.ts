@@ -85,8 +85,33 @@ type CreateResalePaymentParams = {
 };
 
 const STORAGE_KEY = '__ballx_resale_demo_state__';
-const STORAGE_VERSION = '1';
-const DEFAULT_GAME_COUNT = 6;
+const STORAGE_VERSION = '4';
+const DEMO_RESALE_MIN_PRICE = 35_000;
+const DEMO_RESALE_MAX_PRICE = 60_000;
+const DEMO_ZONE_TARGET_COUNTS: Record<string, number> = {
+   k9: 3,
+   k8: 2,
+   'cheering-special': 3,
+   k5: 2,
+   'surprise-zone': 2,
+   'family-seat': 1,
+   party: 1,
+   'sky-picnic': 1,
+   'table-table': 2,
+   'outfield-free': 2,
+   'samsung-first-base-infield': 3,
+   'samsung-third-base-infield': 3,
+   'samsung-blue-zone': 2,
+   'samsung-away-zone': 1,
+   'samsung-sky-lower': 2,
+   'samsung-outfield': 2,
+   'samsung-grass': 1,
+   'samsung-center-table': 1,
+   'samsung-first-base-table': 1,
+   'samsung-third-base-table': 1,
+};
+const DEFAULT_GAME_COUNT = Object.values(DEMO_ZONE_TARGET_COUNTS).reduce((sum, count) => sum + count, 0);
+const DEMO_TOTAL_LISTINGS_PER_GAME = DEFAULT_GAME_COUNT;
 
 const createId = (prefix: string) => {
    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -95,6 +120,8 @@ const createId = (prefix: string) => {
 
    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 };
+
+const clampDemoResalePrice = (value: number) => Math.min(DEMO_RESALE_MAX_PRICE, Math.max(DEMO_RESALE_MIN_PRICE, value));
 
 const createInitialState = (): DemoState => ({
    version: STORAGE_VERSION,
@@ -160,6 +187,87 @@ const getActiveListings = (state: DemoState, gameId: string) =>
          listing.isPurchasable,
    );
 
+export const getDemoResaleTargetCountForZone = (zoneId: string) => {
+   return DEMO_ZONE_TARGET_COUNTS[zoneId] ?? 0;
+};
+
+const compareSeatRow = (left: string, right: string) => {
+   return left.localeCompare(right, 'en', { numeric: true });
+};
+
+const pickDemoSeatsForZone = (seats: SeatItem[], existingSeatIds: Set<string>, limit: number) => {
+   if (limit <= 0) {
+      return [] as SeatItem[];
+   }
+
+   const seatsByBlock = seats.reduce<Record<string, SeatItem[]>>((groups, seat) => {
+      if (existingSeatIds.has(seat.id)) {
+         return groups;
+      }
+
+      const currentSeats = groups[seat.block];
+
+      if (currentSeats) {
+         currentSeats.push(seat);
+      } else {
+         groups[seat.block] = [seat];
+      }
+
+      return groups;
+   }, {});
+
+   const orderedBlockSeats = Object.entries(seatsByBlock)
+      .sort(([left], [right]) => left.localeCompare(right, 'en', { numeric: true }))
+      .map(([, blockSeats]) =>
+         [...blockSeats].sort((left, right) => {
+            const rowCompare = compareSeatRow(left.rowLabel, right.rowLabel);
+
+            if (rowCompare !== 0) {
+               return rowCompare;
+            }
+
+            const leftSeatScore = Math.abs(left.seatNumber - 4);
+            const rightSeatScore = Math.abs(right.seatNumber - 4);
+
+            if (leftSeatScore !== rightSeatScore) {
+               return leftSeatScore - rightSeatScore;
+            }
+
+            return left.seatNumber - right.seatNumber;
+         }),
+      );
+
+   const selectedSeats: SeatItem[] = [];
+   let seatCursor = 0;
+
+   while (selectedSeats.length < limit) {
+      let addedInRound = false;
+
+      for (const blockSeats of orderedBlockSeats) {
+         const candidate = blockSeats[seatCursor];
+
+         if (!candidate) {
+            continue;
+         }
+
+         selectedSeats.push(candidate);
+         addedInRound = true;
+
+         if (selectedSeats.length >= limit) {
+            break;
+         }
+      }
+
+      if (!addedInRound) {
+         break;
+      }
+
+      seatCursor += 1;
+   }
+
+   return selectedSeats;
+};
+
 export const ensureDemoListingsForZone = ({
    gameId,
    zone,
@@ -169,18 +277,51 @@ export const ensureDemoListingsForZone = ({
    stadiumName,
 }: EnsureZoneListingsParams) => {
    return updateState((state) => {
+      if (getDemoResaleTargetCountForZone(zone.id) === 0) {
+         return Object.values(state.listings).filter((listing) => listing.gameId === gameId);
+      }
+
+      const seatById = new Map(seats.map((seat) => [seat.id, seat]));
+      const defaultGradeId = zone.gradeIds?.[0] ?? `demo-grade-${zone.id}`;
+
+      Object.values(state.listings).forEach((listing) => {
+         if (listing.gameId !== gameId) {
+            return;
+         }
+
+         const matchedSeat = seatById.get(listing.seatId);
+
+         if (!matchedSeat) {
+            return;
+         }
+
+         state.listings[listing.listingId] = {
+            ...listing,
+            gradeId: defaultGradeId,
+            seatInfo: buildSeatInfo(zone, matchedSeat),
+            gameTitle: gameTitle ?? listing.gameTitle,
+            gameDate: gameDate ?? listing.gameDate,
+            stadiumName: stadiumName ?? listing.stadiumName,
+         };
+      });
+
       const existingSeats = new Set(
          Object.values(state.listings)
             .filter((listing) => listing.gameId === gameId)
             .map((listing) => listing.seatId),
       );
+      const activeGameListings = getActiveListings(state, gameId);
+      const activeZoneListings = activeGameListings.filter((listing) => seatById.has(listing.seatId));
+      const remainingGameSlots = Math.max(0, DEMO_TOTAL_LISTINGS_PER_GAME - activeGameListings.length);
+      const remainingZoneSlots = Math.max(0, getDemoResaleTargetCountForZone(zone.id) - activeZoneListings.length);
+      const seatsToCreate = pickDemoSeatsForZone(
+         seats,
+         existingSeats,
+         Math.min(remainingGameSlots, remainingZoneSlots),
+      );
 
-      const candidateSeats = seats
-         .filter((seat) => !existingSeats.has(seat.id))
-         .slice(0, Math.min(6, seats.length));
-
-      candidateSeats.forEach((seat, index) => {
-         const listedPrice = Math.max(1000, zone.price + (index % 2 === 0 ? 2000 : -1000));
+      seatsToCreate.forEach((seat, index) => {
+         const listedPrice = clampDemoResalePrice(zone.price + (index % 2 === 0 ? 2000 : -1000));
          const listingId = createId('demo-listing');
 
          state.listings[listingId] = {
@@ -189,17 +330,17 @@ export const ensureDemoListingsForZone = ({
             sellerId: `demo-seller-${zone.id}`,
             gameId,
             seatId: seat.id,
-            gradeId: zone.gradeIds?.[0] ?? `demo-grade-${zone.id}`,
+            gradeId: defaultGradeId,
             seatInfo: buildSeatInfo(zone, seat),
-            dailyBasePrice: zone.price,
+            dailyBasePrice: clampDemoResalePrice(zone.price),
             listingPrice: listedPrice,
             listingStatus: 'LISTING',
             availableStatus: 'ENABLED',
             listedAt: new Date(Date.now() - index * 60_000).toISOString(),
             isCancelable: true,
             isPurchasable: true,
-            minPrice: Math.max(1000, zone.price - 3000),
-            maxPrice: zone.price + 10000,
+            minPrice: DEMO_RESALE_MIN_PRICE,
+            maxPrice: DEMO_RESALE_MAX_PRICE,
             gameTitle,
             gameDate,
             stadiumName,
@@ -225,7 +366,7 @@ export const getDemoResaleCountsByGrades = (gameId: string, gradeIds: string[]) 
 
    return new Map(
       gradeIds.map((gradeId, index) => {
-         const count = activeListings.filter((listing) => listing.gradeId === gradeId).length;
+        const count = activeListings.filter((listing) => listing.gradeId === gradeId).length;
          return [gradeId, count > 0 ? count : Math.max(1, 3 - (index % 3))] as const;
       }),
    );
@@ -235,15 +376,96 @@ export const getDemoResaleStatusByGame = (gameId: string) => {
    return getDemoResaleCountByGame(gameId) > 0 ? 'AVAILABLE' : 'UNAVAILABLE';
 };
 
-export const getDemoResaleHistory = (range: 'HOUR' | 'DAY' | 'WEEK') => {
-   const pointCount = range === 'HOUR' ? 8 : range === 'DAY' ? 7 : 6;
-   const stepMs = range === 'HOUR' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
-   const basePrice = range === 'HOUR' ? 25000 : range === 'DAY' ? 23000 : 21000;
+const roundToNearestThousand = (value: number) => Math.max(1000, Math.round(value / 1000) * 1000);
 
-   return Array.from({ length: pointCount }, (_, index) => ({
-      transactionPrice: basePrice + ((index % 3) - 1) * 2000 + index * 300,
-      confirmedAt: new Date(Date.now() - (pointCount - index) * stepMs).toISOString(),
-   }));
+const hashValue = (value: string) => {
+   let hash = 0;
+
+   for (let index = 0; index < value.length; index += 1) {
+      hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+   }
+
+   return hash;
+};
+
+const createSeededUnitValue = (seed: number, index: number) => {
+   const value = Math.sin(seed * 0.0001 + index * 12.9898) * 43758.5453;
+   return value - Math.floor(value);
+};
+
+const createHistoryPrice = ({
+   basePrice,
+   spread,
+   seed,
+   index,
+   pointCount,
+   range,
+}: {
+   basePrice: number;
+   spread: number;
+   seed: number;
+   index: number;
+   pointCount: number;
+   range: 'HOUR' | 'DAY' | 'WEEK';
+}) => {
+   const progress = pointCount === 1 ? 1 : index / (pointCount - 1);
+   const centeredProgress = progress - 0.5;
+   const primaryWave = Math.sin(progress * Math.PI * 2.35 + (seed % 13) * 0.21) * spread * 0.34;
+   const secondaryWave = Math.cos(progress * Math.PI * 5.1 + (seed % 7) * 0.43) * spread * 0.16;
+   const drift = centeredProgress * spread * (range === 'HOUR' ? 0.28 : range === 'DAY' ? 0.4 : 0.48);
+   const shock =
+      (createSeededUnitValue(seed, index) - 0.5) * spread * (range === 'HOUR' ? 0.52 : 0.36) +
+      (createSeededUnitValue(seed ^ 0x9e3779b9, index + 29) - 0.5) * 2600;
+   const swing =
+      index > 0 && index < pointCount - 1 && createSeededUnitValue(seed ^ 0x85ebca6b, index) > 0.74
+         ? (createSeededUnitValue(seed ^ 0xc2b2ae35, index) > 0.5 ? 1 : -1) * spread * 0.22
+         : 0;
+
+   return clampDemoResalePrice(roundToNearestThousand(basePrice + primaryWave + secondaryWave + drift + shock + swing));
+};
+
+export const getDemoResaleHistory = (gameId: string, gradeId: string, range: 'HOUR' | 'DAY' | 'WEEK') => {
+   const activeListings = getActiveListings(readState(), gameId);
+   const gradeListings = activeListings.filter((listing) => listing.gradeId === gradeId);
+   const sourceListings = gradeListings.length > 0 ? gradeListings : activeListings;
+   const fallbackBasePrice = 20000 + (hashValue(gradeId || gameId) % 5) * 3000;
+   const priceCandidates = sourceListings.flatMap((listing) => [
+      clampDemoResalePrice(listing.dailyBasePrice),
+      clampDemoResalePrice(listing.listingPrice),
+   ]);
+   const basePrice =
+      priceCandidates.length > 0
+         ? roundToNearestThousand(priceCandidates.reduce((sum, price) => sum + price, 0) / priceCandidates.length)
+         : clampDemoResalePrice(fallbackBasePrice);
+   const recentPrice = clampDemoResalePrice(sourceListings[0]?.listingPrice ?? basePrice);
+   const minPrice = priceCandidates.length > 0 ? Math.min(...priceCandidates) : Math.max(DEMO_RESALE_MIN_PRICE, basePrice - 7000);
+   const maxPrice = priceCandidates.length > 0 ? Math.max(...priceCandidates) : Math.min(DEMO_RESALE_MAX_PRICE, basePrice + 7000);
+   const spread = Math.max(
+      6000,
+      roundToNearestThousand(
+         Math.max(maxPrice - minPrice, range === 'HOUR' ? basePrice * 0.16 : range === 'DAY' ? basePrice * 0.22 : basePrice * 0.28),
+      ),
+   );
+   const pointCount = range === 'HOUR' ? 16 : range === 'DAY' ? 10 : 8;
+   const stepMs = range === 'HOUR' ? 15 * 60 * 1000 : 24 * 60 * 60 * 1000;
+   const seed = hashValue(`${gameId}:${gradeId}:${range}`);
+
+   return Array.from({ length: pointCount }, (_, index) => {
+      const isLast = index === pointCount - 1;
+      const syntheticPrice = createHistoryPrice({
+         basePrice,
+         spread,
+         seed,
+         index,
+         pointCount,
+         range,
+      });
+
+      return {
+         transactionPrice: isLast ? roundToNearestThousand(recentPrice) : syntheticPrice,
+         confirmedAt: new Date(Date.now() - (pointCount - 1 - index) * stepMs).toISOString(),
+      };
+   });
 };
 
 export const createDemoResaleHold = (listingId: string, queueTokenJti: string) => {

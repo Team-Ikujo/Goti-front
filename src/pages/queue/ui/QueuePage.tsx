@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Lottie from 'lottie-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { createBookingFlowSearch, getBookingFlowMode } from '@/shared/lib/booking-flow';
 import { logBookingFlow, logBookingFlowError, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { mergeBookingEntryState, useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
-import apiClient from '@/shared/api/client';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import {
   enterQueue,
   getQueueGlobalStatus,
+  leaveQueue,
   leaveQueueKeepalive,
   type QueueEnterResponse,
   seatEnterQueue,
@@ -72,7 +71,7 @@ const scheduleQueueLeave = (gameId: string) => {
   const timeoutId = window.setTimeout(() => {
     pendingLeaveTimeoutIds.delete(gameId);
     clearQueuedEntryCache(gameId);
-    void apiClient.post(`/api/v1/queue/${encodeURIComponent(gameId)}/leave`).catch(() => {});
+    void leaveQueue(gameId).catch(() => {});
   }, 300);
 
   pendingLeaveTimeoutIds.set(gameId, timeoutId);
@@ -154,7 +153,7 @@ const QueuePage = () => {
     () => mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState),
     [routeBookingEntryState, storedBookingEntryState],
   );
-  const bookingFlowMode = getBookingFlowMode(location.search);
+  const bookingFlowMode = bookingEntryState?.bookingFlowMode ?? 'standard';
 
   const [phase, setPhase] = useState<QueuePhase>('entering');
   const [queueToken, setQueueToken] = useState<string | null>(bookingEntryState?.queueTokenJti ?? null);
@@ -319,9 +318,13 @@ const QueuePage = () => {
           } satisfies BookingEntryState;
 
           patchEntry(nextBookingEntryState);
-          logBookingFlow('QueuePage', 'navigate /books with booking entry', summarizeBookingEntry(nextBookingEntryState));
+          const nextPathname = bookingFlowMode === 'resell' ? '/resell-books' : '/books';
+          logBookingFlow('QueuePage', 'navigate booking flow with booking entry', {
+            pathname: nextPathname,
+            bookingEntryState: summarizeBookingEntry(nextBookingEntryState),
+          });
           navigate(
-            { pathname: '/books', search: createBookingFlowSearch(bookingFlowMode) },
+            { pathname: nextPathname },
             { replace: true, state: nextBookingEntryState },
           );
         } else if (res.status === 'EXPIRED') {

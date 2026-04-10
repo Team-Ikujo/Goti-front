@@ -5,7 +5,10 @@ import type { SeatBlock } from './types';
 const BLOCK_SEAT_SIZE = 18;
 const BLOCK_SEAT_GAP = 2;
 const BLOCK_CARD_COLUMN_GAP = 48;
-const STAGE_WIDTH = 1240;
+const STAGE_MIN_WIDTH = 1240;
+const STAGE_MIN_HEIGHT = 620;
+const STAGE_HORIZONTAL_PADDING = 160;
+const STAGE_VERTICAL_PADDING = 180;
 const STAGE_TOP_OFFSET = 56;
 const MINIMAP_WIDTH = 215;
 const MINIMAP_HEIGHT = 140;
@@ -91,6 +94,26 @@ export function useSeatMapLayout({
       };
    }, [sectionBounds]);
 
+   const stageSize = useMemo(() => {
+      if (!sectionBounds) {
+         return {
+            width: STAGE_MIN_WIDTH,
+            height: STAGE_MIN_HEIGHT,
+         };
+      }
+
+      return {
+         width: Math.max(
+            STAGE_MIN_WIDTH,
+            Math.ceil(sectionBounds.right - sectionBounds.left + STAGE_HORIZONTAL_PADDING * 2),
+         ),
+         height: Math.max(
+            STAGE_MIN_HEIGHT,
+            Math.ceil(sectionBounds.bottom - sectionBounds.top + STAGE_VERTICAL_PADDING * 2),
+         ),
+      };
+   }, [sectionBounds]);
+
    const minimapLayout = useMemo(() => {
       if (!sectionBounds) {
          return null;
@@ -128,7 +151,7 @@ export function useSeatMapLayout({
          return null;
       }
 
-      const stageLeft = (mapViewportSize.width - STAGE_WIDTH * seatMapScale) / 2 + seatMapOffset.x;
+      const stageLeft = (mapViewportSize.width - stageSize.width * seatMapScale) / 2 + seatMapOffset.x;
       const stageTop = STAGE_TOP_OFFSET + seatMapOffset.y;
       const visibleLeft = (0 - stageLeft) / seatMapScale;
       const visibleTop = (0 - stageTop) / seatMapScale;
@@ -149,12 +172,13 @@ export function useSeatMapLayout({
          width: (intersectRight - intersectLeft) * minimapLayout.scale,
          height: (intersectBottom - intersectTop) * minimapLayout.scale,
       };
-   }, [mapViewportSize.height, mapViewportSize.width, minimapLayout, seatMapOffset.x, seatMapOffset.y, seatMapScale, sectionBounds]);
+   }, [mapViewportSize.height, mapViewportSize.width, minimapLayout, seatMapOffset.x, seatMapOffset.y, seatMapScale, sectionBounds, stageSize.width]);
 
    return {
       directionBadgePosition,
       minimapLayout,
       minimapViewport,
       sectionBounds,
+      stageSize,
    };
 }

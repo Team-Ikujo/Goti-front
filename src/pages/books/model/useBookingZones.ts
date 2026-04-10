@@ -13,9 +13,12 @@ import {
 import type { ZoneItem } from '@/pages/books/model/types';
 import { getBookingZones, getZoneDisplayOrder } from '@/pages/books/model/zoneData';
 import { ApiError } from '@/shared/api/client';
+import { isResaleBookingMockEnabled } from '@/shared/config/runtime';
 import { logBookingFlow, logBookingFlowError, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import type { BookingFlowMode } from '@/shared/lib/booking-flow';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import { getDemoResaleListings, getDemoResaleTargetCountForZone } from '@/shared/lib/demo/resaleDemo';
+import { isPurchasableResaleListing, matchesResaleListingToZone } from './resellMatching';
 
 type UseBookingZonesParams = {
    bookingEntryState: BookingEntryState | null;
@@ -68,6 +71,27 @@ export function useBookingZones({
       [bookingEntryState?.homeTeamId],
    );
 
+   const mockResellZones = useMemo(() => {
+      if (bookingFlowMode !== 'resell' || !isResaleBookingMockEnabled || !bookingEntryState?.gameId) {
+         return localZones;
+      }
+
+      const demoListings = getDemoResaleListings();
+
+      return localZones.map((zone) => ({
+         ...zone,
+         remaining: (() => {
+            const count = demoListings.filter(
+               (listing) =>
+                  isPurchasableResaleListing(listing, bookingEntryState.gameId) &&
+                  matchesResaleListingToZone({ zone, listing }),
+            ).length;
+
+            return count > 0 ? count : getDemoResaleTargetCountForZone(zone.id);
+         })(),
+      }));
+   }, [bookingEntryState?.gameId, bookingFlowMode, localZones]);
+
    const { data: apiZones, error: apiZonesError } = useQuery({
       queryKey: [
          'booking-zones',
@@ -79,7 +103,7 @@ export function useBookingZones({
          bookingEntryState?.leagueType,
          bookingEntryState?.gameDate,
       ],
-      enabled: isEnabled,
+      enabled: isEnabled && !(bookingFlowMode === 'resell' && isResaleBookingMockEnabled),
       queryFn: async () => {
          const shouldForceNewSession = shouldForceNewSessionRef.current;
          logBookingFlow('useBookingZones', 'queryFn start', {
@@ -159,14 +183,16 @@ export function useBookingZones({
       });
    }, [bookingEntryState, bookingFlowMode, isEnabled]);
 
-   const mergedBaseZones = useMemo(
-      () =>
-         mergeBookingZones({
-            localZones,
-            apiZones,
-         }),
-      [apiZones, localZones],
-   );
+   const mergedBaseZones = useMemo(() => {
+      if (bookingFlowMode === 'resell' && isResaleBookingMockEnabled) {
+         return mockResellZones;
+      }
+
+      return mergeBookingZones({
+         localZones,
+         apiZones,
+      });
+   }, [apiZones, bookingFlowMode, localZones, mockResellZones]);
 
    const zones = useMemo<ZoneItem[]>(() => {
       return [...mergedBaseZones].sort(

@@ -44,3 +44,6 @@ const readStoredResaleDemoFlag = () => {
 };
 
 export const isResaleDemoEnabled = resaleDemoFlag === 'true' || readResaleDemoQuery() || readStoredResaleDemoFlag();
+
+// 리셀 예매는 현재 API 연동 없이 mock 기반으로만 동작시킨다.
+export const isResaleBookingMockEnabled = true;

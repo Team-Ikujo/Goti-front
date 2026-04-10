@@ -6,9 +6,16 @@ type BookingZoneListProps = {
    selectedZoneId: string;
    onSelectZone: (zoneId: string) => void;
    variant?: 'panel' | 'drawer';
+   showPrice?: boolean;
 };
 
-function BookingZoneList({ zones, selectedZoneId, onSelectZone, variant = 'panel' }: BookingZoneListProps) {
+function BookingZoneList({
+   zones,
+   selectedZoneId,
+   onSelectZone,
+   variant = 'panel',
+   showPrice = true,
+}: BookingZoneListProps) {
    const isDrawer = variant === 'drawer';
 
    return (
@@ -49,7 +56,7 @@ function BookingZoneList({ zones, selectedZoneId, onSelectZone, variant = 'panel
                         </div>
                         <div className="flex min-w-0 flex-1 items-center gap-2 text-body-2-regular text-muted-foreground">
                            <span className="truncate text-body-1-medium text-foreground">{zone.name}</span>
-                           <span className="shrink-0">{formatPrice(zone.price)}</span>
+                           {showPrice ? <span className="shrink-0">{formatPrice(zone.price)}</span> : null}
                         </div>
                         <span
                            className={[
