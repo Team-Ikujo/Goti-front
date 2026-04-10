@@ -4,9 +4,7 @@ import { useAuthStore } from '@/entities/auth/model/authStore';
 import { fetchMyProfile, fetchMyProfileSummary } from '@/entities/user/api/memberApi';
 import {
    fetchMyTicketInfo,
-   fetchTicketDetail,
    type MyTicketInfo,
-   type TicketDetail,
 } from '@/entities/ticket/api/ticketApi';
 import {
    fetchMyResaleListingSummary,
@@ -108,7 +106,6 @@ const mapSaleStatus = (status: ResaleListingItem['listingStatus']): SaleStatus =
 type EnrichedOrderListItem = {
    order: PaymentPurchaseHistoryItem;
    ticketIds: string[];
-   primaryTicketDetail?: TicketDetail;
 };
 
 type EnrichedResaleListingItem = ResaleListingItem & {
@@ -116,26 +113,14 @@ type EnrichedResaleListingItem = ResaleListingItem & {
    orderNumber: string;
    orderStatus: ResaleListingOrderStatus;
    orderCreatedAt: string;
-   ticketDetail?: TicketDetail;
 };
 
 const fetchMyOrderSummaries = async (): Promise<EnrichedOrderListItem[]> => {
-   // purchases?size=100 응답의 ticketIds 필드 사용 (GET /api/v1/orders/{id}/tickets 제거)
    const purchaseHistory = await fetchPurchaseHistory({ size: 100 });
-   const orders: PaymentPurchaseHistoryItem[] = purchaseHistory.list;
-
-   return Promise.all(
-      orders.map(async (order) => {
-         const ticketIds = order.ticketIds ?? [];
-         const primaryTicketId = ticketIds[0];
-         try {
-            const primaryTicketDetail = primaryTicketId ? await fetchTicketDetail(primaryTicketId) : undefined;
-            return { order, ticketIds, primaryTicketDetail };
-         } catch {
-            return { order, ticketIds, primaryTicketDetail: undefined };
-         }
-      }),
-   );
+   return purchaseHistory.list.map((order) => ({
+      order,
+      ticketIds: order.ticketIds ?? [],
+   }));
 };
 
 const mapStoredPaymentCompleteItemToPurchaseHistory = (item: StoredPaymentCompleteItem): PurchaseHistoryItem => {
@@ -176,30 +161,13 @@ const fetchMyResaleListingsWithGameInfo = async (): Promise<EnrichedResaleListin
          try {
             const listings = await fetchResaleListingOrderDetails(order.orderId);
 
-            return Promise.all(
-               listings.map(async (listing) => {
-                  try {
-                     const ticketDetail = await fetchTicketDetail(listing.ticketId);
-
-                     return {
-                        ...listing,
-                        orderId: order.orderId,
-                        orderNumber: order.orderNumber,
-                        orderStatus: order.orderStatus,
-                        orderCreatedAt: order.createdAt,
-                        ticketDetail,
-                     };
-                  } catch {
-                     return {
-                        ...listing,
-                        orderId: order.orderId,
-                        orderNumber: order.orderNumber,
-                        orderStatus: order.orderStatus,
-                        orderCreatedAt: order.createdAt,
-                     };
-                  }
-               }),
-            );
+            return listings.map((listing) => ({
+               ...listing,
+               orderId: order.orderId,
+               orderNumber: order.orderNumber,
+               orderStatus: order.orderStatus,
+               orderCreatedAt: order.createdAt,
+            }));
          } catch {
             return [];
          }
@@ -254,15 +222,10 @@ export const useMyOrdersData = () => {
          : [];
 
    const data = useMemo((): PurchaseHistoryItem[] => {
-      const apiOrders = (query.data ?? []).map(({ order, ticketIds, primaryTicketDetail }) => {
-         const displaySeatInfos = order.seatInfos.length > 0
-            ? order.seatInfos
-            : primaryTicketDetail?.seatInfo
-               ? [primaryTicketDetail.seatInfo]
-               : [];
+      const apiOrders = (query.data ?? []).map(({ order, ticketIds }) => {
+         const displaySeatInfos = order.seatInfos ?? [];
          const primarySeatInfo = displaySeatInfos[0];
-         const sectionLabel = primaryTicketDetail?.seatGradeName
-            ?? (primarySeatInfo ? parseGradeName(primarySeatInfo) : '좌석 정보');
+         const sectionLabel = primarySeatInfo ? parseGradeName(primarySeatInfo) : '좌석 정보';
          const seats = displaySeatInfos.length > 0
             ? displaySeatInfos.map((seatInfo) => parseSeatDetail(seatInfo))
             : Array.from({ length: order.totalQuantity }, (_, i) => `좌석${i + 1}`);
@@ -270,11 +233,10 @@ export const useMyOrdersData = () => {
             ? Math.round(order.totalAmount / order.totalQuantity)
             : 0;
          const seatPrices = ticketIds.map(() => unitPrice);
-         const gameTitle = order.gameTitle ?? primaryTicketDetail?.gameTitle ?? 'KBO 리그 경기';
-         const stadiumName = primaryTicketDetail?.stadiumName
-            ?? (order.stadiumId ? STADIUM_REFERENCES[order.stadiumId]?.displayName : undefined)
+         const gameTitle = order.gameTitle ?? 'KBO 리그 경기';
+         const stadiumName = (order.stadiumId ? STADIUM_REFERENCES[order.stadiumId]?.displayName : undefined)
             ?? '야구장';
-         const gameDate = order.gameDate ?? primaryTicketDetail?.gameDate;
+         const gameDate = order.gameDate;
 
          return {
             id: ticketIds[0] ?? order.orderId,
@@ -342,24 +304,21 @@ export const useMyResaleListData = () => {
       return data.map((listing) => ({
            id: listing.listingId,
             ticketId: listing.ticketId,
-            orderId: formatTicketNumber(listing.orderNumber ?? listing.ticketDetail?.ticketNumber ?? listing.ticketNumber ?? listing.ticketId, 'resale'),
+            orderId: formatTicketNumber(listing.orderNumber ?? listing.ticketNumber ?? listing.ticketId, 'resale'),
             orderDate: formatDate(listing.orderCreatedAt ?? listing.listedAt),
             soldAt: listing.soldAt ? formatDateTime(listing.soldAt) : undefined,
             canceledAt: listing.canceledAt ? formatDateTime(listing.canceledAt) : undefined,
             type: '리셀' as TicketType,
             game: {
-               teams: listing.ticketDetail?.gameTitle || listing.gameTitle || 'KBO 리그 경기',
-               venue: listing.ticketDetail?.stadiumName || listing.stadiumName || '야구장',
-               datetime: listing.ticketDetail?.gameDate
-                  ? formatDate(listing.ticketDetail.gameDate)
-                  : listing.gameDate
-                     ? formatDate(listing.gameDate)
-                     : formatDate(listing.orderCreatedAt ?? listing.listedAt),
+               teams: listing.gameTitle || 'KBO 리그 경기',
+               venue: listing.stadiumName || '야구장',
+               datetime: listing.gameDate
+                  ? formatDate(listing.gameDate)
+                  : formatDate(listing.orderCreatedAt ?? listing.listedAt),
                quantity: 1,
                section:
-                  listing.ticketDetail?.seatGradeName
-                  ?? (parseGradeName(listing.ticketDetail?.seatInfo ?? listing.seatInfo) || '정보 없음'),
-               seats: [parseSeatDetail(listing.ticketDetail?.seatInfo ?? listing.seatInfo)],
+                  parseGradeName(listing.seatInfo) || '정보 없음',
+               seats: [parseSeatDetail(listing.seatInfo)],
             },
             salePrice: listing.listingPrice,
             saleStatus: mapSaleStatus(listing.listingStatus),
