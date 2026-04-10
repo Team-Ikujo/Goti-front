@@ -5,9 +5,15 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import { useQuery } from '@tanstack/react-query';
-import { fetchTicketDetail, fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
-import { fetchOrderPaymentDetail, formatOrderPaymentMethod } from '@/entities/payment/api/paymentApi';
-import { fetchStadiumById } from '@/entities/game/api/stadiumApi';
+import { fetchTicketDetail } from '@/entities/ticket/api/ticketApi';
+import { fetchMyOrders, type OrderListItem } from '@/entities/order/api/orderApi';
+import {
+   fetchOrderPaymentDetail,
+   fetchPurchaseHistory,
+   formatOrderPaymentMethod,
+   type PurchaseHistoryItem as PaymentPurchaseHistoryItem,
+} from '@/entities/payment/api/paymentApi';
+import { STADIUM_REFERENCES } from '@/entities/game/model/schedule';
 import { fetchMyProfileSummary } from '@/entities/user/api/memberApi';
 import type { PurchaseHistoryItem } from '../model/historyCard';
 import StatusBadge from './StatusBadge';
@@ -60,6 +66,8 @@ function looksLikeOrderIdentifier(value: string | undefined) {
    if (!value) return false;
    return (
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ||
+      /^order-[0-9a-f-]+$/i.test(value) ||
+      /^resale-order-[0-9a-f-]+$/i.test(value) ||
       value.startsWith('mock-order-')
    );
 }
@@ -96,15 +104,41 @@ export default function PurchaseDetailPage() {
       return looksLikeOrderIdentifier(orderId) ? orderId : undefined;
    }, [locationStateItem?.rawOrderId, orderId, storedPaymentDetail?.orderId]);
 
-   const orderTicketsQuery = useQuery({
-      queryKey: ['orderTickets', resolvedOrderId],
-      queryFn: () => fetchOrderTickets(resolvedOrderId!),
+   const routeTicketId = useMemo(() => {
+      if (!orderId) return undefined;
+      return looksLikeOrderIdentifier(orderId) ? undefined : orderId;
+   }, [orderId]);
+
+   const purchaseHistoryQuery = useQuery({
+      queryKey: ['purchaseHistoryForDetail', resolvedOrderId],
+      queryFn: () => fetchPurchaseHistory({ size: 100 }),
+      enabled: Boolean(resolvedOrderId) && !locationStateItem?.ticketIds?.[0] && !storedPaymentDetail?.ticketId,
+      retry: false,
+   });
+
+   const matchedPurchase = useMemo<PaymentPurchaseHistoryItem | undefined>(() => {
+      if (!resolvedOrderId) return undefined;
+      return purchaseHistoryQuery.data?.list.find((item) => item.orderId === resolvedOrderId);
+   }, [purchaseHistoryQuery.data?.list, resolvedOrderId]);
+
+   const ordersQuery = useQuery({
+      queryKey: ['ordersForDetail', resolvedOrderId],
+      queryFn: () => fetchMyOrders(),
       enabled: Boolean(resolvedOrderId),
       retry: false,
    });
 
-   const orderTickets = orderTicketsQuery.data ?? [];
-   const primaryTicketId = orderTickets[0]?.ticketId;
+   const matchedOrder = useMemo<OrderListItem | undefined>(() => {
+      if (!resolvedOrderId) return undefined;
+      return ordersQuery.data?.find((item) => item.orderId === resolvedOrderId);
+   }, [ordersQuery.data, resolvedOrderId]);
+
+   // ticketId는 purchases 응답의 ticketIds 또는 저장된 결제 정보에서 가져옴
+   const primaryTicketId =
+      locationStateItem?.ticketIds?.[0]
+      ?? storedPaymentDetail?.ticketId
+      ?? routeTicketId
+      ?? matchedPurchase?.ticketIds?.[0];
 
    const ticketDetailQuery = useQuery({
       queryKey: ['ticketDetail', primaryTicketId],
@@ -120,12 +154,10 @@ export default function PurchaseDetailPage() {
       retry: false,
    });
 
-   const stadiumQuery = useQuery({
-      queryKey: ['stadium', locationStateItem?.stadiumId],
-      queryFn: () => fetchStadiumById(locationStateItem!.stadiumId!),
-      enabled: Boolean(locationStateItem?.stadiumId),
-      staleTime: Infinity,
-   });
+   // API 인증 없이 stadiumId로 구장명 조회 (STADIUM_REFERENCES 로컬 데이터 사용)
+   const stadiumNameFromRef = locationStateItem?.stadiumId
+      ? STADIUM_REFERENCES[locationStateItem.stadiumId]?.displayName
+      : undefined;
 
    const myProfileSummaryQuery = useQuery({
       queryKey: ['myProfileSummary'],
@@ -135,14 +167,16 @@ export default function PurchaseDetailPage() {
    });
 
    const apiDetail = ticketDetailQuery.data;
-   const isLoading = orderTicketsQuery.isLoading || (Boolean(primaryTicketId) && ticketDetailQuery.isLoading);
-   // fetchOrderTickets(GET /orders/{id}/tickets)가 백엔드 미구현 상태이므로
-   // location.state 또는 storedPaymentDetail로 fallback 가능한 경우 에러로 처리하지 않음
-   const hasLocationFallback = Boolean(locationStateItem) || Boolean(storedPaymentDetail);
+   const isResolvingTicketId =
+      Boolean(resolvedOrderId) &&
+      !primaryTicketId &&
+      purchaseHistoryQuery.isLoading &&
+      !matchedOrder;
+   const isLoading = isResolvingTicketId || (Boolean(primaryTicketId) && ticketDetailQuery.isLoading);
+   const hasLocationFallback = Boolean(locationStateItem) || Boolean(storedPaymentDetail) || Boolean(matchedOrder);
    const isError =
-      (orderTicketsQuery.isError && !hasLocationFallback) ||
-      (!primaryTicketId && !orderTicketsQuery.isLoading && !hasLocationFallback) ||
-      (Boolean(primaryTicketId) && ticketDetailQuery.isError);
+      (!primaryTicketId && Boolean(resolvedOrderId) && purchaseHistoryQuery.isError && !hasLocationFallback) ||
+      (Boolean(primaryTicketId) && ticketDetailQuery.isError && !hasLocationFallback);
 
    useEffect(() => {
       if ((location.state as { showCancelSuccess?: boolean } | null)?.showCancelSuccess) {
@@ -152,69 +186,90 @@ export default function PurchaseDetailPage() {
    }, [location.state]);
 
    const detail = useMemo<PurchaseDetailViewModel | undefined>(() => {
-      if (!apiDetail && !storedPaymentDetail && !locationStateItem) return undefined;
+      if (!apiDetail && !storedPaymentDetail && !locationStateItem && !matchedOrder) return undefined;
 
-      // fetchOrderTickets 실패 + location.state 데이터로 fallback 렌더링
-      if (!apiDetail && !storedPaymentDetail && locationStateItem) {
+      // 결제/티켓 상세 API 실패 시 location.state 데이터로 fallback 렌더링
+      if (!apiDetail && !storedPaymentDetail && (locationStateItem || matchedOrder)) {
+         const fallbackSource = locationStateItem;
          const paymentStatusToTicketStatus = (s: string): string => {
             if (s === '취소/환불') return 'INVALID';
             if (s === '관람 완료') return 'USED';
             return 'ISSUED';
          };
-         const ticketStatus = paymentStatusToTicketStatus(locationStateItem.paymentStatus);
-         const unitPrice = Math.round(locationStateItem.price / Math.max(locationStateItem.game.quantity, 1));
-         const seatItems: PurchaseSeatItem[] = locationStateItem.game.seats.map((seat, index) => ({
-            ticketId: locationStateItem.ticketIds?.[index] ?? `${locationStateItem.rawOrderId ?? locationStateItem.id}-${index}`,
-            orderId: locationStateItem.orderId,
-            section: locationStateItem.game.section,
+         const fallbackQuantity = fallbackSource?.game.quantity ?? matchedOrder?.totalQuantity ?? 1;
+         const fallbackTotalAmount = fallbackSource?.price ?? matchedPurchase?.totalAmount ?? matchedOrder?.totalAmount ?? 0;
+         const fallbackTicketStatus = paymentStatusToTicketStatus(fallbackSource?.paymentStatus ?? matchedOrder?.orderStatus ?? '예매 완료');
+         const fallbackSeatInfos = fallbackSource?.game.seats
+            ?? matchedPurchase?.seatInfos
+            ?? matchedOrder?.seatGradeGroups?.flatMap((group) => group.seatInfos ?? [])
+            ?? [];
+         const unitPrice = Math.round(fallbackTotalAmount / Math.max(fallbackQuantity, 1));
+         const fallbackOrderIdLabel =
+            fallbackSource?.orderId
+            ?? (matchedOrder ? formatReservationNumber(matchedOrder.orderNumber) : '-');
+         const seatItems: PurchaseSeatItem[] = fallbackSeatInfos.map((seat, index) => ({
+            ticketId: fallbackSource?.ticketIds?.[index] ?? matchedPurchase?.ticketIds?.[index] ?? `${resolvedOrderId ?? orderId}-${index}`,
+            orderId: fallbackOrderIdLabel,
+            section: fallbackSource?.game.section ?? parseGradeName(seat),
             seatDetail: seat,
-            status: mapTicketItemStatus(ticketStatus),
-            price: locationStateItem.seatPrices?.[index] ?? unitPrice,
+            status: mapTicketItemStatus(fallbackTicketStatus),
+            price: fallbackSource?.seatPrices?.[index] ?? unitPrice,
          }));
-         const venue = stadiumQuery.data?.stadiumName ?? locationStateItem.game.venue;
+         const venue =
+            stadiumNameFromRef
+            ?? fallbackSource?.game.venue
+            ?? (matchedOrder?.stadiumId ? STADIUM_REFERENCES[matchedOrder.stadiumId]?.displayName : undefined)
+            ?? matchedOrder?.stadiumLocation
+            ?? '야구장';
+         const fallbackOrderedAt = fallbackSource?.rawOrderDate ?? matchedPurchase?.orderedAt ?? matchedOrder?.orderedAt ?? fallbackSource?.orderDate;
          const ordererName = myProfileSummaryQuery.data?.name?.trim() || fallbackOrdererName;
          const paymentMethodDisplay = orderPaymentQuery.data?.paymentMethod
             ? formatOrderPaymentMethod(orderPaymentQuery.data.paymentMethod)
             : undefined;
-         const paidAt = orderPaymentQuery.data?.paidAt;
-         const total = orderPaymentQuery.data?.paymentAmount ?? locationStateItem.price;
+         // paidAt이 없을 경우 예매일자로 폴백
+         const paidAt = orderPaymentQuery.data?.paidAt ?? fallbackOrderedAt;
+         const total = orderPaymentQuery.data?.paymentAmount ?? fallbackTotalAmount;
 
          return {
-            id: locationStateItem.rawOrderId ?? locationStateItem.id,
-            rawOrderId: locationStateItem.rawOrderId ?? locationStateItem.id,
-            overallStatus: mapOverallStatus(ticketStatus),
-            ticketStatus,
-            game: { teams: locationStateItem.game.teams, venue, datetime: locationStateItem.game.datetime },
-            orderId: locationStateItem.orderId,
-            orderDate: locationStateItem.orderDate,
+            id: fallbackSource?.rawOrderId ?? fallbackSource?.id ?? resolvedOrderId ?? orderId ?? 'purchase-detail',
+            rawOrderId: fallbackSource?.rawOrderId ?? resolvedOrderId ?? orderId ?? 'purchase-detail',
+            overallStatus: mapOverallStatus(fallbackTicketStatus),
+            ticketStatus: fallbackTicketStatus,
+            game: {
+               teams: fallbackSource?.game.teams ?? matchedOrder?.gameTitle ?? matchedPurchase?.gameTitle ?? 'KBO 리그 경기',
+               venue,
+               datetime: fallbackSource?.game.datetime ?? (matchedOrder?.gameDate ? formatDateTime(matchedOrder.gameDate) : '-'),
+            },
+            orderId: fallbackOrderIdLabel,
+            orderDate: fallbackOrderedAt,
             orderer: ordererName,
-            issuedAt: locationStateItem.orderDate,
-            cancelDeadline: ticketStatus !== 'INVALID'
-               ? getFallbackCancelableUntil(locationStateItem.orderDate)
+            issuedAt: fallbackOrderedAt,
+            cancelDeadline: fallbackTicketStatus !== 'INVALID'
+               ? getFallbackCancelableUntil(fallbackOrderedAt)
                : undefined,
-            seatInfo: locationStateItem.game.seats[0] ?? '',
+            seatInfo: fallbackSeatInfos[0] ?? '',
             ticketPrice: unitPrice,
             paymentMethodDisplay,
             paidAt,
             seatItems,
             paymentSummary: {
                status: '결제 완료',
-               ticketCount: locationStateItem.game.quantity,
-               ticketAmount: locationStateItem.price,
-               fee: locationStateItem.game.quantity * 1000,
+               ticketCount: fallbackQuantity,
+               ticketAmount: fallbackTotalAmount,
+               fee: fallbackQuantity * 1000,
                total,
                date: paidAt,
             },
             paymentEvents: [{ type: '결제 완료' as const, method: paymentMethodDisplay ?? '-' }],
-            refundInfo: ticketStatus === 'INVALID' ? {
-               ticketAmount: locationStateItem.price,
+            refundInfo: fallbackTicketStatus === 'INVALID' ? {
+               ticketAmount: fallbackTotalAmount,
                cancelFee: 0,
-               refundTotal: locationStateItem.price,
+               refundTotal: fallbackTotalAmount,
                method: paymentMethodDisplay ?? '정보 없음',
                date: paidAt,
             } : undefined,
-            canCancel: ticketStatus !== 'INVALID',
-            canSell: locationStateItem.canSell,
+            canCancel: fallbackTicketStatus === 'ISSUED',
+            canSell: fallbackTicketStatus === 'ISSUED' && fallbackSource?.type !== '리셀',
             deliveryMethod: '모바일 QR',
          };
       }
@@ -277,34 +332,21 @@ export default function PurchaseDetailPage() {
       const isInvalid = currentApiDetail.ticketStatus === 'INVALID';
       const isActionableTicket = currentApiDetail.ticketStatus !== 'INVALID';
 
-      const seatItems: PurchaseSeatItem[] =
-         orderTickets.length > 0
-            ? orderTickets.map(t => ({
-                 ticketId: t.ticketId,
-                 orderId: formatTicketNumber(
-                    t.ticketNumber,
-                    t.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(t.ticketNumber, 'ticket'),
-                 ),
-                 section: parseGradeName(t.seatInfo),
-                 seatDetail: t.seatInfo,
-                 status: mapTicketItemStatus(t.ticketStatus),
-                 price: t.ticketPrice,
-              }))
-            : [
-                 {
-                    ticketId: currentApiDetail.ticketId,
-                    orderId: formatTicketNumber(
-                       currentApiDetail.ticketNumber,
-                       currentApiDetail.ticketStatus === 'RESALE_ISSUED'
-                          ? 'resale'
-                          : getTicketNumberKind(currentApiDetail.ticketNumber, 'ticket'),
-                    ),
-                    section: parseGradeName(currentApiDetail.seatInfo),
-                    seatDetail: currentApiDetail.seatInfo,
-                    status: mapTicketItemStatus(currentApiDetail.ticketStatus),
-                    price: currentApiDetail.ticketPrice,
-                 },
-              ];
+      const seatItems: PurchaseSeatItem[] = [
+         {
+            ticketId: currentApiDetail.ticketId,
+            orderId: formatTicketNumber(
+               currentApiDetail.ticketNumber,
+               currentApiDetail.ticketStatus === 'RESALE_ISSUED'
+                  ? 'resale'
+                  : getTicketNumberKind(currentApiDetail.ticketNumber, 'ticket'),
+            ),
+            section: parseGradeName(currentApiDetail.seatInfo),
+            seatDetail: currentApiDetail.seatInfo,
+            status: mapTicketItemStatus(currentApiDetail.ticketStatus),
+            price: currentApiDetail.ticketPrice,
+         },
+      ];
 
       const ticketCount = seatItems.length;
       const ticketAmount = seatItems.reduce((sum, s) => sum + s.price, 0);
@@ -317,8 +359,13 @@ export default function PurchaseDetailPage() {
       const paymentMethodDisplay = orderPaymentQuery.data?.paymentMethod
          ? formatOrderPaymentMethod(orderPaymentQuery.data.paymentMethod)
          : undefined;
-      const paidAt = orderPaymentQuery.data?.paidAt;
+      // paidAt이 없을 경우 orderedAt/issuedAt으로 폴백 (빈 문자열도 건너뜀)
+      const paidAt = orderPaymentQuery.data?.paidAt
+         || currentApiDetail.orderedAt
+         || currentApiDetail.issuedAt
+         || undefined;
       const paymentAmount = orderPaymentQuery.data?.paymentAmount ?? total;
+      const isResaleTicket = currentApiDetail.ticketStatus === 'RESALE_ISSUED';
 
       return {
          id: currentApiDetail.ticketId,
@@ -327,7 +374,7 @@ export default function PurchaseDetailPage() {
          ticketStatus: currentApiDetail.ticketStatus,
          game: {
             teams: currentApiDetail.gameTitle,
-            venue: currentApiDetail.stadiumName ?? stadiumQuery.data?.stadiumName ?? '',
+            venue: currentApiDetail.stadiumName ?? stadiumNameFromRef ?? '',
             datetime: currentApiDetail.gameDate,
          },
          orderId: formatReservationNumber(currentApiDetail.ticketNumber),
@@ -364,18 +411,19 @@ export default function PurchaseDetailPage() {
                  date: paidAt,
               }
             : undefined,
-         canCancel: isActionableTicket,
-         canSell: isActionableTicket,
+         canCancel: isActionableTicket && !isResaleTicket,
+         canSell: isActionableTicket && !isResaleTicket,
          deliveryMethod: '모바일 QR',
       };
    }, [
       apiDetail,
       fallbackOrdererName,
+      matchedOrder,
       locationStateItem,
+      matchedPurchase?.orderedAt,
       myProfileSummaryQuery.data?.name,
       orderPaymentQuery.data,
-      orderTickets,
-      stadiumQuery.data,
+      stadiumNameFromRef,
       storedPaymentDetail,
    ]);
 
@@ -411,7 +459,6 @@ export default function PurchaseDetailPage() {
          <PurchaseDetailDialogs
             orderId={orderId!}
             detail={detail}
-            orderTickets={orderTickets}
             isBankTransfer={orderPaymentQuery.data?.paymentMethod === 'ACCOUNT_TRANSFER'}
             qrOpen={qrOpen}
             cancelOpen={cancelOpen}

@@ -176,11 +176,9 @@ function ActionButtons({
                {/* 예매 버튼 — 모바일 */}
                {isTicketScheduled ? (
                   <div className="flex-1 bg-[#e9ebee] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
-                     <p className="text-[14px] font-medium text-[#acb4bb] leading-[1.5] whitespace-nowrap">판매예정</p>
-                     <div className="text-[11px] text-[#acb4bb] text-center leading-[1.2]">
-                        <p className="whitespace-nowrap">{ticketInfoLine1}</p>
-                        <p className="whitespace-nowrap">{ticketInfoLine2}</p>
-                     </div>
+                     <p className="text-[14px] font-medium text-[#acb4bb] leading-[1.5] whitespace-nowrap">
+                        판매예정 {ticketInfoLine1} {ticketInfoLine2}
+                     </p>
                   </div>
                ) : (
                   <button
@@ -198,11 +196,9 @@ function ActionButtons({
                {/* 리셀 버튼 — 모바일 */}
                {isResellScheduled ? (
                   <div className="flex-1 border border-[#d0d6db] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
-                     <p className="text-[14px] font-medium text-[#acb4bb] leading-[1.5] whitespace-nowrap">리셀예정</p>
-                     <div className="text-[11px] text-[#acb4bb] text-center leading-[1.2]">
-                        <p className="whitespace-nowrap">{reselInfoLine1}</p>
-                        <p className="whitespace-nowrap">{reselInfoLine2}</p>
-                     </div>
+                     <p className="text-[14px] font-medium text-[#acb4bb] leading-[1.5] whitespace-nowrap">
+                        리셀예정 {reselInfoLine1} {reselInfoLine2}
+                     </p>
                   </div>
                ) : (
                   <button

@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
    useMyProfileSummaryData,
@@ -6,13 +5,10 @@ import {
    useMyResaleListData,
    useMyTicketInfoData,
 } from '../model/useMypageData';
-import { isMswEnabled } from '@/shared/config/runtime';
 import { MypageProfileCard } from './MypageProfileCard';
 import { MypageSummaryCard } from './MypageSummaryCard';
 import { MypageHistorySection } from './MypageHistorySection';
 import { Button } from '@/shared/ui/button';
-
-const MYPAGE_MSW_TICKET_INFO_ERROR_KEY = '__mypage_msw_ticket_info_error__';
 
 export default function MypagePage() {
    const navigate = useNavigate();
@@ -67,13 +63,6 @@ export default function MypagePage() {
          };
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
-   const [mockTicketInfoError, setMockTicketInfoError] = useState(false);
-
-   useEffect(() => {
-      if (!isMswEnabled || typeof window === 'undefined') return;
-      setMockTicketInfoError(window.localStorage.getItem(MYPAGE_MSW_TICKET_INFO_ERROR_KEY) === 'true');
-   }, []);
-
    const isPageLoading = profileQuery.isLoading || ordersQuery.isLoading || resaleListQuery.isLoading;
    const historyHasError = ordersQuery.isError || resaleListQuery.isError;
    const totalHeld = ticketInfoQuery.data?.ownedTicketCount ?? 0;
@@ -91,33 +80,6 @@ export default function MypagePage() {
          <div className="flex-1 bg-background px-4">
             <div className="mx-auto max-w-300 pt-7.5 lg:pt-12.5 pb-30">
                <h1 className="mb-8 text-title-1-bold text-foreground">MY고티</h1>
-
-               {isMswEnabled && (
-                  <div className="mb-4 rounded-[14px] border border-border bg-surface p-4">
-                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="flex flex-col gap-1">
-                           <p className="text-body-1-bold text-foreground">MSW 테스트</p>
-                           <p className="text-caption-1-regular text-muted-foreground">
-                              켜두면 구매 내역의 QR 확인, 예매 취소에서 티켓 정보 조회를 실패시켜 팝업 예외 상태를 확인할 수 있습니다.
-                           </p>
-                        </div>
-                        <label className="flex items-center gap-2 text-body-2-medium text-foreground">
-                           <input
-                              type="checkbox"
-                              checked={mockTicketInfoError}
-                              onChange={(e) => {
-                                 const nextValue = e.target.checked;
-                                 setMockTicketInfoError(nextValue);
-                                 window.localStorage.setItem(MYPAGE_MSW_TICKET_INFO_ERROR_KEY, String(nextValue));
-                              }}
-                              className="size-4 rounded border border-border-strong"
-                           />
-                           티켓 정보 조회 실패
-                        </label>
-                     </div>
-                  </div>
-               )}
-
                <div className="flex flex-col gap-4">
                   <MypageProfileCard profile={profile} onEditAccount={() => navigate('/mypage/account')} />
                   <MypageSummaryCard
@@ -153,7 +115,6 @@ export default function MypagePage() {
                      purchaseItems={purchaseItems}
                      saleItems={saleItems}
                      initialActiveTab={initialActiveTab}
-                     mockTicketInfoError={mockTicketInfoError}
                   />
                </div>
             </div>
