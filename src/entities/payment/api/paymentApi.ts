@@ -1,6 +1,7 @@
 import axios from 'axios';
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import { isMswEnabled } from '@/shared/config/runtime';
 
 export type OrderPaymentMethod = 'CARD' | 'ACCOUNT_TRANSFER';
 export type OrderPaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELED';
@@ -23,7 +24,27 @@ export interface ResaleUnsettledAmountResponse {
    unsettledAmount: number;
 }
 
+const MYPAGE_MOCK_ORDER_ID = 'mock-order-mypage-actions';
+const MYPAGE_MOCK_PAID_AT = '2026-03-19T09:00:00.000Z';
+
+const buildMypageMockOrderPaymentDetail = (): OrderPaymentDetail => ({
+   paymentId: 'mock-payment-mypage-actions',
+   orderId: MYPAGE_MOCK_ORDER_ID,
+   paymentType: 'PAYMENT',
+   paymentMethod: 'CARD',
+   paymentAmount: 36000,
+   pgProvider: 'MOCK_PG',
+   pgTid: 'mock-pg-tid-mypage-actions',
+   paymentStatus: 'SUCCESS',
+   paidAt: MYPAGE_MOCK_PAID_AT,
+   failedReason: null,
+});
+
 export const fetchOrderPaymentDetail = async (orderId: string): Promise<OrderPaymentDetail> => {
+   if (isMswEnabled && orderId === MYPAGE_MOCK_ORDER_ID) {
+      return buildMypageMockOrderPaymentDetail();
+   }
+
    const response = await apiClient.get<ApiEnvelope<OrderPaymentDetail>>(
       `/api/v1/payments/orders/${encodeURIComponent(orderId)}`,
    );

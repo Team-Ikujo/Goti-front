@@ -42,7 +42,6 @@ const formatTooltipChangeRate = (price: number, previousClose: number) => {
    return `${changeRate >= 0 ? '+' : ''}${changeRate.toFixed(2)}%`;
 };
 
-// ─── dialog 용: 세로 정렬 + 가운데 정렬 ───────────────────────────
 function MetricCard({ label, value, valueClassName }: { label: string; value: string; valueClassName?: string }) {
    return (
       <div className="flex flex-col items-center gap-1 text-center px-2">
@@ -52,7 +51,6 @@ function MetricCard({ label, value, valueClassName }: { label: string; value: st
    );
 }
 
-// ─── sidebar 용: 가로 정렬 ─────────────────────────────────────────
 function MetricRow({ label, value, valueClassName }: { label: string; value: string; valueClassName?: string }) {
    return (
       <div className="flex min-w-0 items-center gap-2">
@@ -69,7 +67,6 @@ export default function ResellPriceChart({ insights, zoneName, height = 200, var
    const chartMin = Math.min(...priceValues);
    const chartMax = Math.max(...priceValues);
 
-   // 지표: price points 기준으로 계산
    const dayPrices = useMemo(
       () => insights.pricePointsByRange.day.map(p => p.price),
       [insights.pricePointsByRange.day],
@@ -205,7 +202,6 @@ export default function ResellPriceChart({ insights, zoneName, height = 200, var
 
    return (
       <div className="flex flex-col gap-4">
-         {/* 헤딩 + 변동률 */}
          <div className="flex items-center gap-1">
             <h2 className="text-heading-3-bold text-foreground">거래 변동</h2>
             <span className={cn('text-label-2-semibold', displayChangeAmount >= 0 ? 'text-destructive' : 'text-primary')}>
@@ -214,9 +210,7 @@ export default function ResellPriceChart({ insights, zoneName, height = 200, var
             </span>
          </div>
 
-         {/* 지표 — variant에 따라 다른 레이아웃 */}
          {variant === 'dialog' ? (
-            /* dialog: 3열 카드 (Figma node 4131:30267) */
             <div className="bg-[#f7f8f9] rounded-xl grid grid-cols-3 py-4">
                <MetricCard label="최근 거래 체결가" value={formatPrice(displayRecentTrade)} />
                <MetricCard
@@ -231,7 +225,6 @@ export default function ResellPriceChart({ insights, zoneName, height = 200, var
                />
             </div>
          ) : (
-            /* sidebar: 4개 2열 인라인 */
             <div className="grid grid-cols-2 gap-x-8 gap-y-1">
                <MetricRow label="전일 종가" value={formatPrice(insights.previousClose)} />
                <MetricRow label="최근 거래 체결가" value={formatPrice(displayRecentTrade)} />
@@ -248,7 +241,6 @@ export default function ResellPriceChart({ insights, zoneName, height = 200, var
             </div>
          )}
 
-         {/* 범위 토글 */}
          <div className="flex rounded-xl bg-[#f1f2f4] p-1">
             {([
                { key: 'minute', label: '1분' },
@@ -268,7 +260,6 @@ export default function ResellPriceChart({ insights, zoneName, height = 200, var
             ))}
          </div>
 
-         {/* 차트 */}
          <div className="bg-background py-3">
             <div role="img" aria-label={zoneName ? `${zoneName} 리셀 가격 추이` : '리셀 가격 추이'}>
                <Chart

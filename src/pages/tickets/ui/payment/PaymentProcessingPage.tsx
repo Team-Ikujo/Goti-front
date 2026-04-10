@@ -169,6 +169,7 @@ export default function PaymentProcessingPage() {
             void queryClient.invalidateQueries({ queryKey: ['resales', 'game-counts'] });
             void queryClient.invalidateQueries({ queryKey: ['resales', 'listing-market'] });
             void queryClient.invalidateQueries({ queryKey: ['myResales'] });
+            void queryClient.invalidateQueries({ queryKey: ['myOrders'] });
          }
 
          useSeatHoldStore.getState().clearSeatHolds();

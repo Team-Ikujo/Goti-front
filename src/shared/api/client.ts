@@ -25,7 +25,7 @@ const authorizationOptionalApiPaths = new Set([
   "/api/v1/auth/signup/sms/send",
   tokenReissuePath,
 ]);
-const shouldKeepSessionAlivePathPrefixes = ["/books", "/tickets"];
+const shouldKeepSessionAlivePathPrefixes = ["/books", "/resell-books", "/tickets"];
 const PUBLIC_API_PATH_PATTERNS = [
   /^\/api\/v1\/games(?:\/|$)/,
   /^\/api\/v1\/baseball-teams(?:\/|$)/,

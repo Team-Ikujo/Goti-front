@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { ZoneItem } from '@/pages/books/model/types';
+import type { BookingFlowMode } from '@/shared/lib/booking-flow';
 import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import type { ApiLeagueType } from '@/shared/types/game';
 import type { BotReport } from '@/shared/lib/botDetector';
@@ -16,6 +17,7 @@ export type BookingEntryState = {
    stadiumId?: string;
    leagueType?: ApiLeagueType;
    gameDate?: string;
+   bookingFlowMode?: BookingFlowMode;
    queueTokenJti?: string;
    userId?: string;
    matchTitle?: string;
@@ -42,8 +44,9 @@ export const mergeBookingEntryState = (
    }
 
    return {
-      ...routeEntry,
       ...storedEntry,
+      // 현재 라우트 진입 정보가 이전 세션보다 우선해야 일반/리셀 플로우가 뒤섞이지 않는다.
+      ...routeEntry,
    };
 };
 

@@ -266,6 +266,20 @@ const seatGradesByStadium: Record<string, SeatGrade[]> = {
          availableSeatCount: 24,
       },
       {
+         seatGradeId: 'grade-kia-tigers-family',
+         stadiumId: 'stadium-kia-champions-field',
+         name: '타이거즈가족석',
+         displayColorHex: '#7B3A99',
+         availableSeatCount: 34,
+      },
+      {
+         seatGradeId: 'grade-kia-surprise-zone',
+         stadiumId: 'stadium-kia-champions-field',
+         name: '서프라이즈존',
+         displayColorHex: '#0A005F',
+         availableSeatCount: 41,
+      },
+      {
          seatGradeId: 'grade-kia-party',
          stadiumId: 'stadium-kia-champions-field',
          name: '파티석',
@@ -287,6 +301,27 @@ const seatGradesByStadium: Record<string, SeatGrade[]> = {
          availableSeatCount: 47,
       },
       {
+         seatGradeId: 'grade-kia-ev',
+         stadiumId: 'stadium-kia-champions-field',
+         name: 'EV석',
+         displayColorHex: '#9574C1',
+         availableSeatCount: 52,
+      },
+      {
+         seatGradeId: 'grade-kia-outfield-free',
+         stadiumId: 'stadium-kia-champions-field',
+         name: '외야자유석',
+         displayColorHex: '#6CBE88',
+         availableSeatCount: 88,
+      },
+      {
+         seatGradeId: 'grade-kia-outfield-family',
+         stadiumId: 'stadium-kia-champions-field',
+         name: '외야가족석',
+         displayColorHex: '#4F9F72',
+         availableSeatCount: 20,
+      },
+      {
          seatGradeId: 'grade-kia-wheelchair',
          stadiumId: 'stadium-kia-champions-field',
          name: '휠체어석',
@@ -296,6 +331,20 @@ const seatGradesByStadium: Record<string, SeatGrade[]> = {
    ],
    'stadium-samsung-lions-park': [
       {
+         seatGradeId: 'grade-samsung-first-base-exciting',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '1루 익사이팅석',
+         displayColorHex: '#0A8AD8',
+         availableSeatCount: 186,
+      },
+      {
+         seatGradeId: 'grade-samsung-third-base-exciting',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '3루 익사이팅석',
+         displayColorHex: '#17A2C7',
+         availableSeatCount: 174,
+      },
+      {
          seatGradeId: 'grade-samsung-first-base-infield',
          stadiumId: 'stadium-samsung-lions-park',
          name: '1루 내야지정석',
@@ -303,11 +352,39 @@ const seatGradesByStadium: Record<string, SeatGrade[]> = {
          availableSeatCount: 341,
       },
       {
+         seatGradeId: 'grade-samsung-third-base-infield',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '3루 내야지정석',
+         displayColorHex: '#145EB8',
+         availableSeatCount: 324,
+      },
+      {
          seatGradeId: 'grade-samsung-blue-zone',
          stadiumId: 'stadium-samsung-lions-park',
          name: '블루존',
          displayColorHex: '#1F4D93',
          availableSeatCount: 127,
+      },
+      {
+         seatGradeId: 'grade-samsung-away-zone',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '원정 응원석',
+         displayColorHex: '#5B6DB2',
+         availableSeatCount: 96,
+      },
+      {
+         seatGradeId: 'grade-samsung-sky-lower',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: 'SKY 하단 지정석',
+         displayColorHex: '#5A7EE0',
+         availableSeatCount: 288,
+      },
+      {
+         seatGradeId: 'grade-samsung-sky-upper',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: 'SKY 상단 지정석',
+         displayColorHex: '#8AA0E8',
+         availableSeatCount: 412,
       },
       {
          seatGradeId: 'grade-samsung-wheelchair',
@@ -322,6 +399,62 @@ const seatGradesByStadium: Record<string, SeatGrade[]> = {
          name: '외야 지정석',
          displayColorHex: '#3AA66B',
          availableSeatCount: 218,
+      },
+      {
+         seatGradeId: 'grade-samsung-grass',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '잔디석',
+         displayColorHex: '#7BBE43',
+         availableSeatCount: 73,
+      },
+      {
+         seatGradeId: 'grade-samsung-center-table',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '중앙 테이블석',
+         displayColorHex: '#234785',
+         availableSeatCount: 54,
+      },
+      {
+         seatGradeId: 'grade-samsung-first-base-table',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '1루 테이블석',
+         displayColorHex: '#32559A',
+         availableSeatCount: 38,
+      },
+      {
+         seatGradeId: 'grade-samsung-third-base-table',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '3루 테이블석',
+         displayColorHex: '#4064B0',
+         availableSeatCount: 36,
+      },
+      {
+         seatGradeId: 'grade-samsung-yogibo-family',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: 'SKY 요기보 패밀리존',
+         displayColorHex: '#6F5BD3',
+         availableSeatCount: 12,
+      },
+      {
+         seatGradeId: 'grade-samsung-party-floor',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '파티플로어 라이브석',
+         displayColorHex: '#7840C9',
+         availableSeatCount: 10,
+      },
+      {
+         seatGradeId: 'grade-samsung-rooftop-table',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '루프탑 테이블석',
+         displayColorHex: '#9152D9',
+         availableSeatCount: 8,
+      },
+      {
+         seatGradeId: 'grade-samsung-camping-zone',
+         stadiumId: 'stadium-samsung-lions-park',
+         name: '캠핑존',
+         displayColorHex: '#A64DB3',
+         availableSeatCount: 6,
       },
    ],
 };
@@ -341,12 +474,22 @@ const pricingPoliciesByTeamId: Record<string, TicketPricingPolicy> = {
          { priceId: 'price-kia-special-weekday', gradeId: 'grade-kia-cheering-special', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 18000 },
          { priceId: 'price-kia-k5-weekday', gradeId: 'grade-kia-k5', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 12000 },
          { priceId: 'price-kia-family-weekday', gradeId: 'grade-kia-family', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 25000 },
+         { priceId: 'price-kia-tigers-family-weekday', gradeId: 'grade-kia-tigers-family', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 55000 },
+         { priceId: 'price-kia-surprise-zone-weekday', gradeId: 'grade-kia-surprise-zone', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 30000 },
          { priceId: 'price-kia-party-weekday', gradeId: 'grade-kia-party', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 55000 },
          { priceId: 'price-kia-sky-weekday', gradeId: 'grade-kia-sky-picnic', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 45000 },
          { priceId: 'price-kia-table-weekday', gradeId: 'grade-kia-table-table', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 40000 },
+         { priceId: 'price-kia-ev-weekday', gradeId: 'grade-kia-ev', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 10000 },
+         { priceId: 'price-kia-outfield-free-weekday', gradeId: 'grade-kia-outfield-free', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 10000 },
+         { priceId: 'price-kia-outfield-family-weekday', gradeId: 'grade-kia-outfield-family', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 35000 },
          { priceId: 'price-kia-wheelchair-weekday', gradeId: 'grade-kia-wheelchair', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 10000 },
          { priceId: 'price-kia-champion-weekend', gradeId: 'grade-kia-champion', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 60000 },
          { priceId: 'price-kia-k8-weekend', gradeId: 'grade-kia-k8', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 16000 },
+         { priceId: 'price-kia-tigers-family-weekend', gradeId: 'grade-kia-tigers-family', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 55000 },
+         { priceId: 'price-kia-surprise-zone-weekend', gradeId: 'grade-kia-surprise-zone', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 30000 },
+         { priceId: 'price-kia-ev-weekend', gradeId: 'grade-kia-ev', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 10000 },
+         { priceId: 'price-kia-outfield-free-weekend', gradeId: 'grade-kia-outfield-free', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 10000 },
+         { priceId: 'price-kia-outfield-family-weekend', gradeId: 'grade-kia-outfield-family', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 35000 },
          { priceId: 'price-kia-wheelchair-weekend', gradeId: 'grade-kia-wheelchair', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 10000 },
       ],
    },
@@ -357,14 +500,42 @@ const pricingPoliciesByTeamId: Record<string, TicketPricingPolicy> = {
       policyEndAt: '2026-10-31',
       isActive: true,
       prices: [
+         { priceId: 'price-samsung-first-base-exciting-weekday', gradeId: 'grade-samsung-first-base-exciting', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 28000 },
+         { priceId: 'price-samsung-third-base-exciting-weekday', gradeId: 'grade-samsung-third-base-exciting', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 28000 },
          { priceId: 'price-samsung-first-base-weekday', gradeId: 'grade-samsung-first-base-infield', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 22000 },
+         { priceId: 'price-samsung-third-base-weekday', gradeId: 'grade-samsung-third-base-infield', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 22000 },
          { priceId: 'price-samsung-blue-weekday', gradeId: 'grade-samsung-blue-zone', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 20000 },
+         { priceId: 'price-samsung-away-weekday', gradeId: 'grade-samsung-away-zone', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 17000 },
+         { priceId: 'price-samsung-sky-lower-weekday', gradeId: 'grade-samsung-sky-lower', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 18000 },
+         { priceId: 'price-samsung-sky-upper-weekday', gradeId: 'grade-samsung-sky-upper', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 14000 },
          { priceId: 'price-samsung-wheelchair-weekday', gradeId: 'grade-samsung-wheelchair', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 10000 },
          { priceId: 'price-samsung-outfield-weekday', gradeId: 'grade-samsung-outfield', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 12000 },
+         { priceId: 'price-samsung-grass-weekday', gradeId: 'grade-samsung-grass', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 10000 },
+         { priceId: 'price-samsung-center-table-weekday', gradeId: 'grade-samsung-center-table', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 30000 },
+         { priceId: 'price-samsung-first-base-table-weekday', gradeId: 'grade-samsung-first-base-table', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 30000 },
+         { priceId: 'price-samsung-third-base-table-weekday', gradeId: 'grade-samsung-third-base-table', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 30000 },
+         { priceId: 'price-samsung-yogibo-family-weekday', gradeId: 'grade-samsung-yogibo-family', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 36000 },
+         { priceId: 'price-samsung-party-floor-weekday', gradeId: 'grade-samsung-party-floor', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 42000 },
+         { priceId: 'price-samsung-rooftop-table-weekday', gradeId: 'grade-samsung-rooftop-table', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 45000 },
+         { priceId: 'price-samsung-camping-zone-weekday', gradeId: 'grade-samsung-camping-zone', ticketType: 'ADULT', dayType: 'WEEKDAY', leagueType: 'REGULAR', price: 50000 },
+         { priceId: 'price-samsung-first-base-exciting-weekend', gradeId: 'grade-samsung-first-base-exciting', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 30000 },
+         { priceId: 'price-samsung-third-base-exciting-weekend', gradeId: 'grade-samsung-third-base-exciting', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 30000 },
          { priceId: 'price-samsung-first-base-weekend', gradeId: 'grade-samsung-first-base-infield', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 24000 },
+         { priceId: 'price-samsung-third-base-weekend', gradeId: 'grade-samsung-third-base-infield', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 24000 },
          { priceId: 'price-samsung-blue-weekend', gradeId: 'grade-samsung-blue-zone', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 22000 },
+         { priceId: 'price-samsung-away-weekend', gradeId: 'grade-samsung-away-zone', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 19000 },
+         { priceId: 'price-samsung-sky-lower-weekend', gradeId: 'grade-samsung-sky-lower', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 20000 },
+         { priceId: 'price-samsung-sky-upper-weekend', gradeId: 'grade-samsung-sky-upper', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 16000 },
          { priceId: 'price-samsung-wheelchair-weekend', gradeId: 'grade-samsung-wheelchair', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 10000 },
          { priceId: 'price-samsung-outfield-weekend', gradeId: 'grade-samsung-outfield', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 14000 },
+         { priceId: 'price-samsung-grass-weekend', gradeId: 'grade-samsung-grass', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 12000 },
+         { priceId: 'price-samsung-center-table-weekend', gradeId: 'grade-samsung-center-table', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 32000 },
+         { priceId: 'price-samsung-first-base-table-weekend', gradeId: 'grade-samsung-first-base-table', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 32000 },
+         { priceId: 'price-samsung-third-base-table-weekend', gradeId: 'grade-samsung-third-base-table', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 32000 },
+         { priceId: 'price-samsung-yogibo-family-weekend', gradeId: 'grade-samsung-yogibo-family', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 38000 },
+         { priceId: 'price-samsung-party-floor-weekend', gradeId: 'grade-samsung-party-floor', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 44000 },
+         { priceId: 'price-samsung-rooftop-table-weekend', gradeId: 'grade-samsung-rooftop-table', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 47000 },
+         { priceId: 'price-samsung-camping-zone-weekend', gradeId: 'grade-samsung-camping-zone', ticketType: 'ADULT', dayType: 'WEEKEND', leagueType: 'REGULAR', price: 52000 },
       ],
    },
 };
@@ -411,6 +582,18 @@ const seatSectionsByStadium: Record<string, SeatSection[]> = {
       }),
       ...createSections({
          stadiumId: 'stadium-kia-champions-field',
+         gradeId: 'grade-kia-tigers-family',
+         codes: ['H-1', 'H-2'],
+         capacity: 96,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-kia-champions-field',
+         gradeId: 'grade-kia-surprise-zone',
+         codes: ['G-1', 'G-2'],
+         capacity: 84,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-kia-champions-field',
          gradeId: 'grade-kia-sky-picnic',
          codes: ['519', '520', '521', '522', '523'],
          capacity: 48,
@@ -420,6 +603,24 @@ const seatSectionsByStadium: Record<string, SeatSection[]> = {
          gradeId: 'grade-kia-table-table',
          codes: ['530', '531', '532', '533', '534', '535'],
          capacity: 64,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-kia-champions-field',
+         gradeId: 'grade-kia-ev',
+         codes: ['509', '510', '527', '528'],
+         capacity: 72,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-kia-champions-field',
+         gradeId: 'grade-kia-outfield-free',
+         codes: ['O-1', 'O-2', 'O-3', 'O-4'],
+         capacity: 120,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-kia-champions-field',
+         gradeId: 'grade-kia-outfield-family',
+         codes: ['P-1', 'P-2'],
+         capacity: 84,
       }),
       ...createSections({
          stadiumId: 'stadium-kia-champions-field',
@@ -435,53 +636,120 @@ const seatSectionsByStadium: Record<string, SeatSection[]> = {
       }),
    ],
    'stadium-samsung-lions-park': [
-      {
-         sectionId: 'section-samsung-1-6',
-         gradeId: 'grade-samsung-first-base-infield',
+      ...createSections({
          stadiumId: 'stadium-samsung-lions-park',
-         sectionCode: '1-6',
-         capacity: 500,
-      },
-      {
-         sectionId: 'section-samsung-1-7',
-         gradeId: 'grade-samsung-first-base-infield',
+         gradeId: 'grade-samsung-first-base-exciting',
+         codes: ['1-1', '1-2', '1-3', '1-4', '1-5'],
+         capacity: 120,
+      }),
+      ...createSections({
          stadiumId: 'stadium-samsung-lions-park',
-         sectionCode: '1-7',
-         capacity: 490,
-      },
-      {
-         sectionId: 'section-samsung-3-1',
+         gradeId: 'grade-samsung-first-base-infield',
+         codes: ['1-6', '1-7', '1-8', '1-9', '1-10', '1-11'],
+         capacity: 180,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-samsung-lions-park',
+         gradeId: 'grade-samsung-third-base-exciting',
+         codes: ['3E-1', '3E-2', '3E-3'],
+         capacity: 150,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-samsung-lions-park',
+         gradeId: 'grade-samsung-third-base-infield',
+         codes: ['3-6', '3-7', '3-8', '3-9', '3-10', '3-11'],
+         capacity: 180,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-samsung-lions-park',
          gradeId: 'grade-samsung-blue-zone',
+         codes: ['3-1', '3-2', '3-3', '3-4', '3-5'],
+         capacity: 140,
+      }),
+      ...createSections({
          stadiumId: 'stadium-samsung-lions-park',
-         sectionCode: '3-1',
-         capacity: 300,
-      },
+         gradeId: 'grade-samsung-away-zone',
+         codes: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
+         capacity: 100,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-samsung-lions-park',
+         gradeId: 'grade-samsung-sky-lower',
+         codes: ['S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15', 'S16', 'S17', 'S18', 'S19', 'S20', 'S21', 'S22'],
+         capacity: 110,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-samsung-lions-park',
+         gradeId: 'grade-samsung-sky-upper',
+         codes: ['U1', 'U2', 'U3', 'U4', 'U5', 'U6', 'U7', 'U8', 'U9', 'U10', 'U11', 'U12', 'U13', 'U14', 'U15', 'U16', 'U17', 'U18', 'U19', 'U20', 'U21', 'U22', 'U23', 'U24'],
+         capacity: 90,
+      }),
       ...createSections({
          stadiumId: 'stadium-samsung-lions-park',
          gradeId: 'grade-samsung-wheelchair',
-         codes: ['W-1', 'W-2'],
+         codes: ['WC-1', 'WC-2'],
          capacity: 12,
       }),
-      {
-         sectionId: 'section-samsung-lf-1',
-         gradeId: 'grade-samsung-outfield',
+      ...createSections({
          stadiumId: 'stadium-samsung-lions-park',
-         sectionCode: 'LF-1',
-         capacity: 220,
-      },
-      {
-         sectionId: 'section-samsung-rf-1',
          gradeId: 'grade-samsung-outfield',
+         codes: ['LF-1', 'LF-2', 'LF-3', 'LF-4', 'LF-5', 'LF-6', 'LF-7', 'LF-8', 'LF-9', 'LF-10', 'RF-1', 'RF-2', 'RF-3', 'RF-4', 'RF-5', 'RF-6', 'RF-7', 'RF-8', 'RF-9', 'RF-10'],
+         capacity: 90,
+      }),
+      ...createSections({
          stadiumId: 'stadium-samsung-lions-park',
-         sectionCode: 'RF-1',
-         capacity: 220,
-      },
+         gradeId: 'grade-samsung-grass',
+         codes: ['GR-1', 'GR-2', 'GR-3'],
+         capacity: 80,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-samsung-lions-park',
+         gradeId: 'grade-samsung-center-table',
+         codes: ['CT-1', 'CT-2', 'CT-3'],
+         capacity: 72,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-samsung-lions-park',
+         gradeId: 'grade-samsung-first-base-table',
+         codes: ['1T-1', '1T-2'],
+         capacity: 56,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-samsung-lions-park',
+         gradeId: 'grade-samsung-third-base-table',
+         codes: ['3T-1', '3T-2'],
+         capacity: 56,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-samsung-lions-park',
+         gradeId: 'grade-samsung-yogibo-family',
+         codes: ['YG-1', 'YG-2'],
+         capacity: 24,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-samsung-lions-park',
+         gradeId: 'grade-samsung-party-floor',
+         codes: ['PF-1', 'PF-2'],
+         capacity: 24,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-samsung-lions-park',
+         gradeId: 'grade-samsung-rooftop-table',
+         codes: ['RT-1'],
+         capacity: 20,
+      }),
+      ...createSections({
+         stadiumId: 'stadium-samsung-lions-park',
+         gradeId: 'grade-samsung-camping-zone',
+         codes: ['CP-1'],
+         capacity: 20,
+      }),
    ],
 };
 
 // ── MSW localStorage 영속화 ────────────────────────────────────────
 
-const MSW_STORAGE_VERSION = '7';
+const MSW_STORAGE_VERSION = '8';
 const MSW_VERSION_KEY = '__msw_storage_version__';
 const MSW_STORAGE_KEYS = [
    '__msw_ticket_orders__',
@@ -689,14 +957,11 @@ const mockResaleListings = [
       sellerId: 'seller-samsung-001',
       listedAtSeed: '2026-03-27T04:00:00.000Z',
       seatIds: [
-         'section-samsung-1-6-A-1',
-         'section-samsung-1-6-A-2',
-         'section-samsung-1-6-B-1',
-         'section-samsung-1-6-B-2',
-         'section-samsung-1-7-A-3',
-         'section-samsung-1-7-A-4',
-         'section-samsung-1-7-B-3',
-         'section-samsung-3-1-A-1',
+         'section-samsung-1-6-A-3',
+         'section-samsung-1-7-B-4',
+         'section-samsung-1-8-A-5',
+         'section-samsung-3-1-A-3',
+         'section-samsung-3-2-B-4',
       ],
    }),
    ...createMockResaleListings({
@@ -704,12 +969,11 @@ const mockResaleListings = [
       sellerId: 'seller-kia-001',
       listedAtSeed: '2026-03-28T02:00:00.000Z',
       seatIds: [
-         'section-stadium-kia-champions-field-104-A-1',
-         'section-stadium-kia-champions-field-104-A-2',
-         'section-stadium-kia-champions-field-105-B-1',
-         'section-stadium-kia-champions-field-108-A-1',
-         'section-stadium-kia-champions-field-108-B-1',
-         'section-stadium-kia-champions-field-118-A-1',
+         'section-stadium-kia-champions-field-104-A-3',
+         'section-stadium-kia-champions-field-105-B-4',
+         'section-stadium-kia-champions-field-108-A-5',
+         'section-stadium-kia-champions-field-118-B-3',
+         'section-stadium-kia-champions-field-119-A-4',
       ],
    }),
    ...createMockResaleListings({
@@ -717,12 +981,11 @@ const mockResaleListings = [
       sellerId: 'seller-samsung-002',
       listedAtSeed: '2026-03-30T03:00:00.000Z',
       seatIds: [
-         'section-samsung-1-6-C-1',
-         'section-samsung-1-6-C-2',
-         'section-samsung-1-7-C-1',
-         'section-samsung-1-7-C-2',
-         'section-samsung-3-1-B-1',
-         'section-samsung-3-1-B-2',
+         'section-samsung-1-6-C-3',
+         'section-samsung-1-7-C-4',
+         'section-samsung-3-1-B-3',
+         'section-samsung-3-2-C-4',
+         'section-samsung-S7-A-3',
       ],
    }),
    ...createMockResaleListings({
@@ -730,9 +993,11 @@ const mockResaleListings = [
       sellerId: 'seller-kia-002',
       listedAtSeed: '2026-04-10T03:30:00.000Z',
       seatIds: [
-         'section-stadium-kia-champions-field-519-A-1',
-         'section-stadium-kia-champions-field-520-A-1',
-         'section-stadium-kia-champions-field-521-B-1',
+         'section-stadium-kia-champions-field-519-A-3',
+         'section-stadium-kia-champions-field-520-B-4',
+         'section-stadium-kia-champions-field-521-C-3',
+         'section-stadium-kia-champions-field-J-1-A-4',
+         'section-stadium-kia-champions-field-J-2-B-3',
       ],
    }),
 ];
@@ -1069,32 +1334,61 @@ export const paymentHandlers = [
       const size = Number(url.searchParams.get('size') ?? '20');
       const keyword = (url.searchParams.get('keyword') ?? '').trim().toLowerCase();
 
-      const purchases = Array.from(ticketOrders.values())
-         .sort((left, right) => right.orderedAt.localeCompare(left.orderedAt))
+      const ticketPurchases = Array.from(ticketOrders.values()).map((order) => {
+         const matchedGame = mockGameSchedules.find((game) => game.gameId === order.gameId);
+         const seatInfos = getPurchaseSeatInfos(order);
+
+         return {
+            purchaseType: 'TICKET',
+            orderId: order.orderId,
+            orderNumber: order.orderNumber,
+            orderStatus: order.orderStatus,
+            totalQuantity: order.totalQuantity,
+            totalAmount: order.totalAmount,
+            orderedAt: order.orderedAt,
+            gameId: order.gameId,
+            stadiumId: order.stadiumId,
+            gameTitle:
+               order.homeTeamName && order.awayTeamName
+                  ? `${order.awayTeamName} vs ${order.homeTeamName}`
+                  : matchedGame
+                     ? `${matchedGame.awayTeamDisplayName} vs ${matchedGame.homeTeamDisplayName}`
+                     : 'KBO 리그 경기',
+            gameDate: order.gameStartAt ?? matchedGame?.startAt ?? order.orderedAt,
+            seatInfos,
+         };
+      });
+
+      const resalePurchases = Array.from(resaleOrders.values())
          .map((order) => {
-            const matchedGame = mockGameSchedules.find((game) => game.gameId === order.gameId);
-            const seatInfos = getPurchaseSeatInfos(order);
+            const issuedTickets = Array.from(ticketRecords.values()).filter(
+               (ticket) => ticket.orderId === order.orderId && ticket.ticketStatus === 'RESALE_ISSUED',
+            );
+            const primaryTicket = issuedTickets[0];
+
+            if (!primaryTicket) {
+               return null;
+            }
 
             return {
-               purchaseType: 'TICKET',
+               purchaseType: 'RESALE',
                orderId: order.orderId,
                orderNumber: order.orderNumber,
                orderStatus: order.orderStatus,
-               totalQuantity: order.totalQuantity,
+               totalQuantity: issuedTickets.length,
                totalAmount: order.totalAmount,
-               orderedAt: order.orderedAt,
-               gameId: order.gameId,
-               stadiumId: order.stadiumId,
-               gameTitle:
-                  order.homeTeamName && order.awayTeamName
-                     ? `${order.awayTeamName} vs ${order.homeTeamName}`
-                     : matchedGame
-                        ? `${matchedGame.awayTeamDisplayName} vs ${matchedGame.homeTeamDisplayName}`
-                        : 'KBO 리그 경기',
-               gameDate: order.gameStartAt ?? matchedGame?.startAt ?? order.orderedAt,
-               seatInfos,
+               orderedAt: primaryTicket.orderedAt,
+               gameId: primaryTicket.gameId,
+               stadiumId: '',
+               gameTitle: primaryTicket.gameTitle,
+               gameDate: primaryTicket.gameDate,
+               seatInfos: issuedTickets.map((ticket) => ticket.seatInfo),
             };
          })
+         .filter((purchase): purchase is NonNullable<typeof purchase> => purchase !== null);
+
+      const purchases = [...ticketPurchases, ...resalePurchases]
+         .sort((left, right) => right.orderedAt.localeCompare(left.orderedAt))
          .filter((purchase) => {
             if (!keyword) {
                return true;

@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
   createBookingEntrySourcePath,
-  createBookingFlowSearch,
   type BookingFlowMode,
 } from '@/shared/lib/booking-flow';
 import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
@@ -14,6 +13,7 @@ import type { ApiLeagueType } from '@/shared/types/game';
 import BookingGuideDialog from '@/shared/ui/booking-guide-dialog';
 
 export type OpenBookingEntryOptions = {
+  bookingFlowMode?: BookingFlowMode;
   entrySourcePath?: string;
   homeTeamId?: string;
   serverHomeTeamId?: string;
@@ -32,6 +32,7 @@ const createBookingEntryState = (options?: OpenBookingEntryOptions): BookingEntr
   return {
     requireCaptcha: true,
     forceNewSession: true,
+    bookingFlowMode: options?.bookingFlowMode ?? 'standard',
     entrySourcePath: options?.entrySourcePath,
     homeTeamId: options?.homeTeamId,
     serverHomeTeamId: options?.serverHomeTeamId,
@@ -68,6 +69,7 @@ export function useBookingEntryFlow() {
   const openEntryWithGuide = (mode: BookingFlowMode, options?: OpenBookingEntryOptions) => {
     const nextEntryState = createBookingEntryState({
       ...options,
+      bookingFlowMode: mode,
       userId: options?.userId ?? currentUserId ?? resolveUserIdFromJwt(accessToken) ?? undefined,
       entrySourcePath: createBookingEntrySourcePath(location),
     });
@@ -134,10 +136,7 @@ export function useBookingEntryFlow() {
           nextEntryState: summarizeBookingEntry(nextEntryState),
         });
         setBookingEntry(nextEntryState);
-        navigate(
-          { pathname: '/queue', search: createBookingFlowSearch(pendingEntry?.mode ?? 'standard') },
-          { state: nextEntryState },
-        );
+        navigate('/queue', { state: nextEntryState });
       }}
     />
   );
