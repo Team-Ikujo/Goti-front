@@ -1,24 +1,13 @@
 import { TicketX } from 'lucide-react';
 
 import { hasAvailableSeats } from '@/entities/game/model/seatAvailability';
-import { VENUE_REGION_MAP } from '@/entities/game/model/schedule';
+import { resolveVenueRegionLabel } from '@/entities/game/model/schedule';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
 import { TAB_TODAY, TEAM_IDS, statusColor, teamLogos } from './constants';
 import type { DaySchedule, GameRow } from './types';
 import { getEffectiveSaleStatuses, getGameResultTexts } from './utils';
-
-const normalizeVenue = (value: string) => value.toLowerCase().replace(/[\s\-_]/g, '');
-
-const toVenueRegionLabel = (venue: string) => {
-   const direct = VENUE_REGION_MAP[venue];
-   if (direct) return direct;
-   // 공백·구분자 차이를 무시하고 매칭
-   const normalized = normalizeVenue(venue);
-   const entry = Object.entries(VENUE_REGION_MAP).find(([key]) => normalizeVenue(key) === normalized);
-   return entry?.[1] ?? venue;
-};
 
 function ScoreDisplay({ game }: { game: GameRow }) {
    const scoreText = game.score ?? 'VS';
@@ -302,7 +291,7 @@ function MobileGameRow({
    const isEnded = game.status === '종료';
    const textDisabled = isEnded ? 'text-[#acb4bb]' : 'text-(--text-primary)';
    const resultText = getGameResultTexts(game.score, isEnded);
-   const venueLabel = toVenueRegionLabel(game.venue);
+   const venueLabel = resolveVenueRegionLabel(game.venue, game.stadiumId);
 
    return (
       <div
@@ -363,7 +352,7 @@ function DesktopGameRow({
    const isEnded = game.status === '종료';
    const textDisabled = isEnded ? 'text-[#acb4bb]' : 'text-(--text-primary)';
    const resultText = getGameResultTexts(game.score, isEnded);
-   const venueLabel = toVenueRegionLabel(game.venue);
+   const venueLabel = resolveVenueRegionLabel(game.venue, game.stadiumId);
 
    return (
       <div

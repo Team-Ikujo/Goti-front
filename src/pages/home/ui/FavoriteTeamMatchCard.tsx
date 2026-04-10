@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { hasAvailableSeats } from '@/entities/game/model/seatAvailability';
 import { teams } from '@/entities/team/model/teams';
 import type { Team } from '@/entities/team/model/types';
-import { getClosestMatch, getDDay, useGameSchedules } from '@/entities/game/model/schedule';
+import { getClosestMatch, getDDay, resolveVenueRegionLabel, useGameSchedules } from '@/entities/game/model/schedule';
 import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
 import { useResaleGameStatuses } from '@/entities/resale/model/useResaleGameStatuses';
 import { Button } from '@/shared/ui/button';
@@ -81,6 +81,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const awayTeam = opponent;
    const dDay = getDDay(match.date);
    const formattedDate = `${match.date.replace(/-/g, '.')} ${match.time}`;
+   const venueLabel = resolveVenueRegionLabel(match.venue, match.stadiumId);
    const awayTeamName = match.awayTeamFullName;
    const homeTeamName = match.homeTeamFullName;
    const resaleCount = resaleCountsQuery.data?.get(match.id);
@@ -152,7 +153,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                   </div>
                   <div className="flex items-center gap-1">
                      <MapPin className="size-3.5 text-[#646f7c] shrink-0" />
-                     <span className="text-[12px] text-[#646f7c] leading-[16px]">{match.venue}</span>
+                     <span className="text-[12px] text-[#646f7c] leading-[16px]">{venueLabel}</span>
                   </div>
                </div>
             </div>
@@ -258,7 +259,7 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
                <div className="flex flex-col gap-2 w-full">
                   <div className="flex items-center gap-2">
                      <MapPin className="size-4 text-[#646f7c] shrink-0" />
-                     <span className="text-label-2-medium text-[#646f7c] leading-[1.45]">{match.venue}</span>
+                     <span className="text-label-2-medium text-[#646f7c] leading-[1.45]">{venueLabel}</span>
                   </div>
                   <div className="flex items-center gap-2">
                      <Calendar className="size-4 text-[#646f7c] shrink-0" />
