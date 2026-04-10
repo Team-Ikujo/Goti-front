@@ -4,10 +4,8 @@ import { useAuthStore } from '@/entities/auth/model/authStore';
 import { fetchMyProfile, fetchMyProfileSummary } from '@/entities/user/api/memberApi';
 import {
    fetchMyTicketInfo,
-   fetchOrderTickets,
    fetchTicketDetail,
    type MyTicketInfo,
-   type OrderTicket,
    type TicketDetail,
 } from '@/entities/ticket/api/ticketApi';
 import {
@@ -27,8 +25,7 @@ import {
 import type { PurchaseHistoryItem, SaleHistoryItem, PurchaseStatus, SaleStatus } from './historyCard';
 import type { TicketType } from '../ui/TicketTypeBadge';
 import { formatTicketNumber } from './ticketNumber';
-import { parseDateValue } from './purchaseDetailHelpers';
-import { formatBookingCardDateTime, parseBookingDateTime } from '@/shared/lib/bookingDateTime';
+import { STADIUM_REFERENCES } from '@/entities/game/model/schedule';
 import { readStoredPaymentCompleteItems, type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
 import { isResaleBookingMockEnabled, isResaleDemoEnabled } from '@/shared/config/runtime';
 
@@ -108,7 +105,7 @@ const mapSaleStatus = (status: ResaleListingItem['listingStatus']): SaleStatus =
 
 type EnrichedOrderListItem = {
    order: PaymentPurchaseHistoryItem;
-   tickets: OrderTicket[];
+   ticketIds: string[];
    primaryTicketDetail?: TicketDetail;
 };
 
@@ -121,29 +118,19 @@ type EnrichedResaleListingItem = ResaleListingItem & {
 };
 
 const fetchMyOrderSummaries = async (): Promise<EnrichedOrderListItem[]> => {
-   // GET /api/v1/orders 는 백엔드에 존재하지 않음 (POST만 지원)
-   // 구매 내역은 /api/v1/payments/purchases 단일 엔드포인트만 사용
+   // purchases?size=100 응답의 ticketIds 필드 사용 (GET /api/v1/orders/{id}/tickets 제거)
    const purchaseHistory = await fetchPurchaseHistory({ size: 100 });
    const orders: PaymentPurchaseHistoryItem[] = purchaseHistory.list;
 
    return Promise.all(
       orders.map(async (order) => {
+         const ticketIds = order.ticketIds ?? [];
+         const primaryTicketId = ticketIds[0];
          try {
-            const tickets = await fetchOrderTickets(order.orderId);
-            const primaryTicketId = tickets[0]?.ticketId;
             const primaryTicketDetail = primaryTicketId ? await fetchTicketDetail(primaryTicketId) : undefined;
-
-            return {
-               order,
-               tickets,
-               primaryTicketDetail,
-            };
+            return { order, ticketIds, primaryTicketDetail };
          } catch {
-            return {
-               order,
-               tickets: [],
-               primaryTicketDetail: undefined,
-            };
+            return { order, ticketIds, primaryTicketDetail: undefined };
          }
       }),
    );
@@ -159,6 +146,7 @@ const mapStoredPaymentCompleteItemToPurchaseHistory = (item: StoredPaymentComple
    return {
       id: item.ticketId ?? item.orderId ?? item.orderNumber,
       rawOrderId: item.orderId,
+      rawOrderDate: item.orderedAt,
       orderId: formatTicketNumber(item.orderNumber, item.orderType === 'resale' ? 'resale' : 'ticket'),
       orderDate: formatDate(item.orderedAt),
       type: item.orderType === 'resale' ? ('리셀' as TicketType) : ('티켓' as TicketType),
@@ -259,33 +247,32 @@ export const useMyOrdersData = () => {
    });
 
    const data = useMemo((): PurchaseHistoryItem[] => {
-      const apiOrders = (query.data ?? []).map(({ order, tickets, primaryTicketDetail }) => {
-         // PurchaseSearchResponse 기준: seatInfos 배열 직접 사용
+      const apiOrders = (query.data ?? []).map(({ order, ticketIds, primaryTicketDetail }) => {
          const displaySeatInfos = order.seatInfos.length > 0
             ? order.seatInfos
-            : tickets.length > 0
-               ? tickets.map((ticket) => ticket.seatInfo)
-               : primaryTicketDetail?.seatInfo
-                  ? [primaryTicketDetail.seatInfo]
-                  : [];
+            : primaryTicketDetail?.seatInfo
+               ? [primaryTicketDetail.seatInfo]
+               : [];
          const primarySeatInfo = displaySeatInfos[0];
          const sectionLabel = primaryTicketDetail?.seatGradeName
             ?? (primarySeatInfo ? parseGradeName(primarySeatInfo) : '좌석 정보');
          const seats = displaySeatInfos.length > 0
             ? displaySeatInfos.map((seatInfo) => parseSeatDetail(seatInfo))
             : Array.from({ length: order.totalQuantity }, (_, i) => `좌석${i + 1}`);
-         const ticketIds = tickets.map((ticket) => ticket.ticketId);
-         const seatPrices = tickets.map((ticket) => ticket.ticketPrice);
+         const unitPrice = order.totalQuantity > 0
+            ? Math.round(order.totalAmount / order.totalQuantity)
+            : 0;
+         const seatPrices = ticketIds.map(() => unitPrice);
          const gameTitle = order.gameTitle ?? primaryTicketDetail?.gameTitle ?? 'KBO 리그 경기';
-         const stadiumName = primaryTicketDetail?.stadiumName ?? '야구장';
+         const stadiumName = primaryTicketDetail?.stadiumName
+            ?? (order.stadiumId ? STADIUM_REFERENCES[order.stadiumId]?.displayName : undefined)
+            ?? '야구장';
          const gameDate = order.gameDate ?? primaryTicketDetail?.gameDate;
-         const purchaseAmount = order.totalAmount > 0
-            ? order.totalAmount
-            : seatPrices.reduce((sum, price) => sum + price, 0);
 
          return {
             id: ticketIds[0] ?? order.orderId,
             rawOrderId: order.orderId,
+            rawOrderDate: order.orderedAt,
             gameId: order.gameId,
             stadiumId: order.stadiumId,
             orderId: formatTicketNumber(order.orderNumber, 'ticket'),
@@ -302,10 +289,10 @@ export const useMyOrdersData = () => {
                section: sectionLabel,
                seats,
             },
-            price: purchaseAmount,
+            price: order.totalAmount,
             paymentStatus: mapPurchaseStatus(order.orderStatus),
             deliveryType: '모바일 티켓',
-            canSell: order.purchaseType !== 'RESALE' && order.orderStatus === 'CONFIRMED',
+            canSell: order.purchaseType !== 'RESALE' && (order.orderStatus === 'CONFIRMED' || order.orderStatus === 'COMPLETED'),
             ticketIds: ticketIds.length > 0 ? ticketIds : undefined,
             seatPrices: seatPrices.length > 0 ? seatPrices : undefined,
          };

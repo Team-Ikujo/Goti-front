@@ -6,6 +6,7 @@ export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판
 export interface PurchaseHistoryItem {
    id: string;
    rawOrderId?: string;
+   rawOrderDate?: string;
    gameId?: string;
    stadiumId?: string;
    orderId: string;
@@ -52,7 +53,6 @@ export interface SaleHistoryItem {
 
 export type HistoryCardProps = ({ mode: 'purchase'; item: PurchaseHistoryItem } | { mode: 'sale'; item: SaleHistoryItem }) & {
    onResellCompleteConfirm?: () => void;
-   mockTicketInfoError?: boolean;
 };
 
 export const isPurchaseHistoryItem = (

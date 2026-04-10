@@ -2,8 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import CancelBookingDialog from './CancelBookingDialog';
 import ResellRegisterDialog from './ResellRegisterDialog';
 import QrViewDialog from './QrViewDialog';
-import type { OrderTicket } from '@/entities/ticket/api/ticketApi';
-import { formatTicketNumber, getTicketNumberKind } from '../model/ticketNumber';
 
 const parseGradeName = (seatInfo: string): string => {
    const tokens = seatInfo.split(' ');
@@ -11,14 +9,6 @@ const parseGradeName = (seatInfo: string): string => {
    if (sectionIndex > 0) return tokens.slice(0, sectionIndex).join(' ');
    const rowIndex = tokens.findIndex((token) => /^[A-Z가-힣\d]+열$/.test(token));
    return rowIndex > 0 ? tokens.slice(0, rowIndex).join(' ') : (tokens[0] ?? '');
-};
-
-const parseSeatDetail = (seatInfo: string): string => {
-   const tokens = seatInfo.split(' ');
-   const sectionIndex = tokens.findIndex((token) => token.endsWith('구역'));
-   if (sectionIndex > 0) return tokens.slice(sectionIndex).join(' ');
-   const rowIndex = tokens.findIndex((token) => /^[A-Z가-힣\d]+열$/.test(token));
-   return rowIndex > 0 ? tokens.slice(rowIndex).join(' ') : tokens.slice(1).join(' ');
 };
 
 interface PurchaseDetailDialogsProps {
@@ -33,9 +23,8 @@ interface PurchaseDetailDialogsProps {
       paymentMethodDisplay?: string;
       canSell: boolean;
       paymentSummary: { fee: number };
-      seatItems: Array<{ ticketId: string; section: string; seatDetail: string; status: string }>;
+      seatItems: Array<{ ticketId: string; orderId: string; section: string; seatDetail: string; status: string; price: number }>;
    };
-   orderTickets: OrderTicket[];
    isBankTransfer: boolean;
    qrOpen: boolean;
    cancelOpen: boolean;
@@ -48,7 +37,6 @@ interface PurchaseDetailDialogsProps {
 export function PurchaseDetailDialogs({
    orderId,
    detail,
-   orderTickets,
    isBankTransfer,
    qrOpen,
    cancelOpen,
@@ -58,22 +46,9 @@ export function PurchaseDetailDialogs({
    onCloseResell,
 }: PurchaseDetailDialogsProps) {
    const navigate = useNavigate();
-   const activeSeatDetails = new Set(
-      detail.seatItems
-         .filter((seat) => seat.status !== '취소완료' && seat.status !== '판매취소')
-         .map((seat) => seat.seatDetail),
+   const activeSeatItems = detail.seatItems.filter(
+      (seat) => seat.status !== '취소완료' && seat.status !== '판매취소',
    );
-   const sellableOrderTickets = orderTickets.filter((ticket) => {
-      if (ticket.ticketStatus !== 'ISSUED') {
-         return false;
-      }
-
-      if (activeSeatDetails.size === 0) {
-         return true;
-      }
-
-      return activeSeatDetails.has(ticket.seatInfo);
-   });
 
    return (
       <>
@@ -85,16 +60,12 @@ export function PurchaseDetailDialogs({
                game={{ teams: detail.game.teams, datetime: detail.game.datetime }}
                isBankTransfer={isBankTransfer}
                paymentMethod={detail.paymentMethodDisplay}
-               seats={orderTickets.map((ticket) => ({
-                  orderId: formatTicketNumber(
-                     ticket.ticketNumber,
-                     ticket.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(ticket.ticketNumber, 'ticket'),
-                  ),
-                  orderItemId: ticket.orderItemId,
-                  ticketId: ticket.ticketId,
-                  section: ticket.seatInfo.split(' ')[0] ?? '',
-                  seatDetail: ticket.seatInfo,
-                  price: ticket.ticketPrice,
+               seats={activeSeatItems.map((seat) => ({
+                  orderId: seat.orderId,
+                  ticketId: seat.ticketId,
+                  section: seat.section,
+                  seatDetail: seat.seatDetail,
+                  price: seat.price,
                }))}
             />
          )}
@@ -114,29 +85,24 @@ export function PurchaseDetailDialogs({
                      teams: detail.game.teams,
                      venue: detail.game.venue || '홈구장',
                      datetime: detail.game.datetime,
-                     quantity: sellableOrderTickets.length > 0 ? sellableOrderTickets.length : detail.seatItems.length,
+                     quantity: activeSeatItems.length > 0 ? activeSeatItems.length : detail.seatItems.length,
                      section:
-                        (sellableOrderTickets[0]?.seatInfo
-                           ? parseGradeName(sellableOrderTickets[0].seatInfo)
-                           : undefined) ??
-                        detail.seatItems[0]?.section ??
+                        activeSeatItems[0]?.section ??
                         parseGradeName(detail.seatInfo),
                      seats:
-                        sellableOrderTickets.length > 0
-                           ? sellableOrderTickets.map((ticket) => parseSeatDetail(ticket.seatInfo))
-                           : detail.seatItems.length > 0
-                              ? detail.seatItems.map((seat) => seat.seatDetail)
-                           : [parseSeatDetail(detail.seatInfo)],
+                        activeSeatItems.length > 0
+                           ? activeSeatItems.map((seat) => seat.seatDetail)
+                           : [detail.seatInfo],
                   },
                   price:
-                     sellableOrderTickets.length > 0
-                        ? sellableOrderTickets.reduce((sum, ticket) => sum + ticket.ticketPrice, 0)
+                     activeSeatItems.length > 0
+                        ? activeSeatItems.reduce((sum, seat) => sum + seat.price, 0)
                         : detail.ticketPrice,
                   paymentStatus: '예매 완료',
                   deliveryType: '모바일 티켓',
                   canSell: detail.canSell,
-                  ticketIds: sellableOrderTickets.map((ticket) => ticket.ticketId),
-                  seatPrices: sellableOrderTickets.map((ticket) => ticket.ticketPrice),
+                  ticketIds: activeSeatItems.map((seat) => seat.ticketId),
+                  seatPrices: activeSeatItems.map((seat) => seat.price),
                }}
             />
          )}
