@@ -175,18 +175,6 @@ type PaymentMethodCode = 'CARD' | 'ACCOUNT_TRANSFER';
 const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
 const shouldUseResaleBookingMock = isResaleDemoEnabled || isResaleBookingMockEnabled;
 
-const formatOrderedAt = (date: Date) => {
-   const pad = (n: number) => String(n).padStart(2, '0');
-   const year = date.getFullYear();
-   const month = pad(date.getMonth() + 1);
-   const day = pad(date.getDate());
-   const hours = date.getHours();
-   const minutes = pad(date.getMinutes());
-   const ampm = hours < 12 ? 'AM' : 'PM';
-   const h12 = hours % 12 || 12;
-   return `${year}.${month}.${day}. ${h12}:${minutes} ${ampm}`;
-};
-
 const createClientTransactionId = (prefix: string) => {
    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
       return `${prefix}-${crypto.randomUUID()}`;
@@ -448,7 +436,8 @@ const buildPaymentResponse = ({
       quantity: order.totalQuantity,
       seats,
       paymentMethod: toPaymentMethodLabel(paymentMethod),
-      orderedAt: formatOrderedAt(new Date()),
+      // 주문 접수 시각은 서버가 내려준 실제 결제 완료 시각을 우선 사용한다.
+      orderedAt: payment.paidAt ?? new Date().toISOString(),
       amount,
       issuedTicketCount,
       ...(recipient && {
