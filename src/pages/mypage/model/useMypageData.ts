@@ -27,6 +27,7 @@ import { parseDateValue } from './purchaseDetailHelpers';
 import { STADIUM_REFERENCES } from '@/entities/game/model/schedule';
 import { formatBookingCardDateTime, parseBookingDateTime } from '@/shared/lib/bookingDateTime';
 import { readStoredPaymentCompleteItems, type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
+import { readStoredResaleListings, type StoredResaleListingItem } from '@/shared/lib/resaleListingStorage';
 import { isResaleBookingMockEnabled, isResaleDemoEnabled } from '@/shared/config/runtime';
 
 const formatDate = (dateStr: string) => {
@@ -113,6 +114,62 @@ type EnrichedResaleListingItem = ResaleListingItem & {
    orderNumber: string;
    orderStatus: ResaleListingOrderStatus;
    orderCreatedAt: string;
+};
+
+const mergeResaleListings = (
+   apiListings: EnrichedResaleListingItem[],
+   storedListings: StoredResaleListingItem[],
+): EnrichedResaleListingItem[] => {
+   const merged = new Map<string, EnrichedResaleListingItem>();
+
+   for (const listing of storedListings) {
+      merged.set(listing.listingId, listing);
+   }
+
+   for (const listing of apiListings) {
+      merged.set(listing.listingId, listing);
+   }
+
+   return Array.from(merged.values()).sort((left, right) =>
+      (right.orderCreatedAt ?? right.listedAt).localeCompare(left.orderCreatedAt ?? left.listedAt),
+   );
+};
+
+const getStoredResalePurchaseTicketCount = () => {
+   return readStoredPaymentCompleteItems()
+      .filter((item) => item.orderType === 'resale')
+      .reduce((sum, item) => sum + (item.issuedTicketCount ?? item.quantity ?? 0), 0);
+};
+
+const getStoredResaleListingSummary = (userId?: string | null) => {
+   const storedListings = readStoredResaleListings(userId);
+
+   return storedListings.reduce(
+      (summary, listing) => {
+         switch (listing.listingStatus) {
+            case 'LISTING':
+            case 'HOLD':
+               summary.listingCount += 1;
+               break;
+            case 'SOLD':
+               summary.soldCount += 1;
+               summary.unsettledAmount += listing.listingPrice;
+               break;
+            case 'SETTLED':
+               summary.soldCount += 1;
+               break;
+            default:
+               break;
+         }
+
+         return summary;
+      },
+      {
+         listingCount: 0,
+         soldCount: 0,
+         unsettledAmount: 0,
+      },
+   );
 };
 
 const fetchMyOrderSummaries = async (): Promise<EnrichedOrderListItem[]> => {
@@ -295,14 +352,27 @@ export const useMyOrdersData = () => {
 
 export const useMyResaleListData = () => {
    const accessToken = useAuthStore(s => s.accessToken);
+   const currentUserId = useAuthStore(s => s.currentUserId);
 
    return useQuery({
-      queryKey: ['myResales', accessToken],
-      queryFn: fetchMyResaleListingsWithGameInfo,
+      queryKey: ['myResales', accessToken, currentUserId],
+      queryFn: async () => {
+         try {
+            return await fetchMyResaleListingsWithGameInfo();
+         } catch (error) {
+            if (readStoredResaleListings(currentUserId).length > 0) {
+               return [];
+            }
+
+            throw error;
+         }
+      },
       enabled: Boolean(accessToken),
       select: (data): SaleHistoryItem[] => {
-      return data.map((listing) => ({
-           id: listing.listingId,
+         const mergedListings = mergeResaleListings(data, readStoredResaleListings(currentUserId));
+
+         return mergedListings.map((listing) => ({
+            id: listing.listingId,
             ticketId: listing.ticketId,
             orderId: formatTicketNumber(listing.orderNumber ?? listing.ticketNumber ?? listing.ticketId, 'resale'),
             orderDate: formatDate(listing.orderCreatedAt ?? listing.listedAt),
