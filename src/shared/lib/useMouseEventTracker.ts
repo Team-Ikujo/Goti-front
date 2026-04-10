@@ -19,8 +19,8 @@ export interface MacroPredictResult {
    event_count: number;
 }
 
-const ML_SERVER_URL = (import.meta.env.PUBLIC_MOUSE_ML_URL ?? '').trim() || 'http://localhost:8000';
-const SEND_INTERVAL_MS = 10_000;
+const ML_PREDICT_URL = '/api/v1/mouse/predict';
+const SEND_INTERVAL_MS = 20_000;
 const isDev = import.meta.env.DEV;
 
 interface TrackedMouseEvent {
@@ -43,10 +43,10 @@ function generateSessionId(): string {
 async function postPredict(body: PredictRequest): Promise<MacroPredictResult | null> {
    try {
       if (isDev) {
-         console.log(`[MouseTracker] POST ${ML_SERVER_URL}/predict | events: ${body.events.length} | session: ${body.session_id}`);
+         console.log(`[MouseTracker] POST ${ML_PREDICT_URL} | events: ${body.events.length} | session: ${body.session_id}`);
       }
 
-      const response = await fetch(`${ML_SERVER_URL}/predict`, {
+      const response = await fetch(ML_PREDICT_URL, {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify(body),
