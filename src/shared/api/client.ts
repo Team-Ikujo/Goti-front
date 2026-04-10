@@ -29,7 +29,6 @@ const shouldKeepSessionAlivePathPrefixes = ["/books", "/resell-books", "/tickets
 const PUBLIC_API_PATH_PATTERNS = [
   /^\/api\/v1\/games(?:\/|$)/,
   /^\/api\/v1\/baseball-teams(?:\/|$)/,
-  /^\/api\/v1\/seat-reservations(?:\/|$)/,
   // 예매/리셀 플로우 API는 queue token / hold 기반으로 동작하므로
   // 로그인 쿠키 세션을 같이 보내면 RBAC 게이트웨이에 막힐 수 있다.
   /^\/api\/v1\/orders(?:\/|$)/,
