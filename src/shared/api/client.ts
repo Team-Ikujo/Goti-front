@@ -129,6 +129,10 @@ const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
 
   try {
     const { pathname } = new URL(requestUrl, window.location.origin);
+    if (PUBLIC_API_PATH_PATTERNS.some((pattern) => pattern.test(pathname))) {
+      return true;
+    }
+
     if (authorizationOptionalApiPaths.has(pathname)) {
       return true;
     }
