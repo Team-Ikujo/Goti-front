@@ -11,6 +11,7 @@ import { getBookingTeamConfig } from '@/pages/books/model/zoneData';
 import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import { useMouseEventTracker } from '@/shared/lib/useMouseEventTracker';
 import BooksExitDialog from '@/shared/widgets/layout/books/BooksExitDialog';
 import { releaseQueueSession } from '@/pages/queue/api/queueApi';
 
@@ -31,6 +32,15 @@ const BooksPage = () => {
       [bookingEntryState?.homeTeamId],
    );
    const requiresCaptcha = Boolean(bookingEntryState?.requireCaptcha);
+   const exitBookingFlowRef = useRef<() => void>(() => {});
+   useMouseEventTracker({
+      userId: bookingEntryState?.userId,
+      onMacroDetected: () => {
+         logBookingFlow('BooksPage', 'mouseML macro detected — blocking booking');
+         window.alert('매크로 사용이 감지되었습니다. 예매에 접근할 수 없습니다.');
+         exitBookingFlowRef.current();
+      },
+   });
    const { zones, isSeatGradeBotBlocked } = useBookingZones({
       bookingEntryState,
       bookingFlowMode,
@@ -97,6 +107,7 @@ const BooksPage = () => {
       clearBookingEntry();
       navigate('/', { replace: true });
    };
+   exitBookingFlowRef.current = () => void exitBookingFlow();
 
    const captcha = useBookingCaptcha({
       requiresCaptcha,

@@ -23,7 +23,7 @@ export default defineConfig({
       },
    },
    performance: {
-      removeConsole: ['log', 'info', 'warn'],
+      removeConsole: process.env.NODE_ENV === 'production' ? ['log', 'info', 'warn'] : false,
    },
    server: {
       proxy: {
