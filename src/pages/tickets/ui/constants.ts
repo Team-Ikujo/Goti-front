@@ -1,19 +1,12 @@
 // src/pages/tickets/ui/constants.ts
 
+import { STADIUM_REFERENCES } from '@/entities/game/model/schedule';
 import type { GameItem } from './types';
 
 export const MAX_PRICE = 100_000;
 
-/** schedule.ts STADIUM_REFERENCES의 displayName과 동일하게 유지 */
-export const VENUES = [
-   '잠실 야구장',
-   '대구 삼성 라이온즈 파크',
-   '사직 야구장',
-   '창원 NC파크',
-   '고척 스카이돔',
-   '기아 챔피언스필드',
-   '수원 KT위즈파크',
-];
+/** STADIUM_REFERENCES의 displayName에서 자동 파생 — schedule.ts와 항상 동기화됨 */
+export const VENUES = Object.values(STADIUM_REFERENCES).map((s) => s.displayName);
 
 /**
  * schedule.ts(홈 페이지)와 동일한 경기 데이터.

@@ -95,7 +95,7 @@ type StadiumReference = {
   aliases: string[];
 };
 
-const STADIUM_REFERENCES: Record<string, StadiumReference> = {
+export const STADIUM_REFERENCES: Record<string, StadiumReference> = {
   'stadium-jamsil-baseball': {
     displayName: '잠실 야구장',
     aliases: ['잠실야구장'],
@@ -185,11 +185,11 @@ const collectLookupTeamIds = (games: GameScheduleResponse[]) => {
 
   games.forEach((game) => {
     if (needsTeamLookup(game.homeTeamId, game.homeTeamCode, game.homeTeamName, game.homeTeamDisplayName)) {
-      ids.add(game.homeTeamId);
+      ids.add(game.homeTeamId!);
     }
 
     if (needsTeamLookup(game.awayTeamId, game.awayTeamCode, game.awayTeamName, game.awayTeamDisplayName)) {
-      ids.add(game.awayTeamId);
+      ids.add(game.awayTeamId!);
     }
   });
 
@@ -370,7 +370,7 @@ const closeTicketStatusForUnavailableGame = (ticketStatus: TicketStatus, gameSta
 };
 
 const resolveVenueNameFromGame = (game: GameScheduleResponse, homeTeamName: string) => {
-  const stadiumById = STADIUM_REFERENCES[game.stadiumId];
+  const stadiumById = game.stadiumId ? STADIUM_REFERENCES[game.stadiumId] : undefined;
 
   if (stadiumById) {
     return stadiumById.displayName;
@@ -414,8 +414,8 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
     closeTicketStatusForEmptyInventory(mapTicketStatus(game.ticketingStatus), game.remainingSeatCount),
     status,
   );
-  const fallbackHomeName = game.homeTeamDisplayName ?? game.homeTeamName ?? game.homeTeamCode ?? game.homeTeamId;
-  const fallbackAwayName = game.awayTeamDisplayName ?? game.awayTeamName ?? game.awayTeamCode ?? game.awayTeamId;
+  const fallbackHomeName = game.homeTeamDisplayName ?? game.homeTeamName ?? game.homeTeamCode ?? game.homeTeamId ?? '';
+  const fallbackAwayName = game.awayTeamDisplayName ?? game.awayTeamName ?? game.awayTeamCode ?? game.awayTeamId ?? '';
 
   return {
     id: game.gameId,
