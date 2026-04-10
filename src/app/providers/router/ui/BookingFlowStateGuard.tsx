@@ -8,8 +8,9 @@ import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 
 const isBookingFlowPath = (pathname: string) =>
-   pathname.startsWith('/queue') || pathname.startsWith('/books') || pathname.startsWith('/tickets');
-const isBookSelectionPath = (pathname: string) => pathname.startsWith('/books');
+   pathname.startsWith('/queue') || pathname.startsWith('/books') || pathname.startsWith('/resell-books') || pathname.startsWith('/tickets');
+const isBookSelectionPath = (pathname: string) =>
+   pathname.startsWith('/books') || pathname.startsWith('/resell-books');
 const isTicketCheckoutPath = (pathname: string) =>
    pathname === '/tickets/payment' ||
    pathname === '/tickets/resell-payment' ||
@@ -75,7 +76,7 @@ const BookingFlowStateGuard = () => {
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
-         navigate({ pathname: '/queue', search }, { replace: true, state: bookingEntry });
+         navigate({ pathname: '/queue' }, { replace: true, state: bookingEntry });
          return;
       }
 

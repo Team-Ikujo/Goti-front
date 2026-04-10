@@ -6,7 +6,10 @@ import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 
 const isSeatHoldManagedPath = (pathname: string) =>
-   pathname.startsWith('/books') || pathname === '/tickets/payment' || pathname === '/tickets/payment/processing';
+   pathname.startsWith('/books') ||
+   pathname.startsWith('/resell-books') ||
+   pathname === '/tickets/payment' ||
+   pathname === '/tickets/payment/processing';
 
 const getSeatHolds = () => Object.values(useSeatHoldStore.getState().holdsBySeatId);
 

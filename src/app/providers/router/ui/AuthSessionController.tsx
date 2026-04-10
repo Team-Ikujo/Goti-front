@@ -5,7 +5,7 @@ import { reissueAccessToken } from '@/features/auth/api/authApi';
 import SessionWarningDialog from '@/shared/widgets/layout/auth/SessionWarningDialog';
 
 const shouldKeepSessionAlivePath = (pathname: string) =>
-   pathname.startsWith('/books') || pathname.startsWith('/tickets');
+   pathname.startsWith('/books') || pathname.startsWith('/resell-books') || pathname.startsWith('/tickets');
 
 const shouldAttemptInitialSessionResolve = (pathname: string) => {
    if (pathname === '/session-expired') {

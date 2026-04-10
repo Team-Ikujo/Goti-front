@@ -11,6 +11,16 @@ import { type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStor
 import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
+import { isResaleBookingMockEnabled, isResaleDemoEnabled } from '@/shared/config/runtime';
+import {
+   completeDemoResaleOrder,
+   createDemoResaleHold,
+   createDemoResaleOrder,
+   createDemoResalePayment,
+   getDemoResaleTransactions,
+   releaseDemoResaleHold,
+   releaseDemoResaleHoldSync,
+} from '@/shared/lib/demo/resaleDemo';
 
 interface CheckoutFormRequest {
    deliveryMethod: 'mobile' | 'onsite' | 'delivery';
@@ -163,6 +173,7 @@ type ResalePaymentRequest = {
 
 type PaymentMethodCode = 'CARD' | 'ACCOUNT_TRANSFER';
 const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
+const shouldUseResaleBookingMock = isResaleDemoEnabled || isResaleBookingMockEnabled;
 
 const formatOrderedAt = (date: Date) => {
    const pad = (n: number) => String(n).padStart(2, '0');
@@ -250,12 +261,20 @@ const createOrderPayment = async (orderId: string, payload: OrderPaymentRequest)
 };
 
 const createResaleHold = async (payload: ResaleHoldRequest) => {
+   if (shouldUseResaleBookingMock) {
+      return createDemoResaleHold(payload.listingId, payload.queueTokenJti);
+   }
+
    const response = await apiClient.post<ApiEnvelope<ResaleHoldResponse>>('/api/v1/resales/holds', payload);
 
    return response.data.data;
 };
 
 export const releaseResaleHold = async (holdId: string) => {
+   if (shouldUseResaleBookingMock) {
+      return releaseDemoResaleHold(holdId);
+   }
+
    const response = await apiClient.patch<ApiEnvelope<ResaleHoldResponse>>(
       `/api/v1/resales/holds/${encodeURIComponent(holdId)}/release`,
    );
@@ -265,6 +284,11 @@ export const releaseResaleHold = async (holdId: string) => {
 
 export const releaseResaleHoldKeepalive = (holdId: string) => {
    if (typeof window === 'undefined') {
+      return;
+   }
+
+   if (shouldUseResaleBookingMock) {
+      releaseDemoResaleHoldSync(holdId);
       return;
    }
 
@@ -279,6 +303,13 @@ export const releaseResaleHoldKeepalive = (holdId: string) => {
 };
 
 const createResaleOrder = async (payload: ResaleOrderRequest) => {
+   if (shouldUseResaleBookingMock) {
+      return createDemoResaleOrder({
+         holdIds: payload.holdIds,
+         buyerId: resolveUserIdFromJwt(useAuthStore.getState().accessToken) ?? payload.buyerEmail,
+      });
+   }
+
    const response = await apiClient.post<ApiEnvelope<ResaleOrderResponse>>('/api/v1/resales/orders', payload);
 
    return response.data.data;
@@ -301,6 +332,10 @@ const normalizeTransactionIds = (payload: unknown): string[] => {
 };
 
 const getResaleTransactions = async (orderId: string) => {
+   if (shouldUseResaleBookingMock) {
+      return getDemoResaleTransactions(orderId);
+   }
+
    const response = await apiClient.get<ApiEnvelope<ResaleOrderTransactionsResponse | string[]>>(
       `/api/v1/resales/orders/${orderId}/transactions`,
    );
@@ -325,6 +360,13 @@ const getResaleTransactionsWithRetry = async (orderId: string, attempts = 5): Pr
 };
 
 const createResalePayment = async (payload: ResalePaymentRequest) => {
+   if (shouldUseResaleBookingMock) {
+      return createDemoResalePayment({
+         orderId: payload.orderId,
+         paymentMethod: payload.paymentMethod as PaymentMethodCode,
+      });
+   }
+
    const response = await apiClient.post<ApiEnvelope<OrderPaymentResponse>>('/api/v1/payments/resales', payload);
 
    return response.data.data;
@@ -345,6 +387,10 @@ type CompleteResaleOrderResponse = {
 };
 
 const completeResaleOrder = async (orderId: string, paymentId: string): Promise<CompleteResaleOrderResponse> => {
+   if (shouldUseResaleBookingMock) {
+      return completeDemoResaleOrder(orderId);
+   }
+
    const response = await apiClient.patch<ApiEnvelope<CompleteResaleOrderResponse>>(
       `/api/v1/resales/orders/${encodeURIComponent(orderId)}/complete`,
       undefined,

@@ -20,29 +20,12 @@ type MockGameSchedule = {
   awayTeamDisplayName: string;
   stadiumLocation: string;
 };
-
-const formatLocalDate = (value: Date) => {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-};
-
-const formatLocalDateTime = (offsetDays: number, hour: number, minute: number) => {
-  const value = new Date();
-  value.setDate(value.getDate() + offsetDays);
-  value.setHours(hour, minute, 0, 0);
-
-  return `${formatLocalDate(value)} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-};
-
-const MOCK_TODAY = formatLocalDate(new Date());
+const MOCK_TODAY = '2026-04-09';
 
 export const mockGameSchedules: MockGameSchedule[] = [
   {
     gameId: 'game-kia-home-yesterday',
-    startAt: formatLocalDateTime(-1, 18, 30),
+    startAt: '2026-04-08 18:30',
     leagueType: 'REGULAR',
     homeTeamId: 'e5f58f8c-fcde-4017-8033-d8deb34fd4a2',
     awayTeamId: 'f44d1e89-e2fe-40e7-a587-1157d7a9c80a',
@@ -61,7 +44,7 @@ export const mockGameSchedules: MockGameSchedule[] = [
   },
   {
     gameId: 'game-samsung-home-today',
-    startAt: formatLocalDateTime(0, 18, 30),
+    startAt: '2026-04-09 18:30',
     leagueType: 'REGULAR',
     homeTeamId: '412cfc77-2c5d-4583-8e79-968339223864',
     awayTeamId: 'd64b4220-6479-4e77-986a-f52447a433a6',
@@ -70,9 +53,9 @@ export const mockGameSchedules: MockGameSchedule[] = [
     homeTeamScore: 0,
     awayTeamScore: 0,
     gameResult: 'DRAW',
-    ticketingStatus: 'AVAILABLE',
-    ticketingOpenedAt: formatLocalDateTime(-7, 11, 0),
-    ticketingEndAt: formatLocalDateTime(0, 14, 30),
+    ticketingStatus: 'TERMINATED',
+    ticketingOpenedAt: '2026-04-02 11:00',
+    ticketingEndAt: '2026-04-09 14:30',
     remainingSeatCount: 12543,
     homeTeamDisplayName: '삼성',
     awayTeamDisplayName: 'NC',
@@ -80,7 +63,7 @@ export const mockGameSchedules: MockGameSchedule[] = [
   },
   {
     gameId: 'game-kia-home-tomorrow',
-    startAt: formatLocalDateTime(1, 18, 30),
+    startAt: '2026-04-10 18:30',
     leagueType: 'REGULAR',
     homeTeamId: 'e5f58f8c-fcde-4017-8033-d8deb34fd4a2',
     awayTeamId: '520af775-e84b-4112-aa02-18ed1a6c8458',
@@ -90,8 +73,8 @@ export const mockGameSchedules: MockGameSchedule[] = [
     awayTeamScore: 0,
     gameResult: 'DRAW',
     ticketingStatus: 'AVAILABLE',
-    ticketingOpenedAt: formatLocalDateTime(-6, 11, 0),
-    ticketingEndAt: formatLocalDateTime(1, 14, 30),
+    ticketingOpenedAt: '2026-04-03 11:00',
+    ticketingEndAt: '2026-04-10 14:30',
     remainingSeatCount: 9632,
     homeTeamDisplayName: 'KIA',
     awayTeamDisplayName: 'SSG',
@@ -99,7 +82,7 @@ export const mockGameSchedules: MockGameSchedule[] = [
   },
   {
     gameId: 'game-samsung-home-this-weekend',
-    startAt: formatLocalDateTime(3, 14, 0),
+    startAt: '2026-04-12 14:00',
     leagueType: 'REGULAR',
     homeTeamId: '412cfc77-2c5d-4583-8e79-968339223864',
     awayTeamId: '1e4022c6-3887-44f6-b510-d98aad5a4192',
@@ -109,8 +92,8 @@ export const mockGameSchedules: MockGameSchedule[] = [
     awayTeamScore: 0,
     gameResult: 'DRAW',
     ticketingStatus: 'AVAILABLE',
-    ticketingOpenedAt: formatLocalDateTime(-4, 11, 0),
-    ticketingEndAt: formatLocalDateTime(3, 10, 0),
+    ticketingOpenedAt: '2026-04-05 11:00',
+    ticketingEndAt: '2026-04-12 10:00',
     remainingSeatCount: 10124,
     homeTeamDisplayName: '삼성',
     awayTeamDisplayName: '키움',
@@ -118,7 +101,7 @@ export const mockGameSchedules: MockGameSchedule[] = [
   },
   {
     gameId: 'game-kia-home-next-week',
-    startAt: formatLocalDateTime(8, 18, 30),
+    startAt: '2026-04-17 18:30',
     leagueType: 'REGULAR',
     homeTeamId: 'e5f58f8c-fcde-4017-8033-d8deb34fd4a2',
     awayTeamId: 'd64b4220-6479-4e77-986a-f52447a433a6',
@@ -128,8 +111,8 @@ export const mockGameSchedules: MockGameSchedule[] = [
     awayTeamScore: 0,
     gameResult: 'DRAW',
     ticketingStatus: 'AVAILABLE',
-    ticketingOpenedAt: formatLocalDateTime(1, 11, 0),
-    ticketingEndAt: formatLocalDateTime(8, 14, 30),
+    ticketingOpenedAt: '2026-04-10 11:00',
+    ticketingEndAt: '2026-04-17 14:30',
     remainingSeatCount: 8740,
     homeTeamDisplayName: 'KIA',
     awayTeamDisplayName: 'NC',
@@ -137,7 +120,7 @@ export const mockGameSchedules: MockGameSchedule[] = [
   },
   {
     gameId: 'game-samsung-home-next-weekend',
-    startAt: formatLocalDateTime(9, 17, 0),
+    startAt: '2026-04-18 17:00',
     leagueType: 'REGULAR',
     homeTeamId: '412cfc77-2c5d-4583-8e79-968339223864',
     awayTeamId: 'f44d1e89-e2fe-40e7-a587-1157d7a9c80a',
@@ -147,8 +130,8 @@ export const mockGameSchedules: MockGameSchedule[] = [
     awayTeamScore: 0,
     gameResult: 'DRAW',
     ticketingStatus: 'SCHEDULED',
-    ticketingOpenedAt: formatLocalDateTime(5, 11, 0),
-    ticketingEndAt: formatLocalDateTime(9, 13, 0),
+    ticketingOpenedAt: '2026-04-14 11:00',
+    ticketingEndAt: '2026-04-18 13:00',
     remainingSeatCount: 11032,
     homeTeamDisplayName: '삼성',
     awayTeamDisplayName: 'LG',
@@ -156,7 +139,7 @@ export const mockGameSchedules: MockGameSchedule[] = [
   },
   {
     gameId: 'game-kia-home-two-weeks',
-    startAt: formatLocalDateTime(14, 18, 30),
+    startAt: '2026-04-23 18:30',
     leagueType: 'REGULAR',
     homeTeamId: 'e5f58f8c-fcde-4017-8033-d8deb34fd4a2',
     awayTeamId: '34159d27-2497-44d4-a4a2-c461dc3585c8',
@@ -166,8 +149,8 @@ export const mockGameSchedules: MockGameSchedule[] = [
     awayTeamScore: 0,
     gameResult: 'DRAW',
     ticketingStatus: 'AVAILABLE',
-    ticketingOpenedAt: formatLocalDateTime(8, 11, 0),
-    ticketingEndAt: formatLocalDateTime(14, 14, 30),
+    ticketingOpenedAt: '2026-04-17 11:00',
+    ticketingEndAt: '2026-04-23 14:30',
     remainingSeatCount: 11876,
     homeTeamDisplayName: 'KIA',
     awayTeamDisplayName: '두산',
@@ -176,25 +159,6 @@ export const mockGameSchedules: MockGameSchedule[] = [
 ];
 
 const matchesCalendarDate = (startAt: string, date: string) => startAt.slice(0, 10) === date;
-
-/** 현재 시각 기준으로 경기 상태와 티켓팅 상태를 동적으로 계산 */
-const resolveGameStatus = (game: MockGameSchedule): Pick<MockGameSchedule, 'gameStatus' | 'ticketingStatus'> => {
-  const now = Date.now();
-  const startMs = new Date(game.startAt.replace(' ', 'T')).getTime();
-  const GAME_DURATION_MS = 3 * 60 * 60 * 1000;   // 경기 지속 시간: 3시간
-  const TICKETING_CLOSE_MS = 4 * 60 * 60 * 1000; // 경기 시작 4시간 전 티켓팅 마감
-
-  if (now >= startMs + GAME_DURATION_MS) {
-    return { gameStatus: 'FINISHED', ticketingStatus: 'TERMINATED' };
-  }
-  if (now >= startMs) {
-    return { gameStatus: 'IN_PROGRESS', ticketingStatus: 'TERMINATED' };
-  }
-  if (now >= startMs - TICKETING_CLOSE_MS) {
-    return { gameStatus: 'SCHEDULED', ticketingStatus: 'TERMINATED' };
-  }
-  return { gameStatus: game.gameStatus, ticketingStatus: game.ticketingStatus };
-};
 
 export const gameHandlers = [
   http.get('/api/v1/games/schedules', async ({ request }) => {
@@ -227,8 +191,7 @@ export const gameHandlers = [
         }
 
         return true;
-      })
-      .map((game) => ({ ...game, ...resolveGameStatus(game) }));
+      });
 
     return HttpResponse.json({
       code: 'SUCCESS',

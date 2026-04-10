@@ -119,6 +119,10 @@ const isResalePaymentResponse = (order: PaymentResponse | null) => {
    return order.orderId?.toLowerCase().includes('resale') ?? false;
 };
 
+const isDemoResaleOrderId = (orderId: string | null) => {
+   return orderId?.startsWith('demo-resale-order-') ?? false;
+};
+
 const ENTRANCE_GUIDES: Record<DeliveryMethod, string[]> = {
    mobile: [
       '경기 시작 2시간 전부터 입장 가능합니다',
@@ -299,7 +303,7 @@ export default function PaymentCompletePage() {
 
       const fallbackOrder = locationOrder ?? readStoredPaymentCompleteState(orderId);
 
-      if (!orderId || !isResalePaymentResponse(fallbackOrder)) {
+      if (!orderId || !isResalePaymentResponse(fallbackOrder) || isDemoResaleOrderId(orderId)) {
          return;
       }
 
