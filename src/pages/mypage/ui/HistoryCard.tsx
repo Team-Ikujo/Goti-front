@@ -14,6 +14,8 @@ import CancelBookingDialog from './CancelBookingDialog';
 import NoAccountDialog from './NoAccountDialog';
 import ActionStatusDialog from './ActionStatusDialog';
 import { cancelResaleListing } from '@/entities/resale/api/resaleApi';
+import { useAuthStore } from '@/entities/auth/model/authStore';
+import { markStoredResaleListingCanceled } from '@/shared/lib/resaleListingStorage';
 
 export type PurchaseStatus = '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
 export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판매 취소 대기' | '취소 대기' | '취소 완료';
@@ -81,6 +83,7 @@ const isPurchaseHistoryItem = (
 export default function HistoryCard(props: HistoryCardProps) {
    const navigate = useNavigate();
    const queryClient = useQueryClient();
+   const currentUserId = useAuthStore(s => s.currentUserId);
    const [expanded, setExpanded] = useState(false);
    const [resellOpen, setResellOpen] = useState(false);
    const [cancelOpen, setCancelOpen] = useState(false);
@@ -132,6 +135,7 @@ export default function HistoryCard(props: HistoryCardProps) {
    const { mutate: cancelSale, isPending: isCancelingSale } = useMutation({
       mutationFn: () => cancelResaleListing(item.id),
       onSuccess: () => {
+         markStoredResaleListingCanceled(currentUserId, item.id);
          void queryClient.invalidateQueries({ queryKey: ['myResales'] });
          void queryClient.invalidateQueries({ queryKey: ['myResaleUnsettledAmount'] });
          setSaleCancelDialogType('success');

@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 
+import { useAuthStore } from '@/entities/auth/model/authStore';
 import { createResaleListings } from '@/entities/resale/api/resaleApi';
 import { useResellRegisterInsights } from '@/features/resale/model/useResellRegisterInsights';
 import { formatPrice } from '@/pages/books/model/zoneData';
+import { createStoredResaleListings } from '@/shared/lib/resaleListingStorage';
 import ResellPriceChart from '@/pages/books/ui/components/ResellPriceChart';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { Button } from '@/shared/ui/button';
@@ -101,6 +103,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
    const [createdSaleId, setCreatedSaleId] = useState<string | null>(null);
    const [isSubmitting, setIsSubmitting] = useState(false);
    const queryClient = useQueryClient();
+   const currentUserId = useAuthStore(s => s.currentUserId);
    const seatPrices = item.seatPrices ?? [];
    const unitPrice =
       seatPrices.length > 0
@@ -194,6 +197,17 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
       setIsSubmitting(true);
       try {
          const response = await createResaleListings({ listings: requests });
+
+         createStoredResaleListings({
+            currentUserId,
+            orders: response.orders,
+            listings: response.listings,
+            fallbackOrderCreatedAt: new Date().toISOString(),
+            fallbackGameTitle: item.game.teams,
+            fallbackGameDate: item.rawOrderDate ?? item.game.datetime,
+            fallbackStadiumName: item.game.venue,
+         });
+
          setCreatedSaleId(response.listings[0]?.listingId ?? null);
 
          await Promise.all([
