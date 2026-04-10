@@ -27,11 +27,16 @@ import {
 import type { PurchaseHistoryItem, SaleHistoryItem, PurchaseStatus, SaleStatus } from './historyCard';
 import type { TicketType } from '../ui/TicketTypeBadge';
 import { formatTicketNumber } from './ticketNumber';
+import { parseDateValue } from './purchaseDetailHelpers';
+import { formatBookingCardDateTime, parseBookingDateTime } from '@/shared/lib/bookingDateTime';
 import { readStoredPaymentCompleteItems, type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
 import { isResaleBookingMockEnabled, isResaleDemoEnabled } from '@/shared/config/runtime';
 
 const formatDate = (dateStr: string) => {
-   const date = new Date(dateStr);
+   const date = parseDateValue(dateStr) ?? parseBookingDateTime(dateStr);
+   if (!date) {
+      return dateStr;
+   }
    const y = date.getFullYear();
    const m = String(date.getMonth() + 1).padStart(2, '0');
    const d = String(date.getDate()).padStart(2, '0');
@@ -39,7 +44,10 @@ const formatDate = (dateStr: string) => {
 };
 
 const formatDateTime = (dateStr: string) => {
-   const date = new Date(dateStr);
+   const date = parseDateValue(dateStr);
+   if (!date) {
+      return formatBookingCardDateTime(dateStr);
+   }
    const y = date.getFullYear();
    const m = String(date.getMonth() + 1).padStart(2, '0');
    const d = String(date.getDate()).padStart(2, '0');

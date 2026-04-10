@@ -89,6 +89,7 @@ export default function PurchaseDetailPage() {
          return item.ticketId === orderId || item.orderId === orderId || item.orderNumber === orderId;
       });
    }, [orderId]);
+   const isMockResalePurchase = locationStateItem?.type === '리셀' || storedPaymentDetail?.orderType === 'resale';
 
    const resolvedOrderId = useMemo(() => {
       if (locationStateItem?.rawOrderId) return locationStateItem.rawOrderId;
@@ -99,7 +100,7 @@ export default function PurchaseDetailPage() {
    const orderTicketsQuery = useQuery({
       queryKey: ['orderTickets', resolvedOrderId],
       queryFn: () => fetchOrderTickets(resolvedOrderId!),
-      enabled: Boolean(resolvedOrderId),
+      enabled: Boolean(resolvedOrderId) && !isMockResalePurchase,
       retry: false,
    });
 
@@ -109,14 +110,14 @@ export default function PurchaseDetailPage() {
    const ticketDetailQuery = useQuery({
       queryKey: ['ticketDetail', primaryTicketId],
       queryFn: () => fetchTicketDetail(primaryTicketId!),
-      enabled: Boolean(primaryTicketId),
+      enabled: Boolean(primaryTicketId) && !isMockResalePurchase,
       retry: false,
    });
 
    const orderPaymentQuery = useQuery({
       queryKey: ['orderPaymentDetail', resolvedOrderId],
       queryFn: () => fetchOrderPaymentDetail(resolvedOrderId!),
-      enabled: Boolean(resolvedOrderId),
+      enabled: Boolean(resolvedOrderId) && !isMockResalePurchase,
       retry: false,
    });
 
@@ -135,14 +136,14 @@ export default function PurchaseDetailPage() {
    });
 
    const apiDetail = ticketDetailQuery.data;
-   const isLoading = orderTicketsQuery.isLoading || (Boolean(primaryTicketId) && ticketDetailQuery.isLoading);
+   const isLoading = !isMockResalePurchase && (orderTicketsQuery.isLoading || (Boolean(primaryTicketId) && ticketDetailQuery.isLoading));
    // fetchOrderTickets(GET /orders/{id}/tickets)가 백엔드 미구현 상태이므로
    // location.state 또는 storedPaymentDetail로 fallback 가능한 경우 에러로 처리하지 않음
    const hasLocationFallback = Boolean(locationStateItem) || Boolean(storedPaymentDetail);
    const isError =
-      (orderTicketsQuery.isError && !hasLocationFallback) ||
-      (!primaryTicketId && !orderTicketsQuery.isLoading && !hasLocationFallback) ||
-      (Boolean(primaryTicketId) && ticketDetailQuery.isError);
+      (!isMockResalePurchase && orderTicketsQuery.isError && !hasLocationFallback) ||
+      (!isMockResalePurchase && !primaryTicketId && !orderTicketsQuery.isLoading && !hasLocationFallback) ||
+      (!isMockResalePurchase && Boolean(primaryTicketId) && ticketDetailQuery.isError);
 
    useEffect(() => {
       if ((location.state as { showCancelSuccess?: boolean } | null)?.showCancelSuccess) {
@@ -161,7 +162,9 @@ export default function PurchaseDetailPage() {
             if (s === '관람 완료') return 'USED';
             return 'ISSUED';
          };
-         const ticketStatus = paymentStatusToTicketStatus(locationStateItem.paymentStatus);
+         const ticketStatus = locationStateItem.type === '리셀'
+            ? 'RESALE_ISSUED'
+            : paymentStatusToTicketStatus(locationStateItem.paymentStatus);
          const unitPrice = Math.round(locationStateItem.price / Math.max(locationStateItem.game.quantity, 1));
          const seatItems: PurchaseSeatItem[] = locationStateItem.game.seats.map((seat, index) => ({
             ticketId: locationStateItem.ticketIds?.[index] ?? `${locationStateItem.rawOrderId ?? locationStateItem.id}-${index}`,
@@ -214,7 +217,7 @@ export default function PurchaseDetailPage() {
                date: paidAt,
             } : undefined,
             canCancel: ticketStatus !== 'INVALID',
-            canSell: locationStateItem.canSell,
+            canSell: locationStateItem.type === '리셀' ? ticketStatus !== 'INVALID' : locationStateItem.canSell,
             deliveryMethod: '모바일 QR',
          };
       }
@@ -377,6 +380,7 @@ export default function PurchaseDetailPage() {
       orderTickets,
       stadiumQuery.data,
       storedPaymentDetail,
+      isMockResalePurchase,
    ]);
 
    if (isLoading) return <div className="py-24 text-center text-body-1-regular">정보를 불러오는 중입니다...</div>;
