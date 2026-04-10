@@ -25,7 +25,9 @@ import {
 import type { PurchaseHistoryItem, SaleHistoryItem, PurchaseStatus, SaleStatus } from './historyCard';
 import type { TicketType } from '../ui/TicketTypeBadge';
 import { formatTicketNumber } from './ticketNumber';
+import { parseDateValue } from './purchaseDetailHelpers';
 import { STADIUM_REFERENCES } from '@/entities/game/model/schedule';
+import { formatBookingCardDateTime, parseBookingDateTime } from '@/shared/lib/bookingDateTime';
 import { readStoredPaymentCompleteItems, type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStorage';
 import { isResaleBookingMockEnabled, isResaleDemoEnabled } from '@/shared/config/runtime';
 
@@ -246,6 +248,11 @@ export const useMyOrdersData = () => {
       enabled: Boolean(accessToken),
    });
 
+   const storedPaymentCompleteItems =
+      isResaleDemoEnabled || isResaleBookingMockEnabled
+         ? readStoredPaymentCompleteItems()
+         : [];
+
    const data = useMemo((): PurchaseHistoryItem[] => {
       const apiOrders = (query.data ?? []).map(({ order, ticketIds, primaryTicketDetail }) => {
          const displaySeatInfos = order.seatInfos.length > 0
@@ -299,20 +306,18 @@ export const useMyOrdersData = () => {
       });
 
       const storedResaleOrders =
-         isResaleDemoEnabled || isResaleBookingMockEnabled
-            ? readStoredPaymentCompleteItems()
-                 .filter((item) => item.orderType === 'resale')
-                 .filter((item) => item.orderId || item.orderNumber)
-                 .filter((item) =>
-                    !apiOrders.some((order) =>
-                       Boolean(item.orderId) && (order.rawOrderId === item.orderId || order.id === item.orderId),
-                    ),
-                 )
-                 .map(mapStoredPaymentCompleteItemToPurchaseHistory)
-            : [];
+         storedPaymentCompleteItems
+            .filter((item) => item.orderType === 'resale')
+            .filter((item) => item.orderId || item.orderNumber)
+            .filter((item) =>
+               !apiOrders.some((order) =>
+                  Boolean(item.orderId) && (order.rawOrderId === item.orderId || order.id === item.orderId),
+               ),
+            )
+            .map(mapStoredPaymentCompleteItemToPurchaseHistory);
 
       return [...apiOrders, ...storedResaleOrders];
-   }, [query.data]);
+   }, [query.data, storedPaymentCompleteItems]);
 
    const sortedData = useMemo(() => {
       return [...data].sort((left, right) => {
