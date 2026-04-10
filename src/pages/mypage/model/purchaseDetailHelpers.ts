@@ -29,6 +29,11 @@ export const parseDateValue = (value: string | undefined | null): Date | null =>
    const directDate = new Date(normalizedForDate);
    if (!Number.isNaN(directDate.getTime())) return directDate;
 
+   // "YYYY-MM-DD HH:mm:ss" 등 공백으로 구분된 날짜시간 포맷 처리
+   const withT = normalizedForDate.replace(' ', 'T');
+   const dateWithT = new Date(withT);
+   if (!Number.isNaN(dateWithT.getTime())) return dateWithT;
+
    const normalized = value
       .replace(/\s+/g, ' ')
       .replace(/\(([^)]+)\)/g, '')

@@ -49,49 +49,21 @@ const MYPAGE_MOCK_STADIUM = '광주 KIA 홈구장';
 const MYPAGE_MOCK_GAME_TITLE = 'KIA vs 삼성';
 const MYPAGE_MOCK_ORDERER = '테스트 유저';
 
-const buildMypageMockOrderTickets = (): OrderTicket[] => [
+const MOCK_TICKET_DETAILS: TicketDetail[] = [
    {
       ticketId: 'mock-ticket-mypage-actions-1',
       ticketNumber: 'TKT-MOCK-1',
       orderItemId: 'mock-order-item-mypage-actions-1',
-      seatInfo: '1루 내야지정석 104구역 A열 9번',
-      ticketPrice: 17000,
-      serviceFee: 1000,
-      ticketStatus: 'ISSUED',
-   },
-   {
-      ticketId: 'mock-ticket-mypage-actions-2',
-      ticketNumber: 'TKT-MOCK-2',
-      orderItemId: 'mock-order-item-mypage-actions-2',
-      seatInfo: '1루 내야지정석 104구역 A열 10번',
-      ticketPrice: 17000,
-      serviceFee: 1000,
-      ticketStatus: 'ISSUED',
-   },
-];
-
-const buildMypageMockTicketDetail = (ticketId: string): TicketDetail | undefined => {
-   const tickets = buildMypageMockOrderTickets();
-   const matchedTicket = tickets.find((ticket) => ticket.ticketId === ticketId);
-
-   if (!matchedTicket) {
-      return undefined;
-   }
-
-   return {
-      ticketId: matchedTicket.ticketId,
-      ticketNumber: matchedTicket.ticketNumber,
-      orderItemId: matchedTicket.orderItemId,
       orderId: MYPAGE_MOCK_ORDER_ID,
       gameId: 'game-kia-home-tomorrow',
       gameTitle: MYPAGE_MOCK_GAME_TITLE,
       gameDate: MYPAGE_MOCK_GAME_DATE,
       seatGradeName: '1루 내야지정석',
       stadiumName: MYPAGE_MOCK_STADIUM,
-      seatInfo: matchedTicket.seatInfo,
-      ticketPrice: matchedTicket.ticketPrice,
-      serviceFee: matchedTicket.serviceFee,
-      ticketStatus: matchedTicket.ticketStatus,
+      seatInfo: '1루 내야지정석 104구역 A열 9번',
+      ticketPrice: 17000,
+      serviceFee: 1000,
+      ticketStatus: 'ISSUED',
       resaleEnabledStatus: 'ENABLED',
       frozen: false,
       issuedAt: MYPAGE_MOCK_ORDERED_AT,
@@ -100,8 +72,48 @@ const buildMypageMockTicketDetail = (ticketId: string): TicketDetail | undefined
       ordererName: MYPAGE_MOCK_ORDERER,
       paymentMethod: 'CARD',
       paymentMethodDisplay: '카드 결제',
-   };
+   },
+   {
+      ticketId: 'mock-ticket-mypage-actions-2',
+      ticketNumber: 'TKT-MOCK-2',
+      orderItemId: 'mock-order-item-mypage-actions-2',
+      orderId: MYPAGE_MOCK_ORDER_ID,
+      gameId: 'game-kia-home-tomorrow',
+      gameTitle: MYPAGE_MOCK_GAME_TITLE,
+      gameDate: MYPAGE_MOCK_GAME_DATE,
+      seatGradeName: '1루 내야지정석',
+      stadiumName: MYPAGE_MOCK_STADIUM,
+      seatInfo: '1루 내야지정석 104구역 A열 10번',
+      ticketPrice: 17000,
+      serviceFee: 1000,
+      ticketStatus: 'ISSUED',
+      resaleEnabledStatus: 'ENABLED',
+      frozen: false,
+      issuedAt: MYPAGE_MOCK_ORDERED_AT,
+      orderedAt: MYPAGE_MOCK_ORDERED_AT,
+      cancelableUntil: '2026-03-21T14:30:00.000Z',
+      ordererName: MYPAGE_MOCK_ORDERER,
+      paymentMethod: 'CARD',
+      paymentMethodDisplay: '카드 결제',
+   },
+];
+
+const buildMypageMockTicketDetail = (ticketId: string): TicketDetail | undefined => {
+   const matchedTicket = MOCK_TICKET_DETAILS.find((ticket) => ticket.ticketId === ticketId);
+
+   return matchedTicket;
 };
+
+const buildMypageMockOrderTickets = (): OrderTicket[] =>
+   MOCK_TICKET_DETAILS.map((ticket) => ({
+      ticketId: ticket.ticketId,
+      ticketNumber: ticket.ticketNumber,
+      orderItemId: ticket.orderItemId,
+      seatInfo: ticket.seatInfo,
+      ticketPrice: ticket.ticketPrice,
+      serviceFee: ticket.serviceFee ?? 0,
+      ticketStatus: ticket.ticketStatus,
+   }));
 
 export const fetchTicketDetail = async (ticketId: string): Promise<TicketDetail> => {
    if (isMswEnabled && ticketId.startsWith('mock-ticket-mypage-actions-')) {
@@ -130,6 +142,7 @@ export const fetchOrderTickets = async (orderId: string, options?: FetchOrderTic
    });
    return response.data.data;
 };
+
 
 export interface TicketQrResponse {
    ticketId: string;

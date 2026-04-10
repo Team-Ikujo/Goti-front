@@ -126,11 +126,15 @@ type ResaleOrder = {
    totalAmount: number;
    holdIds: string[];
    transactionIds: string[];
+   buyerNickname?: string;
+   buyerEmail?: string;
+   buyerPhone?: string;
 };
 
 type ResalePayment = {
    paymentId: string;
    orderId: string;
+   buyerId: string;
    paymentMethod: string;
    paymentAmount: number;
    pgTid: string;
@@ -2004,9 +2008,12 @@ export const paymentHandlers = [
    http.post('/api/v1/resales/orders', async ({ request }) => {
       const body = (await request.json()) as {
          holdIds?: string[];
+         buyerNickname?: string;
+         buyerEmail?: string;
+         buyerPhone?: string;
       };
 
-      if (!body?.holdIds?.length) {
+      if (!body?.holdIds?.length || !body.buyerNickname || !body.buyerEmail || !body.buyerPhone) {
          return buildErrorResponse('Missing resale order fields.');
       }
 
@@ -2016,15 +2023,23 @@ export const paymentHandlers = [
          return buildErrorResponse(`Resale hold not found: ${missingHold}`, 404);
       }
 
+      const heldListings = body.holdIds
+         .map((holdId) => resaleHolds.get(holdId))
+         .filter((hold): hold is ResaleHold => Boolean(hold))
+         .map((hold) => resaleListings.get(hold.listingId))
+         .filter((listing): listing is ResaleListing => Boolean(listing));
       const orderId = createId('resale-order');
       const order: ResaleOrder = {
          orderId,
          orderNumber: `RESALE${Date.now()}`,
          orderStatus: 'PENDING',
          totalQuantity: body.holdIds.length,
-         totalAmount: 54000 * body.holdIds.length,
+         totalAmount: heldListings.reduce((sum, listing) => sum + listing.listingPrice, 0),
          holdIds: body.holdIds,
          transactionIds: body.holdIds.map(() => createId('transaction')),
+         buyerNickname: body.buyerNickname,
+         buyerEmail: body.buyerEmail,
+         buyerPhone: body.buyerPhone,
       };
 
       resaleOrders.set(orderId, order);
@@ -2052,7 +2067,9 @@ export const paymentHandlers = [
       return HttpResponse.json({
          code: 'SUCCESS',
          message: 'ok',
-         data: order.transactionIds,
+         data: {
+            transactionIds: order.transactionIds,
+         },
       });
    }),
 
@@ -2103,6 +2120,7 @@ export const paymentHandlers = [
       const payment: ResalePayment = {
          paymentId,
          orderId: order.orderId,
+         buyerId: body.buyerId,
          paymentMethod: body.paymentMethod,
          paymentAmount: body.totalAmount,
          pgTid: createId('mock-resale-pg-tid'),
@@ -2190,20 +2208,31 @@ export const paymentHandlers = [
    }),
 
    // 리셀 주문 완료: 구매자에게 RESALE_ISSUED 티켓 발급
-   http.patch('/api/v1/resales/orders/:orderId/complete', async ({ params }) => {
+   http.patch('/api/v1/resales/orders/:orderId/complete', async ({ params, request }) => {
       const orderId = String(params.orderId);
       const order = resaleOrders.get(orderId);
+      const paymentId = new URL(request.url).searchParams.get('paymentId');
 
       if (!order) {
          return buildErrorResponse('Resale order not found.', 404);
       }
 
+      if (!paymentId) {
+         return buildErrorResponse('Missing paymentId.', 400);
+      }
+
+      const payment = resalePayments.get(paymentId);
+
+      if (!payment || payment.orderId !== orderId) {
+         return buildErrorResponse('Resale payment not found.', 404);
+      }
+
       const paidAt = new Date().toISOString();
       const newOrderNumber = `RESALE${Date.now()}`;
 
-      order.holdIds.forEach((holdId, idx) => {
+      const items = order.holdIds.flatMap((holdId, idx) => {
          const hold = resaleHolds.get(holdId);
-         if (!hold) return;
+         if (!hold) return [];
 
          // listing이 없으면 hold에 저장된 스냅샷 또는 fallback 데이터 사용
          const listing = resaleListings.get(hold.listingId);
@@ -2239,14 +2268,20 @@ export const paymentHandlers = [
          if (listing) {
             resaleListings.set(hold.listingId, { ...listing, listingStatus: 'SOLD' });
          }
+         resaleHolds.delete(holdId);
+
+         return [
+            {
+               transactionId: order.transactionIds[idx] ?? createId('transaction'),
+               listingId: hold.listingId,
+               seatInfo,
+               price: listingPrice,
+            },
+         ];
       });
 
       // 주문 상태 COMPLETED로 변경
       resaleOrders.set(orderId, { ...order, orderStatus: 'COMPLETED', orderNumber: newOrderNumber });
-
-      const createdTicketIds = Array.from(ticketRecords.values())
-         .filter(t => t.orderId === orderId && t.ticketStatus === 'RESALE_ISSUED')
-         .map(t => t.ticketId);
 
       return HttpResponse.json({
          code: 'SUCCESS',
@@ -2254,10 +2289,10 @@ export const paymentHandlers = [
          data: {
             orderId,
             orderNumber: newOrderNumber,
-            buyerId: '',
+            buyerId: payment.buyerId,
             totalAmount: order.totalAmount,
             orderStatus: 'COMPLETED',
-            ticketIds: createdTicketIds,
+            items,
          },
       });
    }),

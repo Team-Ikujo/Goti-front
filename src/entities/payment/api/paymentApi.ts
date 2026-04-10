@@ -76,6 +76,7 @@ export interface PurchaseHistoryItem {
    gameTitle: string;
    gameDate: string;
    seatInfos: string[];
+   ticketIds: string[] | null;
 }
 
 interface PurchaseHistoryPageResponse {
