@@ -97,6 +97,7 @@ export default function PurchaseDetailPage() {
          return item.ticketId === orderId || item.orderId === orderId || item.orderNumber === orderId;
       });
    }, [orderId]);
+   const isMockResalePurchase = locationStateItem?.type === '리셀' || storedPaymentDetail?.orderType === 'resale';
 
    const resolvedOrderId = useMemo(() => {
       if (locationStateItem?.rawOrderId) return locationStateItem.rawOrderId;
@@ -143,14 +144,14 @@ export default function PurchaseDetailPage() {
    const ticketDetailQuery = useQuery({
       queryKey: ['ticketDetail', primaryTicketId],
       queryFn: () => fetchTicketDetail(primaryTicketId!),
-      enabled: Boolean(primaryTicketId),
+      enabled: Boolean(primaryTicketId) && !isMockResalePurchase,
       retry: false,
    });
 
    const orderPaymentQuery = useQuery({
       queryKey: ['orderPaymentDetail', resolvedOrderId],
       queryFn: () => fetchOrderPaymentDetail(resolvedOrderId!),
-      enabled: Boolean(resolvedOrderId),
+      enabled: Boolean(resolvedOrderId) && !isMockResalePurchase,
       retry: false,
    });
 
@@ -425,6 +426,7 @@ export default function PurchaseDetailPage() {
       orderPaymentQuery.data,
       stadiumNameFromRef,
       storedPaymentDetail,
+      isMockResalePurchase,
    ]);
 
    if (isLoading) return <div className="py-24 text-center text-body-1-regular">정보를 불러오는 중입니다...</div>;

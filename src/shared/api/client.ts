@@ -7,15 +7,15 @@ import { reissueAccessTokenFromCookie } from '@/shared/lib/reissueAccessToken';
 import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 
 export class ApiError extends Error {
-   status?: number;
-   data?: unknown;
+  status?: number;
+  data?: unknown;
 
-   constructor(message: string, status?: number, data?: unknown) {
-      super(message);
-      this.name = 'ApiError';
-      this.status = status;
-      this.data = data;
-   }
+  constructor(message: string, status?: number, data?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
 }
 
 const tokenReissuePath = "/api/v1/auth/reissue";
@@ -28,21 +28,7 @@ const authorizationOptionalApiPaths = new Set([
 const shouldKeepSessionAlivePathPrefixes = ["/books", "/resell-books", "/tickets"];
 const PUBLIC_API_PATH_PATTERNS = [
   /^\/api\/v1\/games(?:\/|$)/,
-  /^\/api\/v1\/baseball-teams(?:\/|$)/,
-  /^\/api\/v1\/queue(?:\/|$)/,
-  /^\/api\/v1\/seat-reservations(?:\/|$)/,
-  // 예매/리셀 플로우 API는 queue token / hold 기반으로 동작하므로
-  // 로그인 쿠키 세션을 같이 보내면 RBAC 게이트웨이에 막힐 수 있다.
-  /^\/api\/v1\/orders(?:\/|$)/,
-  /^\/api\/v1\/payments\/orders(?:\/|$)/,
-  /^\/api\/v1\/resales\/holds(?:\/|$)/,
-  /^\/api\/v1\/resales\/orders(?:\/|$)/,
-  /^\/api\/v1\/payments\/resales(?:\/|$)/,
-  /^\/api\/v1\/resales\/games(?:\/|$)/,
-  /^\/api\/v1\/game-seats(?:\/|$)/,
-  /^\/api\/v1\/stadium-seats(?:\/|$)/,
-  /^\/api\/v1\/seats(?:\/|$)/,
-  /^\/api\/v1\/teams\/[^/]+\/ticket-pricing-policies(?:\/|$)/,
+  /^\/api\/v1\/baseball-teams(?:\/|$)/
 ];
 
 const GUARDRAIL_HEADER_API_PATH_PATTERNS = [
@@ -129,6 +115,10 @@ const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
 
   try {
     const { pathname } = new URL(requestUrl, window.location.origin);
+    if (/^\/api\/v1\/queue\/[^/]+\/global-status$/.test(pathname)) {
+      return true;
+    }
+
     if (PUBLIC_API_PATH_PATTERNS.some((pattern) => pattern.test(pathname))) {
       return true;
     }
@@ -179,6 +169,10 @@ const shouldSkipCredentials = (config: AxiosRequestConfig) => {
 
   try {
     const { pathname } = new URL(requestUrl, window.location.origin);
+    if (/^\/api\/v1\/queue\/[^/]+\/global-status$/.test(pathname)) {
+      return true;
+    }
+
     return PUBLIC_API_PATH_PATTERNS.some((pattern) => pattern.test(pathname));
   } catch {
     return false;
@@ -314,11 +308,11 @@ apiClient.interceptors.response.use(
         status,
       );
 
-         return Promise.reject(new ApiError(message, status, data));
-      }
+      return Promise.reject(new ApiError(message, status, data));
+    }
 
-      return Promise.reject(new ApiError(normalizeApiErrorMessage(error.message)));
-   },
+    return Promise.reject(new ApiError(normalizeApiErrorMessage(error.message)));
+  },
 );
 
 export default apiClient;

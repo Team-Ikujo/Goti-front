@@ -107,11 +107,8 @@ export default function HistoryCard(props: HistoryCardProps) {
    const priceLabel = isPurchase ? '구매가' : '판매가';
    const price = isPurchase ? (item as PurchaseHistoryItem).price : (item as SaleHistoryItem).salePrice;
    const status = isPurchase ? (item as PurchaseHistoryItem).paymentStatus : (item as SaleHistoryItem).saleStatus;
-   const isResalePurchase = isPurchase && purchaseItem?.type === '리셀';
-
    const hasPurchaseOrder = Boolean(purchaseOrderId);
    const isCancelablePurchaseStatus =
-      !isResalePurchase &&
       (purchaseItem?.paymentStatus === '입금 대기' ||
          purchaseItem?.paymentStatus === '예매 완료' ||
          purchaseItem?.paymentStatus === '부분 처리');
@@ -126,7 +123,7 @@ export default function HistoryCard(props: HistoryCardProps) {
    const showQrBtn =
       hasPurchaseOrder &&
       item.deliveryType === '모바일 티켓' &&
-      (isResalePurchase || isSellablePurchaseStatus);
+      isSellablePurchaseStatus;
    const showDash =
       isPurchase && (purchaseItem?.paymentStatus === '취소/환불' || purchaseItem?.paymentStatus === '관람 완료');
    const canCancelSale = !isPurchase && (item as SaleHistoryItem).canCancel;
