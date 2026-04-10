@@ -261,16 +261,26 @@ export const useMyTicketInfoData = () => {
    return useQuery<MyTicketInfo>({
       queryKey: ['myTicketInfo', accessToken, currentUserId],
       queryFn: async () => {
-         const apiInfo = await fetchMyTicketInfo();
          const storedListingSummary = getStoredResaleListingSummary(currentUserId);
          const storedResalePurchaseTicketCount = getStoredResalePurchaseTicketCount();
 
-         return {
-            ownedTicketCount: apiInfo.ownedTicketCount + storedResalePurchaseTicketCount,
-            listingCount: apiInfo.listingCount + storedListingSummary.listingCount,
-            soldCount: apiInfo.soldCount + storedListingSummary.soldCount,
-            unsettledAmount: apiInfo.unsettledAmount + storedListingSummary.unsettledAmount,
-         };
+         try {
+            const apiInfo = await fetchMyTicketInfo();
+
+            return {
+               ownedTicketCount: apiInfo.ownedTicketCount + storedResalePurchaseTicketCount,
+               listingCount: apiInfo.listingCount + storedListingSummary.listingCount,
+               soldCount: apiInfo.soldCount + storedListingSummary.soldCount,
+               unsettledAmount: apiInfo.unsettledAmount + storedListingSummary.unsettledAmount,
+            };
+         } catch {
+            return {
+               ownedTicketCount: storedResalePurchaseTicketCount,
+               listingCount: storedListingSummary.listingCount,
+               soldCount: storedListingSummary.soldCount,
+               unsettledAmount: storedListingSummary.unsettledAmount,
+            };
+         }
       },
       enabled: Boolean(accessToken),
    });
@@ -371,12 +381,8 @@ export const useMyResaleListData = () => {
       queryFn: async () => {
          try {
             return await fetchMyResaleListingsWithGameInfo();
-         } catch (error) {
-            if (readStoredResaleListings(currentUserId).length > 0) {
-               return [];
-            }
-
-            throw error;
+         } catch {
+            return readStoredResaleListings(currentUserId);
          }
       },
       enabled: Boolean(accessToken),
