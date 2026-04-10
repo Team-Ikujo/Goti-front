@@ -26,6 +26,8 @@ const DEFAULT_FILTERS: FilterState = {
 
 const PAGE_SIZE = 8;
 
+const normalizeVenue = (value: string) => value.toLowerCase().replace(/[\s\-_]/g, '');
+
 function applyFilters(games: GameItem[], filters: FilterState, activeTab: TabType): GameItem[] {
    return games.filter((game) => {
       const status = activeTab === '예매' ? game.bookingStatus : game.resellStatus;
@@ -33,7 +35,7 @@ function applyFilters(games: GameItem[], filters: FilterState, activeTab: TabTyp
       if (!filters.showUpcoming && (status === '판매 예정' || status === '리셀 예정')) return false;
       if (!filters.showSoldOut && status === '매진') return false;
       if (filters.dateTime && game.date !== filters.dateTime) return false;
-      if (filters.venue && game.venue !== filters.venue) return false;
+      if (filters.venue && normalizeVenue(game.venue) !== normalizeVenue(filters.venue)) return false;
       if (filters.minPrice > 0 && game.minPrice > 0 && game.minPrice < filters.minPrice) return false;
       if (filters.maxPrice < MAX_PRICE && game.maxPrice > 0 && game.maxPrice > filters.maxPrice) return false;
 
@@ -89,7 +91,7 @@ const TicketsPage = () => {
             return {
                id: game.id,
                homeTeamId: game.homeTeamId ?? '',
-               serverHomeTeamId: game.serverHomeTeamId,
+               serverHomeTeamId: game.serverHomeTeamId ?? '',
                stadiumId: game.stadiumId,
                queueTokenJti: game.queueTokenJti,
                leagueType: game.leagueType,
