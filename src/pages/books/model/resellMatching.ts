@@ -63,6 +63,10 @@ const matchesSectionId = (listingSeatId: string, sectionIds?: string[]) => {
    return sectionIds.some((sectionId) => listingSeatId.includes(sectionId));
 };
 
+const matchesMockSeatId = (listingSeatId: string, zoneId: string) => {
+   return listingSeatId.startsWith(`${zoneId}-`);
+};
+
 export const isPurchasableResaleListing = (listing: ApiResaleListingItem, gameId?: string) => {
    return (
       Boolean(gameId) &&
@@ -80,7 +84,11 @@ export const matchesResaleListingToZone = ({
    zone: ZoneItem;
    listing: ApiResaleListingItem;
 }) => {
-   return matchesSectionId(listing.seatId, zone.sectionIds) || matchesSeatInfoSectionExpression(zone.sectionCode, listing.seatInfo);
+   return (
+      matchesSectionId(listing.seatId, zone.sectionIds) ||
+      matchesMockSeatId(listing.seatId, zone.id) ||
+      matchesSeatInfoSectionExpression(zone.sectionCode, listing.seatInfo)
+   );
 };
 
 export const resolveResaleListingZoneId = ({
@@ -94,6 +102,12 @@ export const resolveResaleListingZoneId = ({
 
    if (matchedBySectionId) {
       return matchedBySectionId.id;
+   }
+
+   const matchedByMockSeatId = zones.find((zone) => matchesMockSeatId(listing.seatId, zone.id));
+
+   if (matchedByMockSeatId) {
+      return matchedByMockSeatId.id;
    }
 
    return zones.find((zone) => matchesSeatInfoSectionExpression(zone.sectionCode, listing.seatInfo))?.id;

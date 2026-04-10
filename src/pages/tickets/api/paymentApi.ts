@@ -11,7 +11,7 @@ import { type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStor
 import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
-import { isResaleDemoEnabled } from '@/shared/config/runtime';
+import { isResaleBookingMockEnabled, isResaleDemoEnabled } from '@/shared/config/runtime';
 import {
    completeDemoResaleOrder,
    createDemoResaleHold,
@@ -173,6 +173,7 @@ type ResalePaymentRequest = {
 
 type PaymentMethodCode = 'CARD' | 'ACCOUNT_TRANSFER';
 const PAYMENT_COMPLETE_STORAGE_KEY = 'ticket-payment-complete';
+const shouldUseResaleBookingMock = isResaleDemoEnabled || isResaleBookingMockEnabled;
 
 const formatOrderedAt = (date: Date) => {
    const pad = (n: number) => String(n).padStart(2, '0');
@@ -260,7 +261,7 @@ const createOrderPayment = async (orderId: string, payload: OrderPaymentRequest)
 };
 
 const createResaleHold = async (payload: ResaleHoldRequest) => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return createDemoResaleHold(payload.listingId, payload.queueTokenJti);
    }
 
@@ -270,7 +271,7 @@ const createResaleHold = async (payload: ResaleHoldRequest) => {
 };
 
 export const releaseResaleHold = async (holdId: string) => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return releaseDemoResaleHold(holdId);
    }
 
@@ -286,7 +287,7 @@ export const releaseResaleHoldKeepalive = (holdId: string) => {
       return;
    }
 
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       releaseDemoResaleHoldSync(holdId);
       return;
    }
@@ -302,7 +303,7 @@ export const releaseResaleHoldKeepalive = (holdId: string) => {
 };
 
 const createResaleOrder = async (payload: ResaleOrderRequest) => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return createDemoResaleOrder({
          holdIds: payload.holdIds,
          buyerId: resolveUserIdFromJwt(useAuthStore.getState().accessToken) ?? payload.buyerEmail,
@@ -331,7 +332,7 @@ const normalizeTransactionIds = (payload: unknown): string[] => {
 };
 
 const getResaleTransactions = async (orderId: string) => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return getDemoResaleTransactions(orderId);
    }
 
@@ -359,7 +360,7 @@ const getResaleTransactionsWithRetry = async (orderId: string, attempts = 5): Pr
 };
 
 const createResalePayment = async (payload: ResalePaymentRequest) => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return createDemoResalePayment({
          orderId: payload.orderId,
          paymentMethod: payload.paymentMethod as PaymentMethodCode,
@@ -386,7 +387,7 @@ type CompleteResaleOrderResponse = {
 };
 
 const completeResaleOrder = async (orderId: string, paymentId: string): Promise<CompleteResaleOrderResponse> => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return completeDemoResaleOrder(orderId);
    }
 

@@ -4,7 +4,7 @@ import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import { createBookingFlowHeaders } from '@/shared/lib/guardrailHeaders';
 import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
-import { isResaleDemoEnabled } from '@/shared/config/runtime';
+import { isResaleBookingMockEnabled, isResaleDemoEnabled } from '@/shared/config/runtime';
 import {
    createDemoResaleHold,
    getDemoResaleCountByGame,
@@ -15,7 +15,8 @@ import {
    releaseDemoResaleHold,
    releaseDemoResaleHoldSync,
 } from '@/shared/lib/demo/resaleDemo';
-const FORCE_RESALE_SOLD_OUT_MOCK = !isResaleDemoEnabled;
+const shouldUseResaleBookingMock = isResaleDemoEnabled || isResaleBookingMockEnabled;
+const FORCE_RESALE_SOLD_OUT_MOCK = !shouldUseResaleBookingMock;
 
 export interface ResaleListingItem {
    listingId: string;
@@ -65,7 +66,7 @@ const getResaleHoldReleaseUrl = (holdId: string) => {
 export const fetchMyResaleListings = async (): Promise<ResaleListingItem[]> => fetchResaleListings();
 
 export const holdResaleListing = async (body: ResaleHoldRequest): Promise<ResaleHoldResponse> => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return createDemoResaleHold(body.listingId, body.queueTokenJti);
    }
 
@@ -74,7 +75,7 @@ export const holdResaleListing = async (body: ResaleHoldRequest): Promise<Resale
 };
 
 export const releaseResaleListingHold = async (holdId: string): Promise<ResaleHoldResponse> => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return releaseDemoResaleHold(holdId);
    }
 
@@ -90,7 +91,7 @@ export const releaseResaleListingHoldKeepalive = (holdId: string) => {
       return;
    }
 
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       releaseDemoResaleHoldSync(holdId);
       return;
    }
@@ -228,7 +229,7 @@ export interface ResaleHistoryPointResponse {
 }
 
 export const fetchResaleListingCountByGame = async (gameId: string): Promise<number> => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return getDemoResaleCountByGame(gameId);
    }
 
@@ -250,7 +251,7 @@ export const fetchResaleListingCountsByGames = async (gameIds: string[]): Promis
       return new Map<string, number>();
    }
 
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return new Map<string, number>(uniqueGameIds.map((gameId) => [gameId, getDemoResaleCountByGame(gameId)]));
    }
 
@@ -267,7 +268,7 @@ export const fetchResaleListingCountsByGames = async (gameIds: string[]): Promis
 
 /** 경기의 등급별 리셀 좌석 개수 조회 (gradeId 기준) */
 export const fetchResaleListingCountByGameAndGrade = async (gameId: string, gradeId: string): Promise<number> => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return getDemoResaleCountsByGrades(gameId, [gradeId]).get(gradeId) ?? 0;
    }
 
@@ -289,7 +290,7 @@ export const fetchResaleListingCountsByGrades = async (
       return new Map<string, number>();
    }
 
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return getDemoResaleCountsByGrades(gameId, uniqueGradeIds);
    }
 
@@ -318,7 +319,7 @@ export const fetchResaleListings = async (): Promise<ResaleListingItem[]> => {
 
 /** 구매자용 마켓 전체 리스팅 조회 — GET /api/v1/resales/listings */
 export const fetchMarketResaleListings = async (): Promise<ResaleListingItem[]> => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return getDemoResaleListings();
    }
 
@@ -339,7 +340,7 @@ export const fetchMyResaleListingSummary = async (userId: string): Promise<MyRes
 };
 
 export const fetchResaleGameStatusByGame = async (gameId: string): Promise<ResaleGameStatus> => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return getDemoResaleStatusByGame(gameId);
    }
 
@@ -361,7 +362,7 @@ export const fetchResaleGameStatusesByGames = async (gameIds: string[]): Promise
       return new Map<string, ResaleGameStatus>();
    }
 
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return new Map<string, ResaleGameStatus>(uniqueGameIds.map((gameId) => [gameId, getDemoResaleStatusByGame(gameId)]));
    }
 
@@ -381,8 +382,8 @@ export const fetchResaleHistoryGraph = async (
    gradeId: string,
    range: 'HOUR' | 'DAY' | 'WEEK',
 ): Promise<ResaleHistoryPointResponse[]> => {
-   if (isResaleDemoEnabled) {
-      return getDemoResaleHistory(range);
+   if (shouldUseResaleBookingMock) {
+      return getDemoResaleHistory(gameId, gradeId, range);
    }
 
    const response = await apiClient.get<ApiEnvelope<ResaleHistoryPointResponse[]>>(
@@ -435,7 +436,7 @@ export const fetchResaleLedgerByOrderId = async (orderId: string): Promise<Resal
 };
 
 export const fetchResaleGameStatus = async (gameId: string): Promise<ResaleGameStatusResponse> => {
-   if (isResaleDemoEnabled) {
+   if (shouldUseResaleBookingMock) {
       return { status: getDemoResaleStatusByGame(gameId) };
    }
 
