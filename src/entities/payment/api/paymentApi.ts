@@ -1,5 +1,7 @@
+import axios from 'axios';
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import { isMswEnabled } from '@/shared/config/runtime';
 
 export type OrderPaymentMethod = 'CARD' | 'ACCOUNT_TRANSFER';
 export type OrderPaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELED';
@@ -22,7 +24,27 @@ export interface ResaleUnsettledAmountResponse {
    unsettledAmount: number;
 }
 
+const MYPAGE_MOCK_ORDER_ID = 'mock-order-mypage-actions';
+const MYPAGE_MOCK_PAID_AT = '2026-03-19T09:00:00.000Z';
+
+const buildMypageMockOrderPaymentDetail = (): OrderPaymentDetail => ({
+   paymentId: 'mock-payment-mypage-actions',
+   orderId: MYPAGE_MOCK_ORDER_ID,
+   paymentType: 'PAYMENT',
+   paymentMethod: 'CARD',
+   paymentAmount: 36000,
+   pgProvider: 'MOCK_PG',
+   pgTid: 'mock-pg-tid-mypage-actions',
+   paymentStatus: 'SUCCESS',
+   paidAt: MYPAGE_MOCK_PAID_AT,
+   failedReason: null,
+});
+
 export const fetchOrderPaymentDetail = async (orderId: string): Promise<OrderPaymentDetail> => {
+   if (isMswEnabled && orderId === MYPAGE_MOCK_ORDER_ID) {
+      return buildMypageMockOrderPaymentDetail();
+   }
+
    const response = await apiClient.get<ApiEnvelope<OrderPaymentDetail>>(
       `/api/v1/payments/orders/${encodeURIComponent(orderId)}`,
    );
@@ -54,6 +76,7 @@ export interface PurchaseHistoryItem {
    gameTitle: string;
    gameDate: string;
    seatInfos: string[];
+   ticketIds: string[] | null;
 }
 
 interface PurchaseHistoryPageResponse {
@@ -72,15 +95,77 @@ export interface FetchPurchaseHistoryParams {
    size?: number;
 }
 
+const buildPurchaseHistoryParams = (params?: FetchPurchaseHistoryParams) => {
+   if (!params) {
+      return undefined;
+   }
+
+   const normalizedParams =
+      params.type === 'NORMAL'
+         ? { ...params, type: undefined }
+         : params;
+
+   return Object.fromEntries(
+      Object.entries(normalizedParams).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+   ) as FetchPurchaseHistoryParams;
+};
+
+const filterPurchaseHistoryItems = (
+   list: PurchaseHistoryItem[],
+   type?: PurchaseHistoryType,
+) => {
+   if (!type || type === 'ALL') {
+      return list;
+   }
+
+   return list.filter((item) => {
+      const normalizedType = (item.purchaseType ?? '').toUpperCase();
+
+      if (type === 'NORMAL') {
+         return normalizedType !== 'RESALE';
+      }
+
+      return normalizedType === 'RESALE';
+   });
+};
+
 export const fetchPurchaseHistory = async (
    params?: FetchPurchaseHistoryParams,
 ): Promise<PurchaseHistoryPageResponse> => {
-   const response = await apiClient.get<ApiEnvelope<PurchaseHistoryPageResponse>>(
-      '/api/v1/payments/purchases',
-      { params },
-   );
+   const normalizedParams = buildPurchaseHistoryParams(params);
 
-   return response.data.data;
+   try {
+      const response = await apiClient.get<ApiEnvelope<PurchaseHistoryPageResponse>>(
+         '/api/v1/payments/purchases',
+         { params: normalizedParams },
+      );
+
+      return response.data.data;
+   } catch (error) {
+      // 일부 백엔드는 type 쿼리를 아직 지원하지 않아 400을 반환한다.
+      // 이 경우 전체 목록을 받은 뒤 프런트에서 purchaseType 기준으로 필터링한다.
+      if (!axios.isAxiosError(error) || error.response?.status !== 400 || !normalizedParams?.type) {
+         throw error;
+      }
+
+      const { type, ...fallbackParams } = normalizedParams;
+      const fallbackResponse = await apiClient.get<ApiEnvelope<PurchaseHistoryPageResponse>>(
+         '/api/v1/payments/purchases',
+         { params: fallbackParams },
+      );
+      const payload = fallbackResponse.data.data;
+      const filteredList = filterPurchaseHistoryItems(payload.list, type);
+
+      return {
+         ...payload,
+         list: filteredList,
+         totalCount: filteredList.length,
+         totalPages:
+            typeof normalizedParams.size === 'number' && normalizedParams.size > 0
+               ? Math.ceil(filteredList.length / normalizedParams.size)
+               : payload.totalPages,
+      };
+   }
 };
 
 export const formatOrderPaymentMethod = (paymentMethod?: string): string => {

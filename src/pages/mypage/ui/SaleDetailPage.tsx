@@ -6,7 +6,9 @@ import { AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import { Separator } from '@/shared/ui/separator';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/entities/auth/model/authStore';
 import { cancelResaleListing } from '@/entities/resale/api/resaleApi';
+import { markStoredResaleListingCanceled } from '@/shared/lib/resaleListingStorage';
 import { useMyResaleListData } from '../model/useMypageData';
 import StatusBadge from './StatusBadge';
 import type { BadgeVariant } from './StatusBadge';
@@ -48,6 +50,7 @@ export default function SaleDetailPage() {
    const { id } = useParams<{ id: string }>();
    const navigate = useNavigate();
    const queryClient = useQueryClient();
+   const currentUserId = useAuthStore(s => s.currentUserId);
    const resaleListQuery = useMyResaleListData();
    const apiDetail = (resaleListQuery.data ?? []).find((item) => item.id === id);
    const [cancelDialogType, setCancelDialogType] = useState<'success' | 'error' | null>(null);
@@ -55,6 +58,7 @@ export default function SaleDetailPage() {
    const { mutate: cancelListing, isPending: isCanceling } = useMutation({
       mutationFn: () => cancelResaleListing(id!),
       onSuccess: () => {
+         markStoredResaleListingCanceled(currentUserId, id!);
          void queryClient.invalidateQueries({ queryKey: ['myResales'] });
          void queryClient.invalidateQueries({ queryKey: ['myResaleSummary'] });
          void queryClient.invalidateQueries({ queryKey: ['myResaleUnsettledAmount'] });

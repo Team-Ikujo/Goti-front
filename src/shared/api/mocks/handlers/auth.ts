@@ -258,6 +258,27 @@ const getDefaultRegisteredMember = (provider: string): MockRegisteredMember => {
    };
 };
 
+const ensureDefaultMockRefreshSession = () => {
+   const existingSession = mockRefreshSession.get();
+
+   if (existingSession) {
+      return existingSession;
+   }
+
+   const defaultMember = getDefaultRegisteredMember('KAKAO');
+   const session: MockRefreshSession = {
+      userId: defaultMember.userId,
+      provider: defaultMember.provider,
+      email: defaultMember.email,
+      name: defaultMember.name,
+      mobile: defaultMember.mobile,
+   };
+
+   mockRegisteredMembers.set(defaultMember.provider, defaultMember);
+   mockRefreshSession.set(session);
+   return session;
+};
+
 const resolveRegisteredMember = (provider: string) => {
    return mockRegisteredMembers.get(provider) ?? getDefaultRegisteredMember(provider);
 };
@@ -467,6 +488,29 @@ export const authHandlers = [
 
    // 내 프로필 조회 — Authorization 헤더의 JWT에서 유저 정보 파싱
    // 실제 응답: MemberDetailResponse (bankAccount, address, socialConnection 포함)
+   http.get('/api/v1/members/me/summary', async ({ request }) => {
+      const authHeader = request.headers.get('Authorization') ?? '';
+      const token = authHeader.replace(/^Bearer\s+/i, '');
+
+      let name = '테스트 유저';
+      let mobile = '010-0000-0000';
+      let email = '';
+
+      const decoded = parseMockTokenPayload(token);
+      const refreshSession = mockRefreshSession.get();
+
+      if (decoded) {
+         if (decoded.name) name = decoded.name;
+         if (decoded.mobile) mobile = decoded.mobile;
+         if (decoded.email) email = decoded.email;
+      }
+      if (refreshSession?.name) name = refreshSession.name;
+      if (refreshSession?.mobile) mobile = refreshSession.mobile;
+      if (refreshSession?.email) email = refreshSession.email;
+
+      return HttpResponse.json({ code: 'SUCCESS', message: 'ok', data: { name, email, mobile } });
+   }),
+
    http.get('/api/v1/members/me', async ({ request }) => {
       const authHeader = request.headers.get('Authorization') ?? '';
       const token = authHeader.replace(/^Bearer\s+/i, '');
@@ -629,11 +673,7 @@ export const authHandlers = [
    }),
 
    http.post('/api/v1/auth/reissue', async () => {
-      const session = mockRefreshSession.get();
-
-      if (!session) {
-         return HttpResponse.json({ message: 'Mock refresh token session is missing.' }, { status: 401 });
-      }
+      const session = ensureDefaultMockRefreshSession();
 
       return HttpResponse.json({
          code: 'SUCCESS',

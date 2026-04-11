@@ -5,10 +5,6 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import CancelConfirmDialog from './CancelConfirmDialog';
-import { useQuery } from '@tanstack/react-query';
-import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
-import { MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO } from '@/shared/api/mockScenarios';
-import { formatTicketNumber, getTicketNumberKind } from '../model/ticketNumber';
 
 export interface CancelTicketItem {
    orderId: string;
@@ -30,7 +26,6 @@ interface Props {
    isBankTransfer?: boolean;
    /** 무통장 입금이 아닐 때 결제 수단 표시용 */
    paymentMethod?: string;
-   mockTicketInfoError?: boolean;
 }
 
 // ─── Mock: 취소 수수료 (실제로는 API에서 수신) ────────────────────
@@ -70,7 +65,6 @@ export default function CancelBookingDialog({
    seats,
    isBankTransfer = false,
    paymentMethod,
-   mockTicketInfoError = false,
 }: Props) {
    const [checkedSeats, setCheckedSeats] = useState<Set<number>>(new Set());
    const [confirmOpen, setConfirmOpen] = useState(false);
@@ -83,109 +77,16 @@ export default function CancelBookingDialog({
       }
    }, [open]);
 
-   const orderTicketsQuery = useQuery({
-      queryKey: ['cancelOrderTickets', orderId, mockTicketInfoError],
-      queryFn: () =>
-         fetchOrderTickets(orderId, {
-            mockScenario: mockTicketInfoError ? MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO : undefined,
-         }),
-      enabled: open && Boolean(orderId),
-      staleTime: 0,
-   });
-
    if (!open) return null;
 
-   if (orderTicketsQuery.isLoading) {
-      return createPortal(
-         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50" onClick={onClose}>
-            <div
-               className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
-               onClick={e => e.stopPropagation()}
-            >
-               <div className="relative flex items-center gap-2 p-5 shrink-0">
-                  <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">예매 취소</p>
-                  <button
-                     type="button"
-                     onClick={onClose}
-                     className="absolute right-5 top-1/2 -translate-y-1/2 text-[#161d24] hover:text-muted-foreground transition-colors"
-                     aria-label="닫기"
-                  >
-                     <X size={24} />
-                  </button>
-               </div>
-               <div className="px-5 pb-8 pt-2 text-center text-[16px] text-[#374553]">
-                  취소 가능한 티켓 정보를 불러오는 중입니다.
-               </div>
-            </div>
-         </div>,
-         document.body,
-      );
-   }
-
-   if (orderTicketsQuery.isError) {
-      return createPortal(
-         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/50" onClick={onClose}>
-            <div
-               className="bg-background rounded-t-xl lg:rounded-xl w-full lg:w-147 max-h-[90vh] lg:max-h-190 flex flex-col shadow-xl overflow-hidden"
-               onClick={e => e.stopPropagation()}
-            >
-               <div className="relative flex items-center gap-2 p-5 shrink-0">
-                  <p className="flex-1 text-[18px] font-bold text-[#161d24] leading-[1.55] text-center">예매 취소</p>
-                  <button
-                     type="button"
-                     onClick={onClose}
-                     className="absolute right-5 top-1/2 -translate-y-1/2 text-[#161d24] hover:text-muted-foreground transition-colors"
-                     aria-label="닫기"
-                  >
-                     <X size={24} />
-                  </button>
-               </div>
-               <div className="flex flex-col items-center gap-4 px-5 pb-8 pt-2">
-                  <p className="text-center text-[16px] text-[#374553]">
-                     취소 가능한 티켓 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
-                  </p>
-                  <Button type="button" variant="tertiary" onClick={onClose}>
-                     닫기
-                  </Button>
-               </div>
-            </div>
-         </div>,
-         document.body,
-      );
-   }
-
-   const requestedTicketIds = new Set(seats.map((seat) => seat.ticketId).filter((value): value is string => Boolean(value)));
-   const requestedOrderItemIds = new Set(seats.map((seat) => seat.orderItemId).filter((value): value is string => Boolean(value)));
-   const requestedSeatDetails = new Set(seats.map((seat) => seat.seatDetail));
-   const requestedSeatKeys = new Set(seats.map((seat) => `${seat.section}::${seat.seatDetail}`));
-
-   const filteredTickets = (orderTicketsQuery.data ?? []).filter((ticket) => {
-      if (requestedTicketIds.size > 0 && requestedTicketIds.has(ticket.ticketId)) {
-         return true;
-      }
-
-      if (requestedOrderItemIds.size > 0 && requestedOrderItemIds.has(ticket.orderItemId)) {
-         return true;
-      }
-
-      const ticketSection = ticket.seatInfo.split(' ')[0] ?? '';
-      if (requestedSeatKeys.has(`${ticketSection}::${ticket.seatInfo}`)) {
-         return true;
-      }
-
-      return requestedSeatDetails.has(ticket.seatInfo);
-   });
-
-   const resolvedSeats = (filteredTickets.length > 0 ? filteredTickets : orderTicketsQuery.data ?? []).map((ticket) => ({
-      orderId: formatTicketNumber(
-         ticket.ticketNumber,
-         ticket.ticketStatus === 'RESALE_ISSUED' ? 'resale' : getTicketNumberKind(ticket.ticketNumber, 'ticket'),
-      ),
-      orderItemId: ticket.orderItemId,
-      ticketId: ticket.ticketId,
-      section: ticket.seatInfo.split(' ')[0] ?? '',
-      seatDetail: ticket.seatInfo,
-      price: ticket.ticketPrice,
+   // seats prop을 직접 resolvedSeats로 사용 (purchases.ticketIds 기반)
+   const resolvedSeats = seats.map((seat) => ({
+      orderId: seat.orderId,
+      orderItemId: seat.orderItemId,
+      ticketId: seat.ticketId,
+      section: seat.section,
+      seatDetail: seat.seatDetail,
+      price: seat.price,
    }));
 
    if (resolvedSeats.length === 0) {

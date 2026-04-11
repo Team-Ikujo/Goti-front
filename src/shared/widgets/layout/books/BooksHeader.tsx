@@ -121,7 +121,9 @@ const BooksHeader = ({
    const clearBookingEntry = useBookingEntryStore((store) => store.clearEntry);
    const bookingTeamConfig = getBookingTeamConfig(bookingEntryState?.homeTeamId);
    const [bookingEntryGameFallback, setBookingEntryGameFallback] = useState<BookingHeaderGameFallback | null>(null);
-   const resolvedCurrentStepIndex = currentStepIndex ?? (pathname.includes('/books/seats/') ? 1 : 0);
+   const resolvedCurrentStepIndex =
+      currentStepIndex ??
+      (pathname.includes('/books/seats/') || pathname.includes('/resell-books/seats/') ? 1 : 0);
    const shouldShowBackButton = showBackButton ?? resolvedCurrentStepIndex > 0;
    const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
    const [isTimeoutDialogOpen, setIsTimeoutDialogOpen] = useState(false);

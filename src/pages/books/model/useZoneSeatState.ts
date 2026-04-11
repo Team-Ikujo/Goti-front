@@ -14,6 +14,7 @@ type UseZoneSeatStateParams = {
    bookingEntryState: BookingEntryState | null;
    bookingZones: ZoneItem[];
    onPurchaseLimitReached?: () => void;
+   preferMockSeatMap?: boolean;
    zone: ZoneItem;
 };
 
@@ -21,6 +22,7 @@ export function useZoneSeatState({
    bookingEntryState,
    bookingZones,
    onPurchaseLimitReached,
+   preferMockSeatMap = false,
    zone,
 }: UseZoneSeatStateParams) {
    const initialSeats = useMemo(() => createSeatsForZone(zone), [zone]);
@@ -34,6 +36,7 @@ export function useZoneSeatState({
       refetchSeatMap,
    } = useSeatMapData({
       gameId: bookingEntryState?.gameId,
+      preferMockSeatMap,
       stadiumId: bookingEntryState?.stadiumId,
       zone,
    });

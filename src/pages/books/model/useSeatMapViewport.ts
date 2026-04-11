@@ -4,17 +4,17 @@ import type { SeatMapSectionBounds } from './useSeatMapLayout';
 
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.4;
-const STAGE_WIDTH = 1240;
 const STAGE_TOP_OFFSET = 56;
 const DEFAULT_SEAT_MAP_LEFT_PADDING = 24;
 const DEFAULT_SEAT_MAP_TOP_PADDING = 24;
 
 type UseSeatMapViewportParams = {
    sectionBounds: SeatMapSectionBounds;
+   stageWidth: number;
    zoneId: string;
 };
 
-export function useSeatMapViewport({ sectionBounds, zoneId }: UseSeatMapViewportParams) {
+export function useSeatMapViewport({ sectionBounds, stageWidth, zoneId }: UseSeatMapViewportParams) {
    const [seatMapScale, setSeatMapScale] = useState(1);
    const [seatMapOffset, setSeatMapOffset] = useState({ x: 0, y: 0 });
    const [isSeatMapDragging, setIsSeatMapDragging] = useState(false);
@@ -67,7 +67,7 @@ export function useSeatMapViewport({ sectionBounds, zoneId }: UseSeatMapViewport
       return {
          scale: Number(scale.toFixed(2)),
          offset: {
-            x: (STAGE_WIDTH / 2 - contentCenterX) * scale,
+            x: (stageWidth / 2 - contentCenterX) * scale,
             y: targetCenterY - STAGE_TOP_OFFSET - contentCenterY * scale,
          },
       };
@@ -85,7 +85,7 @@ export function useSeatMapViewport({ sectionBounds, zoneId }: UseSeatMapViewport
 
       setSeatMapScale(nextView.scale);
       setSeatMapOffset(nextView.offset);
-   }, [mapViewportSize.height, mapViewportSize.width, sectionBounds, zoneId]);
+   }, [mapViewportSize.height, mapViewportSize.width, sectionBounds, stageWidth, zoneId]);
 
    return {
       isSeatMapDragging,

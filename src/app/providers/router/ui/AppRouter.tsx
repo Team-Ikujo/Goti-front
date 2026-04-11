@@ -29,6 +29,8 @@ import PaymentProcessingPage from '@/pages/tickets/ui/payment/PaymentProcessingP
 import PaymentCompletePage from '@/pages/tickets/ui/payment/PaymentCompletePage';
 import BooksPage from '@/pages/books';
 import SeatsPage from '@/pages/books/ui/SeatsPage';
+import ResellBooksPage from '@/pages/resell-books';
+import ResellSeatsPage from '@/pages/resell-books/ui/ResellSeatsPage';
 import SeatHoldLifecycleController from '@/features/seat-booking/ui/SeatHoldLifecycleController';
 import {
    MypagePage,
@@ -84,6 +86,10 @@ const AppRouter = () => {
             <Route path="/books" element={<BooksLayout />}>
                <Route index element={<BooksPage />} />
                <Route path="seats/:zoneId" element={<SeatsPage />} />
+            </Route>
+            <Route path="/resell-books" element={<BooksLayout />}>
+               <Route index element={<ResellBooksPage />} />
+               <Route path="seats/:zoneId" element={<ResellSeatsPage />} />
             </Route>
             <Route path="/button" element={<ButtonPage />} />
             <Route path="/control" element={<ControlPage />} />

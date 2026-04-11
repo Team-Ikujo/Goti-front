@@ -2,18 +2,20 @@ import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig } from "axios"
 import { useAuthStore } from "@/entities/auth/model/authStore";
 import { redirectToErrorPage } from '@/shared/lib/error-navigation';
 import { applyGuardrailHeadersToAxiosConfig } from '@/shared/lib/guardrailHeaders';
+import { waitForAuthSessionResolution } from '@/shared/lib/authSessionBarrier';
+import { reissueAccessTokenFromCookie } from '@/shared/lib/reissueAccessToken';
 import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 
 export class ApiError extends Error {
-   status?: number;
-   data?: unknown;
+  status?: number;
+  data?: unknown;
 
-   constructor(message: string, status?: number, data?: unknown) {
-      super(message);
-      this.name = 'ApiError';
-      this.status = status;
-      this.data = data;
-   }
+  constructor(message: string, status?: number, data?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
 }
 
 const tokenReissuePath = "/api/v1/auth/reissue";
@@ -23,22 +25,10 @@ const authorizationOptionalApiPaths = new Set([
   "/api/v1/auth/signup/sms/send",
   tokenReissuePath,
 ]);
-const shouldKeepSessionAlivePathPrefixes = ["/books", "/tickets"];
+const shouldKeepSessionAlivePathPrefixes = ["/books", "/resell-books", "/tickets"];
 const PUBLIC_API_PATH_PATTERNS = [
-  /^\/api\/v1\/queue(?:\/|$)/,
-  /^\/api\/v1\/seat-reservations(?:\/|$)/,
-  // 예매/리셀 플로우 API는 queue token / hold 기반으로 동작하므로
-  // 로그인 쿠키 세션을 같이 보내면 RBAC 게이트웨이에 막힐 수 있다.
-  /^\/api\/v1\/orders(?:\/|$)/,
-  /^\/api\/v1\/payments\/orders(?:\/|$)/,
-  /^\/api\/v1\/resales\/holds(?:\/|$)/,
-  /^\/api\/v1\/resales\/orders(?:\/|$)/,
-  /^\/api\/v1\/payments\/resales(?:\/|$)/,
-  /^\/api\/v1\/resales\/games(?:\/|$)/,
-  /^\/api\/v1\/game-seats(?:\/|$)/,
-  /^\/api\/v1\/stadium-seats(?:\/|$)/,
-  /^\/api\/v1\/seats(?:\/|$)/,
-  /^\/api\/v1\/teams\/[^/]+\/ticket-pricing-policies(?:\/|$)/,
+  /^\/api\/v1\/games(?:\/|$)/,
+  /^\/api\/v1\/baseball-teams(?:\/|$)/
 ];
 
 const GUARDRAIL_HEADER_API_PATH_PATTERNS = [
@@ -125,6 +115,14 @@ const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
 
   try {
     const { pathname } = new URL(requestUrl, window.location.origin);
+    if (/^\/api\/v1\/queue\/[^/]+\/global-status$/.test(pathname)) {
+      return true;
+    }
+
+    if (PUBLIC_API_PATH_PATTERNS.some((pattern) => pattern.test(pathname))) {
+      return true;
+    }
+
     if (authorizationOptionalApiPaths.has(pathname)) {
       return true;
     }
@@ -143,11 +141,38 @@ const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
   }
 };
 
+const shouldWaitForInitialSessionResolution = (config: AxiosRequestConfig) => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  if (useAuthStore.getState().hasResolvedSession) {
+    return false;
+  }
+
+  if (shouldSkipAuthorizationHeader(config) || shouldSkipCredentials(config)) {
+    return false;
+  }
+
+  const requestUrl = toAbsoluteUrl(config);
+
+  try {
+    const { pathname } = new URL(requestUrl, window.location.origin);
+    return pathname !== tokenReissuePath;
+  } catch {
+    return true;
+  }
+};
+
 const shouldSkipCredentials = (config: AxiosRequestConfig) => {
   const requestUrl = toAbsoluteUrl(config);
 
   try {
     const { pathname } = new URL(requestUrl, window.location.origin);
+    if (/^\/api\/v1\/queue\/[^/]+\/global-status$/.test(pathname)) {
+      return true;
+    }
+
     return PUBLIC_API_PATH_PATTERNS.some((pattern) => pattern.test(pathname));
   } catch {
     return false;
@@ -196,55 +221,11 @@ const apiClient = axios.create({
   },
 });
 
-let refreshAccessTokenPromise: Promise<string> | null = null;
-
-const reissueAccessTokenFromCookie = async () => {
-  if (useAuthStore.getState().isManualLogout) {
-    throw new ApiError("수동 로그아웃 상태에서는 토큰을 재발급하지 않습니다.", 401);
+apiClient.interceptors.request.use(async (config) => {
+  if (shouldWaitForInitialSessionResolution(config)) {
+    await waitForAuthSessionResolution();
   }
 
-  if (!refreshAccessTokenPromise) {
-    refreshAccessTokenPromise = axios
-      .post(
-        tokenReissuePath,
-        undefined,
-        {
-          baseURL: shouldUseRelativeApiBase ? "" : configuredApiBaseUrl,
-          headers: {
-            "Content-Type": "application/json",
-          },
-          withCredentials: true,
-        },
-      )
-      .then((response) => {
-        const data = unwrapApiData<{ accessToken: string }>(response.data);
-
-        if (!data.accessToken) {
-          throw new ApiError("토큰 재발급 응답에 accessToken이 없습니다.", response.status, response.data);
-        }
-
-        if (useAuthStore.getState().isManualLogout) {
-          throw new ApiError("로그아웃 이후 도착한 토큰 재발급 응답은 무시합니다.", 401, response.data);
-        }
-
-        useAuthStore.getState().setAccessToken(data.accessToken);
-        return data.accessToken;
-      })
-      .catch((error: unknown) => {
-        if (!useAuthStore.getState().isManualLogout) {
-          useAuthStore.getState().clearAuth("expired");
-        }
-        throw error;
-      })
-      .finally(() => {
-        refreshAccessTokenPromise = null;
-      });
-  }
-
-  return refreshAccessTokenPromise;
-};
-
-apiClient.interceptors.request.use((config) => {
   const accessToken = useAuthStore.getState().accessToken;
   const shouldSkipAuth = shouldSkipAuthorizationHeader(config);
   const shouldOmitCredentials = shouldSkipCredentials(config);
@@ -327,11 +308,11 @@ apiClient.interceptors.response.use(
         status,
       );
 
-         return Promise.reject(new ApiError(message, status, data));
-      }
+      return Promise.reject(new ApiError(message, status, data));
+    }
 
-      return Promise.reject(new ApiError(normalizeApiErrorMessage(error.message)));
-   },
+    return Promise.reject(new ApiError(normalizeApiErrorMessage(error.message)));
+  },
 );
 
 export default apiClient;

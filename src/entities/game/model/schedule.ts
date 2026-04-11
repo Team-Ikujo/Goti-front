@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { buildMockQueueTokenJti } from '@/shared/config/booking';
 import type { ApiLeagueType } from '@/shared/types/game';
+import { hasAvailableSeats } from '@/entities/game/model/seatAvailability';
 import {
   fetchBaseballTeamDetails,
   fetchGameSchedules,
@@ -37,7 +38,10 @@ export type NormalizedScheduleGame = {
   isToday: boolean;
   ticketingOpenedAt?: string;
   ticketingEndAt?: string;
-  remainingSeatCount?: number;
+  ticketingOpenedAtMs?: number;
+  ticketingEndAtMs?: number;
+  resellOpenedAtMs?: number;
+  remainingSeatCount: number;
 };
 
 type TeamReference = {
@@ -88,51 +92,105 @@ const TEAM_REFERENCES: TeamReference[] = teams
 
 type StadiumReference = {
   displayName: string;
+  region: string;
   aliases: string[];
 };
 
-const STADIUM_REFERENCES: Record<string, StadiumReference> = {
+export const STADIUM_REFERENCES: Record<string, StadiumReference> = {
   'stadium-jamsil-baseball': {
     displayName: '잠실 야구장',
-    aliases: ['잠실야구장'],
+    region: '잠실',
+    aliases: ['잠실야구장', '서울종합운동장야구장', '잠실종합운동장야구장', '잠실'],
   },
   'stadium-samsung-lions-park': {
     displayName: '대구 삼성 라이온즈 파크',
-    aliases: ['대구삼성라이온즈파크', '삼성라이온즈파크'],
+    region: '대구',
+    aliases: ['대구삼성라이온즈파크', '삼성라이온즈파크', '대구 삼성라이온즈파크', '대구'],
   },
   'stadium-sajik-baseball': {
     displayName: '사직 야구장',
-    aliases: ['사직야구장'],
+    region: '사직',
+    aliases: ['사직야구장', '사직'],
   },
   'stadium-changwon-nc-park': {
     displayName: '창원 NC파크',
-    aliases: ['창원nc파크', 'nc파크'],
+    region: '창원',
+    aliases: ['창원nc파크', 'nc파크', '창원엔씨파크', '창원 nc 파크', '창원'],
   },
   'stadium-gocheok-skydome': {
     displayName: '고척 스카이돔',
-    aliases: ['고척스카이돔'],
+    region: '고척',
+    aliases: ['고척스카이돔', '고척돔', '고척'],
   },
   'stadium-kia-champions-field': {
     displayName: '기아 챔피언스필드',
-    aliases: ['광주기아챔피언스필드', '기아챔피언스필드'],
+    region: '광주',
+    aliases: ['광주기아챔피언스필드', '기아챔피언스필드', '광주 기아 챔피언스 필드', '광주-kia챔피언스필드', '광주'],
   },
   'stadium-kt-wiz-park': {
     displayName: '수원 KT위즈파크',
-    aliases: ['수원kt위즈파크', 'kt위즈파크'],
+    region: '수원',
+    aliases: ['수원kt위즈파크', 'kt위즈파크', '수원 케이티위즈파크', '수원'],
   },
   'stadium-daejeon-baseball': {
     displayName: '대전 한화생명 볼파크',
-    aliases: ['대전한화생명볼파크'],
+    region: '대전',
+    aliases: ['대전한화생명볼파크', '대전 한화생명 이글스파크', '대전한화생명이글스파크', '한화생명이글스파크', '대전베이스볼드림파크', '대전'],
   },
   'stadium-incheon-landers-field': {
     displayName: '인천 SSG 랜더스필드',
-    aliases: ['인천ssg랜더스필드', 'ssg랜더스필드'],
+    region: '인천',
+    aliases: ['인천ssg랜더스필드', 'ssg랜더스필드', '랜더스필드', '인천'],
   },
 };
+
+/** displayName → 지역명 매핑 (홈 경기일정 표시용) */
+export const VENUE_REGION_MAP: Record<string, string> = Object.fromEntries(
+  Object.values(STADIUM_REFERENCES).map((s) => [s.displayName, s.region]),
+);
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 const normalizeLookupValue = (value: string) => value.toLowerCase().replace(/[\s\-_./()]/g, '');
+
+const normalizedStadiumEntries = Object.entries(STADIUM_REFERENCES).map(([stadiumId, reference]) => ({
+  stadiumId,
+  region: reference.region,
+  candidates: [stadiumId, reference.displayName, reference.region, ...reference.aliases]
+    .filter((candidate): candidate is string => Boolean(candidate))
+    .map(normalizeLookupValue),
+}));
+
+export const resolveVenueRegionLabel = (venue?: string, stadiumId?: string) => {
+  if (stadiumId) {
+    const mappedById = STADIUM_REFERENCES[stadiumId];
+
+    if (mappedById) {
+      return mappedById.region;
+    }
+  }
+
+  if (!venue?.trim()) {
+    return venue ?? '-';
+  }
+
+  const normalizedVenue = normalizeLookupValue(venue);
+  const exactEntry = normalizedStadiumEntries.find((entry) => entry.candidates.includes(normalizedVenue));
+
+  if (exactEntry) {
+    return exactEntry.region;
+  }
+
+  const partialEntry = normalizedStadiumEntries.find((entry) =>
+    entry.candidates.some((candidate) => normalizedVenue.includes(candidate) || candidate.includes(normalizedVenue)),
+  );
+
+  if (partialEntry) {
+    return partialEntry.region;
+  }
+
+  return venue;
+};
 
 const findTeamReference = (...candidates: Array<string | undefined>) => {
   const normalizedCandidates = candidates
@@ -181,11 +239,11 @@ const collectLookupTeamIds = (games: GameScheduleResponse[]) => {
 
   games.forEach((game) => {
     if (needsTeamLookup(game.homeTeamId, game.homeTeamCode, game.homeTeamName, game.homeTeamDisplayName)) {
-      ids.add(game.homeTeamId);
+      ids.add(game.homeTeamId!);
     }
 
     if (needsTeamLookup(game.awayTeamId, game.awayTeamCode, game.awayTeamName, game.awayTeamDisplayName)) {
-      ids.add(game.awayTeamId);
+      ids.add(game.awayTeamId!);
     }
   });
 
@@ -259,6 +317,17 @@ const parseScheduleBoundary = (value?: string) => {
   return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
 };
 
+const toTimestamp = (value?: string) => parseScheduleBoundary(value)?.getTime();
+
+const getResellOpenTimestamp = (date?: string) => {
+  if (!date) {
+    return undefined;
+  }
+
+  const parsedDate = new Date(`${date}T13:00:00`);
+  return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate.getTime();
+};
+
 const formatOpenBoundaryLabel = (value?: string, fallbackDate?: string): string => {
   const parsedDate = parseScheduleBoundary(value);
 
@@ -322,13 +391,13 @@ const mapTicketStatus = (value: string): TicketStatus => {
 
 const closeTicketStatusForEmptyInventory = (
   ticketStatus: TicketStatus,
-  remainingSeatCount?: number,
+  remainingSeatCount: number,
 ): TicketStatus => {
   if (ticketStatus !== '예매하기') {
     return ticketStatus;
   }
 
-  if (typeof remainingSeatCount === 'number' && remainingSeatCount <= 0) {
+  if (!hasAvailableSeats(remainingSeatCount)) {
     return '매진';
   }
 
@@ -355,7 +424,7 @@ const closeTicketStatusForUnavailableGame = (ticketStatus: TicketStatus, gameSta
 };
 
 const resolveVenueNameFromGame = (game: GameScheduleResponse, homeTeamName: string) => {
-  const stadiumById = STADIUM_REFERENCES[game.stadiumId];
+  const stadiumById = game.stadiumId ? STADIUM_REFERENCES[game.stadiumId] : undefined;
 
   if (stadiumById) {
     return stadiumById.displayName;
@@ -391,13 +460,16 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
   const apiStatus = mapGameStatus(game.gameStatus);
   const gameDateTime = date && time ? new Date(`${date}T${time}`) : null;
   const status: GameStatus = (apiStatus !== '종료' && gameDateTime && gameDateTime < new Date()) ? '종료' : apiStatus;
+  const ticketingOpenedAtMs = toTimestamp(game.ticketingOpenedAt);
+  const ticketingEndAtMs = toTimestamp(game.ticketingEndAt);
+  const resellOpenedAtMs = getResellOpenTimestamp(date);
 
   const ticket = closeTicketStatusForUnavailableGame(
     closeTicketStatusForEmptyInventory(mapTicketStatus(game.ticketingStatus), game.remainingSeatCount),
     status,
   );
-  const fallbackHomeName = game.homeTeamDisplayName ?? game.homeTeamName ?? game.homeTeamCode ?? game.homeTeamId;
-  const fallbackAwayName = game.awayTeamDisplayName ?? game.awayTeamName ?? game.awayTeamCode ?? game.awayTeamId;
+  const fallbackHomeName = game.homeTeamDisplayName ?? game.homeTeamName ?? game.homeTeamCode ?? game.homeTeamId ?? '';
+  const fallbackAwayName = game.awayTeamDisplayName ?? game.awayTeamName ?? game.awayTeamCode ?? game.awayTeamId ?? '';
 
   return {
     id: game.gameId,
@@ -425,6 +497,9 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
     isToday: isSameCalendarDate(date, new Date()),
     ticketingOpenedAt: game.ticketingOpenedAt,
     ticketingEndAt: game.ticketingEndAt,
+    ticketingOpenedAtMs,
+    ticketingEndAtMs,
+    resellOpenedAtMs,
     remainingSeatCount: game.remainingSeatCount,
   };
 };
@@ -450,6 +525,9 @@ export const mapGamesToDaySchedules = (games: NormalizedScheduleGame[]): DaySche
       rawDate: game.date,
       ticketingOpenedAt: game.ticketingOpenedAt,
       ticketingEndAt: game.ticketingEndAt,
+      ticketingOpenedAtMs: game.ticketingOpenedAtMs,
+      ticketingEndAtMs: game.ticketingEndAtMs,
+      resellOpenedAtMs: game.resellOpenedAtMs,
       time: game.time,
       venue: game.venue,
       away: game.awayTeamName,

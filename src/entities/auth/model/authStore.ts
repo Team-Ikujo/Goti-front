@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
+import { markAuthSessionResolved, resetAuthSessionBarrier } from '@/shared/lib/authSessionBarrier';
 
 export type LoginAlert =
    | { type: 'failed_under_5'; failCount: number; redirectPath: string }
@@ -100,7 +101,15 @@ export const useAuthStore = create<AuthState>()(
          loginTimedOut: false,
          loginAlert: null,
          setHasHydrated: hasHydrated => set({ hasHydrated }),
-         setHasResolvedSession: hasResolvedSession => set({ hasResolvedSession }),
+         setHasResolvedSession: hasResolvedSession => {
+            if (hasResolvedSession) {
+               markAuthSessionResolved();
+            } else {
+               resetAuthSessionBarrier();
+            }
+
+            set({ hasResolvedSession });
+         },
          setAccessToken: accessToken => {
             const nextAuthExpiresAt = getNextAuthExpiresAt(accessToken);
             const nextCurrentUserId = resolveUserIdFromJwt(accessToken);

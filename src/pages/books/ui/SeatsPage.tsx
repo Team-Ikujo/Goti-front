@@ -10,6 +10,7 @@ import { useSeatMapViewport } from '@/pages/books/model/useSeatMapViewport';
 import { useSeatsPageEntry } from '@/pages/books/model/useSeatsPageEntry';
 import { useZoneSeatState } from '@/pages/books/model/useZoneSeatState';
 import { formatPrice } from '@/pages/books/model/zoneData';
+import { isResaleBookingMockEnabled } from '@/shared/config/runtime';
 import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { useBotDetector } from '@/shared/lib/useBotDetector';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/shared/ui/drawer';
@@ -48,6 +49,7 @@ function SeatsPage() {
       bookingEntryState,
       bookingZones,
       onPurchaseLimitReached: () => setIsPurchaseLimitDialogOpen(true),
+      preferMockSeatMap: isResellMode && isResaleBookingMockEnabled,
       zone,
    });
    const [isSeatDrawerOpen, setIsSeatDrawerOpen] = useState(true);
@@ -67,6 +69,7 @@ function SeatsPage() {
    });
    const seatMapViewport = useSeatMapViewport({
       sectionBounds: baseSeatMapLayout.sectionBounds,
+      stageWidth: baseSeatMapLayout.stageSize.width,
       zoneId: zone.id,
    });
    const seatMapLayout = useSeatMapLayout({
@@ -274,6 +277,7 @@ function SeatsPage() {
                      seatBlocks={seatBlocks}
                      seatMapOffset={seatMapViewport.seatMapOffset}
                      seatMapScale={seatMapViewport.seatMapScale}
+                     stageSize={seatMapLayout.stageSize}
                      seats={displaySeats}
                      selectedSeatIdSet={selectedSeatIdSet}
                      zoneColor={zone.color}

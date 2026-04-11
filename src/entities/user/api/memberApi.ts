@@ -1,8 +1,10 @@
 // src/entities/user/api/memberApi.ts
 
-import apiClient from '@/shared/api/client';
+import { useAuthStore } from '@/entities/auth/model/authStore';
+import apiClient, { ApiError } from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import { isMswEnabled } from '@/shared/config/runtime';
+import { decodeJwtPayload } from '@/shared/lib/jwt';
 
 // GET /api/v1/members/me 응답 내 중첩 타입들
 export interface MemberBankAccount {
@@ -164,6 +166,49 @@ const mergeMockProfile = (profile?: MemberProfile): MemberProfile => {
    };
 };
 
+const readStringClaim = (payload: Record<string, unknown> | null, keys: string[]) => {
+   for (const key of keys) {
+      const value = payload?.[key];
+
+      if (typeof value === 'string' && value.trim().length > 0) {
+         return value.trim();
+      }
+   }
+
+   return undefined;
+};
+
+const resolveOAuthProvider = (provider?: string | null): MemberProfile['oAuthProvider'] => {
+   if (!provider) {
+      return undefined;
+   }
+
+   switch (provider.toUpperCase()) {
+      case 'GOOGLE':
+         return 'GOOGLE';
+      case 'KAKAO':
+         return 'KAKAO';
+      case 'NAVER':
+         return 'NAVER';
+      default:
+         return undefined;
+   }
+};
+
+const buildAuthFallbackProfile = (): MemberProfile => {
+   const { accessToken, recentLoginProvider } = useAuthStore.getState();
+   const payload = decodeJwtPayload(accessToken);
+
+   return {
+      name: readStringClaim(payload, ['name', 'nickname']),
+      email: readStringClaim(payload, ['email', 'preferred_username', 'loginId', 'login_id', 'username']),
+      mobile: readStringClaim(payload, ['mobile', 'phoneNumber', 'phone_number', 'phone']),
+      oAuthProvider: resolveOAuthProvider(
+         readStringClaim(payload, ['provider', 'oauthProvider', 'oAuthProvider', 'registrationId']) ?? recentLoginProvider,
+      ),
+   };
+};
+
 // GET /api/v1/members/me/summary 응답 (마이페이지 프로필 카드용 요약 정보)
 export interface MemberSummary {
    name?: string;
@@ -172,15 +217,33 @@ export interface MemberSummary {
 }
 
 export const fetchMyProfileSummary = async (): Promise<MemberSummary> => {
-   const response = await apiClient.get<ApiEnvelope<MemberSummary>>('/api/v1/members/me/summary');
-   return response.data.data;
+   try {
+      const response = await apiClient.get<ApiEnvelope<MemberSummary>>('/api/v1/members/me/summary');
+      return response.data.data;
+   } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+         const fallbackProfile = buildAuthFallbackProfile();
+
+         return {
+            name: fallbackProfile.name,
+            email: fallbackProfile.email,
+            mobile: fallbackProfile.mobile,
+         };
+      }
+
+      throw error;
+   }
 };
 
 export const fetchMyProfile = async (): Promise<MemberProfile> => {
    try {
       const response = await apiClient.get<ApiEnvelope<MemberProfile>>('/api/v1/members/me');
       return mergeMockProfile(response.data.data);
-   } catch {
+   } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+         return mergeMockProfile(buildAuthFallbackProfile());
+      }
+
       if (!isMswEnabled) {
          throw new Error('Failed to fetch member profile.');
       }

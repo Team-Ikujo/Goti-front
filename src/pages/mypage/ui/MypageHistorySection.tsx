@@ -23,14 +23,12 @@ interface MypageHistorySectionProps {
    purchaseItems: PurchaseHistoryItem[];
    saleItems: SaleHistoryItem[];
    initialActiveTab: HistoryTab;
-   mockTicketInfoError?: boolean;
 }
 
 export function MypageHistorySection({
    purchaseItems,
    saleItems,
    initialActiveTab,
-   mockTicketInfoError = false,
 }: MypageHistorySectionProps) {
    const dataMinDate = useMemo(() => {
       const dates = [...purchaseItems, ...saleItems].map(item => toISODate(item.orderDate)).sort();
@@ -271,7 +269,6 @@ export function MypageHistorySection({
                               key={item.id}
                               mode="purchase"
                               item={item}
-                              mockTicketInfoError={mockTicketInfoError}
                            />
                         ))
                      ) : (

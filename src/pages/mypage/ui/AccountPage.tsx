@@ -10,7 +10,6 @@ import {
    type MemberAccount,
    type MemberAddress,
 } from '@/entities/user/api/memberApi';
-import { logout } from '@/features/auth/api/authApi';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 import { AccountModals } from './AccountModals';
 import type { ModalType } from './AccountModals';
@@ -23,8 +22,6 @@ import { AccountAddressFormCard } from './AccountAddressFormCard';
 import { AccountManagementCard } from './AccountManagementCard';
 import {
    useMyProfileData,
-   useMyOrdersData,
-   useMyResaleListData,
    useMyTicketInfoData,
 } from '../model/useMypageData';
 import { ACCOUNT_PAGE_QUERY_KEYS, BANKS } from '../model/accountPageConstants';
@@ -75,8 +72,6 @@ export default function AccountPage() {
    const currentUserId = useAuthStore(state => state.currentUserId);
    const recentLoginProvider = useAuthStore(state => state.recentLoginProvider);
    const profileQuery = useMyProfileData();
-   const ordersQuery = useMyOrdersData();
-   const resaleListQuery = useMyResaleListData();
    const ticketInfoQuery = useMyTicketInfoData();
    const profile = profileQuery.data;
    const authPayload = useMemo(() => decodeJwtPayload(accessToken), [accessToken]);
@@ -116,9 +111,10 @@ export default function AccountPage() {
       return base;
    }, [effectiveProvider, profile?.socialConnection]);
    const [socialConnectionState, setSocialConnectionState] = useState(resolvedSocialConnection);
-   const hasUnpaidAmount = (ticketInfoQuery.data?.unsettledAmount ?? 0) > 0;
+   const hasUnpaidAmount = ticketInfoQuery.isSuccess && (ticketInfoQuery.data.unsettledAmount ?? 0) > 0;
    const hasActiveTickets =
-      (ticketInfoQuery.data?.ownedTicketCount ?? 0) > 0 || (ticketInfoQuery.data?.listingCount ?? 0) > 0;
+      ticketInfoQuery.isSuccess &&
+      ((ticketInfoQuery.data.ownedTicketCount ?? 0) > 0 || (ticketInfoQuery.data.listingCount ?? 0) > 0);
 
    const [modal, setModal] = useState<ModalType>(null);
    const closeModal = () => setModal(null);
@@ -264,7 +260,7 @@ export default function AccountPage() {
    const isAccountSaveEnabled = !!(bank && accountNumber && depositor && agreeOpen && agreeThird && agreePersonal);
    const isAddressSaveEnabled = Boolean(zipCode && address && addressDetail.trim());
    const clearAuth = useAuthStore(state => state.clearAuth);
-   const isPageLoading = profileQuery.isLoading || ordersQuery.isLoading || resaleListQuery.isLoading;
+   const isPageLoading = profileQuery.isLoading;
 
    const { mutate: saveAccount, isPending: isSavingAccount } = useMutation({
       mutationFn: () =>
@@ -326,18 +322,18 @@ export default function AccountPage() {
    }, []);
 
    /** 로그아웃 */
-   const handleLogout = useCallback(async () => {
-      try {
-         await logout();
-      } catch {
-         // 서버 로그아웃 실패해도 클라이언트 인증 상태는 초기화
-      }
+   const handleLogout = useCallback(() => {
       clearAuth('manual');
       navigate('/');
    }, [clearAuth, navigate]);
 
    /** 회원 탈퇴 버튼 클릭 */
    const handleWithdrawClick = () => {
+      if (ticketInfoQuery.isLoading || ticketInfoQuery.isError) {
+         setModal('withdrawStatusUnknown');
+         return;
+      }
+
       if (hasUnpaidAmount) {
          setModal('withdrawBlocked');
       } else if (hasActiveTickets) {
@@ -423,7 +419,7 @@ export default function AccountPage() {
       );
    }
 
-   if (profileQuery.isError || ordersQuery.isError || resaleListQuery.isError) {
+   if (profileQuery.isError) {
       return (
          <div className="flex flex-col items-center justify-center gap-4 py-24">
             <p className="text-body-1-regular text-muted-foreground">

@@ -1,29 +1,13 @@
 import { TicketX } from 'lucide-react';
 
+import { hasAvailableSeats } from '@/entities/game/model/seatAvailability';
+import { resolveVenueRegionLabel } from '@/entities/game/model/schedule';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 import { cn } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
 import { TAB_TODAY, TEAM_IDS, statusColor, teamLogos } from './constants';
 import type { DaySchedule, GameRow } from './types';
 import { getEffectiveSaleStatuses, getGameResultTexts } from './utils';
-
-const VENUE_REGION_LABELS: Record<string, string> = {
-   '기아 챔피언스필드': '광주',
-   '광주 기아 챔피언스 필드': '광주',
-   '대구 삼성 라이온즈 파크': '대구',
-   '대구 삼성라이온즈파크': '대구',
-   '잠실 야구장': '잠실',
-   '사직 야구장': '사직',
-   '창원 NC파크': '창원',
-   '고척 스카이돔': '고척',
-   '수원 KT위즈파크': '수원',
-   '대전 한화생명 볼파크': '대전',
-   '인천 SSG 랜더스필드': '인천',
-};
-
-const toVenueRegionLabel = (venue: string) => {
-   return VENUE_REGION_LABELS[venue] ?? venue;
-};
 
 function ScoreDisplay({ game }: { game: GameRow }) {
    const scoreText = game.score ?? 'VS';
@@ -174,7 +158,7 @@ function ActionButtons({
    onOpenResellFlow: (game: GameRow) => void;
 }) {
    const { effectiveTicket, effectiveResell, ticketInfo, reselInfo } = getEffectiveSaleStatuses(game);
-   const hasRemainingSeats = game.remainingSeatCount === undefined || game.remainingSeatCount > 0;
+   const hasRemainingSeats = hasAvailableSeats(game.remainingSeatCount);
 
    const canBook = effectiveTicket === '예매하기' && hasRemainingSeats;
    const canResellBook = effectiveResell === '리셀예매';
@@ -192,11 +176,9 @@ function ActionButtons({
                {/* 예매 버튼 — 모바일 */}
                {isTicketScheduled ? (
                   <div className="flex-1 bg-[#e9ebee] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
-                     <p className="text-[14px] font-medium text-[#acb4bb] leading-[1.5] whitespace-nowrap">판매예정</p>
-                     <div className="text-[11px] text-[#acb4bb] text-center leading-[1.2]">
-                        <p className="whitespace-nowrap">{ticketInfoLine1}</p>
-                        <p className="whitespace-nowrap">{ticketInfoLine2}</p>
-                     </div>
+                     <p className="text-[14px] font-medium text-[#acb4bb] leading-[1.5] whitespace-nowrap">
+                        판매예정 {ticketInfoLine1} {ticketInfoLine2}
+                     </p>
                   </div>
                ) : (
                   <button
@@ -214,11 +196,9 @@ function ActionButtons({
                {/* 리셀 버튼 — 모바일 */}
                {isResellScheduled ? (
                   <div className="flex-1 border border-[#d0d6db] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
-                     <p className="text-[14px] font-medium text-[#acb4bb] leading-[1.5] whitespace-nowrap">리셀예정</p>
-                     <div className="text-[11px] text-[#acb4bb] text-center leading-[1.2]">
-                        <p className="whitespace-nowrap">{reselInfoLine1}</p>
-                        <p className="whitespace-nowrap">{reselInfoLine2}</p>
-                     </div>
+                     <p className="text-[14px] font-medium text-[#acb4bb] leading-[1.5] whitespace-nowrap">
+                        리셀예정 {reselInfoLine1} {reselInfoLine2}
+                     </p>
                   </div>
                ) : (
                   <button
@@ -307,7 +287,7 @@ function MobileGameRow({
    const isEnded = game.status === '종료';
    const textDisabled = isEnded ? 'text-[#acb4bb]' : 'text-(--text-primary)';
    const resultText = getGameResultTexts(game.score, isEnded);
-   const venueLabel = toVenueRegionLabel(game.venue);
+   const venueLabel = resolveVenueRegionLabel(game.venue, game.stadiumId);
 
    return (
       <div
@@ -368,7 +348,7 @@ function DesktopGameRow({
    const isEnded = game.status === '종료';
    const textDisabled = isEnded ? 'text-[#acb4bb]' : 'text-(--text-primary)';
    const resultText = getGameResultTexts(game.score, isEnded);
-   const venueLabel = toVenueRegionLabel(game.venue);
+   const venueLabel = resolveVenueRegionLabel(game.venue, game.stadiumId);
 
    return (
       <div

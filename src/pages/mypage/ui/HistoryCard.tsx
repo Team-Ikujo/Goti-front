@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { Separator } from '@/shared/ui/separator';
 import { Button } from '@/shared/ui/button';
@@ -13,9 +13,9 @@ import QrViewDialog from './QrViewDialog';
 import CancelBookingDialog from './CancelBookingDialog';
 import NoAccountDialog from './NoAccountDialog';
 import ActionStatusDialog from './ActionStatusDialog';
-import { fetchOrderTickets } from '@/entities/ticket/api/ticketApi';
-import { MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO } from '@/shared/api/mockScenarios';
 import { cancelResaleListing } from '@/entities/resale/api/resaleApi';
+import { useAuthStore } from '@/entities/auth/model/authStore';
+import { markStoredResaleListingCanceled } from '@/shared/lib/resaleListingStorage';
 
 export type PurchaseStatus = '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
 export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판매 취소 대기' | '취소 대기' | '취소 완료';
@@ -23,6 +23,7 @@ export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판
 export interface PurchaseHistoryItem {
    id: string;
    rawOrderId?: string;
+   rawOrderDate?: string;
    gameId?: string;
    stadiumId?: string;
    orderId: string;
@@ -71,7 +72,6 @@ export interface SaleHistoryItem {
 
 type HistoryCardProps = ({ mode: 'purchase'; item: PurchaseHistoryItem } | { mode: 'sale'; item: SaleHistoryItem }) & {
    onResellCompleteConfirm?: () => void;
-   mockTicketInfoError?: boolean;
 };
 
 const isPurchaseHistoryItem = (
@@ -79,25 +79,11 @@ const isPurchaseHistoryItem = (
    _item: PurchaseHistoryItem | SaleHistoryItem,
 ): _item is PurchaseHistoryItem => mode === 'purchase';
 
-const parseGradeName = (seatInfo: string): string => {
-   const tokens = seatInfo.split(' ');
-   const sectionIndex = tokens.findIndex((token) => token.endsWith('구역'));
-   if (sectionIndex > 0) return tokens.slice(0, sectionIndex).join(' ');
-   const rowIndex = tokens.findIndex((token) => /^[A-Z가-힣\d]+열$/.test(token));
-   return rowIndex > 0 ? tokens.slice(0, rowIndex).join(' ') : (tokens[0] ?? '');
-};
-
-const parseSeatDetail = (seatInfo: string): string => {
-   const tokens = seatInfo.split(' ');
-   const sectionIndex = tokens.findIndex((token) => token.endsWith('구역'));
-   if (sectionIndex > 0) return tokens.slice(sectionIndex).join(' ');
-   const rowIndex = tokens.findIndex((token) => /^[A-Z가-힣\d]+열$/.test(token));
-   return rowIndex > 0 ? tokens.slice(rowIndex).join(' ') : tokens.slice(1).join(' ');
-};
 
 export default function HistoryCard(props: HistoryCardProps) {
    const navigate = useNavigate();
    const queryClient = useQueryClient();
+   const currentUserId = useAuthStore(s => s.currentUserId);
    const [expanded, setExpanded] = useState(false);
    const [resellOpen, setResellOpen] = useState(false);
    const [cancelOpen, setCancelOpen] = useState(false);
@@ -106,19 +92,9 @@ export default function HistoryCard(props: HistoryCardProps) {
    const [saleCancelDialogType, setSaleCancelDialogType] = useState<'success' | 'error' | null>(null);
 
    const { mode, item } = props;
-   const mockTicketInfoError = props.mockTicketInfoError ?? false;
    const isPurchase = isPurchaseHistoryItem(mode, item);
    const purchaseItem = isPurchase ? item : null;
    const purchaseOrderId = purchaseItem?.rawOrderId;
-   const actionTicketsQuery = useQuery({
-      queryKey: ['historyCardOrderTickets', purchaseOrderId, mockTicketInfoError],
-      queryFn: () =>
-         fetchOrderTickets(purchaseOrderId!, {
-            mockScenario: mockTicketInfoError ? MYPAGE_ACTION_TICKET_INFO_ERROR_SCENARIO : undefined,
-         }),
-      enabled: isPurchase && Boolean(purchaseOrderId) && resellOpen,
-      staleTime: 0,
-   });
 
    // 모드별 파생값
    const dateLabel = isPurchase ? '예약일자' : '판매일자';
@@ -134,34 +110,24 @@ export default function HistoryCard(props: HistoryCardProps) {
    const priceLabel = isPurchase ? '구매가' : '판매가';
    const price = isPurchase ? (item as PurchaseHistoryItem).price : (item as SaleHistoryItem).salePrice;
    const status = isPurchase ? (item as PurchaseHistoryItem).paymentStatus : (item as SaleHistoryItem).saleStatus;
-
    const hasPurchaseOrder = Boolean(purchaseOrderId);
+   const isResalePurchase = purchaseItem?.type === '리셀';
    const isCancelablePurchaseStatus =
-      purchaseItem?.paymentStatus === '입금 대기' ||
-      purchaseItem?.paymentStatus === '예매 완료' ||
-      purchaseItem?.paymentStatus === '부분 처리';
+      (purchaseItem?.paymentStatus === '입금 대기' ||
+         purchaseItem?.paymentStatus === '예매 완료' ||
+         purchaseItem?.paymentStatus === '부분 처리');
    const isSellablePurchaseStatus =
-      purchaseItem?.paymentStatus === '예매 완료' || purchaseItem?.paymentStatus === '부분 처리';
-   const actionTickets = actionTicketsQuery.data ?? [];
-   const requestedTicketIds = new Set((purchaseItem?.ticketIds ?? []).filter(Boolean));
-   const requestedSeatDetails = new Set(purchaseItem?.game.seats ?? []);
-   const sellableActionTickets = actionTickets.filter((ticket) => {
-      if (ticket.ticketStatus !== 'ISSUED') {
-         return false;
-      }
-
-      if (requestedTicketIds.size > 0) {
-         return requestedTicketIds.has(ticket.ticketId);
-      }
-
-      return requestedSeatDetails.has(parseSeatDetail(ticket.seatInfo));
-   });
+      !isResalePurchase &&
+      (purchaseItem?.paymentStatus === '예매 완료' || purchaseItem?.paymentStatus === '부분 처리');
    const showSellBtn =
       hasPurchaseOrder &&
       purchaseItem?.deliveryType === '모바일 티켓' &&
       isSellablePurchaseStatus;
    const showCancelBtn = hasPurchaseOrder && isCancelablePurchaseStatus;
-   const showQrBtn = hasPurchaseOrder && isSellablePurchaseStatus && item.deliveryType === '모바일 티켓';
+   const showQrBtn =
+      hasPurchaseOrder &&
+      item.deliveryType === '모바일 티켓' &&
+      isSellablePurchaseStatus;
    const showDash =
       isPurchase && (purchaseItem?.paymentStatus === '취소/환불' || purchaseItem?.paymentStatus === '관람 완료');
    const canCancelSale = !isPurchase && (item as SaleHistoryItem).canCancel;
@@ -169,6 +135,7 @@ export default function HistoryCard(props: HistoryCardProps) {
    const { mutate: cancelSale, isPending: isCancelingSale } = useMutation({
       mutationFn: () => cancelResaleListing(item.id),
       onSuccess: () => {
+         markStoredResaleListingCanceled(currentUserId, item.id);
          void queryClient.invalidateQueries({ queryKey: ['myResales'] });
          void queryClient.invalidateQueries({ queryKey: ['myResaleUnsettledAmount'] });
          setSaleCancelDialogType('success');
@@ -200,45 +167,13 @@ export default function HistoryCard(props: HistoryCardProps) {
                }
             />
          )}
-         {isPurchase &&
-            resellOpen &&
-            purchaseItem &&
-            (actionTicketsQuery.isLoading ? (
-               <ActionStatusDialog
-                  open={resellOpen}
-                  title="판매 등록"
-                  message="판매 가능한 티켓 정보를 불러오는 중입니다."
-                  onClose={() => setResellOpen(false)}
-               />
-            ) : actionTicketsQuery.isError ? (
-               <ActionStatusDialog
-                  open={resellOpen}
-                  title="판매 등록"
-                  message="판매 가능한 티켓 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
-                  onClose={() => setResellOpen(false)}
-                  onRetry={() => {
-                     void actionTicketsQuery.refetch();
-                  }}
-               />
-            ) : sellableActionTickets.length > 0 ? (
+         {isPurchase && resellOpen && purchaseItem && (
+            purchaseItem.ticketIds && purchaseItem.ticketIds.length > 0 ? (
                <ResellRegisterDialog
                   open={resellOpen}
                   onClose={() => setResellOpen(false)}
                   onCompleteConfirm={props.onResellCompleteConfirm}
-                     item={{
-                     ...purchaseItem,
-                     game: {
-                        ...purchaseItem.game,
-                        quantity: sellableActionTickets.length,
-                        section: sellableActionTickets[0]?.seatInfo
-                           ? parseGradeName(sellableActionTickets[0].seatInfo)
-                           : purchaseItem.game.section,
-                        seats: sellableActionTickets.map((ticket) => parseSeatDetail(ticket.seatInfo)),
-                     },
-                     price: sellableActionTickets.reduce((sum, ticket) => sum + ticket.ticketPrice, 0),
-                     ticketIds: sellableActionTickets.map(ticket => ticket.ticketId),
-                     seatPrices: sellableActionTickets.map(ticket => ticket.ticketPrice),
-                  }}
+                  item={purchaseItem}
                />
             ) : (
                <ActionStatusDialog
@@ -247,7 +182,8 @@ export default function HistoryCard(props: HistoryCardProps) {
                   message="판매 가능한 티켓이 없습니다."
                   onClose={() => setResellOpen(false)}
                />
-            ))}
+            )
+         )}
          {isPurchase && noAccountOpen && (
             <NoAccountDialog open={noAccountOpen} onClose={() => setNoAccountOpen(false)} />
          )}
@@ -257,7 +193,6 @@ export default function HistoryCard(props: HistoryCardProps) {
                onClose={() => setCancelOpen(false)}
                orderId={purchaseItem.rawOrderId ?? purchaseItem.id}
                game={{ teams: item.game.teams, datetime: item.game.datetime }}
-               mockTicketInfoError={mockTicketInfoError}
                seats={item.game.seats.map((seat, index) => ({
                   orderId: item.orderId,
                   section: item.game.section,

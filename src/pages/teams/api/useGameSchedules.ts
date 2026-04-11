@@ -85,6 +85,7 @@ function transformSchedules(raw: GameScheduleResponse[]): DaySchedule[] {
       const venue = homeTeam?.stadiumName ?? '-';
 
       const gameRow: GameRow = {
+         remainingSeatCount: game.remainingSeatCount,
          time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
          venue,
          away: awayName,

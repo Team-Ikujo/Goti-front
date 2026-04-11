@@ -118,12 +118,11 @@ export function GameCard({ game, activeTab, onActionClick }: GameCardProps) {
 
             {/* 액션 버튼 */}
             {status === '판매 예정' ? (
-               <div className="w-[88px] bg-[#e9ebee] rounded-lg px-4 py-2 flex flex-col items-center justify-center gap-0.5">
+               <div className="flex-1 md:flex-none md:w-[88px] bg-[#e9ebee] rounded-lg px-4 py-2 flex items-center justify-center gap-2 md:flex-col md:gap-0.5">
                   <p className="text-[16px] font-medium text-[#acb4bb] leading-[1.5] whitespace-nowrap">판매예정</p>
-                  <div className="text-[11px] text-[#acb4bb] text-center leading-[1.2]">
-                     <p className="whitespace-nowrap">
-                        {gameMonth}월 {gameDay}일
-                     </p>
+                  <div className="flex items-center gap-1 md:flex-col md:gap-0 text-[11px] text-[#acb4bb] text-center leading-[1.2]">
+                     <p className="whitespace-nowrap">{gameMonth}월 {gameDay}일</p>
+                     <p className="whitespace-nowrap md:hidden">·</p>
                      <p className="whitespace-nowrap">오전 11시 오픈</p>
                   </div>
                </div>

@@ -7,6 +7,7 @@ export type ModalType =
    | 'cannotDisconnect'
    | 'withdraw'
    | 'withdrawBlocked'
+   | 'withdrawStatusUnknown'
    | 'withdrawHasActiveTickets'
    | null;
 
@@ -136,6 +137,26 @@ export function AccountModals({
                      미정산 금액이 있어 탈퇴할 수 없습니다.
                   </p>
                   <p className="text-body-2-regular text-muted-foreground">정산 완료 후 탈퇴를 진행해 주세요.</p>
+               </div>
+               <div className="px-5 pb-5">
+                  <DialogClose asChild>
+                     <button className="w-full bg-primary text-white text-body-1-bold rounded-lg px-6 py-3 hover:bg-primary-strong transition-colors">
+                        확인
+                     </button>
+                  </DialogClose>
+               </div>
+            </DialogContent>
+         </Dialog>
+
+         <Dialog open={modal === 'withdrawStatusUnknown'} onOpenChange={onClose}>
+            <DialogContent maxWidth={391} showCloseButton={false} className="rounded-2xl p-0 gap-0">
+               <div className="flex flex-col gap-3 p-5">
+                  <p className="text-heading-4-bold text-foreground leading-[1.55]">
+                     탈퇴 가능 여부를 확인할 수 없습니다.
+                  </p>
+                  <p className="text-body-2-regular text-muted-foreground">
+                     티켓 및 정산 상태 조회 후 다시 시도해 주세요.
+                  </p>
                </div>
                <div className="px-5 pb-5">
                   <DialogClose asChild>

@@ -14,14 +14,14 @@ import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import BooksExitDialog from '@/shared/widgets/layout/books/BooksExitDialog';
 import { releaseQueueSession } from '@/pages/queue/api/queueApi';
 
-import BookingCaptchaGate from './components/BookingCaptchaGate';
-import BookingZoneDesktopLayout from './components/BookingZoneDesktopLayout';
-import BookingZoneMobileLayout from './components/BookingZoneMobileLayout';
+import BookingCaptchaGate from '@/pages/books/ui/components/BookingCaptchaGate';
+import BookingZoneDesktopLayout from '@/pages/books/ui/components/BookingZoneDesktopLayout';
+import BookingZoneMobileLayout from '@/pages/books/ui/components/BookingZoneMobileLayout';
 
-const BooksPage = () => {
+const ResellBooksPage = () => {
    const navigate = useNavigate();
    const location = useLocation();
-   const bookingFlowMode = 'standard' as const;
+   const bookingFlowMode = 'resell' as const;
    const { bookingEntryState, patchBookingEntry, clearBookingEntry } = useBooksPageEntry();
    const clearAllSelections = useSeatSelectionStore(state => state.clearAllSelections);
    const clearSeatHolds = useSeatHoldStore(state => state.clearSeatHolds);
@@ -43,7 +43,7 @@ const BooksPage = () => {
    const [isZoneDrawerOpen, setIsZoneDrawerOpen] = useState(true);
 
    useEffect(() => {
-      logBookingFlow('BooksPage', 'render snapshot', {
+      logBookingFlow('ResellBooksPage', 'render snapshot', {
          pathname: location.pathname,
          search: location.search,
          bookingFlowMode,
@@ -53,7 +53,7 @@ const BooksPage = () => {
          selectedZoneId,
          isSeatGradeBotBlocked,
       });
-   }, [bookingEntryState, bookingFlowMode, isSeatGradeBotBlocked, location.pathname, location.search, requiresCaptcha, selectedZoneId, zones.length]);
+   }, [bookingEntryState, isSeatGradeBotBlocked, location.pathname, location.search, requiresCaptcha, selectedZoneId, zones.length]);
 
    useEffect(() => {
       setSelectedZoneId(zones.find(zone => zone.remaining > 0)?.id ?? zones[0]?.id ?? '');
@@ -82,14 +82,15 @@ const BooksPage = () => {
 
       return {
          ...bookingEntryState,
+         bookingFlowMode,
          requireCaptcha: undefined,
          forceNewSession: undefined,
          bookingZones: zones,
       } satisfies BookingEntryState;
-   }, [bookingEntryState, zones]);
+   }, [bookingEntryState, bookingFlowMode, zones]);
 
    const exitBookingFlow = async () => {
-      logBookingFlow('BooksPage', 'exitBookingFlow');
+      logBookingFlow('ResellBooksPage', 'exitBookingFlow');
       clearTimer();
       clearSeatHolds();
       clearAllSelections();
@@ -103,7 +104,7 @@ const BooksPage = () => {
       location,
       navigate,
       onCaptchaResolved: () => {
-         logBookingFlow('BooksPage', 'captcha resolved');
+         logBookingFlow('ResellBooksPage', 'captcha resolved');
          patchBookingEntry({
             forceNewSession: undefined,
             requireCaptcha: undefined,
@@ -122,8 +123,8 @@ const BooksPage = () => {
 
       hasShownBotBlockedAlertRef.current = true;
       window.alert('매크로 사용 시 예매에 접근할 수 없습니다.');
-      exitBookingFlow();
-   }, [exitBookingFlow, isSeatGradeBotBlocked]);
+      void exitBookingFlow();
+   }, [isSeatGradeBotBlocked]);
 
    useEffect(() => {
       if (captcha.isCaptchaOpen) {
@@ -132,7 +133,7 @@ const BooksPage = () => {
    }, [captcha.isCaptchaOpen]);
 
    const handleSelectZone = (zoneId: string) => {
-      logBookingFlow('BooksPage', 'handleSelectZone', {
+      logBookingFlow('ResellBooksPage', 'handleSelectZone', {
          zoneId,
          bookingEntryState: summarizeBookingEntry(resolvedBookingEntryState),
       });
@@ -145,7 +146,7 @@ const BooksPage = () => {
       setSelectedZoneId(zoneId);
       navigate(
          {
-            pathname: `/books/seats/${zoneId}`,
+            pathname: `/resell-books/seats/${zoneId}`,
          },
          {
             state: resolvedBookingEntryState,
@@ -180,6 +181,7 @@ const BooksPage = () => {
             onSelectZone={handleSelectZone}
             stadiumImage={bookingTeamConfig.stadiumImage}
             stadiumImageAlt={bookingTeamConfig.stadiumImageAlt}
+            showPrice={false}
          />
          <BookingZoneDesktopLayout
             zones={zones}
@@ -187,9 +189,10 @@ const BooksPage = () => {
             onSelectZone={handleSelectZone}
             stadiumImage={bookingTeamConfig.stadiumImage}
             stadiumImageAlt={bookingTeamConfig.stadiumImageAlt}
+            showPrice={false}
          />
       </div>
    );
 };
 
-export default BooksPage;
+export default ResellBooksPage;

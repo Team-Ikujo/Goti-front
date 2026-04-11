@@ -26,14 +26,16 @@ const DEFAULT_FILTERS: FilterState = {
 
 const PAGE_SIZE = 8;
 
+const normalizeVenue = (value: string) => value.toLowerCase().replace(/[\s\-_]/g, '');
+
 function applyFilters(games: GameItem[], filters: FilterState, activeTab: TabType): GameItem[] {
-   return games.filter((game) => {
+   return games.filter(game => {
       const status = activeTab === '예매' ? game.bookingStatus : game.resellStatus;
 
       if (!filters.showUpcoming && (status === '판매 예정' || status === '리셀 예정')) return false;
       if (!filters.showSoldOut && status === '매진') return false;
       if (filters.dateTime && game.date !== filters.dateTime) return false;
-      if (filters.venue && game.venue !== filters.venue) return false;
+      if (filters.venue && normalizeVenue(game.venue) !== normalizeVenue(filters.venue)) return false;
       if (filters.minPrice > 0 && game.minPrice > 0 && game.minPrice < filters.minPrice) return false;
       if (filters.maxPrice < MAX_PRICE && game.maxPrice > 0 && game.maxPrice > filters.maxPrice) return false;
 
@@ -81,15 +83,15 @@ const TicketsPage = () => {
 
    const baseGames = useMemo<GameItem[]>(() => {
       return (scheduleQuery.data ?? [])
-         .filter((game) => game.status === '예정')
-         .map((game) => {
+         .filter(game => game.status === '예정')
+         .map(game => {
             const fallbackResellStatus =
                game.resell === '리셀예매' ? '리셀 가능' : game.resell === '리셀예정' ? '리셀 예정' : '매진';
 
             return {
                id: game.id,
                homeTeamId: game.homeTeamId ?? '',
-               serverHomeTeamId: game.serverHomeTeamId,
+               serverHomeTeamId: game.serverHomeTeamId ?? '',
                stadiumId: game.stadiumId,
                queueTokenJti: game.queueTokenJti,
                leagueType: game.leagueType,
@@ -99,15 +101,12 @@ const TicketsPage = () => {
                dateTime: `${game.date.replace(/-/g, '.')} ${game.time}`,
                venue: game.venue,
                remainingSeats:
-                  game.ticket === '판매예정'
-                     ? 25000
-                     : game.ticket === '매진'
-                       ? 0
-                       : (game.remainingSeatCount ?? 0),
+                  game.ticket === '판매예정' ? 25000 : game.ticket === '매진' ? 0 : game.remainingSeatCount,
                resellRemainingSeats: fallbackResellStatus === '리셀 가능' ? 999 : 0,
                minPrice: 0,
                maxPrice: 0,
-               bookingStatus: game.ticket === '예매하기' ? '예매 가능' : game.ticket === '판매예정' ? '판매 예정' : '매진',
+               bookingStatus:
+                  game.ticket === '예매하기' ? '예매 가능' : game.ticket === '판매예정' ? '판매 예정' : '매진',
                resellStatus: fallbackResellStatus,
             };
          });
@@ -119,15 +118,19 @@ const TicketsPage = () => {
    );
    const visibleGames = useMemo(() => filteredGames.slice(0, visibleCount), [filteredGames, visibleCount]);
    const hasMoreGames = visibleCount < filteredGames.length;
-   const visibleGameIds = useMemo(() => visibleGames.map((game) => game.id), [visibleGames]);
+   const visibleGameIds = useMemo(() => visibleGames.map(game => game.id), [visibleGames]);
    const resaleCountsQuery = useResaleGameCounts(visibleGameIds, isResellTab);
    const resaleStatusesQuery = useResaleGameStatuses(visibleGameIds, isResellTab);
    const resaleListingMarketQuery = useResaleListingMarket(visibleGameIds, isResellTab);
    const gamesToRender = useMemo(
       () =>
-         visibleGames.map((game) => {
+         visibleGames.map(game => {
             const fallbackResellStatus =
-               game.resellStatus === '리셀 가능' ? '리셀 가능' : game.resellStatus === '리셀 예정' ? '리셀 예정' : '매진';
+               game.resellStatus === '리셀 가능'
+                  ? '리셀 가능'
+                  : game.resellStatus === '리셀 예정'
+                    ? '리셀 예정'
+                    : '매진';
             const resaleMarket = resaleListingMarketQuery.data?.get(game.id);
             const resaleCount = resaleCountsQuery.data?.get(game.id) ?? resaleMarket?.count;
             const resaleStatus = resaleStatusesQuery.data?.get(game.id);
@@ -156,14 +159,14 @@ const TicketsPage = () => {
       }
 
       const observer = new IntersectionObserver(
-         (entries) => {
+         entries => {
             const [entry] = entries;
 
             if (!entry?.isIntersecting) {
                return;
             }
 
-            setVisibleCount((current) => Math.min(current + PAGE_SIZE, filteredGames.length));
+            setVisibleCount(current => Math.min(current + PAGE_SIZE, filteredGames.length));
          },
          {
             rootMargin: '240px 0px',
@@ -262,10 +265,17 @@ const TicketsPage = () => {
                      </div>
                   ) : gamesToRender.length > 0 ? (
                      <>
-                        {gamesToRender.map((game) => (
-                           <GameCard key={game.id} game={game} activeTab={activeTab} onActionClick={handleGameActionClick} />
+                        {gamesToRender.map(game => (
+                           <GameCard
+                              key={game.id}
+                              game={game}
+                              activeTab={activeTab}
+                              onActionClick={handleGameActionClick}
+                           />
                         ))}
-                        {hasMoreGames ? <div ref={loadMoreTriggerRef} className="h-1 w-full" aria-hidden="true" /> : null}
+                        {hasMoreGames ? (
+                           <div ref={loadMoreTriggerRef} className="h-1 w-full" aria-hidden="true" />
+                        ) : null}
                      </>
                   ) : (
                      <div className="flex items-center justify-center py-20 bg-surface rounded-[14px] h-full text-body-1-medium text-muted-foreground">

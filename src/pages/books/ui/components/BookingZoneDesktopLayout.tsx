@@ -9,6 +9,7 @@ type BookingZoneDesktopLayoutProps = {
    onSelectZone: (zoneId: string) => void;
    stadiumImage: string;
    stadiumImageAlt: string;
+   showPrice?: boolean;
 };
 
 function BookingZoneDesktopLayout({
@@ -17,6 +18,7 @@ function BookingZoneDesktopLayout({
    onSelectZone,
    stadiumImage,
    stadiumImageAlt,
+   showPrice = true,
 }: BookingZoneDesktopLayoutProps) {
    return (
       <main className="hidden min-h-[calc(100vh-140px)] lg:grid lg:h-[calc(100vh-140px)] lg:grid-cols-[minmax(0,1fr)_420px]">
@@ -27,7 +29,12 @@ function BookingZoneDesktopLayout({
             stadiumImage={stadiumImage}
             stadiumImageAlt={stadiumImageAlt}
          />
-         <BookingZoneList zones={zones} selectedZoneId={selectedZoneId} onSelectZone={onSelectZone} />
+         <BookingZoneList
+            zones={zones}
+            selectedZoneId={selectedZoneId}
+            onSelectZone={onSelectZone}
+            showPrice={showPrice}
+         />
       </main>
    );
 }

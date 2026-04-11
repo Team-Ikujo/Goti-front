@@ -1,5 +1,6 @@
 import { Calendar, MapPin } from 'lucide-react';
 import { getPopularMatches } from '@/entities/team/model/schedule';
+import { resolveVenueRegionLabel } from '@/entities/game/model/schedule';
 
 const teamDisplayName: Record<string, string> = {
    kia: 'KIA',
@@ -25,7 +26,10 @@ const PopularGames = () => {
          </div>
 
          <div className="flex gap-6 overflow-x-auto pb-1 scrollbar-hide">
-            {matches.map((match, i) => (
+            {matches.map((match, i) => {
+               const venueLabel = resolveVenueRegionLabel(match.venue, match.stadiumId);
+
+               return (
                <div
                   key={match.id}
                   className="shrink-0 w-75 border border-border rounded-[14px] overflow-hidden bg-background"
@@ -65,12 +69,13 @@ const PopularGames = () => {
                         </div>
                         <div className="flex items-center gap-2 h-5">
                            <MapPin className="size-4 text-(--text-tertiary) shrink-0" />
-                           <span className="text-label-2-medium text-(--text-tertiary)">{match.venue}</span>
+                           <span className="text-label-2-medium text-(--text-tertiary)">{venueLabel}</span>
                         </div>
                      </div>
                   </div>
                </div>
-            ))}
+               );
+            })}
          </div>
       </section>
    );

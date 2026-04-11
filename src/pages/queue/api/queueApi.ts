@@ -4,7 +4,10 @@ import apiClient from '@/shared/api/client';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
+import { buildMockQueueTokenJti } from '@/shared/config/booking';
+import { isResaleBookingMockEnabled } from '@/shared/config/runtime';
 import { logBookingFlow, logBookingFlowError } from '@/shared/lib/bookingFlowDebug';
+import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 
 export interface QueueEnterResponse {
   queueToken: string;
@@ -36,9 +39,37 @@ export interface QueueLeaveResponse {
   status: 'WAITING' | 'ADMITTED' | 'LEFT' | 'EXPIRED';
 }
 
+const getShouldUseResellQueueMock = () => {
+  const bookingEntry = useBookingEntryStore.getState().entry;
+  return isResaleBookingMockEnabled && bookingEntry?.bookingFlowMode === 'resell';
+};
+
+const createMockQueueEnterResponse = (gameId: string): QueueEnterResponse => ({
+  gameId,
+  issuedAt: new Date().toISOString(),
+  queueNumber: 1,
+  queueToken: buildMockQueueTokenJti(gameId) ?? `queue-token-${gameId}`,
+});
+
+const createMockQueueStatusResponse = (gameId: string): QueueStatusResponse => ({
+  gameId,
+  maxCapacity: 1000,
+  activeCount: 1,
+  availableSlots: 999,
+  currentAllowedRank: 1,
+  publishedRank: 1,
+  updatedAt: new Date().toISOString(),
+});
+
 /** 대기열 진입 — 새 대기 순번(queueNumber)과 토큰(queueToken) 발급 */
 export const enterQueue = async (gameId: string): Promise<QueueEnterResponse> => {
   logBookingFlow('queueApi', 'enterQueue request', { gameId });
+  if (getShouldUseResellQueueMock()) {
+    const response = createMockQueueEnterResponse(gameId);
+    logBookingFlow('queueApi', 'enterQueue mock response', response);
+    return response;
+  }
+
   try {
     const response = await apiClient.post<ApiEnvelope<QueueEnterResponse>>(
       '/api/v1/queue/enter',
@@ -55,6 +86,12 @@ export const enterQueue = async (gameId: string): Promise<QueueEnterResponse> =>
 /** 대기열 전역 상태 조회 — CDN 1초 캐싱, 인증 불필요 */
 export const getQueueGlobalStatus = async (gameId: string): Promise<QueueStatusResponse> => {
   logBookingFlow('queueApi', 'getQueueGlobalStatus request', { gameId });
+  if (getShouldUseResellQueueMock()) {
+    const response = createMockQueueStatusResponse(gameId);
+    logBookingFlow('queueApi', 'getQueueGlobalStatus mock response', response);
+    return response;
+  }
+
   const response = await apiClient.get<ApiEnvelope<QueueStatusResponse>>(
     `/api/v1/queue/${encodeURIComponent(gameId)}/global-status`,
   );
@@ -65,6 +102,12 @@ export const getQueueGlobalStatus = async (gameId: string): Promise<QueueStatusR
 /** 대기열 실제 상태 조회 — 인증 기반 실시간 상태 */
 export const getQueueStatus = async (gameId: string): Promise<QueueStatusResponse> => {
   logBookingFlow('queueApi', 'getQueueStatus request', { gameId });
+  if (getShouldUseResellQueueMock()) {
+    const response = createMockQueueStatusResponse(gameId);
+    logBookingFlow('queueApi', 'getQueueStatus mock response', response);
+    return response;
+  }
+
   try {
     const response = await apiClient.get<ApiEnvelope<QueueStatusResponse>>(
       `/api/v1/queue/${encodeURIComponent(gameId)}/status`,
@@ -83,6 +126,17 @@ export const seatEnterQueue = async (
   queueToken: string,
 ): Promise<QueueSeatEnterResponse> => {
   logBookingFlow('queueApi', 'seatEnterQueue request', { gameId, queueToken });
+  if (getShouldUseResellQueueMock()) {
+    const response: QueueSeatEnterResponse = {
+      gameId,
+      enterAllowed: true,
+      queueNumber: 1,
+      status: 'ADMITTED',
+    };
+    logBookingFlow('queueApi', 'seatEnterQueue mock response', response);
+    return response;
+  }
+
   try {
     const response = await apiClient.post<ApiEnvelope<QueueSeatEnterResponse>>(
       `/api/v1/queue/${encodeURIComponent(gameId)}/seat-enter`,
@@ -99,6 +153,16 @@ export const seatEnterQueue = async (
 /** 대기열 이탈 — 결제 완료/명시적 종료 시 현재 수용 인원을 해제한다. */
 export const leaveQueue = async (gameId: string): Promise<QueueLeaveResponse> => {
   logBookingFlow('queueApi', 'leaveQueue request', { gameId });
+  if (getShouldUseResellQueueMock()) {
+    const response: QueueLeaveResponse = {
+      gameId,
+      released: true,
+      status: 'LEFT',
+    };
+    logBookingFlow('queueApi', 'leaveQueue mock response', response);
+    return response;
+  }
+
   try {
     const response = await apiClient.post<ApiEnvelope<QueueLeaveResponse>>(
       `/api/v1/queue/${encodeURIComponent(gameId)}/leave`,
@@ -123,6 +187,7 @@ const getLeaveQueueUrl = (gameId: string) => {
  */
 export const leaveQueueKeepalive = (gameId: string) => {
   if (typeof window === 'undefined') return;
+  if (getShouldUseResellQueueMock()) return;
 
   const accessToken = useAuthStore.getState().accessToken;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
