@@ -4,6 +4,7 @@ import { pluginReact } from '@rsbuild/plugin-react';
 
 const apiTarget = (process.env.PUBLIC_API_BASE_URL ?? 'https://dev.go-ti.shop').trim();
 const mlTarget = (process.env.PUBLIC_MOUSE_ML_URL ?? 'https://api.go-ti.shop').replace(/\/$/, '');
+const dashboardTarget = (process.env.PUBLIC_MACRO_DASHBOARD_API_URL ?? 'https://go-ti.shop').trim();
 
 // Rsbuild configuration — https://rsbuild.rs/config/
 export default defineConfig({
@@ -33,6 +34,15 @@ export default defineConfig({
             changeOrigin: true,
             secure: true,
          },
+         // Go 대시보드 서버 — /api 보다 먼저 선언해야 우선 매칭됨
+         // 기본값: go-ti.shop (EKS), .env에서 PUBLIC_MACRO_DASHBOARD_API_URL 오버라이드 가능
+         '/api/v1/dashboard': { target: dashboardTarget, changeOrigin: true, secure: true },
+         '/api/v1/detections': { target: dashboardTarget, changeOrigin: true, secure: true },
+         '/api/v1/stats': { target: dashboardTarget, changeOrigin: true, secure: true },
+         '/api/v1/mouse-macro': { target: dashboardTarget, changeOrigin: true, secure: true },
+         '/api/v1/interventions': { target: dashboardTarget, changeOrigin: true, secure: true },
+         '/api/v1/analysis': { target: dashboardTarget, changeOrigin: true, secure: true },
+         '/api/v1/alerts': { target: dashboardTarget, changeOrigin: true, secure: true },
          '/api': {
             target: apiTarget,
             changeOrigin: true,
