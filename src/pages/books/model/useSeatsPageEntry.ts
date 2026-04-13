@@ -2,7 +2,12 @@ import { useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import type { BookingFlowMode } from '@/shared/lib/booking-flow';
-import { mergeBookingEntryState, useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import {
+   isSameBookingEntryState,
+   mergeBookingEntryState,
+   useBookingEntryStore,
+   type BookingEntryState,
+} from '@/shared/lib/useBookingEntryStore';
 import { getBookingZones, getStadiumName, getZoneOverviewImage } from './zoneData';
 
 export function useSeatsPageEntry(zoneId: string) {
@@ -10,15 +15,16 @@ export function useSeatsPageEntry(zoneId: string) {
    const bookingFlowMode: BookingFlowMode = location.pathname.startsWith('/resell-books') ? 'resell' : 'standard';
    const isResellMode = bookingFlowMode === 'resell';
    const routeBookingEntryState = location.state as BookingEntryState | null;
+   const hasBookingEntryHydrated = useBookingEntryStore(state => state.hasHydrated);
    const storedBookingEntryState = useBookingEntryStore(state => state.entry);
    const setBookingEntry = useBookingEntryStore(state => state.setEntry);
    const bookingEntryState = mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState);
 
    useEffect(() => {
-      if (routeBookingEntryState) {
-         setBookingEntry(routeBookingEntryState);
+      if (routeBookingEntryState && bookingEntryState && !isSameBookingEntryState(storedBookingEntryState, bookingEntryState)) {
+         setBookingEntry(bookingEntryState);
       }
-   }, [routeBookingEntryState, setBookingEntry]);
+   }, [bookingEntryState, routeBookingEntryState, setBookingEntry, storedBookingEntryState]);
 
    const bookingZones = useMemo(
       () => bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId),
@@ -35,6 +41,7 @@ export function useSeatsPageEntry(zoneId: string) {
       bookingEntryState,
       bookingFlowMode,
       bookingZones,
+      hasBookingEntryHydrated,
       isResellMode,
       stadiumName,
       zone,

@@ -1,9 +1,41 @@
-import { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
+
+import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
+import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
+import { releaseQueueSession } from '@/pages/queue/api/queueApi';
+import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
+import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
+import { useMouseEventTracker } from '@/shared/lib/useMouseEventTracker';
 
 import BooksHeader from './BooksHeader';
 
 const BooksLayout = () => {
+   const navigate = useNavigate();
+   const bookingEntry = useBookingEntryStore(state => state.entry);
+   const clearEntry = useBookingEntryStore(state => state.clearEntry);
+   const clearTimer = useBookingFlowTimerStore(state => state.clearTimer);
+   const clearSeatHolds = useSeatHoldStore(state => state.clearSeatHolds);
+   const clearAllSelections = useSeatSelectionStore(state => state.clearAllSelections);
+
+   const exitRef = useRef<() => void>(() => {});
+   exitRef.current = () => {
+      clearTimer();
+      clearSeatHolds();
+      clearAllSelections();
+      void releaseQueueSession(bookingEntry?.gameId);
+      clearEntry();
+      navigate('/', { replace: true });
+   };
+
+   useMouseEventTracker({
+      userId: bookingEntry?.userId,
+      onMacroDetected: () => {
+         window.alert('매크로 사용이 감지되었습니다. 예매에 접근할 수 없습니다.');
+         exitRef.current();
+      },
+   });
+
    useEffect(() => {
       const handleWheel = (event: WheelEvent) => {
          if (event.ctrlKey || event.metaKey) {

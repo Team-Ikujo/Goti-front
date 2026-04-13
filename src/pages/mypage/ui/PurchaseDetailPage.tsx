@@ -336,6 +336,7 @@ export default function PurchaseDetailPage() {
       const seatItems: PurchaseSeatItem[] = [
          {
             ticketId: currentApiDetail.ticketId,
+            orderItemId: currentApiDetail.orderItemId,
             orderId: formatTicketNumber(
                currentApiDetail.ticketNumber,
                currentApiDetail.ticketStatus === 'RESALE_ISSUED'

@@ -23,7 +23,15 @@ interface PurchaseDetailDialogsProps {
       paymentMethodDisplay?: string;
       canSell: boolean;
       paymentSummary: { fee: number };
-      seatItems: Array<{ ticketId: string; orderId: string; section: string; seatDetail: string; status: string; price: number }>;
+      seatItems: Array<{
+         ticketId: string;
+         orderItemId?: string;
+         orderId: string;
+         section: string;
+         seatDetail: string;
+         status: string;
+         price: number;
+      }>;
    };
    isBankTransfer: boolean;
    qrOpen: boolean;
@@ -62,6 +70,7 @@ export function PurchaseDetailDialogs({
                paymentMethod={detail.paymentMethodDisplay}
                seats={activeSeatItems.map((seat) => ({
                   orderId: seat.orderId,
+                  orderItemId: seat.orderItemId,
                   ticketId: seat.ticketId,
                   section: seat.section,
                   seatDetail: seat.seatDetail,
