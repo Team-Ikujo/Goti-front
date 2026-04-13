@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import {
@@ -231,10 +231,13 @@ export const useSeatMapData = ({ gameId, isEntryReady = true, preferMockSeatMap 
    const requiresSectionResolution = isAggregatedSectionCode(zone.sectionCode) || !zone.sectionIds?.length;
    const zoneSectionIdsKey = zone.sectionIds?.join(',') ?? '';
    const zoneGradeIdsKey = zone.gradeIds?.join(',') ?? '';
+   const shouldEnableSeatMapQuery =
+      isEntryReady && !preferMockSeatMap && Boolean(gameId && zone.id && zone.sectionCode);
+   const seatMapRequestKey = [gameId, stadiumId, zone.id, zone.sectionCode, zoneSectionIdsKey, zoneGradeIdsKey].join('|');
 
    const { data, error, isError, isFetching, isLoading, refetch } = useQuery({
       queryKey: ['booking-seat-map', gameId, stadiumId, zone.id, zone.sectionCode, zoneSectionIdsKey, zoneGradeIdsKey],
-      enabled: isEntryReady && !preferMockSeatMap && Boolean(gameId && zone.id && zone.sectionCode),
+      enabled: shouldEnableSeatMapQuery,
       refetchOnMount: 'always',
       queryFn: async (): Promise<SeatMapApiSnapshot | null> => {
          if (!gameId || !zone.id || !zone.sectionCode) {
@@ -312,6 +315,22 @@ export const useSeatMapData = ({ gameId, isEntryReady = true, preferMockSeatMap 
          });
       },
    });
+
+   const lastRefetchedRequestKeyRef = useRef<string | null>(null);
+
+   useEffect(() => {
+      if (!shouldEnableSeatMapQuery) {
+         lastRefetchedRequestKeyRef.current = null;
+         return;
+      }
+
+      if (lastRefetchedRequestKeyRef.current === seatMapRequestKey) {
+         return;
+      }
+
+      lastRefetchedRequestKeyRef.current = seatMapRequestKey;
+      void refetch();
+   }, [refetch, seatMapRequestKey, shouldEnableSeatMapQuery]);
 
    return {
       seatBlocks: data?.seatBlocks ?? defaultSeatBlocks,
