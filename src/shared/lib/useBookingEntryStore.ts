@@ -39,6 +39,25 @@ const mergeRouteEntryValue = (
    }
 };
 
+export const isSameBookingEntryState = (left: BookingEntryState | null, right: BookingEntryState | null) => {
+   if (left === right) {
+      return true;
+   }
+
+   if (!left || !right) {
+      return false;
+   }
+
+   const leftKeys = Object.keys(left) as Array<keyof BookingEntryState>;
+   const rightKeys = Object.keys(right) as Array<keyof BookingEntryState>;
+
+   if (leftKeys.length !== rightKeys.length) {
+      return false;
+   }
+
+   return leftKeys.every((key) => left[key] === right[key]);
+};
+
 export const mergeBookingEntryState = (
    routeEntry: BookingEntryState | null | undefined,
    storedEntry: BookingEntryState | null | undefined,

@@ -2,7 +2,12 @@ import { useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import type { BookingFlowMode } from '@/shared/lib/booking-flow';
-import { mergeBookingEntryState, useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import {
+   isSameBookingEntryState,
+   mergeBookingEntryState,
+   useBookingEntryStore,
+   type BookingEntryState,
+} from '@/shared/lib/useBookingEntryStore';
 import { getBookingZones, getStadiumName, getZoneOverviewImage } from './zoneData';
 
 export function useSeatsPageEntry(zoneId: string) {
@@ -13,25 +18,6 @@ export function useSeatsPageEntry(zoneId: string) {
    const storedBookingEntryState = useBookingEntryStore(state => state.entry);
    const setBookingEntry = useBookingEntryStore(state => state.setEntry);
    const bookingEntryState = mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState);
-
-   const isSameBookingEntryState = (left: BookingEntryState | null, right: BookingEntryState | null) => {
-      if (left === right) {
-         return true;
-      }
-
-      if (!left || !right) {
-         return false;
-      }
-
-      const leftKeys = Object.keys(left) as Array<keyof BookingEntryState>;
-      const rightKeys = Object.keys(right) as Array<keyof BookingEntryState>;
-
-      if (leftKeys.length !== rightKeys.length) {
-         return false;
-      }
-
-      return leftKeys.every((key) => left[key] === right[key]);
-   };
 
    useEffect(() => {
       if (routeBookingEntryState && bookingEntryState && !isSameBookingEntryState(storedBookingEntryState, bookingEntryState)) {

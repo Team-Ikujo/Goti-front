@@ -2,7 +2,12 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
-import { mergeBookingEntryState, useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import {
+   isSameBookingEntryState,
+   mergeBookingEntryState,
+   useBookingEntryStore,
+   type BookingEntryState,
+} from '@/shared/lib/useBookingEntryStore';
 
 type UseBooksPageEntryResult = {
    bookingEntryState: BookingEntryState | null;
@@ -18,25 +23,6 @@ export function useBooksPageEntry(): UseBooksPageEntryResult {
    const patchBookingEntry = useBookingEntryStore(state => state.patchEntry);
    const clearBookingEntry = useBookingEntryStore(state => state.clearEntry);
    const bookingEntryState = mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState);
-
-   const isSameBookingEntryState = (left: BookingEntryState | null, right: BookingEntryState | null) => {
-      if (left === right) {
-         return true;
-      }
-
-      if (!left || !right) {
-         return false;
-      }
-
-      const leftKeys = Object.keys(left) as Array<keyof BookingEntryState>;
-      const rightKeys = Object.keys(right) as Array<keyof BookingEntryState>;
-
-      if (leftKeys.length !== rightKeys.length) {
-         return false;
-      }
-
-      return leftKeys.every((key) => left[key] === right[key]);
-   };
 
    useEffect(() => {
       logBookingFlow('useBooksPageEntry', 'resolved bookingEntryState', {
