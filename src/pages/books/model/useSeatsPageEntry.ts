@@ -14,11 +14,30 @@ export function useSeatsPageEntry(zoneId: string) {
    const setBookingEntry = useBookingEntryStore(state => state.setEntry);
    const bookingEntryState = mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState);
 
-   useEffect(() => {
-      if (routeBookingEntryState) {
-         setBookingEntry(routeBookingEntryState);
+   const isSameBookingEntryState = (left: BookingEntryState | null, right: BookingEntryState | null) => {
+      if (left === right) {
+         return true;
       }
-   }, [routeBookingEntryState, setBookingEntry]);
+
+      if (!left || !right) {
+         return false;
+      }
+
+      const leftKeys = Object.keys(left) as Array<keyof BookingEntryState>;
+      const rightKeys = Object.keys(right) as Array<keyof BookingEntryState>;
+
+      if (leftKeys.length !== rightKeys.length) {
+         return false;
+      }
+
+      return leftKeys.every((key) => left[key] === right[key]);
+   };
+
+   useEffect(() => {
+      if (routeBookingEntryState && bookingEntryState && !isSameBookingEntryState(storedBookingEntryState, bookingEntryState)) {
+         setBookingEntry(bookingEntryState);
+      }
+   }, [bookingEntryState, routeBookingEntryState, setBookingEntry, storedBookingEntryState]);
 
    const bookingZones = useMemo(
       () => bookingEntryState?.bookingZones ?? getBookingZones(bookingEntryState?.homeTeamId),

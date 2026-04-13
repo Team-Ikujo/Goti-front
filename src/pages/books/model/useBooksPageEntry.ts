@@ -19,6 +19,25 @@ export function useBooksPageEntry(): UseBooksPageEntryResult {
    const clearBookingEntry = useBookingEntryStore(state => state.clearEntry);
    const bookingEntryState = mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState);
 
+   const isSameBookingEntryState = (left: BookingEntryState | null, right: BookingEntryState | null) => {
+      if (left === right) {
+         return true;
+      }
+
+      if (!left || !right) {
+         return false;
+      }
+
+      const leftKeys = Object.keys(left) as Array<keyof BookingEntryState>;
+      const rightKeys = Object.keys(right) as Array<keyof BookingEntryState>;
+
+      if (leftKeys.length !== rightKeys.length) {
+         return false;
+      }
+
+      return leftKeys.every((key) => left[key] === right[key]);
+   };
+
    useEffect(() => {
       logBookingFlow('useBooksPageEntry', 'resolved bookingEntryState', {
          routeBookingEntryState: summarizeBookingEntry(routeBookingEntryState),
@@ -28,11 +47,11 @@ export function useBooksPageEntry(): UseBooksPageEntryResult {
    }, [bookingEntryState, routeBookingEntryState, storedBookingEntryState]);
 
    useEffect(() => {
-      if (routeBookingEntryState) {
-         logBookingFlow('useBooksPageEntry', 'sync route state to store', summarizeBookingEntry(routeBookingEntryState));
-         setBookingEntry(routeBookingEntryState);
+      if (routeBookingEntryState && bookingEntryState && !isSameBookingEntryState(storedBookingEntryState, bookingEntryState)) {
+         logBookingFlow('useBooksPageEntry', 'sync merged bookingEntryState to store', summarizeBookingEntry(bookingEntryState));
+         setBookingEntry(bookingEntryState);
       }
-   }, [routeBookingEntryState, setBookingEntry]);
+   }, [bookingEntryState, routeBookingEntryState, setBookingEntry, storedBookingEntryState]);
 
    return {
       bookingEntryState,
