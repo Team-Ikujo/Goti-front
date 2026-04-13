@@ -355,16 +355,36 @@ export const resolveSeatSectionByCode = async ({
    sectionCode: string;
 }) => {
    if (!stadiumId) {
+      logBookingFlow('bookingApi', 'resolveSeatSectionByCode skipped: missing stadiumId', {
+         stadiumId,
+         gameId,
+         sectionCode,
+      });
       return null;
    }
 
+   logBookingFlow('bookingApi', 'resolveSeatSectionByCode request', {
+      stadiumId,
+      gameId,
+      sectionCode,
+   });
    const sections = await fetchSeatSections({
       stadiumId,
       gameId,
    });
    const normalizedTargetSectionCode = normalizeSectionCode(sectionCode);
+   const resolvedSection =
+      sections.find((section) => normalizeSectionCode(section.sectionCode) === normalizedTargetSectionCode) ?? null;
 
-   return sections.find((section) => normalizeSectionCode(section.sectionCode) === normalizedTargetSectionCode) ?? null;
+   logBookingFlow('bookingApi', 'resolveSeatSectionByCode response', {
+      stadiumId,
+      gameId,
+      sectionCode,
+      normalizedTargetSectionCode,
+      resolvedSection,
+   });
+
+   return resolvedSection;
 };
 
 export const fetchSeats = async ({
@@ -396,11 +416,32 @@ export const fetchSeats = async ({
 };
 
 export const fetchSeatStatuses = async (gameId: string, sectionId: string) => {
-   const response = await apiClient.get<ApiEnvelope<SeatStatusResponse[]>>(
-      `/api/v1/game-seats/${gameId}/sections/${sectionId}/seat-statuses`,
-   );
+   logBookingFlow('bookingApi', 'fetchSeatStatuses request', {
+      gameId,
+      sectionId,
+   });
+   try {
+      const response = await apiClient.get<ApiEnvelope<SeatStatusResponse[]>>(
+         `/api/v1/game-seats/${gameId}/sections/${sectionId}/seat-statuses`,
+      );
+      const statuses = response.data.data ?? [];
 
-   return response.data.data;
+      logBookingFlow('bookingApi', 'fetchSeatStatuses response', {
+         gameId,
+         sectionId,
+         count: statuses.length,
+         summary: summarizeSeatStatusSnapshot(statuses),
+      });
+
+      return statuses;
+   } catch (error) {
+      logBookingFlowError('bookingApi', 'fetchSeatStatuses error', {
+         gameId,
+         sectionId,
+         error,
+      });
+      throw error;
+   }
 };
 
 export const summarizeSeatStatusSnapshot = (statuses: SeatStatusResponse[]) => {
