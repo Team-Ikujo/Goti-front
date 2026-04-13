@@ -232,6 +232,7 @@ export const useSeatMapData = ({ gameId, preferMockSeatMap = false, stadiumId, z
    const { data, error, isError, isFetching, isLoading, refetch } = useQuery({
       queryKey: ['booking-seat-map', gameId, stadiumId, zone.id, zone.sectionCode],
       enabled: !preferMockSeatMap && Boolean(gameId && zone.id && zone.sectionCode),
+      refetchOnMount: 'always',
       queryFn: async (): Promise<SeatMapApiSnapshot | null> => {
          if (!gameId || !zone.id || !zone.sectionCode) {
             return null;
