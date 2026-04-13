@@ -26,7 +26,8 @@ function SeatsPage() {
    const { zoneId = '' } = useParams();
    const { getBotReport } = useBotDetector();
    const botData = getBotReport() ?? undefined;
-   const { bookingEntryState, isResellMode, bookingZones, stadiumName, zone, zoneOverviewImage } = useSeatsPageEntry(zoneId);
+   const { bookingEntryState, hasBookingEntryHydrated, isResellMode, bookingZones, stadiumName, zone, zoneOverviewImage } =
+      useSeatsPageEntry(zoneId);
    const [isPurchaseLimitDialogOpen, setIsPurchaseLimitDialogOpen] = useState(false);
    const purchaseLimit = useBookingPurchaseLimit();
    const {
@@ -48,6 +49,7 @@ function SeatsPage() {
    } = useZoneSeatState({
       bookingEntryState,
       bookingZones,
+      hasBookingEntryHydrated,
       onPurchaseLimitReached: () => setIsPurchaseLimitDialogOpen(true),
       preferMockSeatMap: isResellMode && isResaleBookingMockEnabled,
       zone,

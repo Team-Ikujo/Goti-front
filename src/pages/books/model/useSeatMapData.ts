@@ -24,6 +24,7 @@ const MEANINGFUL_SEAT_MAP_ERROR_PATTERNS = [/예매 가능/i, /권한/i, /로그
 
 type SeatMapDataParams = {
    gameId?: string;
+   isEntryReady?: boolean;
    preferMockSeatMap?: boolean;
    stadiumId?: string;
    zone: ZoneItem;
@@ -225,13 +226,15 @@ const fetchAggregatedSeatSections = async ({
    return sectionBundles;
 };
 
-export const useSeatMapData = ({ gameId, preferMockSeatMap = false, stadiumId, zone }: SeatMapDataParams) => {
+export const useSeatMapData = ({ gameId, isEntryReady = true, preferMockSeatMap = false, stadiumId, zone }: SeatMapDataParams) => {
    const defaultSeatBlocks = useMemo(() => getSeatBlocks(zone), [zone]);
    const requiresSectionResolution = isAggregatedSectionCode(zone.sectionCode) || !zone.sectionIds?.length;
+   const zoneSectionIdsKey = zone.sectionIds?.join(',') ?? '';
+   const zoneGradeIdsKey = zone.gradeIds?.join(',') ?? '';
 
    const { data, error, isError, isFetching, isLoading, refetch } = useQuery({
-      queryKey: ['booking-seat-map', gameId, stadiumId, zone.id, zone.sectionCode],
-      enabled: !preferMockSeatMap && Boolean(gameId && zone.id && zone.sectionCode),
+      queryKey: ['booking-seat-map', gameId, stadiumId, zone.id, zone.sectionCode, zoneSectionIdsKey, zoneGradeIdsKey],
+      enabled: isEntryReady && !preferMockSeatMap && Boolean(gameId && zone.id && zone.sectionCode),
       refetchOnMount: 'always',
       queryFn: async (): Promise<SeatMapApiSnapshot | null> => {
          if (!gameId || !zone.id || !zone.sectionCode) {
