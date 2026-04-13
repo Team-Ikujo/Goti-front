@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
@@ -10,13 +10,30 @@ import { useMouseEventTracker } from '@/shared/lib/useMouseEventTracker';
 
 import BooksHeader from './BooksHeader';
 
+const isBookSelectionPath = (pathname: string) =>
+   pathname.startsWith('/books') || pathname.startsWith('/resell-books');
+
+const isPageReload = () => {
+   if (typeof window === 'undefined' || typeof performance === 'undefined') {
+      return false;
+   }
+
+   const [navigationEntry] = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+   return navigationEntry?.type === 'reload';
+};
+
 const BooksLayout = () => {
    const navigate = useNavigate();
+   const location = useLocation();
+   const { pathname } = location;
+   const hasHydrated = useBookingEntryStore(state => state.hasHydrated);
    const bookingEntry = useBookingEntryStore(state => state.entry);
    const clearEntry = useBookingEntryStore(state => state.clearEntry);
    const clearTimer = useBookingFlowTimerStore(state => state.clearTimer);
    const clearSeatHolds = useSeatHoldStore(state => state.clearSeatHolds);
    const clearAllSelections = useSeatSelectionStore(state => state.clearAllSelections);
+   const shouldRedirectToQueueOnReload =
+      hasHydrated && isPageReload() && isBookSelectionPath(pathname) && Boolean(bookingEntry);
 
    const exitRef = useRef<() => void>(() => {});
    exitRef.current = () => {
@@ -37,6 +54,10 @@ const BooksLayout = () => {
    });
 
    useEffect(() => {
+      if (shouldRedirectToQueueOnReload) {
+         return;
+      }
+
       const handleWheel = (event: WheelEvent) => {
          if (event.ctrlKey || event.metaKey) {
             event.preventDefault();
@@ -70,6 +91,18 @@ const BooksLayout = () => {
          window.removeEventListener('gesturechange', handleGesture as EventListener);
       };
    }, []);
+
+   if (!hasHydrated && isBookSelectionPath(pathname)) {
+      return (
+         <div className="min-h-screen bg-background">
+            <BooksHeader />
+         </div>
+      );
+   }
+
+   if (shouldRedirectToQueueOnReload && bookingEntry) {
+      return <Navigate to="/queue" replace state={bookingEntry} />;
+   }
 
    return (
       <div className="min-h-screen bg-background">
