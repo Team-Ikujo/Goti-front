@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { createResaleListings } from '@/entities/resale/api/resaleApi';
-import { useResellRegisterInsights } from '@/features/resale/model/useResellRegisterInsights';
+import { buildMockResellZoneInsights } from '@/entities/resale/model/resellZoneInsights';
 import { formatPrice } from '@/pages/books/model/zoneData';
 import { createStoredResaleListings } from '@/shared/lib/resaleListingStorage';
 import ResellPriceChart from '@/pages/books/ui/components/ResellPriceChart';
@@ -111,16 +111,13 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
          : item.game.quantity > 0
            ? Math.round(item.price / item.game.quantity)
            : item.price;
-
-   const resaleInsightsQuery = useResellRegisterInsights({
-      enabled: open,
-      gameId: item.gameId,
-      seatGradeName: item.seatGradeName,
-      sectionCode: item.game.section,
-      unitPrice,
+   const insights = buildMockResellZoneInsights({
+      zone: {
+         id: item.game.section || item.seatGradeName || 'fallback-grade',
+         name: item.seatGradeName || item.game.section || '좌석 등급',
+         price: unitPrice,
+      },
    });
-
-   const insights = resaleInsightsQuery.data?.insights ?? null;
    const checkedCount = checkedSeats.size;
 
    useEffect(() => {
@@ -394,27 +391,7 @@ export default function ResellRegisterDialog({ open, onClose, onCompleteConfirm,
                   </div>
 
                   {/* 거래 변동 + 차트 */}
-                  {resaleInsightsQuery.isLoading ? (
-                     <div className="bg-surface rounded-xl px-5 py-10 text-center text-[14px] text-[#646f7c]">
-                        거래 변동 정보를 불러오는 중입니다.
-                     </div>
-                  ) : resaleInsightsQuery.isError ? (
-                     <div className="bg-surface rounded-xl px-5 py-8 flex flex-col items-center gap-3 text-center">
-                        <p className="text-[14px] text-[#374553]">
-                           리셀 그래프 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
-                        </p>
-                        <Button
-                           variant="tertiary"
-                           type="button"
-                           className="px-4 py-2"
-                           onClick={() => {
-                              void resaleInsightsQuery.refetch();
-                           }}
-                        >
-                           다시 시도
-                        </Button>
-                     </div>
-                  ) : insights ? (
+                  {insights ? (
                      <ResellPriceChart insights={insights} />
                   ) : (
                      <div className="bg-surface rounded-xl px-5 py-10 text-center text-[14px] text-[#646f7c]">
