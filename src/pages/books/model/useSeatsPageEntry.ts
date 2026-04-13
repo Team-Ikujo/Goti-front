@@ -15,6 +15,7 @@ export function useSeatsPageEntry(zoneId: string) {
    const bookingFlowMode: BookingFlowMode = location.pathname.startsWith('/resell-books') ? 'resell' : 'standard';
    const isResellMode = bookingFlowMode === 'resell';
    const routeBookingEntryState = location.state as BookingEntryState | null;
+   const hasBookingEntryHydrated = useBookingEntryStore(state => state.hasHydrated);
    const storedBookingEntryState = useBookingEntryStore(state => state.entry);
    const setBookingEntry = useBookingEntryStore(state => state.setEntry);
    const bookingEntryState = mergeBookingEntryState(routeBookingEntryState, storedBookingEntryState);
@@ -40,6 +41,7 @@ export function useSeatsPageEntry(zoneId: string) {
       bookingEntryState,
       bookingFlowMode,
       bookingZones,
+      hasBookingEntryHydrated,
       isResellMode,
       stadiumName,
       zone,
