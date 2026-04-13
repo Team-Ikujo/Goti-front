@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import {
    buildSeatBlockFromApiSeats,
+   fetchSeatGrades,
    fetchSeatSections,
    fetchSeatStatuses,
    mapSeatStatusToUiStatus,
@@ -170,6 +171,22 @@ const buildAggregatedSeatMapSnapshot = ({
    };
 };
 
+const resolveSeatMapStadiumId = async ({
+   gameId,
+   stadiumId,
+}: {
+   gameId: string;
+   stadiumId?: string;
+}) => {
+   if (stadiumId) {
+      return stadiumId;
+   }
+
+   const grades = await fetchSeatGrades({ gameId });
+
+   return grades.find((grade) => grade.stadiumId)?.stadiumId;
+};
+
 const fetchAggregatedSeatSections = async ({
    gameId,
    stadiumId,
@@ -210,6 +227,7 @@ const fetchAggregatedSeatSections = async ({
 
 export const useSeatMapData = ({ gameId, preferMockSeatMap = false, stadiumId, zone }: SeatMapDataParams) => {
    const defaultSeatBlocks = useMemo(() => getSeatBlocks(zone), [zone]);
+   const requiresSectionResolution = isAggregatedSectionCode(zone.sectionCode) || !zone.sectionIds?.length;
 
    const { data, error, isError, isFetching, isLoading, refetch } = useQuery({
       queryKey: ['booking-seat-map', gameId, stadiumId, zone.id, zone.sectionCode],
@@ -219,6 +237,13 @@ export const useSeatMapData = ({ gameId, preferMockSeatMap = false, stadiumId, z
             return null;
          }
 
+         const resolvedStadiumId = requiresSectionResolution
+            ? await resolveSeatMapStadiumId({
+                 gameId,
+                 stadiumId,
+              })
+            : stadiumId;
+
          if (!isAggregatedSectionCode(zone.sectionCode)) {
             const resolvedSectionId = zone.sectionIds?.[0];
             const resolvedSection = resolvedSectionId
@@ -227,7 +252,7 @@ export const useSeatMapData = ({ gameId, preferMockSeatMap = false, stadiumId, z
                     sectionCode: zone.sectionCode,
                  }
                : await resolveSeatSectionByCode({
-                    stadiumId,
+                    stadiumId: resolvedStadiumId,
                     gameId,
                     sectionCode: zone.sectionCode,
                  });
@@ -262,13 +287,13 @@ export const useSeatMapData = ({ gameId, preferMockSeatMap = false, stadiumId, z
             };
          }
 
-         if (!stadiumId) {
-            return null;
+         if (!resolvedStadiumId) {
+            throw new Error(DEFAULT_SEAT_MAP_ERROR_MESSAGE);
          }
 
          const sectionBundles = await fetchAggregatedSeatSections({
             gameId,
-            stadiumId,
+            stadiumId: resolvedStadiumId,
             zone,
          });
 
