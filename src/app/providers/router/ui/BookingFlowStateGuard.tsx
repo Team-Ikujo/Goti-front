@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { leaveQueueKeepalive } from '@/pages/queue/api/queueApi';
@@ -34,6 +35,7 @@ const isPageReload = () => {
 
 const BookingFlowStateGuard = () => {
    const navigate = useNavigate();
+   const queryClient = useQueryClient();
    const location = useLocation();
    const { pathname, search } = location;
    const previousPathnameRef = useRef<string | null>(null);
@@ -73,6 +75,12 @@ const BookingFlowStateGuard = () => {
             search,
             bookingEntry: summarizeBookingEntry(bookingEntry),
          });
+         void queryClient.cancelQueries({
+            queryKey: ['booking-seat-map'],
+         });
+         queryClient.removeQueries({
+            queryKey: ['booking-seat-map'],
+         });
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
@@ -101,7 +109,7 @@ const BookingFlowStateGuard = () => {
       }
 
       previousPathnameRef.current = pathname;
-   }, [bookingEntry, hasHydrated, navigate, pathname, search]);
+   }, [bookingEntry, hasHydrated, navigate, pathname, queryClient, search]);
 
    useEffect(() => {
       if (!shouldReleaseQueueOnUnload(pathname) || !bookingEntry?.gameId || !bookingEntry.queueTokenJti) {
