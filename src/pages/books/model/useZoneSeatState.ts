@@ -13,6 +13,7 @@ import { useSeatMapData } from './useSeatMapData';
 type UseZoneSeatStateParams = {
    bookingEntryState: BookingEntryState | null;
    bookingZones: ZoneItem[];
+   hasBookingEntryHydrated?: boolean;
    onPurchaseLimitReached?: () => void;
    preferMockSeatMap?: boolean;
    zone: ZoneItem;
@@ -21,6 +22,7 @@ type UseZoneSeatStateParams = {
 export function useZoneSeatState({
    bookingEntryState,
    bookingZones,
+   hasBookingEntryHydrated = true,
    onPurchaseLimitReached,
    preferMockSeatMap = false,
    zone,
@@ -36,6 +38,7 @@ export function useZoneSeatState({
       refetchSeatMap,
    } = useSeatMapData({
       gameId: bookingEntryState?.gameId,
+      isEntryReady: hasBookingEntryHydrated || Boolean(bookingEntryState),
       preferMockSeatMap,
       stadiumId: bookingEntryState?.stadiumId,
       zone,
