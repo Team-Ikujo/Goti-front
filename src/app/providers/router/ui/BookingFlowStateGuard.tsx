@@ -24,7 +24,8 @@ const requiresQueueReentryOnBoot = (pathname: string) =>
    isBookSelectionPath(pathname) || isTicketCheckoutPath(pathname);
 const shouldReleaseQueueOnUnload = (pathname: string) =>
    isBookSelectionPath(pathname) || isTicketCheckoutPath(pathname);
-const isPageReload = () => {
+
+const getInitialLoadWasReload = () => {
    if (typeof window === 'undefined' || typeof performance === 'undefined') {
       return false;
    }
@@ -39,6 +40,7 @@ const BookingFlowStateGuard = () => {
    const location = useLocation();
    const { pathname, search } = location;
    const previousPathnameRef = useRef<string | null>(null);
+   const initialLoadWasReloadRef = useRef(getInitialLoadWasReload());
    const hasHydrated = useBookingEntryStore((state) => state.hasHydrated);
    const bookingEntry = useBookingEntryStore((state) => state.entry);
 
@@ -64,12 +66,17 @@ const BookingFlowStateGuard = () => {
          didExitBookingFlow,
          requiresEntry,
          requiresQueueReentryOnBoot: requiresQueueReentryOnBoot(pathname),
-         isReload: isPageReload(),
+         isReload: initialLoadWasReloadRef.current,
          hasHydrated,
          bookingEntry: summarizeBookingEntry(bookingEntry),
       });
 
-      if (isInitialAppLoad && isPageReload() && requiresQueueReentryOnBoot(pathname) && bookingEntry) {
+      if (
+         isInitialAppLoad &&
+         initialLoadWasReloadRef.current &&
+         requiresQueueReentryOnBoot(pathname) &&
+         bookingEntry
+      ) {
          logBookingFlow('BookingFlowStateGuard', 'redirect to /queue on reload', {
             pathname,
             search,

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
@@ -13,15 +13,6 @@ import BooksHeader from './BooksHeader';
 const isBookSelectionPath = (pathname: string) =>
    pathname.startsWith('/books') || pathname.startsWith('/resell-books');
 
-const isPageReload = () => {
-   if (typeof window === 'undefined' || typeof performance === 'undefined') {
-      return false;
-   }
-
-   const [navigationEntry] = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
-   return navigationEntry?.type === 'reload';
-};
-
 const BooksLayout = () => {
    const navigate = useNavigate();
    const location = useLocation();
@@ -32,8 +23,6 @@ const BooksLayout = () => {
    const clearTimer = useBookingFlowTimerStore(state => state.clearTimer);
    const clearSeatHolds = useSeatHoldStore(state => state.clearSeatHolds);
    const clearAllSelections = useSeatSelectionStore(state => state.clearAllSelections);
-   const shouldRedirectToQueueOnReload =
-      hasHydrated && isPageReload() && isBookSelectionPath(pathname) && Boolean(bookingEntry);
 
    const exitRef = useRef<() => void>(() => {});
    exitRef.current = () => {
@@ -54,10 +43,6 @@ const BooksLayout = () => {
    });
 
    useEffect(() => {
-      if (shouldRedirectToQueueOnReload) {
-         return;
-      }
-
       const handleWheel = (event: WheelEvent) => {
          if (event.ctrlKey || event.metaKey) {
             event.preventDefault();
@@ -98,10 +83,6 @@ const BooksLayout = () => {
             <BooksHeader />
          </div>
       );
-   }
-
-   if (shouldRedirectToQueueOnReload && bookingEntry) {
-      return <Navigate to="/queue" replace state={bookingEntry} />;
    }
 
    return (

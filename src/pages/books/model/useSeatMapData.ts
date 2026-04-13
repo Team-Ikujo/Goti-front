@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
    buildSeatBlockFromApiSeats,
@@ -27,6 +27,7 @@ type SeatMapDataParams = {
    gameId?: string;
    isEntryReady?: boolean;
    preferMockSeatMap?: boolean;
+   queueTokenJti?: string;
    stadiumId?: string;
    zone: ZoneItem;
 };
@@ -227,17 +228,43 @@ const fetchAggregatedSeatSections = async ({
    return sectionBundles;
 };
 
-export const useSeatMapData = ({ gameId, isEntryReady = true, preferMockSeatMap = false, stadiumId, zone }: SeatMapDataParams) => {
+export const useSeatMapData = ({
+   gameId,
+   isEntryReady = true,
+   preferMockSeatMap = false,
+   queueTokenJti,
+   stadiumId,
+   zone,
+}: SeatMapDataParams) => {
+   const queryClient = useQueryClient();
    const defaultSeatBlocks = useMemo(() => getSeatBlocks(zone), [zone]);
    const requiresSectionResolution = isAggregatedSectionCode(zone.sectionCode) || !zone.sectionIds?.length;
    const zoneSectionIdsKey = zone.sectionIds?.join(',') ?? '';
    const zoneGradeIdsKey = zone.gradeIds?.join(',') ?? '';
    const shouldEnableSeatMapQuery =
       isEntryReady && !preferMockSeatMap && Boolean(gameId && zone.id && zone.sectionCode);
-   const seatMapRequestKey = [gameId, stadiumId, zone.id, zone.sectionCode, zoneSectionIdsKey, zoneGradeIdsKey].join('|');
+   const seatMapQueryKey = [
+      'booking-seat-map',
+      gameId,
+      stadiumId,
+      queueTokenJti,
+      zone.id,
+      zone.sectionCode,
+      zoneSectionIdsKey,
+      zoneGradeIdsKey,
+   ] as const;
+   const seatMapRequestKey = [
+      gameId,
+      stadiumId,
+      queueTokenJti,
+      zone.id,
+      zone.sectionCode,
+      zoneSectionIdsKey,
+      zoneGradeIdsKey,
+   ].join('|');
 
    const { data, error, isError, isFetching, isLoading, refetch } = useQuery({
-      queryKey: ['booking-seat-map', gameId, stadiumId, zone.id, zone.sectionCode, zoneSectionIdsKey, zoneGradeIdsKey],
+      queryKey: seatMapQueryKey,
       enabled: shouldEnableSeatMapQuery,
       refetchOnMount: 'always',
       queryFn: async (): Promise<SeatMapApiSnapshot | null> => {
@@ -367,6 +394,7 @@ export const useSeatMapData = ({ gameId, isEntryReady = true, preferMockSeatMap 
          requiresSectionResolution,
          gameId,
          stadiumId,
+         queueTokenJti,
          zone: summarizeZone(zone),
          hasData: Boolean(data),
          apiSeatItemCount: data?.seatItems.length ?? 0,
@@ -386,6 +414,7 @@ export const useSeatMapData = ({ gameId, isEntryReady = true, preferMockSeatMap 
       seatMapRequestKey,
       shouldEnableSeatMapQuery,
       stadiumId,
+      queueTokenJti,
       zone,
    ]);
 
@@ -401,10 +430,12 @@ export const useSeatMapData = ({ gameId, isEntryReady = true, preferMockSeatMap 
    }, [error, seatMapRequestKey]);
 
    const lastRefetchedRequestKeyRef = useRef<string | null>(null);
+   const lastRecoveredRequestKeyRef = useRef<string | null>(null);
 
    useEffect(() => {
       if (!shouldEnableSeatMapQuery) {
          lastRefetchedRequestKeyRef.current = null;
+         lastRecoveredRequestKeyRef.current = null;
          return;
       }
 
@@ -418,6 +449,46 @@ export const useSeatMapData = ({ gameId, isEntryReady = true, preferMockSeatMap 
       });
       void refetch();
    }, [refetch, seatMapRequestKey, shouldEnableSeatMapQuery]);
+
+   useEffect(() => {
+      if (!shouldEnableSeatMapQuery || Boolean(data) || isError) {
+         return;
+      }
+
+      const queryState = queryClient.getQueryState<SeatMapApiSnapshot | null>(seatMapQueryKey);
+      const isStuckPendingFetch =
+         queryState?.fetchStatus === 'fetching' &&
+         queryState.status === 'pending' &&
+         !queryState.dataUpdatedAt;
+
+      if (!isStuckPendingFetch || lastRecoveredRequestKeyRef.current === seatMapRequestKey) {
+         return;
+      }
+
+      lastRecoveredRequestKeyRef.current = seatMapRequestKey;
+      logBookingFlow('useSeatMapData', 'recover stuck pending seat map query', {
+         seatMapRequestKey,
+      });
+
+      void queryClient.cancelQueries({
+         queryKey: seatMapQueryKey,
+         exact: true,
+      }).then(() => {
+         queryClient.removeQueries({
+            queryKey: seatMapQueryKey,
+            exact: true,
+         });
+         void refetch();
+      });
+   }, [
+      data,
+      isError,
+      queryClient,
+      refetch,
+      seatMapQueryKey,
+      seatMapRequestKey,
+      shouldEnableSeatMapQuery,
+   ]);
 
    return {
       seatBlocks: data?.seatBlocks ?? defaultSeatBlocks,
