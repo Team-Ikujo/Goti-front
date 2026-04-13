@@ -53,11 +53,11 @@ export const logBookingFlow = (scope: string, message: string, payload?: unknown
    }
 
    if (payload === undefined) {
-      console.log(`${BOOKING_FLOW_DEBUG_PREFIX}[${scope}] ${message}`);
+      console.error(`${BOOKING_FLOW_DEBUG_PREFIX}[${scope}] ${message}`);
       return;
    }
 
-   console.log(`${BOOKING_FLOW_DEBUG_PREFIX}[${scope}] ${message}`, payload);
+   console.error(`${BOOKING_FLOW_DEBUG_PREFIX}[${scope}] ${message}`, payload);
 };
 
 export const logBookingFlowError = (scope: string, message: string, payload?: unknown) => {
