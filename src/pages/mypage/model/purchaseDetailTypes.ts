@@ -6,6 +6,7 @@ export type PaymentEventType = '결제 완료';
 
 export type PurchaseSeatItem = {
    ticketId: string;
+   orderItemId?: string;
    orderId: string;
    section: string;
    seatDetail: string;

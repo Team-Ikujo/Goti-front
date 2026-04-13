@@ -44,6 +44,7 @@ import AuthSessionController from './AuthSessionController';
 import BookingFlowStateGuard from './BookingFlowStateGuard';
 import OAuthMessageListener from './OAuthMessageListener';
 import SessionExpiredPage from '@/pages/session-expired/ui/SessionExpiredPage';
+import MacroDashboardPage from '@/pages/macro-dashboard';
 
 const AppRouter = () => {
    return (
@@ -103,6 +104,7 @@ const AppRouter = () => {
             <Route path="/chip" element={<Chip />} />
             <Route path="/session-expired" element={<SessionExpiredPage />} />
             <Route path="/queue" element={<QueuePage />} />
+            <Route path="/macro-dashboard" element={<MacroDashboardPage />} />
             <Route path="*" element={<Navigate to="/error/404" replace />} />
          </Routes>
       </BrowserRouter>

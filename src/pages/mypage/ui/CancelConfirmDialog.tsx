@@ -46,12 +46,16 @@ export default function CancelConfirmDialog({
    const navigate = useNavigate();
    const queryClient = useQueryClient();
    const [isLoading, setIsLoading] = useState(false);
+   const isFullSeatSelection = ticketCount === totalSeatCount;
+   const hasPartialOrderItemIds = selectedOrderItemIds.length > 0 && !isFullSeatSelection;
+   const requestType = hasPartialOrderItemIds ? 'ORDER_PARTIAL' : 'ORDER_FULL';
+   const orderItemIds = hasPartialOrderItemIds ? selectedOrderItemIds : undefined;
 
    const { mutate: cancel } = useMutation({
       mutationFn: () =>
          cancelOrder(orderId, {
-            requestType: selectedOrderItemIds.length === totalSeatCount ? 'ORDER_FULL' : 'ORDER_PARTIAL',
-            orderItemIds: selectedOrderItemIds.length === totalSeatCount ? undefined : selectedOrderItemIds,
+            requestType,
+            orderItemIds,
          }),
       onSuccess: () => {
          selectedTicketIds.forEach((ticketId) => {

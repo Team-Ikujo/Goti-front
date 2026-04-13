@@ -11,6 +11,7 @@ import { getBookingTeamConfig } from '@/pages/books/model/zoneData';
 import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+
 import BooksExitDialog from '@/shared/widgets/layout/books/BooksExitDialog';
 import { releaseQueueSession } from '@/pages/queue/api/queueApi';
 
