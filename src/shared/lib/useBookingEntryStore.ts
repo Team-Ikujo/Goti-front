@@ -27,6 +27,37 @@ export type BookingEntryState = {
    botData?: BotReport;
 };
 
+const ROUTE_CLEARABLE_ENTRY_KEYS: Array<keyof BookingEntryState> = ['requireCaptcha', 'forceNewSession', 'bookingZones'];
+
+const mergeRouteEntryValue = (
+   mergedEntry: BookingEntryState,
+   key: keyof BookingEntryState,
+   value: BookingEntryState[keyof BookingEntryState],
+) => {
+   if (value !== undefined || ROUTE_CLEARABLE_ENTRY_KEYS.includes(key)) {
+      mergedEntry[key] = value;
+   }
+};
+
+export const isSameBookingEntryState = (left: BookingEntryState | null, right: BookingEntryState | null) => {
+   if (left === right) {
+      return true;
+   }
+
+   if (!left || !right) {
+      return false;
+   }
+
+   const leftKeys = Object.keys(left) as Array<keyof BookingEntryState>;
+   const rightKeys = Object.keys(right) as Array<keyof BookingEntryState>;
+
+   if (leftKeys.length !== rightKeys.length) {
+      return false;
+   }
+
+   return leftKeys.every((key) => left[key] === right[key]);
+};
+
 export const mergeBookingEntryState = (
    routeEntry: BookingEntryState | null | undefined,
    storedEntry: BookingEntryState | null | undefined,
@@ -43,11 +74,14 @@ export const mergeBookingEntryState = (
       return routeEntry;
    }
 
-   return {
-      ...storedEntry,
-      // 현재 라우트 진입 정보가 이전 세션보다 우선해야 일반/리셀 플로우가 뒤섞이지 않는다.
-      ...routeEntry,
-   };
+   const mergedEntry = { ...storedEntry };
+
+   // 현재 라우트 진입 정보가 이전 세션보다 우선해야 일반/리셀 플로우가 뒤섞이지 않는다.
+   (Object.keys(routeEntry) as Array<keyof BookingEntryState>).forEach((key) => {
+      mergeRouteEntryValue(mergedEntry, key, routeEntry[key]);
+   });
+
+   return mergedEntry;
 };
 
 type BookingEntryStore = {

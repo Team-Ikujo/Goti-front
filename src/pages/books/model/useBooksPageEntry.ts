@@ -2,7 +2,12 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
-import { mergeBookingEntryState, useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import {
+   isSameBookingEntryState,
+   mergeBookingEntryState,
+   useBookingEntryStore,
+   type BookingEntryState,
+} from '@/shared/lib/useBookingEntryStore';
 
 type UseBooksPageEntryResult = {
    bookingEntryState: BookingEntryState | null;
@@ -28,11 +33,11 @@ export function useBooksPageEntry(): UseBooksPageEntryResult {
    }, [bookingEntryState, routeBookingEntryState, storedBookingEntryState]);
 
    useEffect(() => {
-      if (routeBookingEntryState) {
-         logBookingFlow('useBooksPageEntry', 'sync route state to store', summarizeBookingEntry(routeBookingEntryState));
-         setBookingEntry(routeBookingEntryState);
+      if (routeBookingEntryState && bookingEntryState && !isSameBookingEntryState(storedBookingEntryState, bookingEntryState)) {
+         logBookingFlow('useBooksPageEntry', 'sync merged bookingEntryState to store', summarizeBookingEntry(bookingEntryState));
+         setBookingEntry(bookingEntryState);
       }
-   }, [routeBookingEntryState, setBookingEntry]);
+   }, [bookingEntryState, routeBookingEntryState, setBookingEntry, storedBookingEntryState]);
 
    return {
       bookingEntryState,
