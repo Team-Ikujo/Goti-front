@@ -109,7 +109,7 @@ export function useMouseEventTracker({ userId, onMacroDetected }: UseMouseEventT
       window.addEventListener('click', onClick);
 
       const timer = setInterval(async () => {
-         const events = eventsRef.current.splice(0);
+         const events = eventsRef.current.slice();
 
          if (isDev) console.log('[MouseTracker] 10초 경과 | 수집된 이벤트:', events.length);
 
@@ -123,6 +123,12 @@ export function useMouseEventTracker({ userId, onMacroDetected }: UseMouseEventT
             user_id: userIdRef.current,
             events,
          });
+
+         if (!result) {
+            return;
+         }
+
+         eventsRef.current.splice(0, events.length);
 
          if (result?.is_macro) {
             onMacroDetectedRef.current?.(result);
