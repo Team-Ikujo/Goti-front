@@ -1,12 +1,14 @@
 // src/pages/mypage/ui/QrViewDialog.tsx
 
 import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { QRCodeCanvas } from '@rc-component/qrcode';
 import { ChevronLeft, ChevronRight, RefreshCcw, Clock } from 'lucide-react';
+import { fetchTicketQr } from '@/entities/ticket/api/ticketApi';
 import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogClose } from '@/shared/ui/dialog';
 
 const QR_DURATION = 180; // 3분
-const QR_IMAGE_SRC = '/images/QR%EC%BD%94%EB%93%9C.png';
 
 export interface QrSeat {
    ticketId?: string;
@@ -39,14 +41,26 @@ export default function QrViewDialog({
 }: QrViewDialogProps) {
    const [currentIndex, setCurrentIndex] = useState(0);
    const [timeLeft, setTimeLeft] = useState(QR_DURATION);
+   const [refreshNonce, setRefreshNonce] = useState(0);
 
    const currentSeat = seats[currentIndex];
+   const qrQuery = useQuery({
+      queryKey: ['ticketQr', currentSeat?.ticketId, refreshNonce],
+      queryFn: () => fetchTicketQr(currentSeat!.ticketId!),
+      enabled: open && Boolean(currentSeat?.ticketId),
+      retry: false,
+      staleTime: 0,
+   });
+   const effectiveLoading = isTicketInfoLoading || (Boolean(currentSeat?.ticketId) && qrQuery.isLoading);
+   const effectiveError = isTicketInfoError || (Boolean(currentSeat?.ticketId) && qrQuery.isError);
+   const qrValue = qrQuery.data?.qrToken;
 
    // 팝업 열릴 때 초기화
    useEffect(() => {
       if (!open) return;
       setCurrentIndex(0);
       setTimeLeft(QR_DURATION);
+      setRefreshNonce(0);
    }, [open]);
 
    // 카운트다운 타이머
@@ -62,11 +76,12 @@ export default function QrViewDialog({
 
    const handleRefresh = useCallback(() => {
       setTimeLeft(QR_DURATION);
+      setRefreshNonce(prev => prev + 1);
    }, []);
 
    const renderStatusContent = () => {
       switch (true as boolean) {
-         case isTicketInfoLoading:
+         case effectiveLoading:
             return (
                <div className="flex flex-col items-center gap-4 px-5 pt-7.5 pb-5 text-center">
                   <p className="text-[18px] font-bold text-[#161d24] leading-[1.55]">QR 확인</p>
@@ -76,7 +91,7 @@ export default function QrViewDialog({
                   </Button>
                </div>
             );
-         case isTicketInfoError:
+         case effectiveError:
             return (
                <div className="flex flex-col items-center gap-4 px-5 pt-7.5 pb-5 text-center">
                   <p className="text-[18px] font-bold text-[#161d24] leading-[1.55]">QR 확인</p>
@@ -87,7 +102,14 @@ export default function QrViewDialog({
                      <Button variant="tertiary" className="flex-1 py-1.5" onClick={onClose}>
                         닫기
                      </Button>
-                     <Button variant="primary" className="flex-1 py-1.5" onClick={onRetryTicketInfo}>
+                     <Button
+                        variant="primary"
+                        className="flex-1 py-1.5"
+                        onClick={() => {
+                           onRetryTicketInfo?.();
+                           void qrQuery.refetch();
+                        }}
+                     >
                         다시 시도
                      </Button>
                   </div>
@@ -98,6 +120,16 @@ export default function QrViewDialog({
                <div className="flex flex-col items-center gap-4 px-5 pt-7.5 pb-5 text-center">
                   <p className="text-[18px] font-bold text-[#161d24] leading-[1.55]">QR 확인</p>
                   <p className="text-[16px] text-[#374553]">표시할 티켓이 없습니다.</p>
+                  <Button variant="primary" className="w-full py-1.5" onClick={onClose}>
+                     닫기
+                  </Button>
+               </div>
+            );
+         case !currentSeat.ticketId:
+            return (
+               <div className="flex flex-col items-center gap-4 px-5 pt-7.5 pb-5 text-center">
+                  <p className="text-[18px] font-bold text-[#161d24] leading-[1.55]">QR 확인</p>
+                  <p className="text-[16px] text-[#374553]">QR을 발급할 티켓 정보가 없습니다.</p>
                   <Button variant="primary" className="w-full py-1.5" onClick={onClose}>
                      닫기
                   </Button>
@@ -151,11 +183,19 @@ export default function QrViewDialog({
                         </button>
 
                         <div className="w-[200px] h-[200px] flex items-center justify-center bg-surface rounded-xl overflow-hidden">
-                           <img
-                              src={QR_IMAGE_SRC}
-                              alt="QR 코드"
-                              className="w-full h-full object-contain"
-                           />
+                           {qrValue ? (
+                              <QRCodeCanvas
+                                 value={qrValue}
+                                 size={180}
+                                 level="M"
+                                 marginSize={2}
+                                 bgColor="#ffffff"
+                                 fgColor="#161d24"
+                                 title="모바일 티켓 QR 코드"
+                              />
+                           ) : (
+                              <div className="text-[14px] text-[#646f7c]">QR 생성 중</div>
+                           )}
                         </div>
 
                         <button
