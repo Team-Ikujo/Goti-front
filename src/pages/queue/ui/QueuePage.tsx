@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Lottie from 'lottie-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { logBookingFlow, logBookingFlowError, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { mergeBookingEntryState, useBookingEntryStore, type BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import {
@@ -167,21 +166,9 @@ const QueuePage = () => {
   const admittedRef = useRef(false);
   const seatEnterInFlightRef = useRef(false);
 
-  useEffect(() => {
-    logBookingFlow('QueuePage', 'mount snapshot', {
-      pathname: location.pathname,
-      search: location.search,
-      routeBookingEntryState: summarizeBookingEntry(routeBookingEntryState),
-      storedBookingEntryState: summarizeBookingEntry(storedBookingEntryState),
-      resolvedBookingEntryState: summarizeBookingEntry(bookingEntryState),
-      bookingFlowMode,
-    });
-  }, []);
-
   // location.state → store 동기화
   useEffect(() => {
     if (routeBookingEntryState) {
-      logBookingFlow('QueuePage', 'sync route state to store', summarizeBookingEntry(routeBookingEntryState));
       setBookingEntry(routeBookingEntryState);
     }
   }, [routeBookingEntryState, setBookingEntry]);
@@ -189,21 +176,9 @@ const QueuePage = () => {
   // bookingEntryState 없으면 홈으로
   useEffect(() => {
     if (!bookingEntryState) {
-      logBookingFlow('QueuePage', 'bookingEntryState missing, redirect /');
       navigate('/', { replace: true });
     }
   }, [bookingEntryState, navigate]);
-
-  useEffect(() => {
-    logBookingFlow('QueuePage', 'state changed', {
-      phase,
-      gameId,
-      queueToken,
-      queueNumber,
-      currentAllowedRank,
-      bookingEntryState: summarizeBookingEntry(bookingEntryState),
-    });
-  }, [phase, gameId, queueToken, queueNumber, currentAllowedRank, bookingEntryState]);
 
   // 1단계: 대기열 진입
   useEffect(() => {
@@ -216,7 +191,6 @@ const QueuePage = () => {
     getOrCreateQueueEntry(gameId)
       .then(res => {
         if (cancelled) return;
-        logBookingFlow('QueuePage', 'enterQueue resolved', res);
         setQueueToken(res.queueToken);
         setQueueNumber(res.queueNumber);
         patchEntry({
@@ -224,9 +198,8 @@ const QueuePage = () => {
         });
         setPhase('waiting');
       })
-      .catch((err: unknown) => {
+      .catch(() => {
         if (cancelled) return;
-        logBookingFlowError('QueuePage', 'enterQueue failed', err);
         setErrorMessage('대기열 진입에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         setPhase('error');
       });
@@ -244,7 +217,6 @@ const QueuePage = () => {
 
     const handleBeforeUnload = () => {
       if (!admittedRef.current) {
-        logBookingFlow('QueuePage', 'beforeunload/pagehide before admission', { gameId });
         clearPendingLeave(gameId);
         clearQueuedEntryCache(gameId);
         leaveQueueKeepalive(gameId);
@@ -258,7 +230,6 @@ const QueuePage = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handleBeforeUnload);
       if (!admittedRef.current) {
-        logBookingFlow('QueuePage', 'cleanup before admission -> scheduleQueueLeave', { gameId });
         scheduleQueueLeave(gameId);
       }
     };
@@ -271,7 +242,6 @@ const QueuePage = () => {
     const poll = async () => {
       try {
         const status = await getQueueGlobalStatus(gameId);
-        logBookingFlow('QueuePage', 'poll status', status);
         setCurrentAllowedRank(status.currentAllowedRank);
         setPublishedRank(status.publishedRank);
 
@@ -279,8 +249,7 @@ const QueuePage = () => {
         if (queueNumber <= status.publishedRank) {
           setPhase('checking');
         }
-      } catch (err: unknown) {
-        logBookingFlowError('QueuePage', 'poll status failed', err);
+      } catch {
       }
     };
 
@@ -303,7 +272,6 @@ const QueuePage = () => {
     seatEnterQueue(gameId, queueToken)
       .then(res => {
         if (cancelled) return;
-        logBookingFlow('QueuePage', 'seatEnterQueue resolved', res);
 
         if (res.enterAllowed) {
           admittedRef.current = true;
@@ -319,10 +287,6 @@ const QueuePage = () => {
 
           patchEntry(nextBookingEntryState);
           const nextPathname = bookingFlowMode === 'resell' ? '/resell-books' : '/books';
-          logBookingFlow('QueuePage', 'navigate booking flow with booking entry', {
-            pathname: nextPathname,
-            bookingEntryState: summarizeBookingEntry(nextBookingEntryState),
-          });
           navigate(
             { pathname: nextPathname },
             { replace: true, state: nextBookingEntryState },
@@ -337,7 +301,6 @@ const QueuePage = () => {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        logBookingFlowError('QueuePage', 'seatEnterQueue failed', err);
         if (getHttpStatus(err) === 409) {
           clearPendingLeave(gameId);
           clearQueuedEntryCache(gameId);

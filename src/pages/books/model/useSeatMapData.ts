@@ -15,7 +15,6 @@ import {
 } from '@/pages/books/api/bookingApi';
 import { getSeatBlocks } from '@/pages/books/model/seatData';
 import type { SeatBlock, SeatItem, ZoneItem } from '@/pages/books/model/types';
-import { logBookingFlow, logBookingFlowError, summarizeZone } from '@/shared/lib/bookingFlowDebug';
 import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 
 const AGGREGATED_SECTION_CODE_PATTERN = /[~,/]/;
@@ -268,21 +267,7 @@ export const useSeatMapData = ({
       enabled: shouldEnableSeatMapQuery,
       refetchOnMount: 'always',
       queryFn: async (): Promise<SeatMapApiSnapshot | null> => {
-         logBookingFlow('useSeatMapData', 'queryFn start', {
-            seatMapRequestKey,
-            shouldEnableSeatMapQuery,
-            requiresSectionResolution,
-            gameId,
-            stadiumId,
-            zone: summarizeZone(zone),
-         });
-
          if (!gameId || !zone.id || !zone.sectionCode) {
-            logBookingFlow('useSeatMapData', 'queryFn skipped: missing query inputs', {
-               gameId,
-               zoneId: zone.id,
-               sectionCode: zone.sectionCode,
-            });
             return null;
          }
 
@@ -292,13 +277,6 @@ export const useSeatMapData = ({
                  stadiumId,
               })
             : stadiumId;
-
-         logBookingFlow('useSeatMapData', 'resolved stadium for seat map', {
-            seatMapRequestKey,
-            requiresSectionResolution,
-            inputStadiumId: stadiumId,
-            resolvedStadiumId,
-         });
 
          if (!isAggregatedSectionCode(zone.sectionCode)) {
             const resolvedSectionId = zone.sectionIds?.[0];
@@ -312,12 +290,6 @@ export const useSeatMapData = ({
                     gameId,
                     sectionCode: zone.sectionCode,
                  });
-
-            logBookingFlow('useSeatMapData', 'resolved single section seat map target', {
-               seatMapRequestKey,
-               resolvedSectionId,
-               resolvedSection,
-            });
 
             if (!resolvedSection) {
                throw new Error(DEFAULT_SEAT_MAP_ERROR_MESSAGE);
@@ -333,13 +305,6 @@ export const useSeatMapData = ({
             if (!seatBlock) {
                throw new Error(DEFAULT_SEAT_MAP_ERROR_MESSAGE);
             }
-
-            logBookingFlow('useSeatMapData', 'single section seat map resolved', {
-               seatMapRequestKey,
-               sectionId: resolvedSection.sectionId,
-               sectionCode: resolvedSection.sectionCode,
-               seatCount: seats.length,
-            });
 
             return {
                seatBlocks: [seatBlock],
@@ -366,13 +331,6 @@ export const useSeatMapData = ({
             zone,
          });
 
-         logBookingFlow('useSeatMapData', 'aggregated seat sections resolved', {
-            seatMapRequestKey,
-            sectionBundleCount: sectionBundles.length,
-            sectionIds: sectionBundles.map((section) => section.sectionId),
-            sectionCodes: sectionBundles.map((section) => section.sectionCode),
-         });
-
          if (sectionBundles.length === 0) {
             throw new Error(DEFAULT_SEAT_MAP_ERROR_MESSAGE);
          }
@@ -384,50 +342,6 @@ export const useSeatMapData = ({
          });
       },
    });
-
-   useEffect(() => {
-      logBookingFlow('useSeatMapData', 'query state snapshot', {
-         seatMapRequestKey,
-         enabled: shouldEnableSeatMapQuery,
-         isEntryReady,
-         preferMockSeatMap,
-         requiresSectionResolution,
-         gameId,
-         stadiumId,
-         queueTokenJti,
-         zone: summarizeZone(zone),
-         hasData: Boolean(data),
-         apiSeatItemCount: data?.seatItems.length ?? 0,
-         isFetching,
-         isLoading,
-         isError,
-      });
-   }, [
-      data,
-      gameId,
-      isEntryReady,
-      isError,
-      isFetching,
-      isLoading,
-      preferMockSeatMap,
-      requiresSectionResolution,
-      seatMapRequestKey,
-      shouldEnableSeatMapQuery,
-      stadiumId,
-      queueTokenJti,
-      zone,
-   ]);
-
-   useEffect(() => {
-      if (!error) {
-         return;
-      }
-
-      logBookingFlowError('useSeatMapData', 'query error', {
-         seatMapRequestKey,
-         error,
-      });
-   }, [error, seatMapRequestKey]);
 
    const lastRefetchedRequestKeyRef = useRef<string | null>(null);
    const lastRecoveredRequestKeyRef = useRef<string | null>(null);
@@ -444,9 +358,6 @@ export const useSeatMapData = ({
       }
 
       lastRefetchedRequestKeyRef.current = seatMapRequestKey;
-      logBookingFlow('useSeatMapData', 'manual refetch triggered for request key', {
-         seatMapRequestKey,
-      });
       void refetch();
    }, [refetch, seatMapRequestKey, shouldEnableSeatMapQuery]);
 
@@ -466,9 +377,6 @@ export const useSeatMapData = ({
       }
 
       lastRecoveredRequestKeyRef.current = seatMapRequestKey;
-      logBookingFlow('useSeatMapData', 'recover stuck pending seat map query', {
-         seatMapRequestKey,
-      });
 
       void queryClient.cancelQueries({
          queryKey: seatMapQueryKey,

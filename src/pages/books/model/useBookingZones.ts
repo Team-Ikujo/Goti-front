@@ -14,7 +14,6 @@ import type { ZoneItem } from '@/pages/books/model/types';
 import { getBookingZones, getZoneDisplayOrder } from '@/pages/books/model/zoneData';
 import { ApiError } from '@/shared/api/client';
 import { isResaleBookingMockEnabled } from '@/shared/config/runtime';
-import { logBookingFlow, logBookingFlowError, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import type { BookingFlowMode } from '@/shared/lib/booking-flow';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 import { getDemoResaleListings, getDemoResaleTargetCountForZone } from '@/shared/lib/demo/resaleDemo';
@@ -106,11 +105,6 @@ export function useBookingZones({
       enabled: isEnabled && !(bookingFlowMode === 'resell' && isResaleBookingMockEnabled),
       queryFn: async () => {
          const shouldForceNewSession = shouldForceNewSessionRef.current;
-         logBookingFlow('useBookingZones', 'queryFn start', {
-            bookingFlowMode,
-            shouldForceNewSession,
-            bookingEntryState: summarizeBookingEntry(bookingEntryState),
-         });
          const grades = await fetchSeatGrades({
             gameId: bookingEntryState!.gameId!,
             forceNewSession: shouldForceNewSession,
@@ -137,7 +131,6 @@ export function useBookingZones({
 
             if (shouldForceNewSession) {
                shouldForceNewSessionRef.current = false;
-               logBookingFlow('useBookingZones', 'clear forceNewSession after query');
             }
 
             patchBookingEntry(nextEntryPatch);
@@ -175,14 +168,6 @@ export function useBookingZones({
       },
    });
 
-   useEffect(() => {
-      logBookingFlow('useBookingZones', 'enabled state', {
-         isEnabled,
-         bookingFlowMode,
-         bookingEntryState: summarizeBookingEntry(bookingEntryState),
-      });
-   }, [bookingEntryState, bookingFlowMode, isEnabled]);
-
    const mergedBaseZones = useMemo(() => {
       if (bookingFlowMode === 'resell' && isResaleBookingMockEnabled) {
          return mockResellZones;
@@ -205,10 +190,6 @@ export function useBookingZones({
          return;
       }
 
-      logBookingFlow('useBookingZones', 'patch bookingZones', {
-         zoneCount: zones.length,
-         zoneIds: zones.map((zone) => zone.id),
-      });
       patchBookingEntry({
          bookingZones: zones,
       });
@@ -217,21 +198,6 @@ export function useBookingZones({
    const isSeatGradeBotBlocked =
       apiZonesError instanceof ApiError &&
       (hasBotBlockedMessage(apiZonesError.message) || hasBotBlockedMessage(apiZonesError.data));
-
-   useEffect(() => {
-      if (apiZones) {
-         logBookingFlow('useBookingZones', 'api zones resolved', {
-            count: apiZones.length,
-            zoneIds: apiZones.map((zone) => zone.id),
-         });
-      }
-   }, [apiZones]);
-
-   useEffect(() => {
-      if (apiZonesError) {
-         logBookingFlowError('useBookingZones', 'api zones error', apiZonesError);
-      }
-   }, [apiZonesError]);
 
    return {
       zones,
