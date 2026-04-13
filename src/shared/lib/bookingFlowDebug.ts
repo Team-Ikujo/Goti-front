@@ -1,4 +1,5 @@
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
+import type { ZoneItem } from '@/pages/books/model/types';
 
 const BOOKING_FLOW_DEBUG_PREFIX = '[BookingFlowDebug]';
 
@@ -27,6 +28,22 @@ export const summarizeBookingEntry = (entry: BookingEntryState | null | undefine
       bookingZoneCount: entry.bookingZones?.length ?? 0,
       bookingZoneIds: entry.bookingZones?.map((zone) => zone.id) ?? [],
       hasBotData: Boolean(entry.botData),
+   };
+};
+
+export const summarizeZone = (zone: ZoneItem | null | undefined) => {
+   if (!zone) {
+      return null;
+   }
+
+   return {
+      id: zone.id,
+      name: zone.name,
+      price: zone.price,
+      remaining: zone.remaining,
+      sectionCode: zone.sectionCode,
+      sectionIds: zone.sectionIds ?? [],
+      gradeIds: zone.gradeIds ?? [],
    };
 };
 
