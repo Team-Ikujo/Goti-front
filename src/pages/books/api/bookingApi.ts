@@ -1,6 +1,5 @@
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
-import { logBookingFlow, logBookingFlowError } from '@/shared/lib/bookingFlowDebug';
 import { getBookingZones } from '@/pages/books/model/zoneData';
 import type { SeatBlock, SeatItem, SeatStatus, ZoneItem } from '@/pages/books/model/types';
 
@@ -299,7 +298,6 @@ export const fetchSeatGrades = async ({
    gameId: string;
    forceNewSession?: boolean;
 }) => {
-   logBookingFlow('bookingApi', 'fetchSeatGrades request', { gameId, forceNewSession });
    try {
       const response = await apiClient.get<ApiEnvelope<SeatGradeSearchResultResponse>>(
          `/api/v1/stadium-seats/games/${gameId}/seat-grades`,
@@ -308,15 +306,8 @@ export const fetchSeatGrades = async ({
          },
       );
       const seatGrades = response.data.data?.seatGrades ?? [];
-      logBookingFlow('bookingApi', 'fetchSeatGrades response', {
-         gameId,
-         forceNewSession,
-         count: seatGrades.length,
-         seatGradeIds: seatGrades.map((seatGrade) => seatGrade.seatGradeId),
-      });
       return seatGrades;
    } catch (error) {
-      logBookingFlowError('bookingApi', 'fetchSeatGrades error', { gameId, forceNewSession, error });
       throw error;
    }
 };
@@ -328,19 +319,12 @@ export const fetchSeatSections = async ({
    stadiumId: string;
    gameId?: string;
 }) => {
-   logBookingFlow('bookingApi', 'fetchSeatSections request', { stadiumId, gameId });
    try {
       const response = await apiClient.get<ApiEnvelope<SeatSectionResponse[]>>(`/api/v1/stadium-seats/stadiums/${stadiumId}/seat-sections`, {
          params: gameId ? { gameId } : undefined,
       });
-      logBookingFlow('bookingApi', 'fetchSeatSections response', {
-         stadiumId,
-         gameId,
-         count: response.data.data?.length ?? 0,
-      });
       return response.data.data;
    } catch (error) {
-      logBookingFlowError('bookingApi', 'fetchSeatSections error', { stadiumId, gameId, error });
       throw error;
    }
 };
@@ -355,19 +339,8 @@ export const resolveSeatSectionByCode = async ({
    sectionCode: string;
 }) => {
    if (!stadiumId) {
-      logBookingFlow('bookingApi', 'resolveSeatSectionByCode skipped: missing stadiumId', {
-         stadiumId,
-         gameId,
-         sectionCode,
-      });
       return null;
    }
-
-   logBookingFlow('bookingApi', 'resolveSeatSectionByCode request', {
-      stadiumId,
-      gameId,
-      sectionCode,
-   });
    const sections = await fetchSeatSections({
       stadiumId,
       gameId,
@@ -375,14 +348,6 @@ export const resolveSeatSectionByCode = async ({
    const normalizedTargetSectionCode = normalizeSectionCode(sectionCode);
    const resolvedSection =
       sections.find((section) => normalizeSectionCode(section.sectionCode) === normalizedTargetSectionCode) ?? null;
-
-   logBookingFlow('bookingApi', 'resolveSeatSectionByCode response', {
-      stadiumId,
-      gameId,
-      sectionCode,
-      normalizedTargetSectionCode,
-      resolvedSection,
-   });
 
    return resolvedSection;
 };
@@ -416,30 +381,12 @@ export const fetchSeats = async ({
 };
 
 export const fetchSeatStatuses = async (gameId: string, sectionId: string) => {
-   logBookingFlow('bookingApi', 'fetchSeatStatuses request', {
-      gameId,
-      sectionId,
-   });
    try {
       const response = await apiClient.get<ApiEnvelope<SeatStatusResponse[]>>(
          `/api/v1/game-seats/${gameId}/sections/${sectionId}/seat-statuses`,
       );
-      const statuses = response.data.data ?? [];
-
-      logBookingFlow('bookingApi', 'fetchSeatStatuses response', {
-         gameId,
-         sectionId,
-         count: statuses.length,
-         summary: summarizeSeatStatusSnapshot(statuses),
-      });
-
-      return statuses;
+      return response.data.data ?? [];
    } catch (error) {
-      logBookingFlowError('bookingApi', 'fetchSeatStatuses error', {
-         gameId,
-         sectionId,
-         error,
-      });
       throw error;
    }
 };
@@ -455,20 +402,12 @@ export const summarizeSeatStatusSnapshot = (statuses: SeatStatusResponse[]) => {
 };
 
 export const fetchTicketPricingPolicy = async (teamId: string) => {
-   logBookingFlow('bookingApi', 'fetchTicketPricingPolicy request', { teamId });
    try {
       const response = await apiClient.get<ApiEnvelope<TicketPricingPolicyResponse>>(
          `/api/v1/teams/${teamId}/ticket-pricing-policies`,
       );
-      logBookingFlow('bookingApi', 'fetchTicketPricingPolicy response', {
-         teamId,
-         policyId: response.data.data?.policyId,
-         isActive: response.data.data?.isActive,
-         priceCount: response.data.data?.prices?.length ?? 0,
-      });
       return response.data.data;
    } catch (error) {
-      logBookingFlowError('bookingApi', 'fetchTicketPricingPolicy error', { teamId, error });
       throw error;
    }
 };

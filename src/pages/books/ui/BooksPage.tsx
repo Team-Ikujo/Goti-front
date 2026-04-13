@@ -8,7 +8,6 @@ import { useBookingExitGuard } from '@/pages/books/model/useBookingExitGuard';
 import { useBookingZones } from '@/pages/books/model/useBookingZones';
 import { useBooksPageEntry } from '@/pages/books/model/useBooksPageEntry';
 import { getBookingTeamConfig } from '@/pages/books/model/zoneData';
-import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
 import type { BookingEntryState } from '@/shared/lib/useBookingEntryStore';
 
@@ -44,19 +43,6 @@ const BooksPage = () => {
    const [isZoneDrawerOpen, setIsZoneDrawerOpen] = useState(true);
 
    useEffect(() => {
-      logBookingFlow('BooksPage', 'render snapshot', {
-         pathname: location.pathname,
-         search: location.search,
-         bookingFlowMode,
-         bookingEntryState: summarizeBookingEntry(bookingEntryState),
-         requiresCaptcha,
-         zoneCount: zones.length,
-         selectedZoneId,
-         isSeatGradeBotBlocked,
-      });
-   }, [bookingEntryState, bookingFlowMode, isSeatGradeBotBlocked, location.pathname, location.search, requiresCaptcha, selectedZoneId, zones.length]);
-
-   useEffect(() => {
       setSelectedZoneId(zones.find(zone => zone.remaining > 0)?.id ?? zones[0]?.id ?? '');
    }, [zones]);
 
@@ -90,7 +76,6 @@ const BooksPage = () => {
    }, [bookingEntryState, zones]);
 
    const exitBookingFlow = async () => {
-      logBookingFlow('BooksPage', 'exitBookingFlow');
       clearTimer();
       clearSeatHolds();
       clearAllSelections();
@@ -104,7 +89,6 @@ const BooksPage = () => {
       location,
       navigate,
       onCaptchaResolved: () => {
-         logBookingFlow('BooksPage', 'captcha resolved');
          patchBookingEntry({
             forceNewSession: undefined,
             requireCaptcha: undefined,
@@ -133,10 +117,6 @@ const BooksPage = () => {
    }, [captcha.isCaptchaOpen]);
 
    const handleSelectZone = (zoneId: string) => {
-      logBookingFlow('BooksPage', 'handleSelectZone', {
-         zoneId,
-         bookingEntryState: summarizeBookingEntry(resolvedBookingEntryState),
-      });
       const selectedZone = zones.find(zone => zone.id === zoneId);
 
       if (!selectedZone || selectedZone.remaining <= 0) {

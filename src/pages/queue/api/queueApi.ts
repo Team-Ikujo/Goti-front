@@ -6,7 +6,6 @@ import type { ApiEnvelope } from '@/features/auth/api/types';
 import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 import { buildMockQueueTokenJti } from '@/shared/config/booking';
 import { isResaleBookingMockEnabled } from '@/shared/config/runtime';
-import { logBookingFlow, logBookingFlowError } from '@/shared/lib/bookingFlowDebug';
 import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 
 export interface QueueEnterResponse {
@@ -63,11 +62,8 @@ const createMockQueueStatusResponse = (gameId: string): QueueStatusResponse => (
 
 /** 대기열 진입 — 새 대기 순번(queueNumber)과 토큰(queueToken) 발급 */
 export const enterQueue = async (gameId: string): Promise<QueueEnterResponse> => {
-  logBookingFlow('queueApi', 'enterQueue request', { gameId });
   if (getShouldUseResellQueueMock()) {
-    const response = createMockQueueEnterResponse(gameId);
-    logBookingFlow('queueApi', 'enterQueue mock response', response);
-    return response;
+    return createMockQueueEnterResponse(gameId);
   }
 
   try {
@@ -75,47 +71,36 @@ export const enterQueue = async (gameId: string): Promise<QueueEnterResponse> =>
       '/api/v1/queue/enter',
       { gameId },
     );
-    logBookingFlow('queueApi', 'enterQueue response', response.data.data);
     return response.data.data;
   } catch (error) {
-    logBookingFlowError('queueApi', 'enterQueue error', { gameId, error });
     throw error;
   }
 };
 
 /** 대기열 전역 상태 조회 — CDN 1초 캐싱, 인증 불필요 */
 export const getQueueGlobalStatus = async (gameId: string): Promise<QueueStatusResponse> => {
-  logBookingFlow('queueApi', 'getQueueGlobalStatus request', { gameId });
   if (getShouldUseResellQueueMock()) {
-    const response = createMockQueueStatusResponse(gameId);
-    logBookingFlow('queueApi', 'getQueueGlobalStatus mock response', response);
-    return response;
+    return createMockQueueStatusResponse(gameId);
   }
 
   const response = await apiClient.get<ApiEnvelope<QueueStatusResponse>>(
     `/api/v1/queue/${encodeURIComponent(gameId)}/global-status`,
   );
-  logBookingFlow('queueApi', 'getQueueGlobalStatus response', response.data.data);
   return response.data.data;
 };
 
 /** 대기열 실제 상태 조회 — 인증 기반 실시간 상태 */
 export const getQueueStatus = async (gameId: string): Promise<QueueStatusResponse> => {
-  logBookingFlow('queueApi', 'getQueueStatus request', { gameId });
   if (getShouldUseResellQueueMock()) {
-    const response = createMockQueueStatusResponse(gameId);
-    logBookingFlow('queueApi', 'getQueueStatus mock response', response);
-    return response;
+    return createMockQueueStatusResponse(gameId);
   }
 
   try {
     const response = await apiClient.get<ApiEnvelope<QueueStatusResponse>>(
       `/api/v1/queue/${encodeURIComponent(gameId)}/status`,
     );
-    logBookingFlow('queueApi', 'getQueueStatus response', response.data.data);
     return response.data.data;
   } catch (error) {
-    logBookingFlowError('queueApi', 'getQueueStatus error', { gameId, error });
     throw error;
   }
 };
@@ -125,16 +110,13 @@ export const seatEnterQueue = async (
   gameId: string,
   queueToken: string,
 ): Promise<QueueSeatEnterResponse> => {
-  logBookingFlow('queueApi', 'seatEnterQueue request', { gameId, queueToken });
   if (getShouldUseResellQueueMock()) {
-    const response: QueueSeatEnterResponse = {
+    return {
       gameId,
       enterAllowed: true,
       queueNumber: 1,
       status: 'ADMITTED',
     };
-    logBookingFlow('queueApi', 'seatEnterQueue mock response', response);
-    return response;
   }
 
   try {
@@ -142,35 +124,28 @@ export const seatEnterQueue = async (
       `/api/v1/queue/${encodeURIComponent(gameId)}/seat-enter`,
       { queueToken },
     );
-    logBookingFlow('queueApi', 'seatEnterQueue response', response.data.data);
     return response.data.data;
   } catch (error) {
-    logBookingFlowError('queueApi', 'seatEnterQueue error', { gameId, queueToken, error });
     throw error;
   }
 };
 
 /** 대기열 이탈 — 결제 완료/명시적 종료 시 현재 수용 인원을 해제한다. */
 export const leaveQueue = async (gameId: string): Promise<QueueLeaveResponse> => {
-  logBookingFlow('queueApi', 'leaveQueue request', { gameId });
   if (getShouldUseResellQueueMock()) {
-    const response: QueueLeaveResponse = {
+    return {
       gameId,
       released: true,
       status: 'LEFT',
     };
-    logBookingFlow('queueApi', 'leaveQueue mock response', response);
-    return response;
   }
 
   try {
     const response = await apiClient.post<ApiEnvelope<QueueLeaveResponse>>(
       `/api/v1/queue/${encodeURIComponent(gameId)}/leave`,
     );
-    logBookingFlow('queueApi', 'leaveQueue response', response.data.data);
     return response.data.data;
   } catch (error) {
-    logBookingFlowError('queueApi', 'leaveQueue error', { gameId, error });
     throw error;
   }
 };
@@ -195,7 +170,6 @@ export const leaveQueueKeepalive = (gameId: string) => {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
-  logBookingFlow('queueApi', 'leaveQueueKeepalive request', { gameId, headers });
   void fetch(getLeaveQueueUrl(gameId), {
     method: 'POST',
     headers,
@@ -206,17 +180,13 @@ export const leaveQueueKeepalive = (gameId: string) => {
 export const releaseQueueSession = async (gameId?: string) => {
   const trimmedGameId = gameId?.trim();
 
-  logBookingFlow('queueApi', 'releaseQueueSession start', { gameId, trimmedGameId });
-
   if (!trimmedGameId) {
-    logBookingFlow('queueApi', 'releaseQueueSession skipped: no gameId');
     return;
   }
 
   try {
     await leaveQueue(trimmedGameId);
   } catch {
-    logBookingFlow('queueApi', 'releaseQueueSession fallback to keepalive', { trimmedGameId });
     leaveQueueKeepalive(trimmedGameId);
   }
 };

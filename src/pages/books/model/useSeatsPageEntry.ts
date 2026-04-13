@@ -8,7 +8,6 @@ import {
    useBookingEntryStore,
    type BookingEntryState,
 } from '@/shared/lib/useBookingEntryStore';
-import { logBookingFlow, summarizeBookingEntry, summarizeZone } from '@/shared/lib/bookingFlowDebug';
 import { getBookingZones, getStadiumName, getZoneOverviewImage } from './zoneData';
 
 export function useSeatsPageEntry(zoneId: string) {
@@ -37,17 +36,6 @@ export function useSeatsPageEntry(zoneId: string) {
       [bookingEntryState?.homeTeamId, zone.id],
    );
    const stadiumName = useMemo(() => getStadiumName(bookingEntryState?.homeTeamId), [bookingEntryState?.homeTeamId]);
-
-   useEffect(() => {
-      logBookingFlow('useSeatsPageEntry', 'resolved seat page entry', {
-         zoneId,
-         bookingFlowMode,
-         hasBookingEntryHydrated,
-         bookingEntryState: summarizeBookingEntry(bookingEntryState),
-         bookingZoneIds: bookingZones.map((item) => item.id),
-         resolvedZone: summarizeZone(zone),
-      });
-   }, [bookingEntryState, bookingFlowMode, bookingZones, hasBookingEntryHydrated, zone, zoneId]);
 
    return {
       bookingEntryState,

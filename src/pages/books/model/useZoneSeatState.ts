@@ -9,7 +9,6 @@ import { getSelectedSeatDetails } from './selectedSeats';
 import type { SeatItem, ZoneItem } from './types';
 import { useSeatHoldActions } from './useSeatHoldActions';
 import { useSeatMapData } from './useSeatMapData';
-import { logBookingFlow, summarizeBookingEntry, summarizeZone } from '@/shared/lib/bookingFlowDebug';
 
 type UseZoneSeatStateParams = {
    bookingEntryState: BookingEntryState | null;
@@ -62,47 +61,13 @@ export function useZoneSeatState({
    );
 
    useEffect(() => {
-      logBookingFlow('useZoneSeatState', 'seat map source snapshot', {
-         hasBookingEntryHydrated,
-         bookingEntryState: summarizeBookingEntry(bookingEntryState),
-         zone: summarizeZone(zone),
-         hasApiSeatMap,
-         apiSeatItemCount: apiSeatItems.length,
-         initialSeatCount: initialSeats.length,
-         zoneSeatStateExists: Boolean(zoneSeatState),
-         isSeatMapLoading,
-         isSeatMapError,
-         seatMapErrorMessage,
-      });
-   }, [
-      apiSeatItems.length,
-      bookingEntryState,
-      hasApiSeatMap,
-      hasBookingEntryHydrated,
-      initialSeats.length,
-      isSeatMapError,
-      isSeatMapLoading,
-      seatMapErrorMessage,
-      zone,
-      zoneSeatState,
-   ]);
-
-   useEffect(() => {
       const syncedInitialSeats = syncHeldSeatsIntoZone(zone.id, initialSeats);
 
       if (hasApiSeatMap && apiSeatItems.length > 0) {
-         logBookingFlow('useZoneSeatState', 'apply server seat snapshot', {
-            zoneId: zone.id,
-            apiSeatItemCount: apiSeatItems.length,
-         });
          applyServerSeatSnapshot(zone.id, syncHeldSeatsIntoZone(zone.id, apiSeatItems));
          return;
       }
 
-      logBookingFlow('useZoneSeatState', 'initialize zone with local seat map', {
-         zoneId: zone.id,
-         initialSeatCount: syncedInitialSeats.length,
-      });
       initializeZone(zone.id, syncedInitialSeats);
    }, [
       apiSeatItems,
