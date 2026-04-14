@@ -1,8 +1,9 @@
 import { teams } from '@/entities/team/model/teams';
+import { isMswEnabled } from '@/shared/config/runtime';
 import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 
 const API_PREFIX = '/api/';
-const shouldScopeBookingApiPath = !import.meta.env.DEV;
+const shouldScopeBookingApiPath = !isMswEnabled;
 
 const normalizeTeamCode = (teamCode?: string) => {
    const trimmedValue = teamCode?.trim();
