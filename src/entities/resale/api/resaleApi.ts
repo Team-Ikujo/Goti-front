@@ -2,6 +2,7 @@
 
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import { buildBookingApiPath } from '@/shared/lib/bookingApiPath';
 import { createBookingFlowHeaders } from '@/shared/lib/guardrailHeaders';
 import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 import { isResaleBookingMockEnabled, isResaleDemoEnabled } from '@/shared/config/runtime';
@@ -429,7 +430,7 @@ export const fetchResaleLedgers = async (params?: {
 
 export const fetchResaleLedgerByOrderId = async (orderId: string): Promise<ResaleLedger> => {
    const response = await apiClient.get<ApiEnvelope<ResaleLedger>>(
-      `/api/v1/payments/resales/ledgers/orders/${encodeURIComponent(orderId)}`,
+      buildBookingApiPath(`/api/v1/payments/resales/ledgers/orders/${encodeURIComponent(orderId)}`),
    );
 
    return response.data.data;

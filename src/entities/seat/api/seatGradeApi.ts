@@ -1,5 +1,6 @@
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import { buildBookingApiPath } from '@/shared/lib/bookingApiPath';
 
 export type SeatGradeResponse = {
    seatGradeId: string;
@@ -23,7 +24,7 @@ export const fetchSeatGrades = async ({
    forceNewSession?: boolean;
 }) => {
    const response = await apiClient.get<ApiEnvelope<SeatGradeSearchResultResponse>>(
-      `/api/v1/stadium-seats/games/${gameId}/seat-grades`,
+      buildBookingApiPath(`/api/v1/stadium-seats/games/${gameId}/seat-grades`),
       {
          params: forceNewSession ? { forceNewSession: true } : undefined,
       },
