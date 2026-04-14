@@ -39,7 +39,7 @@ export function Snackbar({ open, message, duration = 3000, onClose, className }:
          variant="success"
          aria-live="polite"
          className={cn(
-            'fixed bottom-8 left-1/2 -translate-x-1/2 z-100',
+            'pointer-events-none fixed bottom-8 left-1/2 -translate-x-1/2 z-100',
             'transition-opacity duration-300',
             visible ? 'opacity-100' : 'opacity-0',
             className,
