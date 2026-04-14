@@ -4,7 +4,7 @@ import { Slot } from '@radix-ui/react-slot';
 import { cn } from '@/shared/lib/utils';
 
 const optionVariants = cva(
-   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border transition-colors disabled:cursor-not-allowed',
+   'inline-flex cursor-pointer select-none items-center justify-center gap-2 whitespace-nowrap rounded-md border transition-colors disabled:cursor-not-allowed',
    {
       variants: {
          variant: {
@@ -53,7 +53,7 @@ const Option = React.forwardRef<HTMLButtonElement, OptionProps>(
                       항상 가장 넓은 너비인 'label-1-semibold'로 공간을 확보합니다. 
                       화면에는 보이지 않지만 버튼의 너비를 고정하는 역할을 합니다. 
                   */}
-                  <span className="invisible text-label-1-semibold opacity-0" aria-hidden="true">
+                  <span className="pointer-events-none invisible text-label-1-semibold opacity-0" aria-hidden="true">
                      {children}
                   </span>
 
@@ -63,7 +63,7 @@ const Option = React.forwardRef<HTMLButtonElement, OptionProps>(
                   */}
                   <span
                      className={cn(
-                        'absolute inset-0 flex items-center justify-center',
+                        'pointer-events-none absolute inset-0 flex items-center justify-center',
                         active ? 'text-label-1-semibold' : 'text-label-1-medium',
                      )}
                   >
