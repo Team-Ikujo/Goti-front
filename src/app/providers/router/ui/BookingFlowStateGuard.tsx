@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { leaveQueueKeepalive } from '@/pages/queue/api/queueApi';
-import { logBookingFlow, summarizeBookingEntry } from '@/shared/lib/bookingFlowDebug';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
 import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 import { useBookingFlowTimerStore } from '@/shared/lib/useBookingFlowTimerStore';
@@ -23,7 +23,8 @@ const requiresQueueReentryOnBoot = (pathname: string) =>
    isBookSelectionPath(pathname) || isTicketCheckoutPath(pathname);
 const shouldReleaseQueueOnUnload = (pathname: string) =>
    isBookSelectionPath(pathname) || isTicketCheckoutPath(pathname);
-const isPageReload = () => {
+
+const getInitialLoadWasReload = () => {
    if (typeof window === 'undefined' || typeof performance === 'undefined') {
       return false;
    }
@@ -34,9 +35,11 @@ const isPageReload = () => {
 
 const BookingFlowStateGuard = () => {
    const navigate = useNavigate();
+   const queryClient = useQueryClient();
    const location = useLocation();
    const { pathname, search } = location;
    const previousPathnameRef = useRef<string | null>(null);
+   const initialLoadWasReloadRef = useRef(getInitialLoadWasReload());
    const hasHydrated = useBookingEntryStore((state) => state.hasHydrated);
    const bookingEntry = useBookingEntryStore((state) => state.entry);
 
@@ -53,25 +56,17 @@ const BookingFlowStateGuard = () => {
       );
       const requiresEntry = requiresBookingEntry(pathname);
 
-      logBookingFlow('BookingFlowStateGuard', 'route check', {
-         pathname,
-         search,
-         previousPathname,
-         isInitialAppLoad,
-         isCurrentBookingFlow,
-         didExitBookingFlow,
-         requiresEntry,
-         requiresQueueReentryOnBoot: requiresQueueReentryOnBoot(pathname),
-         isReload: isPageReload(),
-         hasHydrated,
-         bookingEntry: summarizeBookingEntry(bookingEntry),
-      });
-
-      if (isInitialAppLoad && isPageReload() && requiresQueueReentryOnBoot(pathname) && bookingEntry) {
-         logBookingFlow('BookingFlowStateGuard', 'redirect to /queue on reload', {
-            pathname,
-            search,
-            bookingEntry: summarizeBookingEntry(bookingEntry),
+      if (
+         isInitialAppLoad &&
+         initialLoadWasReloadRef.current &&
+         requiresQueueReentryOnBoot(pathname) &&
+         bookingEntry
+      ) {
+         void queryClient.cancelQueries({
+            queryKey: ['booking-seat-map'],
+         });
+         queryClient.removeQueries({
+            queryKey: ['booking-seat-map'],
          });
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
@@ -81,7 +76,6 @@ const BookingFlowStateGuard = () => {
       }
 
       if (requiresEntry && !bookingEntry) {
-         logBookingFlow('BookingFlowStateGuard', 'missing bookingEntry, redirect to /', { pathname, search });
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
@@ -90,10 +84,6 @@ const BookingFlowStateGuard = () => {
       }
 
       if (didExitBookingFlow) {
-         logBookingFlow('BookingFlowStateGuard', 'exit booking flow, clear stores', {
-            previousPathname,
-            pathname,
-         });
          useSeatHoldStore.getState().clearSeatHolds();
          useSeatSelectionStore.getState().clearAllSelections();
          useBookingFlowTimerStore.getState().clearTimer();
@@ -101,7 +91,7 @@ const BookingFlowStateGuard = () => {
       }
 
       previousPathnameRef.current = pathname;
-   }, [bookingEntry, hasHydrated, navigate, pathname, search]);
+   }, [bookingEntry, hasHydrated, navigate, pathname, queryClient, search]);
 
    useEffect(() => {
       if (!shouldReleaseQueueOnUnload(pathname) || !bookingEntry?.gameId || !bookingEntry.queueTokenJti) {
@@ -109,11 +99,6 @@ const BookingFlowStateGuard = () => {
       }
 
       const handleUnload = () => {
-         logBookingFlow('BookingFlowStateGuard', 'unload -> leaveQueueKeepalive', {
-            pathname,
-            gameId: bookingEntry.gameId,
-            queueTokenJti: bookingEntry.queueTokenJti,
-         });
          leaveQueueKeepalive(bookingEntry.gameId!);
       };
 

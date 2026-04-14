@@ -40,6 +40,7 @@ export function useZoneSeatState({
       gameId: bookingEntryState?.gameId,
       isEntryReady: hasBookingEntryHydrated || Boolean(bookingEntryState),
       preferMockSeatMap,
+      queueTokenJti: bookingEntryState?.queueTokenJti,
       stadiumId: bookingEntryState?.stadiumId,
       zone,
    });

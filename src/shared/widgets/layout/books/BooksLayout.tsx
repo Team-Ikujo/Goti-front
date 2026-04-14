@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useSeatHoldStore } from '@/entities/seat-hold/model/useSeatHoldStore';
 import { useSeatSelectionStore } from '@/entities/seat-selection/model/useSeatSelectionStore';
@@ -10,8 +10,14 @@ import { useMouseEventTracker } from '@/shared/lib/useMouseEventTracker';
 
 import BooksHeader from './BooksHeader';
 
+const isBookSelectionPath = (pathname: string) =>
+   pathname.startsWith('/books') || pathname.startsWith('/resell-books');
+
 const BooksLayout = () => {
    const navigate = useNavigate();
+   const location = useLocation();
+   const { pathname } = location;
+   const hasHydrated = useBookingEntryStore(state => state.hasHydrated);
    const bookingEntry = useBookingEntryStore(state => state.entry);
    const clearEntry = useBookingEntryStore(state => state.clearEntry);
    const clearTimer = useBookingFlowTimerStore(state => state.clearTimer);
@@ -70,6 +76,14 @@ const BooksLayout = () => {
          window.removeEventListener('gesturechange', handleGesture as EventListener);
       };
    }, []);
+
+   if (!hasHydrated && isBookSelectionPath(pathname)) {
+      return (
+         <div className="min-h-screen bg-background">
+            <BooksHeader />
+         </div>
+      );
+   }
 
    return (
       <div className="min-h-screen bg-background">
