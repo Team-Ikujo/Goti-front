@@ -6,6 +6,7 @@ import type { ApiEnvelope } from '@/features/auth/api/types';
 import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
 import { buildMockQueueTokenJti } from '@/shared/config/booking';
 import { isResaleBookingMockEnabled } from '@/shared/config/runtime';
+import { buildBookingApiPath, buildBookingApiUrl } from '@/shared/lib/bookingApiPath';
 import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 
 export interface QueueEnterResponse {
@@ -68,7 +69,7 @@ export const enterQueue = async (gameId: string): Promise<QueueEnterResponse> =>
 
   try {
     const response = await apiClient.post<ApiEnvelope<QueueEnterResponse>>(
-      '/api/v1/queue/enter',
+      buildBookingApiPath('/api/v1/queue/enter'),
       { gameId },
     );
     return response.data.data;
@@ -84,7 +85,7 @@ export const getQueueGlobalStatus = async (gameId: string): Promise<QueueStatusR
   }
 
   const response = await apiClient.get<ApiEnvelope<QueueStatusResponse>>(
-    `/api/v1/queue/${encodeURIComponent(gameId)}/global-status`,
+    buildBookingApiPath(`/api/v1/queue/${encodeURIComponent(gameId)}/global-status`),
   );
   return response.data.data;
 };
@@ -97,7 +98,7 @@ export const getQueueStatus = async (gameId: string): Promise<QueueStatusRespons
 
   try {
     const response = await apiClient.get<ApiEnvelope<QueueStatusResponse>>(
-      `/api/v1/queue/${encodeURIComponent(gameId)}/status`,
+      buildBookingApiPath(`/api/v1/queue/${encodeURIComponent(gameId)}/status`),
     );
     return response.data.data;
   } catch (error) {
@@ -121,7 +122,7 @@ export const seatEnterQueue = async (
 
   try {
     const response = await apiClient.post<ApiEnvelope<QueueSeatEnterResponse>>(
-      `/api/v1/queue/${encodeURIComponent(gameId)}/seat-enter`,
+      buildBookingApiPath(`/api/v1/queue/${encodeURIComponent(gameId)}/seat-enter`),
       { queueToken },
     );
     return response.data.data;
@@ -142,7 +143,7 @@ export const leaveQueue = async (gameId: string): Promise<QueueLeaveResponse> =>
 
   try {
     const response = await apiClient.post<ApiEnvelope<QueueLeaveResponse>>(
-      `/api/v1/queue/${encodeURIComponent(gameId)}/leave`,
+      buildBookingApiPath(`/api/v1/queue/${encodeURIComponent(gameId)}/leave`),
     );
     return response.data.data;
   } catch (error) {
@@ -151,9 +152,10 @@ export const leaveQueue = async (gameId: string): Promise<QueueLeaveResponse> =>
 };
 
 const getLeaveQueueUrl = (gameId: string) => {
-  const path = `/api/v1/queue/${encodeURIComponent(gameId)}/leave`;
-  if (shouldUseRelativeApiBase || !configuredApiBaseUrl) return path;
-  return new URL(path, configuredApiBaseUrl).toString();
+  return buildBookingApiUrl({
+    path: `/api/v1/queue/${encodeURIComponent(gameId)}/leave`,
+    baseUrl: shouldUseRelativeApiBase ? undefined : configuredApiBaseUrl,
+  });
 };
 
 /**
