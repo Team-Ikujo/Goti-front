@@ -218,7 +218,7 @@ function ActionButtons({
             </div>
          )}
 
-         <div className={cn('hidden md:flex gap-2.5 items-stretch shrink-0', isEnded && 'opacity-0')}>
+         <div className={cn('hidden md:flex gap-2.5 items-stretch shrink-0', isEnded && 'pointer-events-none invisible')}>
             {/* 예매 버튼 — 데스크톱 */}
             {isTicketScheduled ? (
                <div className="w-[88px] bg-[#e9ebee] rounded-md px-4 py-2 flex flex-col items-center justify-center gap-0.5">
