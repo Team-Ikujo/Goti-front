@@ -26,25 +26,26 @@ const authorizationOptionalApiPaths = new Set([
   tokenReissuePath,
 ]);
 const shouldKeepSessionAlivePathPrefixes = ["/books", "/resell-books", "/tickets"];
+const OPTIONAL_TEAM_PATH_SEGMENT = '(?:/[^/]+)?';
 const PUBLIC_API_PATH_PATTERNS = [
   /^\/api\/v1\/games(?:\/|$)/,
   /^\/api\/v1\/baseball-teams(?:\/|$)/
 ];
 
 const GUARDRAIL_HEADER_API_PATH_PATTERNS = [
-  /^\/api\/v1\/seat-reservations(?:\/|$)/,
-  /^\/api\/v1\/orders(?:\/|$)/,
-  /^\/api\/v1\/payments\/orders(?:\/|$)/,
-  /^\/api\/v1\/resales\/holds(?:\/|$)/,
-  /^\/api\/v1\/resales\/orders(?:\/|$)/,
-  /^\/api\/v1\/payments\/resales(?:\/|$)/,
-  /^\/api\/v1\/resales\/games(?:\/|$)/,
-  /^\/api\/v1\/resales\/listings(?:\/|$)/,
-  /^\/api\/v1\/resales\/histories(?:\/|$)/,
-  /^\/api\/v1\/game-seats(?:\/|$)/,
-  /^\/api\/v1\/stadium-seats(?:\/|$)/,
-  /^\/api\/v1\/seats(?:\/|$)/,
-  /^\/api\/v1\/teams\/[^/]+\/ticket-pricing-policies(?:\/|$)/,
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/seat-reservations(?:/|$)`),
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/orders(?:/|$)`),
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/payments/orders(?:/|$)`),
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/resales/holds(?:/|$)`),
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/resales/orders(?:/|$)`),
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/payments/resales(?:/|$)`),
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/resales/games(?:/|$)`),
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/resales/listings(?:/|$)`),
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/resales/histories(?:/|$)`),
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/game-seats(?:/|$)`),
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/stadium-seats(?:/|$)`),
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/seats(?:/|$)`),
+  new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/teams/[^/]+/ticket-pricing-policies(?:/|$)`),
 ];
 
 type RetriableAxiosRequestConfig = AxiosRequestConfig & {
@@ -115,7 +116,7 @@ const shouldSkipAuthorizationHeader = (config: AxiosRequestConfig) => {
 
   try {
     const { pathname } = new URL(requestUrl, window.location.origin);
-    if (/^\/api\/v1\/queue\/[^/]+\/global-status$/.test(pathname)) {
+    if (new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/queue/[^/]+/global-status$`).test(pathname)) {
       return true;
     }
 
@@ -169,7 +170,7 @@ const shouldSkipCredentials = (config: AxiosRequestConfig) => {
 
   try {
     const { pathname } = new URL(requestUrl, window.location.origin);
-    if (/^\/api\/v1\/queue\/[^/]+\/global-status$/.test(pathname)) {
+    if (new RegExp(`^/api${OPTIONAL_TEAM_PATH_SEGMENT}/v1/queue/[^/]+/global-status$`).test(pathname)) {
       return true;
     }
 
