@@ -184,6 +184,8 @@ const buildStoredPurchaseTicketIds = (item: StoredPaymentCompleteItem): string[]
    const normalizedQuantity = Math.max(item.quantity, item.seats.length, 1);
 
    return Array.from({ length: normalizedQuantity }, (_, index) => {
+      // 결제 완료 저장소의 ticketId는 주문 내 첫 번째 티켓 식별자로 취급한다.
+      // 나머지 좌석은 mock QR 렌더링이 가능하도록 안정적인 fallback ID를 생성한다.
       if (index === 0 && item.ticketId) {
          return item.ticketId;
       }
