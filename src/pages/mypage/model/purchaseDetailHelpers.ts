@@ -90,6 +90,31 @@ export const getFallbackCancelableUntil = (orderedAt: string | undefined): strin
    ).toISOString();
 };
 
+export const getGameStartCancellationDeadline = (gameDate: string | undefined): string | undefined => {
+   const parsedGameDate = parseDateValue(gameDate);
+   if (!parsedGameDate) return undefined;
+
+   return new Date(parsedGameDate.getTime() - 4 * 60 * 60 * 1000).toISOString();
+};
+
+export const resolveCancelDeadline = ({
+   cancelableUntil,
+   gameDate,
+   orderedAt,
+}: {
+   cancelableUntil?: string;
+   gameDate?: string;
+   orderedAt?: string;
+}): string | undefined => {
+   return cancelableUntil || getGameStartCancellationDeadline(gameDate) || getFallbackCancelableUntil(orderedAt);
+};
+
+export const isCancellationWindowOpen = (cancelDeadline: string | undefined, now = new Date()): boolean => {
+   const parsedDeadline = parseDateValue(cancelDeadline);
+   if (!parsedDeadline) return false;
+   return parsedDeadline.getTime() > now.getTime();
+};
+
 export const formatGameTitle = (value: string): string => {
    const [left, right] = value.split(/\s+vs\s+/i);
    if (!left || !right) return value.trim();

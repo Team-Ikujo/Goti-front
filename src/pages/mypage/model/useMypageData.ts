@@ -180,12 +180,27 @@ const fetchMyOrderSummaries = async (): Promise<EnrichedOrderListItem[]> => {
    }));
 };
 
+const buildStoredPurchaseTicketIds = (item: StoredPaymentCompleteItem): string[] => {
+   const normalizedQuantity = Math.max(item.quantity, item.seats.length, 1);
+
+   return Array.from({ length: normalizedQuantity }, (_, index) => {
+      if (index === 0 && item.ticketId) {
+         return item.ticketId;
+      }
+
+      const baseId = item.orderId ?? item.orderNumber ?? 'stored-order';
+      const prefix = item.orderType === 'resale' ? 'mock-resale-ticket' : 'mock-ticket';
+      return `${prefix}:${baseId}:${index}`;
+   });
+};
+
 const mapStoredPaymentCompleteItemToPurchaseHistory = (item: StoredPaymentCompleteItem): PurchaseHistoryItem => {
    const seats = item.seats.length > 0
       ? item.seats.map((seatInfo) => parseSeatDetail(seatInfo))
       : Array.from({ length: item.quantity }, (_, index) => `좌석${index + 1}`);
    const primarySeatInfo = item.seats[0];
    const sectionLabel = primarySeatInfo ? parseGradeName(primarySeatInfo) : '좌석 정보';
+   const ticketIds = buildStoredPurchaseTicketIds(item);
 
    return {
       id: item.ticketId ?? item.orderId ?? item.orderNumber,
@@ -207,6 +222,8 @@ const mapStoredPaymentCompleteItemToPurchaseHistory = (item: StoredPaymentComple
       paymentStatus: mapPurchaseStatus(item.orderStatus ?? item.paymentStatus ?? 'CONFIRMED'),
       deliveryType: '모바일 티켓',
       canSell: item.orderType !== 'resale',
+      ticketIds,
+      seatPrices: Array.from({ length: item.quantity }, () => Math.round(item.amount / Math.max(item.quantity, 1))),
    };
 };
 
