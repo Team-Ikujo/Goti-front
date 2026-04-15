@@ -16,6 +16,7 @@ import ActionStatusDialog from './ActionStatusDialog';
 import { cancelResaleListing } from '@/entities/resale/api/resaleApi';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { markStoredResaleListingCanceled } from '@/shared/lib/resaleListingStorage';
+import { isCancellationWindowOpen, resolveCancelDeadline } from '../model/purchaseDetailHelpers';
 
 export type PurchaseStatus = '입금 대기' | '예매 완료' | '부분 처리' | '관람 완료' | '취소/환불';
 export type SaleStatus = '판매 중' | '판매 완료' | '정산 대기' | '판매 취소 대기' | '취소 대기' | '취소 완료';
@@ -90,11 +91,16 @@ export default function HistoryCard(props: HistoryCardProps) {
    const [noAccountOpen, setNoAccountOpen] = useState(false);
    const [qrOpen, setQrOpen] = useState(false);
    const [saleCancelDialogType, setSaleCancelDialogType] = useState<'success' | 'error' | null>(null);
+   const [cancelUnavailableOpen, setCancelUnavailableOpen] = useState(false);
 
    const { mode, item } = props;
    const isPurchase = isPurchaseHistoryItem(mode, item);
    const purchaseItem = isPurchase ? item : null;
    const purchaseOrderId = purchaseItem?.rawOrderId;
+   const purchaseCancelDeadline = resolveCancelDeadline({
+      gameDate: purchaseItem?.game.datetime,
+      orderedAt: purchaseItem?.rawOrderDate ?? purchaseItem?.orderDate,
+   });
 
    // 모드별 파생값
    const dateLabel = isPurchase ? '예약일자' : '판매일자';
@@ -116,18 +122,21 @@ export default function HistoryCard(props: HistoryCardProps) {
       (purchaseItem?.paymentStatus === '입금 대기' ||
          purchaseItem?.paymentStatus === '예매 완료' ||
          purchaseItem?.paymentStatus === '부분 처리');
+   const isQrAvailablePurchaseStatus =
+      purchaseItem?.paymentStatus === '예매 완료' || purchaseItem?.paymentStatus === '부분 처리';
    const isSellablePurchaseStatus =
       !isResalePurchase &&
-      (purchaseItem?.paymentStatus === '예매 완료' || purchaseItem?.paymentStatus === '부분 처리');
+      isQrAvailablePurchaseStatus;
    const showSellBtn =
       hasPurchaseOrder &&
       purchaseItem?.deliveryType === '모바일 티켓' &&
       isSellablePurchaseStatus;
    const showCancelBtn = hasPurchaseOrder && isCancelablePurchaseStatus;
+   const canProceedCancel = isCancellationWindowOpen(purchaseCancelDeadline);
    const showQrBtn =
       hasPurchaseOrder &&
       item.deliveryType === '모바일 티켓' &&
-      isSellablePurchaseStatus;
+      isQrAvailablePurchaseStatus;
    const showDash =
       isPurchase && (purchaseItem?.paymentStatus === '취소/환불' || purchaseItem?.paymentStatus === '관람 완료');
    const canCancelSale = !isPurchase && (item as SaleHistoryItem).canCancel;
@@ -165,6 +174,14 @@ export default function HistoryCard(props: HistoryCardProps) {
                        }
                      : undefined
                }
+            />
+         )}
+         {isPurchase && (
+            <ActionStatusDialog
+               open={cancelUnavailableOpen}
+               title="예매 취소"
+               message="경기 시작 4시간 전까지만 취소할 수 있습니다."
+               onClose={() => setCancelUnavailableOpen(false)}
             />
          )}
          {isPurchase && resellOpen && purchaseItem && (
@@ -206,6 +223,7 @@ export default function HistoryCard(props: HistoryCardProps) {
             <QrViewDialog
                open={qrOpen}
                onClose={() => setQrOpen(false)}
+               disableQrTokenFetch={isResalePurchase}
                seats={item.game.seats.map((seat, index) => ({
                   ticketId: purchaseItem?.ticketIds?.[index],
                   section: item.game.section,
@@ -342,7 +360,12 @@ export default function HistoryCard(props: HistoryCardProps) {
                                  className="w-full"
                                  onClick={e => {
                                     e.stopPropagation();
-                                    setCancelOpen(true);
+                                    if (canProceedCancel) {
+                                       setCancelOpen(true);
+                                       return;
+                                    }
+
+                                    setCancelUnavailableOpen(true);
                                  }}
                               >
                                  예매 취소
@@ -483,7 +506,12 @@ export default function HistoryCard(props: HistoryCardProps) {
                                 className="flex-1"
                                 onClick={e => {
                                    e.stopPropagation();
-                                   setCancelOpen(true);
+                                   if (canProceedCancel) {
+                                      setCancelOpen(true);
+                                      return;
+                                   }
+
+                                   setCancelUnavailableOpen(true);
                                 }}
                              >
                                 예매 취소

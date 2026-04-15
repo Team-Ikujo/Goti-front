@@ -20,6 +20,7 @@ import StatusBadge from './StatusBadge';
 import TicketItem from './TicketItem';
 import InfoItem from './InfoItem';
 import { PurchaseDetailDialogs } from './PurchaseDetailDialogs';
+import ActionStatusDialog from './ActionStatusDialog';
 import { Snackbar } from '@/shared/ui/snackbar';
 import { readStoredPaymentCompleteItems } from '@/shared/lib/paymentCompleteStorage';
 import { useAuthStore } from '@/entities/auth/model/authStore';
@@ -32,10 +33,12 @@ import {
    formatDateTime,
    parseGradeName,
    getFallbackCancelableUntil,
+   isCancellationWindowOpen,
    formatGameTitle,
    mapOverallStatus,
    mapTicketItemStatus,
    formatPrice,
+   resolveCancelDeadline,
 } from '../model/purchaseDetailHelpers';
 
 function SectionCard({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -81,6 +84,7 @@ export default function PurchaseDetailPage() {
    const [qrOpen, setQrOpen] = useState(false);
    const [cancelOpen, setCancelOpen] = useState(false);
    const [resellOpen, setResellOpen] = useState(false);
+   const [cancelUnavailableOpen, setCancelUnavailableOpen] = useState(false);
 
    const locationStateItem = (location.state as { historyItem?: PurchaseHistoryItem } | null)?.historyItem;
 
@@ -230,6 +234,12 @@ export default function PurchaseDetailPage() {
          // paidAt이 없을 경우 예매일자로 폴백
          const paidAt = orderPaymentQuery.data?.paidAt ?? fallbackOrderedAt;
          const total = orderPaymentQuery.data?.paymentAmount ?? fallbackTotalAmount;
+         const cancelDeadline = fallbackTicketStatus !== 'INVALID'
+            ? resolveCancelDeadline({
+                 gameDate: fallbackSource?.game.datetime ?? matchedOrder?.gameDate,
+                 orderedAt: fallbackOrderedAt,
+              })
+            : undefined;
 
          return {
             id: fallbackSource?.rawOrderId ?? fallbackSource?.id ?? resolvedOrderId ?? orderId ?? 'purchase-detail',
@@ -245,9 +255,7 @@ export default function PurchaseDetailPage() {
             orderDate: fallbackOrderedAt,
             orderer: ordererName,
             issuedAt: fallbackOrderedAt,
-            cancelDeadline: fallbackTicketStatus !== 'INVALID'
-               ? getFallbackCancelableUntil(fallbackOrderedAt)
-               : undefined,
+            cancelDeadline,
             seatInfo: fallbackSeatInfos[0] ?? '',
             ticketPrice: unitPrice,
             paymentMethodDisplay,
@@ -289,6 +297,10 @@ export default function PurchaseDetailPage() {
             status: '예매완료',
             price: Math.round(storedPaymentDetail.amount / Math.max(seats.length, 1)),
          }));
+         const cancelDeadline = resolveCancelDeadline({
+            gameDate: storedPaymentDetail.gameDate,
+            orderedAt: storedPaymentDetail.paidAt ?? storedPaymentDetail.orderedAt,
+         });
 
          return {
             id: storedPaymentDetail.ticketId ?? storedPaymentDetail.orderId ?? storedPaymentDetail.orderNumber,
@@ -304,7 +316,7 @@ export default function PurchaseDetailPage() {
             orderDate: storedPaymentDetail.orderedAt,
             orderer: myProfileSummaryQuery.data?.name?.trim() || fallbackOrdererName,
             issuedAt: storedPaymentDetail.paidAt ?? storedPaymentDetail.orderedAt,
-            cancelDeadline: getFallbackCancelableUntil(storedPaymentDetail.paidAt ?? storedPaymentDetail.orderedAt),
+            cancelDeadline,
             cancelDate: undefined,
             seatInfo: seats[0],
             ticketPrice: Math.round(storedPaymentDetail.amount / Math.max(seats.length, 1)),
@@ -368,6 +380,13 @@ export default function PurchaseDetailPage() {
          || undefined;
       const paymentAmount = orderPaymentQuery.data?.paymentAmount ?? total;
       const isResaleTicket = currentApiDetail.ticketStatus === 'RESALE_ISSUED';
+      const cancelDeadline = isInvalid
+         ? undefined
+         : resolveCancelDeadline({
+              cancelableUntil: currentApiDetail.cancelableUntil,
+              gameDate: currentApiDetail.gameDate,
+              orderedAt: currentApiDetail.orderedAt ?? currentApiDetail.issuedAt,
+           });
 
       return {
          id: currentApiDetail.ticketId,
@@ -383,10 +402,7 @@ export default function PurchaseDetailPage() {
          orderDate: currentApiDetail.orderedAt ?? currentApiDetail.issuedAt,
          orderer: ordererName,
          issuedAt: currentApiDetail.issuedAt,
-         cancelDeadline: isInvalid
-            ? undefined
-            : (currentApiDetail.cancelableUntil ??
-              getFallbackCancelableUntil(currentApiDetail.orderedAt ?? currentApiDetail.issuedAt)),
+         cancelDeadline,
          cancelDate: isInvalid ? (currentApiDetail.issuedAt ?? '-') : undefined,
          seatInfo: currentApiDetail.seatInfo,
          ticketPrice: currentApiDetail.ticketPrice,
@@ -450,9 +466,16 @@ export default function PurchaseDetailPage() {
    const totalRefund = totalTicketPrice - serviceFee;
    const seatTickets = detail.seatItems;
    const hasResolvedPaymentInfo = Boolean(detail.paymentMethodDisplay || detail.paidAt);
+   const canProceedCancel = detail.canCancel && isCancellationWindowOpen(detail.cancelDeadline);
 
    return (
       <div className="flex flex-col items-center pt-8 lg:pt-12.5 pb-40 px-4">
+         <ActionStatusDialog
+            open={cancelUnavailableOpen}
+            title="예매 취소"
+            message="경기 시작 4시간 전까지만 취소할 수 있습니다."
+            onClose={() => setCancelUnavailableOpen(false)}
+         />
          <Snackbar
             open={showCancelSnackbar}
             message="취소가 완료되었습니다."
@@ -461,6 +484,7 @@ export default function PurchaseDetailPage() {
 
          <PurchaseDetailDialogs
             orderId={orderId!}
+            disableQrTokenFetch={isMockResalePurchase}
             detail={detail}
             isBankTransfer={orderPaymentQuery.data?.paymentMethod === 'ACCOUNT_TRANSFER'}
             qrOpen={qrOpen}
@@ -627,7 +651,18 @@ export default function PurchaseDetailPage() {
 
             <div className="flex gap-3">
                {detail.canCancel && (
-                  <Button variant="tertiary" className="flex-1 py-3" onClick={() => setCancelOpen(true)}>
+                  <Button
+                     variant="tertiary"
+                     className="flex-1 py-3"
+                     onClick={() => {
+                        if (canProceedCancel) {
+                           setCancelOpen(true);
+                           return;
+                        }
+
+                        setCancelUnavailableOpen(true);
+                     }}
+                  >
                      예매 취소하기
                   </Button>
                )}

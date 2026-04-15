@@ -1,10 +1,59 @@
 import path from 'path';
-import { defineConfig } from '@rsbuild/core';
+import { defineConfig, rspack, type Rspack } from '@rsbuild/core';
 import { pluginReact } from '@rsbuild/plugin-react';
+import { obfuscate, type ObfuscatorOptions } from 'javascript-obfuscator';
 
 const apiTarget = (process.env.PUBLIC_API_BASE_URL ?? 'https://dev.go-ti.shop').trim();
 const mlTarget = (process.env.PUBLIC_MOUSE_ML_URL ?? 'https://api.go-ti.shop').replace(/\/$/, '');
 const dashboardTarget = (process.env.PUBLIC_MACRO_DASHBOARD_API_URL ?? 'https://go-ti.shop').trim();
+const shouldObfuscate = process.env.NODE_ENV === 'production' && process.env.ENABLE_CODE_OBFUSCATION !== 'false';
+
+const obfuscationOptions: ObfuscatorOptions = {
+   compact: true,
+   controlFlowFlattening: false,
+   deadCodeInjection: false,
+   identifierNamesGenerator: 'hexadecimal',
+   renameGlobals: false,
+   rotateStringArray: true,
+   selfDefending: true,
+   simplify: true,
+   splitStrings: true,
+   splitStringsChunkLength: 8,
+   stringArray: true,
+   stringArrayCallsTransform: true,
+   stringArrayEncoding: ['base64'],
+   stringArrayThreshold: 0.75,
+   transformObjectKeys: true,
+   unicodeEscapeSequence: false,
+};
+
+class JsObfuscationPlugin {
+   apply(compiler: Rspack.Compiler): void {
+      compiler.hooks.thisCompilation.tap('JsObfuscationPlugin', (compilation) => {
+         compilation.hooks.processAssets.tap(
+            {
+               name: 'JsObfuscationPlugin',
+               stage: rspack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
+            },
+            (assets) => {
+               for (const [filename, asset] of Object.entries(assets)) {
+                  if (!filename.endsWith('.js')) {
+                     continue;
+                  }
+
+                  const sourceCode = asset.source().toString();
+                  const result = obfuscate(sourceCode, {
+                     ...obfuscationOptions,
+                     sourceMap: false,
+                  });
+
+                  compilation.updateAsset(filename, new rspack.sources.RawSource(result.getObfuscatedCode()));
+               }
+            }
+         );
+      });
+   }
+}
 
 // Rsbuild configuration — https://rsbuild.rs/config/
 export default defineConfig({
@@ -26,6 +75,13 @@ export default defineConfig({
    },
    performance: {
       removeConsole: process.env.NODE_ENV === 'production' ? ['log', 'info', 'warn'] : false,
+   },
+   tools: {
+      rspack: shouldObfuscate
+         ? (config) => {
+              config.plugins.push(new JsObfuscationPlugin());
+           }
+         : undefined,
    },
    server: {
       proxy: {
