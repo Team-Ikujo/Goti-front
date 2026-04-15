@@ -381,7 +381,10 @@ export const useMyOrdersData = () => {
 
    const sortedData = useMemo(() => {
       return [...data].sort((left, right) => {
-         return toISODate(right.orderDate).localeCompare(toISODate(left.orderDate));
+         const leftTimestamp = parseDateValue(left.rawOrderDate ?? left.orderDate)?.getTime() ?? 0;
+         const rightTimestamp = parseDateValue(right.rawOrderDate ?? right.orderDate)?.getTime() ?? 0;
+
+         return rightTimestamp - leftTimestamp;
       });
    }, [data]);
 
