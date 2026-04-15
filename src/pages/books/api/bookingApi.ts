@@ -2,6 +2,7 @@ import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
 import { getBookingZones } from '@/pages/books/model/zoneData';
 import type { SeatBlock, SeatItem, SeatStatus, ZoneItem } from '@/pages/books/model/types';
+import { buildBookingApiPath } from '@/shared/lib/bookingApiPath';
 
 export type SeatGradeResponse = {
    seatGradeId: string;
@@ -300,7 +301,7 @@ export const fetchSeatGrades = async ({
 }) => {
    try {
       const response = await apiClient.get<ApiEnvelope<SeatGradeSearchResultResponse>>(
-         `/api/v1/stadium-seats/games/${gameId}/seat-grades`,
+         buildBookingApiPath(`/api/v1/stadium-seats/games/${gameId}/seat-grades`),
          {
             params: forceNewSession ? { forceNewSession: true } : undefined,
          },
@@ -320,7 +321,7 @@ export const fetchSeatSections = async ({
    gameId?: string;
 }) => {
    try {
-      const response = await apiClient.get<ApiEnvelope<SeatSectionResponse[]>>(`/api/v1/stadium-seats/stadiums/${stadiumId}/seat-sections`, {
+      const response = await apiClient.get<ApiEnvelope<SeatSectionResponse[]>>(buildBookingApiPath(`/api/v1/stadium-seats/stadiums/${stadiumId}/seat-sections`), {
          params: gameId ? { gameId } : undefined,
       });
       return response.data.data;
@@ -359,7 +360,7 @@ export const fetchSeats = async ({
    sectionId: string;
    gameId: string;
 }) => {
-   const response = await apiClient.get<ApiEnvelope<RawSeatResponse[]>>(`/api/v1/seats/seat-sections/${sectionId}/seats`, {
+   const response = await apiClient.get<ApiEnvelope<RawSeatResponse[]>>(buildBookingApiPath(`/api/v1/seats/seat-sections/${sectionId}/seats`), {
       params: { gameId },
    });
 
@@ -383,7 +384,7 @@ export const fetchSeats = async ({
 export const fetchSeatStatuses = async (gameId: string, sectionId: string) => {
    try {
       const response = await apiClient.get<ApiEnvelope<SeatStatusResponse[]>>(
-         `/api/v1/game-seats/${gameId}/sections/${sectionId}/seat-statuses`,
+         buildBookingApiPath(`/api/v1/game-seats/${gameId}/sections/${sectionId}/seat-statuses`),
       );
       return response.data.data ?? [];
    } catch (error) {
@@ -404,7 +405,7 @@ export const summarizeSeatStatusSnapshot = (statuses: SeatStatusResponse[]) => {
 export const fetchTicketPricingPolicy = async (teamId: string) => {
    try {
       const response = await apiClient.get<ApiEnvelope<TicketPricingPolicyResponse>>(
-         `/api/v1/teams/${teamId}/ticket-pricing-policies`,
+         buildBookingApiPath(`/api/v1/teams/${teamId}/ticket-pricing-policies`),
       );
       return response.data.data;
    } catch (error) {

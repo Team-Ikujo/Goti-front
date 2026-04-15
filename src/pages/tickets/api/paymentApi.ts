@@ -11,6 +11,7 @@ import { type StoredPaymentCompleteItem } from '@/shared/lib/paymentCompleteStor
 import { resolveUserIdFromJwt } from '@/shared/lib/jwt';
 import { useAuthStore } from '@/entities/auth/model/authStore';
 import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
+import { buildBookingApiPath, buildBookingApiUrl } from '@/shared/lib/bookingApiPath';
 import { isResaleBookingMockEnabled, isResaleDemoEnabled } from '@/shared/config/runtime';
 import {
    completeDemoResaleOrder,
@@ -186,13 +187,10 @@ const createClientTransactionId = (prefix: string) => {
 const delay = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms));
 
 const getResaleHoldReleaseUrl = (holdId: string) => {
-   const path = `/api/v1/resales/holds/${encodeURIComponent(holdId)}/release`;
-
-   if (shouldUseRelativeApiBase || !configuredApiBaseUrl) {
-      return path;
-   }
-
-   return new URL(path, configuredApiBaseUrl).toString();
+   return buildBookingApiUrl({
+      path: `/api/v1/resales/holds/${encodeURIComponent(holdId)}/release`,
+      baseUrl: shouldUseRelativeApiBase ? undefined : configuredApiBaseUrl,
+   });
 };
 
 const assertNever = (value: never): never => {
@@ -228,20 +226,22 @@ const toPaymentMethodLabel = (paymentMethod: PaymentMethod) => {
 };
 
 const createOrder = async (payload: CreateOrderRequest) => {
-   const response = await apiClient.post<ApiEnvelope<CreateOrderResponse>>('/api/v1/orders', payload);
+   const response = await apiClient.post<ApiEnvelope<CreateOrderResponse>>(buildBookingApiPath('/api/v1/orders'), payload);
 
    return response.data.data;
 };
 
 export const getOrderPayment = async (orderId: string) => {
-   const response = await apiClient.get<ApiEnvelope<OrderPaymentResponse>>(`/api/v1/payments/orders/${orderId}`);
+   const response = await apiClient.get<ApiEnvelope<OrderPaymentResponse>>(
+      buildBookingApiPath(`/api/v1/payments/orders/${orderId}`),
+   );
 
    return response.data.data;
 };
 
 const createOrderPayment = async (orderId: string, payload: OrderPaymentRequest) => {
    const response = await apiClient.post<ApiEnvelope<OrderPaymentResponse>>(
-      `/api/v1/payments/orders/${orderId}`,
+      buildBookingApiPath(`/api/v1/payments/orders/${orderId}`),
       payload,
    );
 
@@ -253,7 +253,7 @@ const createResaleHold = async (payload: ResaleHoldRequest) => {
       return createDemoResaleHold(payload.listingId, payload.queueTokenJti);
    }
 
-   const response = await apiClient.post<ApiEnvelope<ResaleHoldResponse>>('/api/v1/resales/holds', payload);
+   const response = await apiClient.post<ApiEnvelope<ResaleHoldResponse>>(buildBookingApiPath('/api/v1/resales/holds'), payload);
 
    return response.data.data;
 };
@@ -264,7 +264,7 @@ export const releaseResaleHold = async (holdId: string) => {
    }
 
    const response = await apiClient.patch<ApiEnvelope<ResaleHoldResponse>>(
-      `/api/v1/resales/holds/${encodeURIComponent(holdId)}/release`,
+      buildBookingApiPath(`/api/v1/resales/holds/${encodeURIComponent(holdId)}/release`),
    );
 
    return response.data.data;
@@ -298,7 +298,7 @@ const createResaleOrder = async (payload: ResaleOrderRequest) => {
       });
    }
 
-   const response = await apiClient.post<ApiEnvelope<ResaleOrderResponse>>('/api/v1/resales/orders', payload);
+   const response = await apiClient.post<ApiEnvelope<ResaleOrderResponse>>(buildBookingApiPath('/api/v1/resales/orders'), payload);
 
    return response.data.data;
 };
@@ -325,7 +325,7 @@ const getResaleTransactions = async (orderId: string) => {
    }
 
    const response = await apiClient.get<ApiEnvelope<ResaleOrderTransactionsResponse | string[]>>(
-      `/api/v1/resales/orders/${orderId}/transactions`,
+      buildBookingApiPath(`/api/v1/resales/orders/${orderId}/transactions`),
    );
 
    return normalizeTransactionIds(response.data.data);
@@ -355,7 +355,7 @@ const createResalePayment = async (payload: ResalePaymentRequest) => {
       });
    }
 
-   const response = await apiClient.post<ApiEnvelope<OrderPaymentResponse>>('/api/v1/payments/resales', payload);
+   const response = await apiClient.post<ApiEnvelope<OrderPaymentResponse>>(buildBookingApiPath('/api/v1/payments/resales'), payload);
 
    return response.data.data;
 };
@@ -380,7 +380,7 @@ const completeResaleOrder = async (orderId: string, paymentId: string): Promise<
    }
 
    const response = await apiClient.patch<ApiEnvelope<CompleteResaleOrderResponse>>(
-      `/api/v1/resales/orders/${encodeURIComponent(orderId)}/complete`,
+      buildBookingApiPath(`/api/v1/resales/orders/${encodeURIComponent(orderId)}/complete`),
       undefined,
       {
          params: { paymentId },
