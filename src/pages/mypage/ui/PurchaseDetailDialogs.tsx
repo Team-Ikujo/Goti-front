@@ -13,6 +13,7 @@ const parseGradeName = (seatInfo: string): string => {
 
 interface PurchaseDetailDialogsProps {
    orderId: string;
+   disableQrTokenFetch?: boolean;
    detail: {
       id: string;
       orderId: string;
@@ -44,6 +45,7 @@ interface PurchaseDetailDialogsProps {
 
 export function PurchaseDetailDialogs({
    orderId,
+   disableQrTokenFetch = false,
    detail,
    isBankTransfer,
    qrOpen,
@@ -119,6 +121,7 @@ export function PurchaseDetailDialogs({
          <QrViewDialog
             open={qrOpen}
             onClose={onCloseQr}
+            disableQrTokenFetch={disableQrTokenFetch}
             seats={detail.seatItems
                .filter((seat) => seat.status !== '취소완료')
                .map((seat) => ({ ticketId: seat.ticketId, section: seat.section, seatDetail: seat.seatDetail }))}

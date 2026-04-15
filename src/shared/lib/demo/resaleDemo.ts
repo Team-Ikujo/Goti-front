@@ -606,6 +606,7 @@ export const completeDemoResaleOrder = (orderId: string) => {
          return {
             transactionId: order.transactionIds[index] ?? createId('demo-transaction'),
             listingId: listing.listingId,
+            ticketId: listing.ticketId,
             seatInfo: listing.seatInfo,
             price: listing.listingPrice,
          };

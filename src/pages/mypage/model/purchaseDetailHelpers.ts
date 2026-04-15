@@ -26,6 +26,25 @@ export const parseDateValue = (value: string | undefined | null): Date | null =>
    if (!value) return null;
 
    const normalizedForDate = value.replace(/\.\s/g, '.').replace(/\.$/, '').trim();
+   const localDateTimeMatch = normalizedForDate.match(
+      /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/,
+   );
+
+   // 타임존 정보가 없는 "YYYY-MM-DD HH:mm:ss"/"YYYY-MM-DDTHH:mm:ss" 형식은
+   // 브라우저 구현 차이에 기대지 않고 로컬 시각으로 명시적으로 해석한다.
+   if (localDateTimeMatch) {
+      const [, year, month, day, hour = '0', minute = '0', second = '0'] = localDateTimeMatch;
+
+      return new Date(
+         Number(year),
+         Number(month) - 1,
+         Number(day),
+         Number(hour),
+         Number(minute),
+         Number(second),
+      );
+   }
+
    const directDate = new Date(normalizedForDate);
    if (!Number.isNaN(directDate.getTime())) return directDate;
 
@@ -88,6 +107,33 @@ export const getFallbackCancelableUntil = (orderedAt: string | undefined): strin
       orderedDate.getDate(),
       23, 59, 0,
    ).toISOString();
+};
+
+export const getGameStartCancellationDeadline = (gameDate: string | undefined): string | undefined => {
+   const parsedGameDate = parseDateValue(gameDate);
+   if (!parsedGameDate) return undefined;
+
+   // parseDateValue가 시간대 없는 gameDate를 로컬 시각으로 고정 해석하므로,
+   // "경기 시작 4시간 전" 계산도 동일한 기준에서 일관되게 동작한다.
+   return new Date(parsedGameDate.getTime() - 4 * 60 * 60 * 1000).toISOString();
+};
+
+export const resolveCancelDeadline = ({
+   cancelableUntil,
+   gameDate,
+   orderedAt,
+}: {
+   cancelableUntil?: string;
+   gameDate?: string;
+   orderedAt?: string;
+}): string | undefined => {
+   return cancelableUntil || getGameStartCancellationDeadline(gameDate) || getFallbackCancelableUntil(orderedAt);
+};
+
+export const isCancellationWindowOpen = (cancelDeadline: string | undefined, now = new Date()): boolean => {
+   const parsedDeadline = parseDateValue(cancelDeadline);
+   if (!parsedDeadline) return false;
+   return parsedDeadline.getTime() > now.getTime();
 };
 
 export const formatGameTitle = (value: string): string => {

@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui/button';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { cancelOrder } from '@/entities/order/api/orderApi';
+import { getErrorMessage } from '@/shared/lib/error/getErrorMessage';
 
 interface Props {
    open: boolean;
@@ -44,9 +45,10 @@ export default function CancelConfirmDialog({
    totalSeatCount,
 }: Props) {
    const navigate = useNavigate();
-   const queryClient = useQueryClient();
-   const [isLoading, setIsLoading] = useState(false);
-   const isFullSeatSelection = ticketCount === totalSeatCount;
+  const queryClient = useQueryClient();
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const isFullSeatSelection = ticketCount === totalSeatCount;
    const hasPartialOrderItemIds = selectedOrderItemIds.length > 0 && !isFullSeatSelection;
    const requestType = hasPartialOrderItemIds ? 'ORDER_PARTIAL' : 'ORDER_FULL';
    const orderItemIds = hasPartialOrderItemIds ? selectedOrderItemIds : undefined;
@@ -58,6 +60,7 @@ export default function CancelConfirmDialog({
             orderItemIds,
          }),
       onSuccess: () => {
+         setErrorMessage(null);
          selectedTicketIds.forEach((ticketId) => {
             queryClient.invalidateQueries({ queryKey: ['ticketDetail', ticketId] });
             queryClient.invalidateQueries({ queryKey: ['ticketDetailFallback', ticketId] });
@@ -69,7 +72,8 @@ export default function CancelConfirmDialog({
          onClose();
          navigate(`/mypage/purchase/${orderId}`, { state: { showCancelSuccess: true } });
       },
-      onError: () => {
+      onError: (error) => {
+         setErrorMessage(getErrorMessage(error, '예매 취소에 실패했습니다. 잠시 후 다시 시도해주세요.'));
          setIsLoading(false);
       },
    });
@@ -149,6 +153,12 @@ export default function CancelConfirmDialog({
                      </span>
                   </div>
                </div>
+
+               {errorMessage && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-[13px] leading-normal text-destructive">
+                     {errorMessage}
+                  </p>
+               )}
             </div>
 
             <div className="flex gap-3 px-5 pb-5">
@@ -159,6 +169,7 @@ export default function CancelConfirmDialog({
                   className="flex-1 py-3"
                   disabled={isLoading}
                   onClick={() => {
+                     setErrorMessage(null);
                      setIsLoading(true);
                      cancel();
                   }}

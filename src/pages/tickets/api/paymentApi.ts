@@ -369,6 +369,7 @@ type CompleteResaleOrderResponse = {
    items: Array<{
       transactionId: string;
       listingId: string;
+      ticketId?: string;
       seatInfo: string;
       price: number;
    }>;
@@ -587,6 +588,7 @@ export const submitResaleOrder = async (
          gameVenue: payload.gameVenue,
          seats: [payload.seatInfo],
          resaleListingId: payload.listingId,
+         ticketId: completeResult.items[0]?.ticketId,
          issuedTicketCount,
       });
    } catch (error) {
