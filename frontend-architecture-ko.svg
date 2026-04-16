@@ -1,0 +1,98 @@
+<svg width="1360" height="940" viewBox="0 0 1360 940" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Goti 프론트엔드 아키텍처</title>
+  <desc id="desc">Goti 프론트엔드 프로젝트의 app, pages, features, entities, shared 계층을 요약한 간단한 구조 다이어그램입니다.</desc>
+  <defs>
+    <style>
+      text { font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; fill: #16324F; }
+      .title { font-size: 32px; font-weight: 700; }
+      .subtitle { font-size: 16px; fill: #486581; }
+      .layer-title { font-size: 24px; font-weight: 700; }
+      .label { font-size: 16px; font-weight: 600; }
+      .small { font-size: 14px; fill: #52667A; }
+      .layer { rx: 28; }
+      .card { rx: 18; }
+    </style>
+    <marker id="arrow" markerWidth="3.5" markerHeight="3.5" refX="0" refY="1.75" orient="auto">
+      <path d="M0 0L3.5 1.75L0 3.5V0Z" fill="#4F6D8A"/>
+    </marker>
+  </defs>
+
+  <rect width="1360" height="940" fill="#F4F7FB"/>
+  <rect x="36" y="28" width="1288" height="884" rx="32" fill="#FFFFFF" opacity="0.72"/>
+
+  <text x="72" y="74" class="title">Goti 프론트엔드 내부 아키텍처</text>
+  <text x="72" y="104" class="subtitle">FSD 지향 계층 구조와 공통 인프라, 기능/도메인 분리를 단순화해 표현한 다이어그램</text>
+
+  <rect x="72" y="146" width="1136" height="100" class="layer" fill="#DCEEFF" stroke="#8BB8E8" stroke-width="2"/>
+  <text x="104" y="188" class="layer-title">app</text>
+  <text x="104" y="214" class="small">애플리케이션 부트스트랩, 전역 provider, 라우팅 구성</text>
+  <rect x="708" y="167" width="210" height="56" class="card" fill="#FFFFFF" stroke="#8BB8E8" stroke-width="2"/>
+  <text x="813" y="201" class="label" text-anchor="middle">라우터 / 가드</text>
+  <rect x="940" y="167" width="230" height="56" class="card" fill="#FFFFFF" stroke="#8BB8E8" stroke-width="2"/>
+  <text x="1055" y="201" class="label" text-anchor="middle">Query Provider / 세션</text>
+
+  <rect x="72" y="286" width="1136" height="118" class="layer" fill="#E8F8E9" stroke="#8CCF92" stroke-width="2"/>
+  <text x="104" y="325" class="layer-title">pages</text>
+  <text x="104" y="351" class="small">라우트 단위 화면에서 widgets, features, entities를 조합</text>
+  <rect x="628" y="307" width="170" height="68" class="card" fill="#FFFFFF" stroke="#8CCF92" stroke-width="2"/>
+  <text x="713" y="337" class="label" text-anchor="middle">홈</text>
+  <text x="713" y="358" class="small" text-anchor="middle">`pages/home`</text>
+  <rect x="822" y="307" width="170" height="68" class="card" fill="#FFFFFF" stroke="#8CCF92" stroke-width="2"/>
+  <text x="907" y="337" class="label" text-anchor="middle">예매</text>
+  <text x="907" y="358" class="small" text-anchor="middle">`pages/books`</text>
+  <rect x="1016" y="307" width="170" height="68" class="card" fill="#FFFFFF" stroke="#8CCF92" stroke-width="2"/>
+  <text x="1101" y="337" class="label" text-anchor="middle">결제 / 마이페이지</text>
+  <text x="1101" y="358" class="small" text-anchor="middle">payment, history, resale</text>
+
+  <rect x="72" y="448" width="1136" height="118" class="layer" fill="#FFF5D6" stroke="#E3C46B" stroke-width="2"/>
+  <text x="104" y="487" class="layer-title">features</text>
+  <text x="104" y="513" class="small">사용자 액션과 흐름 중심의 기능 로직 + UI</text>
+  <rect x="488" y="469" width="220" height="68" class="card" fill="#FFFFFF" stroke="#E3C46B" stroke-width="2"/>
+  <text x="598" y="499" class="label" text-anchor="middle">인증</text>
+  <text x="598" y="520" class="small" text-anchor="middle">소셜 로그인, 본인 인증</text>
+  <rect x="734" y="469" width="220" height="68" class="card" fill="#FFFFFF" stroke="#E3C46B" stroke-width="2"/>
+  <text x="844" y="499" class="label" text-anchor="middle">좌석 예매</text>
+  <text x="844" y="520" class="small" text-anchor="middle">좌석 점유 수명주기, 예매 흐름</text>
+  <rect x="980" y="469" width="190" height="68" class="card" fill="#FFFFFF" stroke="#E3C46B" stroke-width="2"/>
+  <text x="1075" y="499" class="label" text-anchor="middle">리셀</text>
+  <text x="1075" y="520" class="small" text-anchor="middle">등록 보조 정보, 흐름 관리</text>
+
+  <rect x="72" y="610" width="1136" height="118" class="layer" fill="#F7E6FF" stroke="#C499E6" stroke-width="2"/>
+  <text x="104" y="649" class="layer-title">entities</text>
+  <text x="104" y="675" class="small">도메인 모델, store, API 모듈, 비즈니스 타입</text>
+  <rect x="484" y="631" width="150" height="68" class="card" fill="#FFFFFF" stroke="#C499E6" stroke-width="2"/>
+  <text x="559" y="661" class="label" text-anchor="middle">경기 / 팀</text>
+  <text x="559" y="682" class="small" text-anchor="middle">일정, 구장 정보</text>
+  <rect x="658" y="631" width="150" height="68" class="card" fill="#FFFFFF" stroke="#C499E6" stroke-width="2"/>
+  <text x="733" y="661" class="label" text-anchor="middle">좌석</text>
+  <text x="733" y="682" class="small" text-anchor="middle">좌석, 점유, 선택 상태</text>
+  <rect x="832" y="631" width="150" height="68" class="card" fill="#FFFFFF" stroke="#C499E6" stroke-width="2"/>
+  <text x="907" y="661" class="label" text-anchor="middle">주문 / 결제</text>
+  <text x="907" y="682" class="small" text-anchor="middle">order, payment, ticket</text>
+  <rect x="1006" y="631" width="150" height="68" class="card" fill="#FFFFFF" stroke="#C499E6" stroke-width="2"/>
+  <text x="1081" y="661" class="label" text-anchor="middle">인증 / 사용자</text>
+  <text x="1081" y="682" class="small" text-anchor="middle">member, auth store</text>
+
+  <rect x="72" y="772" width="1136" height="108" class="layer" fill="#E8EEF5" stroke="#9FB3C8" stroke-width="2"/>
+  <text x="104" y="811" class="layer-title">shared</text>
+  <text x="104" y="837" class="small">공통 인프라: API client, config, util, UI kit, widgets, hooks</text>
+  <text x="104" y="859" class="small">공통 인프라는 모든 계층에서 재사용</text>
+  <rect x="802" y="795" width="116" height="50" class="card" fill="#FFFFFF" stroke="#9FB3C8" stroke-width="2"/>
+  <text x="860" y="825" class="label" text-anchor="middle">api</text>
+  <rect x="934" y="795" width="116" height="50" class="card" fill="#FFFFFF" stroke="#9FB3C8" stroke-width="2"/>
+  <text x="992" y="825" class="label" text-anchor="middle">lib / config</text>
+  <rect x="1066" y="795" width="116" height="50" class="card" fill="#FFFFFF" stroke="#9FB3C8" stroke-width="2"/>
+  <text x="1124" y="825" class="label" text-anchor="middle">ui / widgets</text>
+
+  <path d="M640 248V278" stroke="#4F6D8A" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M640 406V440" stroke="#4F6D8A" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M640 568V602" stroke="#4F6D8A" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M640 730V764" stroke="#4F6D8A" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+
+  <text x="665" y="266" class="small">조합</text>
+  <text x="665" y="423" class="small">실행</text>
+  <text x="665" y="585" class="small">사용</text>
+  <text x="665" y="747" class="small">의존</text>
+
+  <text x="72" y="36" opacity="0">.</text>
+</svg>
