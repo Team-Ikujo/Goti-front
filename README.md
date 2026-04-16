@@ -1,12 +1,8 @@
 # Goti Frontend
 
-<table align="center">
-  <tr>
-    <td bgcolor="#FFFFFF" style="border-radius: 16px; padding: 18px 28px;">
-      <img src="./public/Logo/logo.svg" alt="Goti logo" width="180" />
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <img src="./public/Logo/logo.svg" alt="Goti logo" width="180" style="background: #FFFFFF; padding: 18px 28px; border-radius: 16px;" />
+</p>
 
 <p align="center">
   야구 경기 예매, 대기열, 좌석 선택, 결제, 리셀 흐름을 다루는 Goti 프론트엔드입니다.
