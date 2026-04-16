@@ -1,7 +1,7 @@
 # Goti Frontend
 
 <p align="center">
-  <img src="./public/Logo/logo.svg" alt="Goti logo" width="180" style="background: #FFFFFF; padding: 18px 28px; border-radius: 16px;" />
+  <img src="./public/Logo/logo.svg" alt="Goti logo" width="180" />
 </p>
 
 <p align="center">
