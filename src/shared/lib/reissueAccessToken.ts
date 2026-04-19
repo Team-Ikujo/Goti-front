@@ -40,8 +40,11 @@ export const reissueAccessTokenFromCookie = async (): Promise<string> => {
         return data.accessToken;
       })
       .catch((error: unknown) => {
-        if (!useAuthStore.getState().isManualLogout) {
-          useAuthStore.getState().clearAuth('expired');
+        const state = useAuthStore.getState();
+        // 최초 방문자(currentUserId === null)는 refresh token 자체가 없어 401이 정상 응답이므로
+        // 세션 만료로 처리하지 않는다. 이전에 로그인했던 흔적이 있을 때만 'expired'로 간주한다.
+        if (!state.isManualLogout && state.currentUserId !== null) {
+          state.clearAuth('expired');
         }
 
         throw error;
