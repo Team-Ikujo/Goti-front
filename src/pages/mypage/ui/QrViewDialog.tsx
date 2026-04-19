@@ -1,6 +1,6 @@
 // src/pages/mypage/ui/QrViewDialog.tsx
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { QRCodeCanvas } from '@rc-component/qrcode';
 import { ChevronLeft, ChevronRight, RefreshCcw, Clock } from 'lucide-react';
@@ -20,6 +20,7 @@ interface QrViewDialogProps {
    open: boolean;
    onClose: () => void;
    seats: QrSeat[];
+   disableQrTokenFetch?: boolean;
    isTicketInfoLoading?: boolean;
    isTicketInfoError?: boolean;
    onRetryTicketInfo?: () => void;
@@ -35,6 +36,7 @@ export default function QrViewDialog({
    open,
    onClose,
    seats,
+   disableQrTokenFetch = false,
    isTicketInfoLoading = false,
    isTicketInfoError = false,
    onRetryTicketInfo,
@@ -47,13 +49,21 @@ export default function QrViewDialog({
    const qrQuery = useQuery({
       queryKey: ['ticketQr', currentSeat?.ticketId, refreshNonce],
       queryFn: () => fetchTicketQr(currentSeat!.ticketId!),
-      enabled: open && Boolean(currentSeat?.ticketId),
+      enabled: open && Boolean(currentSeat?.ticketId) && !disableQrTokenFetch,
       retry: false,
       staleTime: 0,
    });
-   const effectiveLoading = isTicketInfoLoading || (Boolean(currentSeat?.ticketId) && qrQuery.isLoading);
-   const effectiveError = isTicketInfoError || (Boolean(currentSeat?.ticketId) && qrQuery.isError);
-   const qrValue = qrQuery.data?.qrToken;
+   const effectiveLoading =
+      isTicketInfoLoading || (Boolean(currentSeat?.ticketId) && !disableQrTokenFetch && qrQuery.isLoading);
+   const effectiveError =
+      isTicketInfoError || (Boolean(currentSeat?.ticketId) && !disableQrTokenFetch && qrQuery.isError);
+   const qrValue = useMemo(() => {
+      if (disableQrTokenFetch && currentSeat?.ticketId) {
+         return `mock-resale-qr:${currentSeat.ticketId}:${refreshNonce}`;
+      }
+
+      return qrQuery.data?.qrToken;
+   }, [currentSeat?.ticketId, disableQrTokenFetch, qrQuery.data?.qrToken, refreshNonce]);
 
    // 팝업 열릴 때 초기화
    useEffect(() => {
