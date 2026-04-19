@@ -117,19 +117,12 @@ type EnrichedResaleListingItem = ResaleListingItem & {
 
 const mergeResaleListings = (
    apiListings: EnrichedResaleListingItem[],
-   storedListings: StoredResaleListingItem[],
+   _storedListings: StoredResaleListingItem[],
 ): EnrichedResaleListingItem[] => {
-   const merged = new Map<string, EnrichedResaleListingItem>();
-
-   for (const listing of storedListings) {
-      merged.set(listing.listingId, listing);
-   }
-
-   for (const listing of apiListings) {
-      merged.set(listing.listingId, listing);
-   }
-
-   return Array.from(merged.values()).sort((left, right) =>
+   // BE 응답이 source of truth. localStorage 는 catch 블록의 BE 실패 fallback 전용.
+   // 과거 구현은 stored merge 로 인해 BE 에 없는 stale listingId 가 UI 에 남았고,
+   // cancel 시도 시 LISTING_NOT_FOUND 404 가 발생했음.
+   return apiListings.slice().sort((left, right) =>
       (right.orderCreatedAt ?? right.listedAt).localeCompare(left.orderCreatedAt ?? left.listedAt),
    );
 };
