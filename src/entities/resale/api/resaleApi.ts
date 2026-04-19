@@ -2,6 +2,7 @@
 
 import apiClient from '@/shared/api/client';
 import type { ApiEnvelope } from '@/features/auth/api/types';
+import { useAuthStore } from '@/entities/auth/model/authStore';
 import { buildBookingApiPath } from '@/shared/lib/bookingApiPath';
 import { createBookingFlowHeaders } from '@/shared/lib/guardrailHeaders';
 import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/api';
@@ -31,7 +32,7 @@ export interface ResaleListingItem {
    seatInfo: string;
    dailyBasePrice: number;
    listingPrice: number;
-   listingStatus: 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCEL_REQUESTED' | 'CANCELED';
+   listingStatus: 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCELED';
    availableStatus: 'ENABLED' | 'DISABLED';
    lastTransactionPrice?: number;
    listedAt: string;
@@ -97,12 +98,19 @@ export const releaseResaleListingHoldKeepalive = (holdId: string) => {
       return;
    }
 
+   // keepalive fetch 는 axios interceptor 를 거치지 않으므로 Authorization 헤더를 직접 첨부한다.
+   const accessToken = useAuthStore.getState().accessToken;
+   const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...createBookingFlowHeaders(),
+   };
+   if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+   }
+
    void fetch(getResaleHoldReleaseUrl(holdId), {
       method: 'PATCH',
-      headers: {
-         'Content-Type': 'application/json',
-         ...createBookingFlowHeaders(),
-      },
+      headers,
       credentials: 'omit',
       keepalive: true,
    });
@@ -191,7 +199,7 @@ export interface ResaleListingDetail {
    ticketNumber?: string;
    seatInfo: string;
    listingPrice: number;
-   listingStatus: 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCEL_REQUESTED' | 'CANCELED';
+   listingStatus: 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCELED';
    listedAt: string;
    canceledAt?: string;
    gameTitle: string;

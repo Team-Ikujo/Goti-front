@@ -1,6 +1,6 @@
 import type { ZoneItem, SeatItem } from '@/pages/books/model/types';
 
-type DemoListingStatus = 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCEL_REQUESTED' | 'CANCELED';
+type DemoListingStatus = 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCELED';
 type DemoAvailableStatus = 'ENABLED' | 'DISABLED';
 type DemoOrderStatus = 'PENDING' | 'COMPLETED';
 type DemoPaymentMethod = 'CARD' | 'ACCOUNT_TRANSFER';

@@ -280,11 +280,19 @@ export const releaseResaleHoldKeepalive = (holdId: string) => {
       return;
    }
 
+   // keepalive fetch 는 axios interceptor 를 거치지 않으므로 Authorization 헤더를 직접 첨부한다.
+   // 토큰 없으면 서버가 401 로 거부하지만 hold TTL 로도 해제되므로 UX 영향은 없다.
+   const accessToken = useAuthStore.getState().accessToken;
+   const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+   };
+   if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+   }
+
    void fetch(getResaleHoldReleaseUrl(holdId), {
       method: 'PATCH',
-      headers: {
-         'Content-Type': 'application/json',
-      },
+      headers,
       credentials: 'omit',
       keepalive: true,
    });

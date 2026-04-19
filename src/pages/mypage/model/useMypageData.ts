@@ -98,7 +98,6 @@ const mapSaleStatus = (status: ResaleListingItem['listingStatus']): SaleStatus =
       case 'HOLD':    return '판매 중';
       case 'SOLD':    return '정산 대기';
       case 'SETTLED': return '판매 완료';
-      case 'CANCEL_REQUESTED': return '취소 대기';
       case 'CANCELED': return '취소 완료';
       default: return '판매 중';
    }
@@ -433,7 +432,7 @@ export const useMyResaleListData = () => {
             salePrice: listing.listingPrice,
             saleStatus: mapSaleStatus(listing.listingStatus),
             deliveryType: '모바일 티켓',
-            canCancel: listing.listingStatus === 'LISTING' || listing.listingStatus === 'CANCEL_REQUESTED',
+            canCancel: listing.listingStatus === 'LISTING',
          }));
       },
    });

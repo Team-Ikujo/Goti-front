@@ -824,7 +824,7 @@ type ResaleListing = {
    sellerId: string;
    seatInfo: string;
    listingPrice: number;
-   listingStatus: 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCEL_REQUESTED' | 'CANCELED';
+   listingStatus: 'LISTING' | 'HOLD' | 'SOLD' | 'SETTLED' | 'CANCELED';
    listedAt: string;
    canceledAt?: string;
    // 경기 정보 (티켓에서 복사)
@@ -1558,7 +1558,7 @@ export const paymentHandlers = [
             availableStatus: 'ENABLED',
             listedAt: listing.listedAt,
             canceledAt: listing.canceledAt,
-            isCancelable: listing.listingStatus === 'LISTING' || listing.listingStatus === 'CANCEL_REQUESTED',
+            isCancelable: listing.listingStatus === 'LISTING',
             maxPrice: 999999,
             gameTitle: listing.gameTitle ?? '',
             gameDate: listing.gameDate ?? '',
@@ -2593,7 +2593,7 @@ export const paymentHandlers = [
                   listingStatus: seededListing.listingStatus,
                   availableStatus: listing.availableStatus,
                   listedAt: seededListing.listedAt,
-                  isCancelable: seededListing.listingStatus === 'LISTING' || seededListing.listingStatus === 'CANCEL_REQUESTED',
+                  isCancelable: seededListing.listingStatus === 'LISTING',
                   isPurchasable: listing.isPurchasable,
                   minPrice: listing.minPrice,
                   maxPrice: listing.maxPrice,
@@ -2616,7 +2616,7 @@ export const paymentHandlers = [
          listingStatus: l.listingStatus,
          availableStatus: 'ENABLED',
          listedAt: l.listedAt,
-         isCancelable: l.listingStatus === 'LISTING' || l.listingStatus === 'CANCEL_REQUESTED',
+         isCancelable: l.listingStatus === 'LISTING',
          isPurchasable: l.listingStatus === 'LISTING',
          minPrice: 0,
          maxPrice: 999999,
@@ -2667,7 +2667,7 @@ export const paymentHandlers = [
          return buildErrorResponse('Listing not found.', 404);
       }
 
-      if (listing.listingStatus !== 'LISTING' && listing.listingStatus !== 'CANCEL_REQUESTED') {
+      if (listing.listingStatus !== 'LISTING') {
          return buildErrorResponse('Cannot cancel this listing.', 400);
       }
 
