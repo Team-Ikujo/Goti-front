@@ -169,10 +169,25 @@ const QueuePage = () => {
     [routeBookingEntryState, storedBookingEntryState],
   );
   const bookingFlowMode = bookingEntryState?.bookingFlowMode ?? 'standard';
-  const isFakeDemo = useMemo(
-    () => new URLSearchParams(location.search).get('demo') === '1',
-    [location.search],
-  );
+  // 데모 모드 플래그는 sessionStorage 로 고정해서, ?demo=1 로 한 번 진입하면
+  // 이후 예매 버튼 → /queue 이동처럼 쿼리가 유실된 경로에서도 같은 탭 내내 유지된다.
+  // ?demo=0 으로 진입하면 플래그 해제.
+  const isFakeDemo = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const queryValue = new URLSearchParams(location.search).get('demo');
+
+    if (queryValue === '1') {
+      window.sessionStorage.setItem('queue-demo-mode', '1');
+      return true;
+    }
+
+    if (queryValue === '0') {
+      window.sessionStorage.removeItem('queue-demo-mode');
+      return false;
+    }
+
+    return window.sessionStorage.getItem('queue-demo-mode') === '1';
+  }, [location.search]);
 
   const [phase, setPhase] = useState<QueuePhase>('entering');
   const [queueToken, setQueueToken] = useState<string | null>(bookingEntryState?.queueTokenJti ?? null);
