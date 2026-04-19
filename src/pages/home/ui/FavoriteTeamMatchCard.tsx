@@ -9,6 +9,7 @@ import type { Team } from '@/entities/team/model/types';
 import { getClosestMatch, getDDay, resolveVenueRegionLabel, useGameSchedules } from '@/entities/game/model/schedule';
 import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
 import { useResaleGameStatuses } from '@/entities/resale/model/useResaleGameStatuses';
+import { isDemoBookingAllowed } from '@/shared/config/demoBookingGate';
 import { Button } from '@/shared/ui/button';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 
@@ -86,8 +87,11 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const homeTeamName = match.homeTeamFullName;
    const resaleCount = resaleCountsQuery.data?.get(match.id);
    const resaleStatus = resaleStatusesQuery.data?.get(match.id);
-   const canBook = match.ticket === '예매하기' && hasAvailableSeats(match.remainingSeatCount);
-   const canResellBook = resaleStatus === 'AVAILABLE' && typeof resaleCount === 'number' && resaleCount > 0;
+   // 시연 gate: KIA/삼성 홈경기 외 또는 시연 종료 후에는 예매/리셀 모두 비활성.
+   const demoAllowed = isDemoBookingAllowed(match.homeTeamId);
+   const canBook = demoAllowed && match.ticket === '예매하기' && hasAvailableSeats(match.remainingSeatCount);
+   const canResellBook =
+      demoAllowed && resaleStatus === 'AVAILABLE' && typeof resaleCount === 'number' && resaleCount > 0;
    const resellButtonLabel =
       resaleStatus === 'SCHEDULED'
          ? '리셀예정'

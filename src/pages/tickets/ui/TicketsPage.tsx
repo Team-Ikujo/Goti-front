@@ -6,6 +6,7 @@ import type { ResaleGameStatus } from '@/entities/resale/api/resaleApi';
 import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
 import { useResaleGameStatuses } from '@/entities/resale/model/useResaleGameStatuses';
 import { useResaleListingMarket } from '@/entities/resale/model/useResaleListingMarket';
+import { isDemoBookingAllowed } from '@/shared/config/demoBookingGate';
 import { useBookingEntryFlow } from '@/shared/lib/use-booking-entry-flow';
 import { Button } from '@/shared/ui/button';
 import { FilterSidebar } from './FilterSidebar';
@@ -88,6 +89,17 @@ const TicketsPage = () => {
             const fallbackResellStatus =
                game.resell === '리셀예매' ? '리셀 가능' : game.resell === '리셀예정' ? '리셀 예정' : '매진';
 
+            // 시연 gate: KIA/삼성 홈경기 외 또는 시연 종료 후에는 매진 상태로 강제.
+            const demoAllowed = isDemoBookingAllowed(game.homeTeamId);
+            const gatedBookingStatus = demoAllowed
+               ? game.ticket === '예매하기'
+                  ? '예매 가능'
+                  : game.ticket === '판매예정'
+                    ? '판매 예정'
+                    : '매진'
+               : '매진';
+            const gatedResellStatus = demoAllowed ? fallbackResellStatus : '매진';
+
             return {
                id: game.id,
                homeTeamId: game.homeTeamId ?? '',
@@ -100,14 +112,18 @@ const TicketsPage = () => {
                date: game.date,
                dateTime: `${game.date.replace(/-/g, '.')} ${game.time}`,
                venue: game.venue,
-               remainingSeats:
-                  game.ticket === '판매예정' ? 25000 : game.ticket === '매진' ? 0 : game.remainingSeatCount,
-               resellRemainingSeats: fallbackResellStatus === '리셀 가능' ? 999 : 0,
+               remainingSeats: demoAllowed
+                  ? game.ticket === '판매예정'
+                     ? 25000
+                     : game.ticket === '매진'
+                       ? 0
+                       : game.remainingSeatCount
+                  : 0,
+               resellRemainingSeats: gatedResellStatus === '리셀 가능' ? 999 : 0,
                minPrice: 0,
                maxPrice: 0,
-               bookingStatus:
-                  game.ticket === '예매하기' ? '예매 가능' : game.ticket === '판매예정' ? '판매 예정' : '매진',
-               resellStatus: fallbackResellStatus,
+               bookingStatus: gatedBookingStatus,
+               resellStatus: gatedResellStatus,
             };
          });
    }, [scheduleQuery.data]);
@@ -134,13 +150,16 @@ const TicketsPage = () => {
             const resaleMarket = resaleListingMarketQuery.data?.get(game.id);
             const resaleCount = resaleCountsQuery.data?.get(game.id) ?? resaleMarket?.count;
             const resaleStatus = resaleStatusesQuery.data?.get(game.id);
+            const demoAllowed = isDemoBookingAllowed(game.homeTeamId);
 
             return {
                ...game,
-               resellRemainingSeats: resaleCount ?? game.resellRemainingSeats,
-               minPrice: resaleMarket?.minPrice ?? game.minPrice,
-               maxPrice: resaleMarket?.maxPrice ?? game.maxPrice,
-               resellStatus: getResellStatus(resaleStatus, resaleCount, fallbackResellStatus),
+               resellRemainingSeats: demoAllowed ? (resaleCount ?? game.resellRemainingSeats) : 0,
+               minPrice: demoAllowed ? (resaleMarket?.minPrice ?? game.minPrice) : game.minPrice,
+               maxPrice: demoAllowed ? (resaleMarket?.maxPrice ?? game.maxPrice) : game.maxPrice,
+               resellStatus: demoAllowed
+                  ? getResellStatus(resaleStatus, resaleCount, fallbackResellStatus)
+                  : '매진',
             };
          }),
       [resaleCountsQuery.data, resaleListingMarketQuery.data, resaleStatusesQuery.data, visibleGames],

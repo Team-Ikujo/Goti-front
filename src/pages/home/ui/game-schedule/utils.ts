@@ -1,3 +1,4 @@
+import { isDemoBookingAllowed } from '@/shared/config/demoBookingGate';
 import {
    TAB_ALL,
    TAB_TODAY,
@@ -122,7 +123,15 @@ export const getEffectiveSaleStatuses = (game: GameRow, now = new Date()): Effec
       (saleOpenTimeMs === undefined || nowMs >= saleOpenTimeMs) && (saleEndTimeMs === undefined || nowMs <= saleEndTimeMs);
    const resellNowOpen = resellOpenTimeMs !== undefined && nowMs >= resellOpenTimeMs;
 
+   // 시연 gate: 허용된 홈팀(KIA/삼성)이 아니거나 시연 기간 종료 시 모든 예매/리셀을 매진 처리해
+   // 별도 안내 없이 기존 매진 UI 로 자연스럽게 흡수시킨다.
+   const demoAllowed = isDemoBookingAllowed(game.homeTeamId, nowMs);
+
    const effectiveTicket: TicketStatus = (() => {
+      if (!demoAllowed) {
+         return '매진';
+      }
+
       if (game.ticket === '매진') {
          return game.ticket;
       }
@@ -146,8 +155,13 @@ export const getEffectiveSaleStatuses = (game: GameRow, now = new Date()): Effec
       return game.ticket;
    })();
 
-   const effectiveResell: ReselStatus =
-      game.resell === '리셀예정' && resellNowOpen ? '리셀예매' : game.resell;
+   const effectiveResell: ReselStatus = (() => {
+      if (!demoAllowed) {
+         return '리셀매진';
+      }
+
+      return game.resell === '리셀예정' && resellNowOpen ? '리셀예매' : game.resell;
+   })();
 
    return {
       effectiveTicket,
