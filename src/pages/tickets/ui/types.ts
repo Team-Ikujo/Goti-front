@@ -24,6 +24,9 @@ export interface GameItem {
    maxPrice: number;
    bookingStatus: BookingStatus;
    resellStatus: ResellStatus;
+   // 리셀 창 판정용 (정식 예매 오픈 +2h ~ 경기 시작 -2h)
+   ticketingOpenedAtMs?: number;
+   gameStartAtMs?: number;
 }
 
 export interface FilterState {

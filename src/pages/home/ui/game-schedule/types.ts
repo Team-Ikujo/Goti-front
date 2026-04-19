@@ -16,6 +16,8 @@ export type GameRow = {
    ticketingOpenedAtMs?: number;
    ticketingEndAtMs?: number;
    resellOpenedAtMs?: number;
+   resellEndAtMs?: number;
+   gameStartAtMs?: number;
    remainingSeatCount: number;
    time: string;
    venue: string;

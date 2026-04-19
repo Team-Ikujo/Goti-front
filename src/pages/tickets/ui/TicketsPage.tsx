@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, SlidersHorizontal } from 'lucide-react';
 
 import { useGameSchedules } from '@/entities/game/model/schedule';
+import { getResaleWindowState } from '@/entities/game/model/resaleWindow';
 import type { ResaleGameStatus } from '@/entities/resale/api/resaleApi';
 import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
 import { useResaleGameStatuses } from '@/entities/resale/model/useResaleGameStatuses';
@@ -124,6 +125,8 @@ const TicketsPage = () => {
                maxPrice: 0,
                bookingStatus: gatedBookingStatus,
                resellStatus: gatedResellStatus,
+               ticketingOpenedAtMs: game.ticketingOpenedAtMs,
+               gameStartAtMs: game.gameStartAtMs,
             };
          });
    }, [scheduleQuery.data]);
@@ -151,15 +154,23 @@ const TicketsPage = () => {
             const resaleCount = resaleCountsQuery.data?.get(game.id) ?? resaleMarket?.count;
             const resaleStatus = resaleStatusesQuery.data?.get(game.id);
             const demoAllowed = isDemoBookingAllowed(game.homeTeamId);
+            const resaleWindow = getResaleWindowState(game.ticketingOpenedAtMs, game.gameStartAtMs);
+
+            const gatedResellStatus: ResellStatus = !demoAllowed
+               ? '매진'
+               : resaleWindow === 'before-open'
+                 ? '리셀 예정'
+                 : resaleWindow === 'closed'
+                   ? '매진'
+                   : getResellStatus(resaleStatus, resaleCount, fallbackResellStatus);
+            const resaleBookable = demoAllowed && resaleWindow === 'open';
 
             return {
                ...game,
-               resellRemainingSeats: demoAllowed ? (resaleCount ?? game.resellRemainingSeats) : 0,
-               minPrice: demoAllowed ? (resaleMarket?.minPrice ?? game.minPrice) : game.minPrice,
-               maxPrice: demoAllowed ? (resaleMarket?.maxPrice ?? game.maxPrice) : game.maxPrice,
-               resellStatus: demoAllowed
-                  ? getResellStatus(resaleStatus, resaleCount, fallbackResellStatus)
-                  : '매진',
+               resellRemainingSeats: resaleBookable ? (resaleCount ?? game.resellRemainingSeats) : 0,
+               minPrice: resaleBookable ? (resaleMarket?.minPrice ?? game.minPrice) : game.minPrice,
+               maxPrice: resaleBookable ? (resaleMarket?.maxPrice ?? game.maxPrice) : game.maxPrice,
+               resellStatus: gatedResellStatus,
             };
          }),
       [resaleCountsQuery.data, resaleListingMarketQuery.data, resaleStatusesQuery.data, visibleGames],

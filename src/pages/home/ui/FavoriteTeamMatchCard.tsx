@@ -7,6 +7,7 @@ import { hasAvailableSeats } from '@/entities/game/model/seatAvailability';
 import { teams } from '@/entities/team/model/teams';
 import type { Team } from '@/entities/team/model/types';
 import { getClosestMatch, getDDay, resolveVenueRegionLabel, useGameSchedules } from '@/entities/game/model/schedule';
+import { getResaleWindowState } from '@/entities/game/model/resaleWindow';
 import { useResaleGameCounts } from '@/entities/resale/model/useResaleGameCounts';
 import { useResaleGameStatuses } from '@/entities/resale/model/useResaleGameStatuses';
 import { isDemoBookingAllowed } from '@/shared/config/demoBookingGate';
@@ -89,19 +90,39 @@ const FavoriteTeamMatchCard = ({ team }: { team: Team }) => {
    const resaleStatus = resaleStatusesQuery.data?.get(match.id);
    // 시연 gate: KIA/삼성 홈경기 외 또는 시연 종료 후에는 예매/리셀 모두 비활성.
    const demoAllowed = isDemoBookingAllowed(match.homeTeamId);
+   // 리셀 창: 정식 예매 오픈 +2h ~ 경기 시작 -2h 외 시간대는 구매 불가.
+   const resaleWindow = getResaleWindowState(match.ticketingOpenedAtMs, match.gameStartAtMs);
+   const resaleWindowOpen = resaleWindow === 'open';
    const canBook = demoAllowed && match.ticket === '예매하기' && hasAvailableSeats(match.remainingSeatCount);
    const canResellBook =
-      demoAllowed && resaleStatus === 'AVAILABLE' && typeof resaleCount === 'number' && resaleCount > 0;
-   const resellButtonLabel =
-      resaleStatus === 'SCHEDULED'
-         ? '리셀예정'
-         : resaleStatus === 'UNAVAILABLE'
-           ? '리셀매진'
-           : canResellBook
-             ? '리셀예매'
-             : match.resell === '리셀예정'
-               ? '리셀예정'
-               : '리셀매진';
+      demoAllowed &&
+      resaleWindowOpen &&
+      resaleStatus === 'AVAILABLE' &&
+      typeof resaleCount === 'number' &&
+      resaleCount > 0;
+   const resellButtonLabel = (() => {
+      if (resaleWindow === 'before-open') {
+         return '리셀예정';
+      }
+
+      if (resaleWindow === 'closed') {
+         return '리셀매진';
+      }
+
+      if (resaleStatus === 'SCHEDULED') {
+         return '리셀예정';
+      }
+
+      if (resaleStatus === 'UNAVAILABLE') {
+         return '리셀매진';
+      }
+
+      if (canResellBook) {
+         return '리셀예매';
+      }
+
+      return match.resell === '리셀예정' ? '리셀예정' : '리셀매진';
+   })();
 
    const handleBookingClick = () => {
       if (!canBook) {

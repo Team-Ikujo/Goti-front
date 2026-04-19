@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { buildMockQueueTokenJti } from '@/shared/config/booking';
 import type { ApiLeagueType } from '@/shared/types/game';
 import { hasAvailableSeats } from '@/entities/game/model/seatAvailability';
+import { getResaleCloseAtMs, getResaleOpenAtMs } from '@/entities/game/model/resaleWindow';
 import {
   fetchBaseballTeamDetails,
   fetchGameSchedules,
@@ -41,6 +42,8 @@ export type NormalizedScheduleGame = {
   ticketingOpenedAtMs?: number;
   ticketingEndAtMs?: number;
   resellOpenedAtMs?: number;
+  resellEndAtMs?: number;
+  gameStartAtMs?: number;
   remainingSeatCount: number;
 };
 
@@ -319,12 +322,13 @@ const parseScheduleBoundary = (value?: string) => {
 
 const toTimestamp = (value?: string) => parseScheduleBoundary(value)?.getTime();
 
-const getResellOpenTimestamp = (date?: string) => {
-  if (!date) {
+// 경기 시작 시각 (로컬 타임존 기반의 date + time 조합).
+const getGameStartTimestamp = (date?: string, time?: string) => {
+  if (!date || !time) {
     return undefined;
   }
 
-  const parsedDate = new Date(`${date}T13:00:00`);
+  const parsedDate = new Date(`${date}T${time}`);
   return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate.getTime();
 };
 
@@ -462,7 +466,9 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
   const status: GameStatus = (apiStatus !== '종료' && gameDateTime && gameDateTime < new Date()) ? '종료' : apiStatus;
   const ticketingOpenedAtMs = toTimestamp(game.ticketingOpenedAt);
   const ticketingEndAtMs = toTimestamp(game.ticketingEndAt);
-  const resellOpenedAtMs = getResellOpenTimestamp(date);
+  const gameStartAtMs = getGameStartTimestamp(date, time);
+  const resellOpenedAtMs = getResaleOpenAtMs(ticketingOpenedAtMs);
+  const resellEndAtMs = getResaleCloseAtMs(gameStartAtMs);
 
   const ticket = closeTicketStatusForUnavailableGame(
     closeTicketStatusForEmptyInventory(mapTicketStatus(game.ticketingStatus), game.remainingSeatCount),
@@ -500,6 +506,8 @@ const normalizeScheduleGame = (game: GameScheduleResponse): NormalizedScheduleGa
     ticketingOpenedAtMs,
     ticketingEndAtMs,
     resellOpenedAtMs,
+    resellEndAtMs,
+    gameStartAtMs,
     remainingSeatCount: game.remainingSeatCount,
   };
 };
@@ -528,6 +536,8 @@ export const mapGamesToDaySchedules = (games: NormalizedScheduleGame[]): DaySche
       ticketingOpenedAtMs: game.ticketingOpenedAtMs,
       ticketingEndAtMs: game.ticketingEndAtMs,
       resellOpenedAtMs: game.resellOpenedAtMs,
+      resellEndAtMs: game.resellEndAtMs,
+      gameStartAtMs: game.gameStartAtMs,
       time: game.time,
       venue: game.venue,
       away: game.awayTeamName,

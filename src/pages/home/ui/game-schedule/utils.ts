@@ -117,11 +117,16 @@ export const getEffectiveSaleStatuses = (game: GameRow, now = new Date()): Effec
    const saleOpenTimeMs = game.ticketingOpenedAtMs;
    const saleEndTimeMs = game.ticketingEndAtMs;
    const resellOpenTimeMs = game.resellOpenedAtMs;
+   const resellEndTimeMs = game.resellEndAtMs;
    const saleBeforeOpen = saleOpenTimeMs !== undefined && nowMs < saleOpenTimeMs;
    const saleClosed = saleEndTimeMs !== undefined && nowMs > saleEndTimeMs;
    const saleWithinWindow =
       (saleOpenTimeMs === undefined || nowMs >= saleOpenTimeMs) && (saleEndTimeMs === undefined || nowMs <= saleEndTimeMs);
-   const resellNowOpen = resellOpenTimeMs !== undefined && nowMs >= resellOpenTimeMs;
+
+   // 리셀 창: 정식 예매 오픈 +2시간 ~ 경기 시작 -2시간.
+   // 경계값이 없으면 해당 경계는 체크하지 않는다 (서버 스케줄 데이터 부재 fallback).
+   const resellBeforeOpen = resellOpenTimeMs !== undefined && nowMs < resellOpenTimeMs;
+   const resellClosed = resellEndTimeMs !== undefined && nowMs >= resellEndTimeMs;
 
    // 시연 gate: 허용된 홈팀(KIA/삼성)이 아니거나 시연 기간 종료 시 모든 예매/리셀을 매진 처리해
    // 별도 안내 없이 기존 매진 UI 로 자연스럽게 흡수시킨다.
@@ -160,7 +165,17 @@ export const getEffectiveSaleStatuses = (game: GameRow, now = new Date()): Effec
          return '리셀매진';
       }
 
-      return game.resell === '리셀예정' && resellNowOpen ? '리셀예매' : game.resell;
+      // 경기 시작 2시간 전 이후는 리셀 창구 폐쇄.
+      if (resellClosed) {
+         return '리셀매진';
+      }
+
+      // 정식 예매 오픈 2시간 전까지는 리셀 예정.
+      if (resellBeforeOpen) {
+         return '리셀예정';
+      }
+
+      return game.resell === '리셀예정' ? '리셀예매' : game.resell;
    })();
 
    return {
