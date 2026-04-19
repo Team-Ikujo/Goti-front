@@ -42,6 +42,7 @@ import {
 import MypageLayout from '@/shared/widgets/layout/mypage/MypageLayout';
 import AuthSessionController from './AuthSessionController';
 import BookingFlowStateGuard from './BookingFlowStateGuard';
+import DemoModeController from './DemoModeController';
 import OAuthMessageListener from './OAuthMessageListener';
 import SessionExpiredPage from '@/pages/session-expired/ui/SessionExpiredPage';
 import MacroDashboardPage from '@/pages/macro-dashboard';
@@ -49,6 +50,7 @@ import MacroDashboardPage from '@/pages/macro-dashboard';
 const AppRouter = () => {
    return (
       <BrowserRouter>
+         <DemoModeController />
          <AuthSessionController />
          <OAuthMessageListener />
          <BookingFlowStateGuard />
