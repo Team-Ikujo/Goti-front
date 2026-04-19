@@ -3,7 +3,9 @@ import { isMswEnabled } from '@/shared/config/runtime';
 import { useBookingEntryStore } from '@/shared/lib/useBookingEntryStore';
 
 const API_PREFIX = '/api/';
-const shouldScopeBookingApiPath = !isMswEnabled;
+// 2026-04-19 GCP-only shutdown: teamCode 라우팅 비활성화 (Worker 제거 + api.go-ti.shop 직통).
+// deploy/prod 브랜치 전용 패치 — AWS 복구 시 develop 재 merge 하여 원복.
+const shouldScopeBookingApiPath = false;
 
 const normalizeTeamCode = (teamCode?: string) => {
    const trimmedValue = teamCode?.trim();
