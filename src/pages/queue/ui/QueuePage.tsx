@@ -139,6 +139,17 @@ const QueueIllustration = () => {
   );
 };
 
+// 영상 촬영용 임시 데모 모드. /queue?demo=1 로 접근 시 가짜 카운트다운이 동작한다.
+// TODO(ress): 영상 촬영 후 revert.
+const DEMO_INITIAL_QUEUE_MIN = 94_000;
+const DEMO_INITIAL_QUEUE_MAX = 96_000;
+const DEMO_TICK_MIN_MS = 200;
+const DEMO_TICK_MAX_MS = 900;
+const DEMO_STEP_MIN = 80;
+const DEMO_STEP_MAX = 700;
+
+const pickBetween = (min: number, max: number) => min + Math.random() * (max - min);
+
 const QueuePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -153,6 +164,10 @@ const QueuePage = () => {
     [routeBookingEntryState, storedBookingEntryState],
   );
   const bookingFlowMode = bookingEntryState?.bookingFlowMode ?? 'standard';
+  const isFakeDemo = useMemo(
+    () => new URLSearchParams(location.search).get('demo') === '1',
+    [location.search],
+  );
 
   const [phase, setPhase] = useState<QueuePhase>('entering');
   const [queueToken, setQueueToken] = useState<string | null>(bookingEntryState?.queueTokenJti ?? null);
@@ -173,15 +188,17 @@ const QueuePage = () => {
     }
   }, [routeBookingEntryState, setBookingEntry]);
 
-  // bookingEntryState 없으면 홈으로
+  // bookingEntryState 없으면 홈으로 (데모 모드에선 가드 우회)
   useEffect(() => {
+    if (isFakeDemo) return;
     if (!bookingEntryState) {
       navigate('/', { replace: true });
     }
-  }, [bookingEntryState, navigate]);
+  }, [isFakeDemo, bookingEntryState, navigate]);
 
   // 1단계: 대기열 진입
   useEffect(() => {
+    if (isFakeDemo) return;
     if (!gameId || !hasHydrated || !hasResolvedSession) return;
 
     let cancelled = false;
@@ -207,12 +224,13 @@ const QueuePage = () => {
     return () => {
       cancelled = true;
     };
-  }, [gameId, hasHydrated, hasResolvedSession]);
+  }, [gameId, hasHydrated, hasResolvedSession, isFakeDemo]);
 
   // 언마운트 시 대기열 이탈 (입장 허용 전에만)
   // cleanup에서는 apiClient 사용 (MSW 가로채기 가능)
   // 실제 페이지 닫기(beforeunload)에서는 keepalive fetch 사용
   useEffect(() => {
+    if (isFakeDemo) return;
     if (!gameId) return;
 
     const handleBeforeUnload = () => {
@@ -233,10 +251,11 @@ const QueuePage = () => {
         scheduleQueueLeave(gameId);
       }
     };
-  }, [gameId]);
+  }, [gameId, isFakeDemo]);
 
   // 2단계: 실시간 대기열 상태 polling
   useEffect(() => {
+    if (isFakeDemo) return;
     if (phase !== 'waiting' || !gameId || queueNumber === null) return;
 
     const poll = async () => {
@@ -259,10 +278,11 @@ const QueuePage = () => {
     return () => {
       window.clearInterval(timerId);
     };
-  }, [phase, gameId, queueNumber]);
+  }, [phase, gameId, queueNumber, isFakeDemo]);
 
   // 3단계: 최종 입장 시도
   useEffect(() => {
+    if (isFakeDemo) return;
     if (phase !== 'checking' || !gameId || !queueToken || !hasHydrated || !hasResolvedSession) return;
     if (seatEnterInFlightRef.current) return;
 
@@ -318,7 +338,46 @@ const QueuePage = () => {
     return () => {
       cancelled = true;
     };
-  }, [phase, gameId, queueToken, patchEntry, navigate, bookingFlowMode, bookingEntryState, hasHydrated, hasResolvedSession]);
+  }, [phase, gameId, queueToken, patchEntry, navigate, bookingFlowMode, bookingEntryState, hasHydrated, hasResolvedSession, isFakeDemo]);
+
+  // 영상 촬영용 데모 카운트다운: 95000 근처에서 시작해 랜덤 간격/스텝으로 0까지 감소.
+  // 실제 API는 호출하지 않고 순수 UI 시뮬레이션만 수행한다.
+  useEffect(() => {
+    if (!isFakeDemo) return;
+
+    const initialNumber = Math.round(pickBetween(DEMO_INITIAL_QUEUE_MIN, DEMO_INITIAL_QUEUE_MAX));
+    setPhase('waiting');
+    setQueueToken('demo-token');
+    setQueueNumber(initialNumber);
+    setCurrentAllowedRank(0);
+
+    let allowed = 0;
+    let timerId: number | null = null;
+    let cancelled = false;
+
+    const tick = () => {
+      if (cancelled) return;
+
+      const step = Math.round(pickBetween(DEMO_STEP_MIN, DEMO_STEP_MAX));
+      allowed = Math.min(allowed + step, initialNumber);
+      setCurrentAllowedRank(allowed);
+
+      if (allowed >= initialNumber) {
+        return;
+      }
+
+      timerId = window.setTimeout(tick, pickBetween(DEMO_TICK_MIN_MS, DEMO_TICK_MAX_MS));
+    };
+
+    timerId = window.setTimeout(tick, 500);
+
+    return () => {
+      cancelled = true;
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
+      }
+    };
+  }, [isFakeDemo]);
 
   // 표시할 대기 순서: 내 순번 - 현재 실제 허용 순번
   const displayRank = useMemo(() => {
@@ -333,7 +392,7 @@ const QueuePage = () => {
     return clamp((currentAllowedRank / queueNumber) * 100, 0, 100);
   }, [currentAllowedRank, queueNumber]);
 
-  if (!bookingEntryState) return null;
+  if (!isFakeDemo && !bookingEntryState) return null;
 
   if (phase === 'error') {
     return (
