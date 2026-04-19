@@ -90,16 +90,26 @@ const TicketsPage = () => {
             const fallbackResellStatus =
                game.resell === '리셀예매' ? '리셀 가능' : game.resell === '리셀예정' ? '리셀 예정' : '매진';
 
-            // 시연 gate: KIA/삼성 홈경기 외 또는 시연 종료 후에는 매진 상태로 강제.
+            // 시연 gate: KIA/삼성 홈경기 외 또는 시연 종료 후에는 매진으로 강제.
+            // 단, 아직 예매 오픈 전인 미래 경기는 '판매 예정' 으로 두어 오픈 시각을 노출한다.
             const demoAllowed = isDemoBookingAllowed(game.homeTeamId);
+            const nowMs = Date.now();
+            const isBookingBeforeOpen =
+               game.ticketingOpenedAtMs !== undefined && nowMs < game.ticketingOpenedAtMs;
             const gatedBookingStatus = demoAllowed
                ? game.ticket === '예매하기'
                   ? '예매 가능'
                   : game.ticket === '판매예정'
                     ? '판매 예정'
                     : '매진'
-               : '매진';
-            const gatedResellStatus = demoAllowed ? fallbackResellStatus : '매진';
+               : isBookingBeforeOpen || game.ticket === '판매예정'
+                 ? '판매 예정'
+                 : '매진';
+            const gatedResellStatus = demoAllowed
+               ? fallbackResellStatus
+               : fallbackResellStatus === '리셀 예정'
+                 ? '리셀 예정'
+                 : '매진';
 
             return {
                id: game.id,
@@ -157,7 +167,9 @@ const TicketsPage = () => {
             const resaleWindow = getResaleWindowState(game.ticketingOpenedAtMs, game.gameStartAtMs);
 
             const gatedResellStatus: ResellStatus = !demoAllowed
-               ? '매진'
+               ? resaleWindow === 'before-open'
+                  ? '리셀 예정'
+                  : '매진'
                : resaleWindow === 'before-open'
                  ? '리셀 예정'
                  : resaleWindow === 'closed'

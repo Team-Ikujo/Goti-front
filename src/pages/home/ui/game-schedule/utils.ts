@@ -134,6 +134,11 @@ export const getEffectiveSaleStatuses = (game: GameRow, now = new Date()): Effec
 
    const effectiveTicket: TicketStatus = (() => {
       if (!demoAllowed) {
+         // 시연 gate 탈락이어도 아직 예매 오픈 전인 경기는 '판매예정' 으로 표시해
+         // 오픈 시각을 노출한다. 오픈 이후 또는 경계값 미상인 경우만 매진 처리.
+         if (saleBeforeOpen || game.ticket === '판매예정') {
+            return '판매예정';
+         }
          return '매진';
       }
 
@@ -162,6 +167,10 @@ export const getEffectiveSaleStatuses = (game: GameRow, now = new Date()): Effec
 
    const effectiveResell: ReselStatus = (() => {
       if (!demoAllowed) {
+         // 리셀 오픈 전 미래 경기는 '리셀예정' 으로 표시.
+         if (resellBeforeOpen) {
+            return '리셀예정';
+         }
          return '리셀매진';
       }
 
