@@ -14,7 +14,6 @@ import { configuredApiBaseUrl, shouldUseRelativeApiBase } from '@/shared/config/
 import { buildBookingApiPath, buildBookingApiUrl } from '@/shared/lib/bookingApiPath';
 import { isResaleBookingMockEnabled, isResaleDemoEnabled } from '@/shared/config/runtime';
 import {
-   completeDemoResaleOrder,
    createDemoResaleHold,
    createDemoResaleOrder,
    createDemoResalePayment,
@@ -368,36 +367,6 @@ const createResalePayment = async (payload: ResalePaymentRequest) => {
    return response.data.data;
 };
 
-type CompleteResaleOrderResponse = {
-   orderId: string;
-   orderNumber: string;
-   buyerId: string;
-   totalAmount: number;
-   orderStatus: string;
-   items: Array<{
-      transactionId: string;
-      listingId: string;
-      ticketId?: string;
-      seatInfo: string;
-      price: number;
-   }>;
-};
-
-const completeResaleOrder = async (orderId: string, paymentId: string): Promise<CompleteResaleOrderResponse> => {
-   if (shouldUseResaleBookingMock) {
-      return completeDemoResaleOrder(orderId);
-   }
-
-   const response = await apiClient.patch<ApiEnvelope<CompleteResaleOrderResponse>>(
-      buildBookingApiPath(`/api/v1/resales/orders/${encodeURIComponent(orderId)}/complete`),
-      undefined,
-      {
-         params: { paymentId },
-      },
-   );
-   return response.data.data;
-};
-
 const buildPaymentResponse = ({
    orderType,
    amount,
@@ -577,10 +546,10 @@ export const submitResaleOrder = async (
          idempotencyKey: createClientTransactionId('resale-idempotency'),
       });
 
-      // 결제 완료 후 주문 완료 처리 — 리셀 티켓 발급 및 리스팅 SOLD 전환
-      let issuedTicketCount: number | undefined;
-      const completeResult = await completeResaleOrder(order.orderId, payment.paymentId);
-      issuedTicketCount = completeResult.items.length;
+      // payment 서비스가 내부에서 resale.CompleteOrder 를 호출해 티켓 발급/리스팅 SOLD 전환을
+      // 처리한다. 따라서 FE 에서 별도 complete 호출을 하지 않는다.
+      // 발급된 티켓 수는 결제 items 수와 동일하다.
+      const issuedTicketCount = transactionIds.length;
 
       return buildPaymentResponse({
          orderType: 'resale',
@@ -596,7 +565,6 @@ export const submitResaleOrder = async (
          gameVenue: payload.gameVenue,
          seats: [payload.seatInfo],
          resaleListingId: payload.listingId,
-         ticketId: completeResult.items[0]?.ticketId,
          issuedTicketCount,
       });
    } catch (error) {

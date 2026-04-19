@@ -416,12 +416,9 @@ export interface ResaleLedger {
 }
 
 interface ResaleLedgerPageResponse {
-   content: ResaleLedger[];
-   totalElements: number;
+   list: ResaleLedger[];
+   totalCount: number;
    totalPages: number;
-   number: number;
-   size: number;
-   empty: boolean;
 }
 
 export const fetchResaleLedgers = async (params?: {
