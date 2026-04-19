@@ -141,17 +141,13 @@ const QueueIllustration = () => {
 
 // 영상 촬영용 임시 데모 모드. /queue?demo=1 로 접근 시 가짜 카운트다운이 동작한다.
 // TODO(ress): 영상 촬영 후 revert.
-// 평균 간격 ~900ms, 평균 스텝 ~140 으로 대략 10분 내외에 걸쳐 자연스럽게 감소한다.
+// 실제 global-status polling 주기(POLL_INTERVAL_MS=2000)와 맞춰 2초 고정 간격으로 갱신.
+// 스텝 150~480 (평균 315) → 2초당 315 감소 → 약 10분에 걸쳐 95,000 → 0.
 const DEMO_INITIAL_QUEUE_MIN = 94_500;
 const DEMO_INITIAL_QUEUE_MAX = 95_500;
-const DEMO_TICK_MIN_MS = 500;
-const DEMO_TICK_MAX_MS = 1_300;
-const DEMO_STEP_MIN = 20;
-const DEMO_STEP_MAX = 260;
-// 가끔 짧게 멈춘 듯한 리듬을 주기 위한 pause tick 확률 / 지속 시간.
-const DEMO_PAUSE_PROBABILITY = 0.08;
-const DEMO_PAUSE_MIN_MS = 1_800;
-const DEMO_PAUSE_MAX_MS = 3_200;
+const DEMO_TICK_MS = 2_000;
+const DEMO_STEP_MIN = 150;
+const DEMO_STEP_MAX = 480;
 
 const pickBetween = (min: number, max: number) => min + Math.random() * (max - min);
 
@@ -365,27 +361,19 @@ const QueuePage = () => {
     const tick = () => {
       if (cancelled) return;
 
-      // 가끔은 스텝 없이 조금 쉬어가는 pause — 시각적으로 "멈춘 듯"한 긴장감 연출.
-      const isPause = Math.random() < DEMO_PAUSE_PROBABILITY;
-
-      if (!isPause) {
-        const step = Math.round(pickBetween(DEMO_STEP_MIN, DEMO_STEP_MAX));
-        allowed = Math.min(allowed + step, initialNumber);
-        setCurrentAllowedRank(allowed);
-      }
+      const step = Math.round(pickBetween(DEMO_STEP_MIN, DEMO_STEP_MAX));
+      allowed = Math.min(allowed + step, initialNumber);
+      setCurrentAllowedRank(allowed);
 
       if (allowed >= initialNumber) {
         return;
       }
 
-      const nextDelay = isPause
-        ? pickBetween(DEMO_PAUSE_MIN_MS, DEMO_PAUSE_MAX_MS)
-        : pickBetween(DEMO_TICK_MIN_MS, DEMO_TICK_MAX_MS);
-
-      timerId = window.setTimeout(tick, nextDelay);
+      timerId = window.setTimeout(tick, DEMO_TICK_MS);
     };
 
-    timerId = window.setTimeout(tick, 800);
+    // 첫 tick 도 동일하게 2초 후 — 실제 polling 진입 체감과 동일.
+    timerId = window.setTimeout(tick, DEMO_TICK_MS);
 
     return () => {
       cancelled = true;
