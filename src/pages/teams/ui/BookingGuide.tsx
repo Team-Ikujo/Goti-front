@@ -19,7 +19,7 @@ export function BookingGuide() {
                <p className="mb-2">
                   4. 예매정책{'\n'}
                   {'   '}*매수제한 : 1회 4매{'\n'}
-                  {'   '}*예매수수료 : 장당 1,000원
+                  {'   '}*예매수수료 : 장당 2,000원
                </p>
                <p className="mb-2">
                   {'   '}
