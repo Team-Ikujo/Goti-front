@@ -30,6 +30,17 @@ import { readStoredPaymentCompleteItems, type StoredPaymentCompleteItem } from '
 import { readStoredResaleListings, type StoredResaleListingItem } from '@/shared/lib/resaleListingStorage';
 import { isResaleBookingMockEnabled, isResaleDemoEnabled } from '@/shared/config/runtime';
 
+// 예매 수수료 (좌석당). 서버 ticketing.booking_fee 와 동일 값 유지 필수.
+// 주문 응답의 총액(totalAmount)에는 수수료가 포함되어 있으므로, 좌석당 순 티켓가를
+// 계산할 때 이 값을 차감한다. 리셀 판매 등록 화면의 "구매가" 표시 기준.
+const BOOKING_FEE_PER_TICKET = 2000;
+
+const calcNetUnitPrice = (totalAmount: number, quantity: number): number => {
+   if (quantity <= 0) return 0;
+   const net = totalAmount - BOOKING_FEE_PER_TICKET * quantity;
+   return Math.max(0, Math.round(net / quantity));
+};
+
 const formatDate = (dateStr: string) => {
    const date = parseDateValue(dateStr) ?? parseBookingDateTime(dateStr);
    if (!date) {
@@ -217,7 +228,7 @@ const mapStoredPaymentCompleteItemToPurchaseHistory = (item: StoredPaymentComple
       deliveryType: '모바일 티켓',
       canSell: item.orderType !== 'resale',
       ticketIds,
-      seatPrices: Array.from({ length: item.quantity }, () => Math.round(item.amount / Math.max(item.quantity, 1))),
+      seatPrices: Array.from({ length: item.quantity }, () => calcNetUnitPrice(item.amount, item.quantity)),
    };
 };
 
@@ -319,9 +330,7 @@ export const useMyOrdersData = () => {
          const seats = displaySeatInfos.length > 0
             ? displaySeatInfos.map((seatInfo) => parseSeatDetail(seatInfo))
             : Array.from({ length: order.totalQuantity }, (_, i) => `좌석${i + 1}`);
-         const unitPrice = order.totalQuantity > 0
-            ? Math.round(order.totalAmount / order.totalQuantity)
-            : 0;
+         const unitPrice = calcNetUnitPrice(order.totalAmount, order.totalQuantity);
          const seatPrices = ticketIds.map(() => unitPrice);
          const gameTitle = order.gameTitle ?? 'KBO 리그 경기';
          const stadiumName = (order.stadiumId ? STADIUM_REFERENCES[order.stadiumId]?.displayName : undefined)
