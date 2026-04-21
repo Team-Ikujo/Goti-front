@@ -179,6 +179,12 @@ const MacroDashboardPage = () => {
     ip: ipSummary.length,
     review: detections.length + mouseSessions.length,
   };
+  const detectionTypeDistribution = [
+    { type: '가드레일', count: tabCounts.detections },
+    { type: '마우스 매크로', count: tabCounts.mouse },
+    { type: 'IP 분석', count: tabCounts.ip },
+    { type: '수동 심사', count: tabCounts.review },
+  ];
 
   if (isError) {
     return (
@@ -279,7 +285,7 @@ const MacroDashboardPage = () => {
             </div>
           )}
 
-          <DashboardCharts overview={overview} />
+          <DashboardCharts overview={overview} detectionTypes={detectionTypeDistribution} />
 
           <div className="rounded-2xl border border-[var(--neutral-200)] bg-white shadow-sm">
             <div className="flex items-center gap-1 overflow-x-auto border-b border-[var(--neutral-200)] px-5 pt-4">
